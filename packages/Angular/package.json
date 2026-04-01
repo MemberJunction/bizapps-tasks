@@ -1,0 +1,46 @@
+{
+  "name": "@mj-biz-apps/tasks-ng",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "BizApps Tasks Angular components - task list, kanban, gantt, detail/edit panels",
+  "main": "dist/public-api.js",
+  "types": "dist/public-api.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["/dist"],
+  "scripts": {
+    "build": "ngc",
+    "test": "echo \"No tests configured yet\""
+  },
+  "author": "MemberJunction.com",
+  "license": "ISC",
+  "dependencies": {
+    "@mj-biz-apps/tasks-entities": "1.0.0",
+    "@mj-biz-apps/tasks-core": "1.0.0",
+    "@memberjunction/core": "5.21.0",
+    "@memberjunction/global": "5.21.0",
+    "@memberjunction/graphql-dataprovider": "5.21.0",
+    "@memberjunction/ng-shared": "5.21.0",
+    "@memberjunction/ng-shared-generic": "5.21.0",
+    "@memberjunction/ng-base-forms": "5.21.0",
+    "@memberjunction/ng-entity-viewer": "5.21.0",
+    "@memberjunction/ng-link-directives": "5.21.0",
+    "@progress/kendo-angular-layout": "22.0.1",
+    "rxjs": "^7.8.2"
+  },
+  "peerDependencies": {
+    "@angular/core": "21.1.3",
+    "@angular/common": "21.1.3",
+    "@angular/forms": "21.1.3"
+  },
+  "devDependencies": {
+    "@angular/compiler": "21.1.3",
+    "@angular/compiler-cli": "21.1.3",
+    "typescript": "^5.9.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MemberJunction/bizapps-tasks"
+  }
+}

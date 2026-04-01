@@ -1,0 +1,37 @@
+{
+  "name": "bizapps-tasks",
+  "version": "1.0.0",
+  "license": "ISC",
+  "description": "BizApps Tasks - Reusable task management app for MemberJunction business applications",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "prebuild": "node -e \"try { require.resolve('turbo') } catch (e) { console.error('\\n\\u274c Dependencies not installed. Run: npm install\\n'); process.exit(1); }\"",
+    "build": "npm run build:stream",
+    "build:stream": "turbo --log-order=stream build",
+    "build:generated": "turbo --log-order=stream build --filter=\"@mj-biz-apps/tasks-entities\" --filter=\"@mj-biz-apps/tasks-actions\"",
+    "build:packages": "turbo --log-order=stream build --filter=\"@mj-biz-apps/tasks-*\"",
+    "mj": "npx @memberjunction/cli",
+    "mj:migrate": "npx @memberjunction/cli migrate",
+    "mj:codegen": "npx @memberjunction/cli codegen"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MemberJunction/bizapps-tasks"
+  },
+  "packageManager": "npm@10.5.0",
+  "devDependencies": {
+    "tsc-alias": "^1.8.16",
+    "turbo": "^2.9.3",
+    "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "@memberjunction/core": "5.21.0",
+    "@memberjunction/global": "5.21.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=10.0.0"
+  }
+}

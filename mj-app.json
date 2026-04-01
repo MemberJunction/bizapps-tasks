@@ -1,0 +1,66 @@
+{
+  "$schema": "https://schema.memberjunction.org/mj-app/v1.json",
+  "manifestVersion": 1,
+  "name": "mj-bizapps-tasks",
+  "displayName": "Tasks",
+  "description": "Reusable task management with multi-person assignment, sub-tasks, dependencies, Kanban/Gantt views, templates, and activity tracking",
+  "version": "1.0.0",
+  "license": "ISC",
+  "icon": "fa-solid fa-list-check",
+  "publisher": {
+    "name": "MemberJunction",
+    "url": "https://memberjunction.com"
+  },
+  "repository": "https://github.com/MemberJunction/bizapps-tasks",
+  "mjVersionRange": ">=5.0.0 <6.0.0",
+  "dependencies": [
+    {
+      "name": "mj-bizapps-common",
+      "repository": "https://github.com/MemberJunction/bizapps-common",
+      "versionRange": ">=1.0.0 <2.0.0"
+    }
+  ],
+  "schema": {
+    "name": "__mj_BizAppsTasks",
+    "createIfNotExists": true
+  },
+  "migrations": {
+    "directory": "migrations",
+    "engine": "skyway"
+  },
+  "metadata": {
+    "directory": "metadata"
+  },
+  "packages": {
+    "server": [
+      {
+        "name": "@mj-biz-apps/tasks-server",
+        "role": "bootstrap",
+        "startupExport": "LoadBizAppsTasksServer"
+      }
+    ],
+    "client": [
+      {
+        "name": "@mj-biz-apps/tasks-ng",
+        "role": "bootstrap",
+        "startupExport": "LoadBizAppsTasksClient"
+      }
+    ],
+    "shared": [
+      {
+        "name": "@mj-biz-apps/tasks-entities",
+        "role": "library"
+      },
+      {
+        "name": "@mj-biz-apps/tasks-core",
+        "role": "library"
+      }
+    ]
+  },
+  "code": {
+    "visibility": "public",
+    "sourceDirectory": "packages"
+  },
+  "categories": ["Business", "Productivity"],
+  "tags": ["tasks", "task-management", "kanban", "gantt", "assignments", "dependencies", "templates"]
+}
