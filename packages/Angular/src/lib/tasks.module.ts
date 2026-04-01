@@ -11,6 +11,9 @@ import { MyTasksComponent } from './components/my-tasks/my-tasks.component';
 import { TaskDetailPanelComponent } from './components/task-detail-panel/task-detail-panel.component';
 import { TaskEditPanelComponent } from './components/task-edit-panel/task-edit-panel.component';
 import { TaskKanbanComponent } from './components/task-kanban/task-kanban.component';
+import { TaskGanttComponent } from './components/task-gantt/task-gantt.component';
+import { TaskTemplateWizardComponent } from './components/task-template-wizard/task-template-wizard.component';
+import { TaskDashboardComponent } from './components/task-dashboard/task-dashboard.component';
 
 @NgModule({
     imports: [
@@ -25,6 +28,9 @@ import { TaskKanbanComponent } from './components/task-kanban/task-kanban.compon
         TaskDetailPanelComponent,
         TaskEditPanelComponent,
         TaskKanbanComponent,
+        TaskGanttComponent,
+        TaskTemplateWizardComponent,
+        TaskDashboardComponent,
     ],
     exports: [
         TaskPriorityBadgeComponent,
@@ -35,6 +41,9 @@ import { TaskKanbanComponent } from './components/task-kanban/task-kanban.compon
         TaskDetailPanelComponent,
         TaskEditPanelComponent,
         TaskKanbanComponent,
+        TaskGanttComponent,
+        TaskTemplateWizardComponent,
+        TaskDashboardComponent,
     ]
 })
 export class BizAppsTasksModule { }

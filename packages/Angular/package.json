@@ -27,6 +27,7 @@
     "@memberjunction/ng-entity-viewer": "5.21.0",
     "@memberjunction/ng-link-directives": "5.21.0",
     "@progress/kendo-angular-layout": "22.0.1",
+    "dhtmlx-gantt": "^9.1.2",
     "rxjs": "^7.8.2"
   },
   "peerDependencies": {
