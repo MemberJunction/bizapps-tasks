@@ -1,4 +1,4 @@
-import { Component, EventEmitter, inject, Input, OnInit, Output } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, inject, Input, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BaseEntity, Metadata, RunView } from '@memberjunction/core';
@@ -39,6 +39,7 @@ export class BeforeStatusChangeEvent {
 @Component({
     selector: 'bizapps-task-list',
     standalone: true,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [CommonModule, FormsModule, TaskPriorityBadgeComponent, TaskAssigneeListComponent, TaskBulkActionsBarComponent],
     template: `
         <div class="task-list-container" [class.compact]="Compact">
@@ -199,6 +200,7 @@ export class TaskListComponent implements OnInit {
     loading = false;
     statusFilter = '';
     private searchTimeout: any;
+    private cdr = inject(ChangeDetectorRef);
 
     ngOnInit(): void {
         if (this.StatusFilter) this.statusFilter = this.StatusFilter;
@@ -255,6 +257,7 @@ export class TaskListComponent implements OnInit {
 
         this.applyTextFilter();
         this.loading = false;
+        this.cdr.markForCheck();
     }
 
     // -- Filtering --

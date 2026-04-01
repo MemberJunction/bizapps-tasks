@@ -30,6 +30,9 @@ module.exports = {
     },
   ],
 
+  // Default excludeSchemas covers sys, staging, __mj.
+  // Run CodeGen against MJ_BizAppTask (clean DB) — not MJ_5_9_0 which has Committees cross-schema FKs.
+
   newEntityDefaults: {
     NameRulesBySchema: [
       { SchemaName: '${mj_core_schema}', EntityNamePrefix: 'MJ: ' },
