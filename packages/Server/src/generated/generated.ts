@@ -17,7 +17,7 @@ import { MaxLength } from 'class-validator';
 import * as mj_core_schema_server_object_types from '@memberjunction/server'
 
 
-import { mjBizAppsCommonAddressLinkEntity, mjBizAppsCommonAddressTypeEntity, mjBizAppsCommonAddressEntity, mjBizAppsCommonContactMethodEntity, mjBizAppsCommonContactTypeEntity, mjBizAppsCommonOrganizationTypeEntity, mjBizAppsCommonOrganizationEntity, mjBizAppsCommonPersonEntity, mjBizAppsCommonRelationshipTypeEntity, mjBizAppsCommonRelationshipEntity, mjBizAppsTasksTaskActivityEntity, mjBizAppsTasksTaskAssignmentEntity, mjBizAppsTasksTaskCategoryEntity, mjBizAppsTasksTaskCommentEntity, mjBizAppsTasksTaskDependencyEntity, mjBizAppsTasksTaskLinkEntity, mjBizAppsTasksTaskRoleEntity, mjBizAppsTasksTaskTagLinkEntity, mjBizAppsTasksTaskTagEntity, mjBizAppsTasksTaskTemplateItemDependencyEntity, mjBizAppsTasksTaskTemplateItemRoleEntity, mjBizAppsTasksTaskTemplateItemEntity, mjBizAppsTasksTaskTemplateEntity, mjBizAppsTasksTaskTypeEntity, mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
+import { mjBizAppsCommonAddressLinkEntity, mjBizAppsCommonAddressTypeEntity, mjBizAppsCommonAddressEntity, mjBizAppsCommonContactMethodEntity, mjBizAppsCommonContactTypeEntity, mjBizAppsCommonOrganizationTypeEntity, mjBizAppsCommonOrganizationEntity, mjBizAppsCommonPersonEntity, mjBizAppsCommonRelationshipTypeEntity, mjBizAppsCommonRelationshipEntity, mjBizAppsTasksTaskActivityEntity, mjBizAppsTasksTaskAssignmentEntity, mjBizAppsTasksTaskCategoryEntity, mjBizAppsTasksTaskCommentEntity, mjBizAppsTasksTaskDependencyEntity, mjBizAppsTasksTaskLinkEntity, mjBizAppsTasksTaskRoleEntity, mjBizAppsTasksTaskTagLinkEntity, mjBizAppsTasksTaskTagEntity, mjBizAppsTasksTaskTemplateItemDependencyEntity, mjBizAppsTasksTaskTemplateItemRoleEntity, mjBizAppsTasksTaskTemplateItemEntity, mjBizAppsTasksTaskTemplateEntity, mjBizAppsTasksTaskTypeEntity, mjBizAppsTasksTaskEntity, mjBizAppsTasksTaskNotificationConfigEntity, mjBizAppsTasksTaskNotificationLogEntity } from '@mj-biz-apps/tasks-entities';
     
 
 //****************************************************************************
@@ -4934,6 +4934,9 @@ export class mjBizAppsTasksTaskType_ {
     @Field(() => [mjBizAppsTasksTaskTemplate_])
     mjBizAppsTasksTaskTemplates_TypeIDArray: mjBizAppsTasksTaskTemplate_[]; // Link to mjBizAppsTasksTaskTemplates
     
+    @Field(() => [mjBizAppsTasksTaskNotificationConfig_])
+    mjBizAppsTasksTaskNotificationConfigs_TaskTypeIDArray: mjBizAppsTasksTaskNotificationConfig_[]; // Link to mjBizAppsTasksTaskNotificationConfigs
+    
 }
 
 //****************************************************************************
@@ -5089,6 +5092,16 @@ export class mjBizAppsTasksTaskTypeResolver extends ResolverBase {
         return result;
     }
         
+    @FieldResolver(() => [mjBizAppsTasksTaskNotificationConfig_])
+    async mjBizAppsTasksTaskNotificationConfigs_TaskTypeIDArray(@Root() mjbizappstaskstasktype_: mjBizAppsTasksTaskType_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        this.CheckUserReadPermissions('MJ.BizApps.Tasks:Task Notification Configs', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskNotificationConfigs')} WHERE ${provider.QuoteIdentifier('TaskTypeID')}='${mjbizappstaskstasktype_.ID}' ` + this.getRowLevelSecurityWhereClause(provider, 'MJ.BizApps.Tasks:Task Notification Configs', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, undefined, undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.ArrayMapFieldNamesToCodeNames('MJ.BizApps.Tasks:Task Notification Configs', rows, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+        
     @Mutation(() => mjBizAppsTasksTaskType_)
     async CreatemjBizAppsTasksTaskType(
         @Arg('input', () => CreatemjBizAppsTasksTaskTypeInput) input: CreatemjBizAppsTasksTaskTypeInput,
@@ -5191,6 +5204,9 @@ export class mjBizAppsTasksTask_ {
     @Field() 
     _mj__UpdatedAt: Date;
         
+    @Field({nullable: true}) 
+    OverdueNotifiedAt?: Date;
+        
     @Field() 
     @MaxLength(100)
     Type: string;
@@ -5225,6 +5241,9 @@ export class mjBizAppsTasksTask_ {
     
     @Field(() => [mjBizAppsTasksTaskActivity_])
     mjBizAppsTasksTaskActivities_TaskIDArray: mjBizAppsTasksTaskActivity_[]; // Link to mjBizAppsTasksTaskActivities
+    
+    @Field(() => [mjBizAppsTasksTaskNotificationLog_])
+    mjBizAppsTasksTaskNotificationLogs_TaskIDArray: mjBizAppsTasksTaskNotificationLog_[]; // Link to mjBizAppsTasksTaskNotificationLogs
     
     @Field(() => [mjBizAppsTasksTaskComment_])
     mjBizAppsTasksTaskComments_TaskIDArray: mjBizAppsTasksTaskComment_[]; // Link to mjBizAppsTasksTaskComments
@@ -5295,6 +5314,9 @@ export class CreatemjBizAppsTasksTaskInput {
 
     @Field({ nullable: true })
     CreatedByPersonID: string | null;
+
+    @Field({ nullable: true })
+    OverdueNotifiedAt: Date | null;
 }
     
 
@@ -5356,6 +5378,9 @@ export class UpdatemjBizAppsTasksTaskInput {
 
     @Field({ nullable: true })
     CreatedByPersonID?: string | null;
+
+    @Field({ nullable: true })
+    OverdueNotifiedAt?: Date | null;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];
@@ -5468,6 +5493,16 @@ export class mjBizAppsTasksTaskResolver extends ResolverBase {
         return result;
     }
         
+    @FieldResolver(() => [mjBizAppsTasksTaskNotificationLog_])
+    async mjBizAppsTasksTaskNotificationLogs_TaskIDArray(@Root() mjbizappstaskstask_: mjBizAppsTasksTask_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        this.CheckUserReadPermissions('MJ.BizApps.Tasks:Task Notification Logs', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskNotificationLogs')} WHERE ${provider.QuoteIdentifier('TaskID')}='${mjbizappstaskstask_.ID}' ` + this.getRowLevelSecurityWhereClause(provider, 'MJ.BizApps.Tasks:Task Notification Logs', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, undefined, undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.ArrayMapFieldNamesToCodeNames('MJ.BizApps.Tasks:Task Notification Logs', rows, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+        
     @FieldResolver(() => [mjBizAppsTasksTaskComment_])
     async mjBizAppsTasksTaskComments_TaskIDArray(@Root() mjbizappstaskstask_: mjBizAppsTasksTask_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
         this.CheckUserReadPermissions('MJ.BizApps.Tasks: Task Comments', userPayload);
@@ -5523,6 +5558,376 @@ export class mjBizAppsTasksTaskResolver extends ResolverBase {
         const provider = GetReadWriteProvider(providers);
         const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
         return this.DeleteRecord('MJ.BizApps.Tasks: Tasks', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
+// ENTITY CLASS for MJ.BizApps.Tasks:Task Notification Configs
+//****************************************************************************
+@ObjectType()
+export class mjBizAppsTasksTaskNotificationConfig_ {
+    @Field() 
+    @MaxLength(36)
+    ID: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(36)
+    TaskTypeID?: string;
+        
+    @Field(() => Boolean) 
+    OverdueNotificationsEnabled: boolean;
+        
+    @Field(() => Int) 
+    OverdueGracePeriodHours: number;
+        
+    @Field(() => Int, {nullable: true}) 
+    OverdueRepeatIntervalHours?: number;
+        
+    @Field(() => Boolean) 
+    NotifyAssignees: boolean;
+        
+    @Field(() => Boolean) 
+    NotifyCreator: boolean;
+        
+    @Field({nullable: true}) 
+    @MaxLength(36)
+    OverdueActionID?: string;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field({nullable: true}) 
+    @MaxLength(100)
+    TaskType?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(425)
+    OverdueAction?: string;
+        
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ.BizApps.Tasks:Task Notification Configs
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsTasksTaskNotificationConfigInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    TaskTypeID: string | null;
+
+    @Field(() => Boolean, { nullable: true })
+    OverdueNotificationsEnabled?: boolean;
+
+    @Field(() => Int, { nullable: true })
+    OverdueGracePeriodHours?: number;
+
+    @Field(() => Int, { nullable: true })
+    OverdueRepeatIntervalHours: number | null;
+
+    @Field(() => Boolean, { nullable: true })
+    NotifyAssignees?: boolean;
+
+    @Field(() => Boolean, { nullable: true })
+    NotifyCreator?: boolean;
+
+    @Field({ nullable: true })
+    OverdueActionID: string | null;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ.BizApps.Tasks:Task Notification Configs
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsTasksTaskNotificationConfigInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    TaskTypeID?: string | null;
+
+    @Field(() => Boolean, { nullable: true })
+    OverdueNotificationsEnabled?: boolean;
+
+    @Field(() => Int, { nullable: true })
+    OverdueGracePeriodHours?: number;
+
+    @Field(() => Int, { nullable: true })
+    OverdueRepeatIntervalHours?: number | null;
+
+    @Field(() => Boolean, { nullable: true })
+    NotifyAssignees?: boolean;
+
+    @Field(() => Boolean, { nullable: true })
+    NotifyCreator?: boolean;
+
+    @Field({ nullable: true })
+    OverdueActionID?: string | null;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+}
+    
+//****************************************************************************
+// RESOLVER for MJ.BizApps.Tasks:Task Notification Configs
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsTasksTaskNotificationConfigViewResult {
+    @Field(() => [mjBizAppsTasksTaskNotificationConfig_])
+    Results: mjBizAppsTasksTaskNotificationConfig_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsTasksTaskNotificationConfig_)
+export class mjBizAppsTasksTaskNotificationConfigResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsTasksTaskNotificationConfigViewResult)
+    async RunmjBizAppsTasksTaskNotificationConfigViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTaskNotificationConfigViewResult)
+    async RunmjBizAppsTasksTaskNotificationConfigViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTaskNotificationConfigViewResult)
+    async RunmjBizAppsTasksTaskNotificationConfigDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ.BizApps.Tasks:Task Notification Configs';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsTasksTaskNotificationConfig_, { nullable: true })
+    async mjBizAppsTasksTaskNotificationConfig(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsTasksTaskNotificationConfig_ | null> {
+        this.CheckUserReadPermissions('MJ.BizApps.Tasks:Task Notification Configs', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskNotificationConfigs')} WHERE ${provider.QuoteIdentifier('ID')}='${ID}' ` + this.getRowLevelSecurityWhereClause(provider, 'MJ.BizApps.Tasks:Task Notification Configs', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, undefined, undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ.BizApps.Tasks:Task Notification Configs', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @Mutation(() => mjBizAppsTasksTaskNotificationConfig_)
+    async CreatemjBizAppsTasksTaskNotificationConfig(
+        @Arg('input', () => CreatemjBizAppsTasksTaskNotificationConfigInput) input: CreatemjBizAppsTasksTaskNotificationConfigInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ.BizApps.Tasks:Task Notification Configs', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsTasksTaskNotificationConfig_)
+    async UpdatemjBizAppsTasksTaskNotificationConfig(
+        @Arg('input', () => UpdatemjBizAppsTasksTaskNotificationConfigInput) input: UpdatemjBizAppsTasksTaskNotificationConfigInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ.BizApps.Tasks:Task Notification Configs', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsTasksTaskNotificationConfig_)
+    async DeletemjBizAppsTasksTaskNotificationConfig(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ.BizApps.Tasks:Task Notification Configs', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
+// ENTITY CLASS for MJ.BizApps.Tasks:Task Notification Logs
+//****************************************************************************
+@ObjectType()
+export class mjBizAppsTasksTaskNotificationLog_ {
+    @Field() 
+    @MaxLength(36)
+    ID: string;
+        
+    @Field() 
+    @MaxLength(36)
+    TaskID: string;
+        
+    @Field() 
+    @MaxLength(50)
+    NotificationType: string;
+        
+    @Field() 
+    @MaxLength(36)
+    NotifiedUserID: string;
+        
+    @Field() 
+    NotifiedAt: Date;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field() 
+    @MaxLength(255)
+    Task: string;
+        
+    @Field() 
+    @MaxLength(100)
+    NotifiedUser: string;
+        
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ.BizApps.Tasks:Task Notification Logs
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsTasksTaskNotificationLogInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    TaskID?: string;
+
+    @Field({ nullable: true })
+    NotificationType?: string;
+
+    @Field({ nullable: true })
+    NotifiedUserID?: string;
+
+    @Field({ nullable: true })
+    NotifiedAt?: Date;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ.BizApps.Tasks:Task Notification Logs
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsTasksTaskNotificationLogInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    TaskID?: string;
+
+    @Field({ nullable: true })
+    NotificationType?: string;
+
+    @Field({ nullable: true })
+    NotifiedUserID?: string;
+
+    @Field({ nullable: true })
+    NotifiedAt?: Date;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+}
+    
+//****************************************************************************
+// RESOLVER for MJ.BizApps.Tasks:Task Notification Logs
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsTasksTaskNotificationLogViewResult {
+    @Field(() => [mjBizAppsTasksTaskNotificationLog_])
+    Results: mjBizAppsTasksTaskNotificationLog_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsTasksTaskNotificationLog_)
+export class mjBizAppsTasksTaskNotificationLogResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsTasksTaskNotificationLogViewResult)
+    async RunmjBizAppsTasksTaskNotificationLogViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTaskNotificationLogViewResult)
+    async RunmjBizAppsTasksTaskNotificationLogViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTaskNotificationLogViewResult)
+    async RunmjBizAppsTasksTaskNotificationLogDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ.BizApps.Tasks:Task Notification Logs';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsTasksTaskNotificationLog_, { nullable: true })
+    async mjBizAppsTasksTaskNotificationLog(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsTasksTaskNotificationLog_ | null> {
+        this.CheckUserReadPermissions('MJ.BizApps.Tasks:Task Notification Logs', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskNotificationLogs')} WHERE ${provider.QuoteIdentifier('ID')}='${ID}' ` + this.getRowLevelSecurityWhereClause(provider, 'MJ.BizApps.Tasks:Task Notification Logs', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, undefined, undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ.BizApps.Tasks:Task Notification Logs', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @Mutation(() => mjBizAppsTasksTaskNotificationLog_)
+    async CreatemjBizAppsTasksTaskNotificationLog(
+        @Arg('input', () => CreatemjBizAppsTasksTaskNotificationLogInput) input: CreatemjBizAppsTasksTaskNotificationLogInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ.BizApps.Tasks:Task Notification Logs', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsTasksTaskNotificationLog_)
+    async UpdatemjBizAppsTasksTaskNotificationLog(
+        @Arg('input', () => UpdatemjBizAppsTasksTaskNotificationLogInput) input: UpdatemjBizAppsTasksTaskNotificationLogInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ.BizApps.Tasks:Task Notification Logs', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsTasksTaskNotificationLog_)
+    async DeletemjBizAppsTasksTaskNotificationLog(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ.BizApps.Tasks:Task Notification Logs', key, options, provider, userPayload, pubSub);
     }
     
 }

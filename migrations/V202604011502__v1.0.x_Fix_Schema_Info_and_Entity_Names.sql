@@ -5,7 +5,7 @@ GO
 
 -- 1. Update SchemaInfo with the correct prefix and description
 UPDATE __mj.SchemaInfo
-SET EntityNamePrefix = 'MJ.BizApps.Tasks:',
+SET EntityNamePrefix = 'MJ.BizApps.Tasks: ',
     Description = 'Reusable task management for MemberJunction business applications'
 WHERE SchemaName = '__mj_BizAppsTasks';
 GO

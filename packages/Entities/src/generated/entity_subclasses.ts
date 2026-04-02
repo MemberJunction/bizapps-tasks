@@ -1736,6 +1736,10 @@ export const mjBizAppsTasksTaskSchema = z.object({
         * * Display Name: Updated At
         * * SQL Data Type: datetimeoffset
         * * Default Value: getutcdate()`),
+    OverdueNotifiedAt: z.date().nullable().describe(`
+        * * Field Name: OverdueNotifiedAt
+        * * Display Name: Overdue Notified At
+        * * SQL Data Type: datetimeoffset`),
     Type: z.string().describe(`
         * * Field Name: Type
         * * Display Name: Type
@@ -1759,6 +1763,125 @@ export const mjBizAppsTasksTaskSchema = z.object({
 });
 
 export type mjBizAppsTasksTaskEntityType = z.infer<typeof mjBizAppsTasksTaskSchema>;
+
+/**
+ * zod schema definition for the entity MJ.BizApps.Tasks:Task Notification Configs
+ */
+export const mjBizAppsTasksTaskNotificationConfigSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()`),
+    TaskTypeID: z.string().nullable().describe(`
+        * * Field Name: TaskTypeID
+        * * Display Name: Task Type ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ.BizApps.Tasks: Task Types (vwTaskTypes.ID)`),
+    OverdueNotificationsEnabled: z.boolean().describe(`
+        * * Field Name: OverdueNotificationsEnabled
+        * * Display Name: Overdue Notifications Enabled
+        * * SQL Data Type: bit
+        * * Default Value: 1`),
+    OverdueGracePeriodHours: z.number().describe(`
+        * * Field Name: OverdueGracePeriodHours
+        * * Display Name: Overdue Grace Period Hours
+        * * SQL Data Type: int
+        * * Default Value: 0`),
+    OverdueRepeatIntervalHours: z.number().nullable().describe(`
+        * * Field Name: OverdueRepeatIntervalHours
+        * * Display Name: Overdue Repeat Interval Hours
+        * * SQL Data Type: int`),
+    NotifyAssignees: z.boolean().describe(`
+        * * Field Name: NotifyAssignees
+        * * Display Name: Notify Assignees
+        * * SQL Data Type: bit
+        * * Default Value: 1`),
+    NotifyCreator: z.boolean().describe(`
+        * * Field Name: NotifyCreator
+        * * Display Name: Notify Creator
+        * * SQL Data Type: bit
+        * * Default Value: 1`),
+    OverdueActionID: z.string().nullable().describe(`
+        * * Field Name: OverdueActionID
+        * * Display Name: Overdue Action ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: Actions (vwActions.ID)`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    TaskType: z.string().nullable().describe(`
+        * * Field Name: TaskType
+        * * Display Name: Task Type
+        * * SQL Data Type: nvarchar(100)`),
+    OverdueAction: z.string().nullable().describe(`
+        * * Field Name: OverdueAction
+        * * Display Name: Overdue Action
+        * * SQL Data Type: nvarchar(425)`),
+});
+
+export type mjBizAppsTasksTaskNotificationConfigEntityType = z.infer<typeof mjBizAppsTasksTaskNotificationConfigSchema>;
+
+/**
+ * zod schema definition for the entity MJ.BizApps.Tasks:Task Notification Logs
+ */
+export const mjBizAppsTasksTaskNotificationLogSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()`),
+    TaskID: z.string().describe(`
+        * * Field Name: TaskID
+        * * Display Name: Task ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ.BizApps.Tasks: Tasks (vwTasks.ID)`),
+    NotificationType: z.union([z.literal('Overdue'), z.literal('OverdueReminder')]).describe(`
+        * * Field Name: NotificationType
+        * * Display Name: Notification Type
+        * * SQL Data Type: nvarchar(50)
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Overdue
+    *   * OverdueReminder`),
+    NotifiedUserID: z.string().describe(`
+        * * Field Name: NotifiedUserID
+        * * Display Name: Notified User ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: Users (vwUsers.ID)`),
+    NotifiedAt: z.date().describe(`
+        * * Field Name: NotifiedAt
+        * * Display Name: Notified At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Task: z.string().describe(`
+        * * Field Name: Task
+        * * Display Name: Task
+        * * SQL Data Type: nvarchar(255)`),
+    NotifiedUser: z.string().describe(`
+        * * Field Name: NotifiedUser
+        * * Display Name: Notified User
+        * * SQL Data Type: nvarchar(100)`),
+});
+
+export type mjBizAppsTasksTaskNotificationLogEntityType = z.infer<typeof mjBizAppsTasksTaskNotificationLogSchema>;
  
  
 
@@ -6296,6 +6419,18 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     }
 
     /**
+    * * Field Name: OverdueNotifiedAt
+    * * Display Name: Overdue Notified At
+    * * SQL Data Type: datetimeoffset
+    */
+    get OverdueNotifiedAt(): Date | null {
+        return this.Get('OverdueNotifiedAt');
+    }
+    set OverdueNotifiedAt(value: Date | null) {
+        this.Set('OverdueNotifiedAt', value);
+    }
+
+    /**
     * * Field Name: Type
     * * Display Name: Type
     * * SQL Data Type: nvarchar(100)
@@ -6338,5 +6473,314 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     */
     get RootParentID(): string | null {
         return this.Get('RootParentID');
+    }
+}
+
+
+/**
+ * MJ.BizApps.Tasks:Task Notification Configs - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: TaskNotificationConfig
+ * * Base View: vwTaskNotificationConfigs
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ.BizApps.Tasks:Task Notification Configs')
+export class mjBizAppsTasksTaskNotificationConfigEntity extends BaseEntity<mjBizAppsTasksTaskNotificationConfigEntityType> {
+    /**
+    * Loads the MJ.BizApps.Tasks:Task Notification Configs record from the database
+    * @param ID: string - primary key value to load the MJ.BizApps.Tasks:Task Notification Configs record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksTaskNotificationConfigEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: TaskTypeID
+    * * Display Name: Task Type ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ.BizApps.Tasks: Task Types (vwTaskTypes.ID)
+    */
+    get TaskTypeID(): string | null {
+        return this.Get('TaskTypeID');
+    }
+    set TaskTypeID(value: string | null) {
+        this.Set('TaskTypeID', value);
+    }
+
+    /**
+    * * Field Name: OverdueNotificationsEnabled
+    * * Display Name: Overdue Notifications Enabled
+    * * SQL Data Type: bit
+    * * Default Value: 1
+    */
+    get OverdueNotificationsEnabled(): boolean {
+        return this.Get('OverdueNotificationsEnabled');
+    }
+    set OverdueNotificationsEnabled(value: boolean) {
+        this.Set('OverdueNotificationsEnabled', value);
+    }
+
+    /**
+    * * Field Name: OverdueGracePeriodHours
+    * * Display Name: Overdue Grace Period Hours
+    * * SQL Data Type: int
+    * * Default Value: 0
+    */
+    get OverdueGracePeriodHours(): number {
+        return this.Get('OverdueGracePeriodHours');
+    }
+    set OverdueGracePeriodHours(value: number) {
+        this.Set('OverdueGracePeriodHours', value);
+    }
+
+    /**
+    * * Field Name: OverdueRepeatIntervalHours
+    * * Display Name: Overdue Repeat Interval Hours
+    * * SQL Data Type: int
+    */
+    get OverdueRepeatIntervalHours(): number | null {
+        return this.Get('OverdueRepeatIntervalHours');
+    }
+    set OverdueRepeatIntervalHours(value: number | null) {
+        this.Set('OverdueRepeatIntervalHours', value);
+    }
+
+    /**
+    * * Field Name: NotifyAssignees
+    * * Display Name: Notify Assignees
+    * * SQL Data Type: bit
+    * * Default Value: 1
+    */
+    get NotifyAssignees(): boolean {
+        return this.Get('NotifyAssignees');
+    }
+    set NotifyAssignees(value: boolean) {
+        this.Set('NotifyAssignees', value);
+    }
+
+    /**
+    * * Field Name: NotifyCreator
+    * * Display Name: Notify Creator
+    * * SQL Data Type: bit
+    * * Default Value: 1
+    */
+    get NotifyCreator(): boolean {
+        return this.Get('NotifyCreator');
+    }
+    set NotifyCreator(value: boolean) {
+        this.Set('NotifyCreator', value);
+    }
+
+    /**
+    * * Field Name: OverdueActionID
+    * * Display Name: Overdue Action ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ: Actions (vwActions.ID)
+    */
+    get OverdueActionID(): string | null {
+        return this.Get('OverdueActionID');
+    }
+    set OverdueActionID(value: string | null) {
+        this.Set('OverdueActionID', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: TaskType
+    * * Display Name: Task Type
+    * * SQL Data Type: nvarchar(100)
+    */
+    get TaskType(): string | null {
+        return this.Get('TaskType');
+    }
+
+    /**
+    * * Field Name: OverdueAction
+    * * Display Name: Overdue Action
+    * * SQL Data Type: nvarchar(425)
+    */
+    get OverdueAction(): string | null {
+        return this.Get('OverdueAction');
+    }
+}
+
+
+/**
+ * MJ.BizApps.Tasks:Task Notification Logs - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: TaskNotificationLog
+ * * Base View: vwTaskNotificationLogs
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ.BizApps.Tasks:Task Notification Logs')
+export class mjBizAppsTasksTaskNotificationLogEntity extends BaseEntity<mjBizAppsTasksTaskNotificationLogEntityType> {
+    /**
+    * Loads the MJ.BizApps.Tasks:Task Notification Logs record from the database
+    * @param ID: string - primary key value to load the MJ.BizApps.Tasks:Task Notification Logs record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksTaskNotificationLogEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: TaskID
+    * * Display Name: Task ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ.BizApps.Tasks: Tasks (vwTasks.ID)
+    */
+    get TaskID(): string {
+        return this.Get('TaskID');
+    }
+    set TaskID(value: string) {
+        this.Set('TaskID', value);
+    }
+
+    /**
+    * * Field Name: NotificationType
+    * * Display Name: Notification Type
+    * * SQL Data Type: nvarchar(50)
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Overdue
+    *   * OverdueReminder
+    */
+    get NotificationType(): 'Overdue' | 'OverdueReminder' {
+        return this.Get('NotificationType');
+    }
+    set NotificationType(value: 'Overdue' | 'OverdueReminder') {
+        this.Set('NotificationType', value);
+    }
+
+    /**
+    * * Field Name: NotifiedUserID
+    * * Display Name: Notified User ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ: Users (vwUsers.ID)
+    */
+    get NotifiedUserID(): string {
+        return this.Get('NotifiedUserID');
+    }
+    set NotifiedUserID(value: string) {
+        this.Set('NotifiedUserID', value);
+    }
+
+    /**
+    * * Field Name: NotifiedAt
+    * * Display Name: Notified At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get NotifiedAt(): Date {
+        return this.Get('NotifiedAt');
+    }
+    set NotifiedAt(value: Date) {
+        this.Set('NotifiedAt', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: Task
+    * * Display Name: Task
+    * * SQL Data Type: nvarchar(255)
+    */
+    get Task(): string {
+        return this.Get('Task');
+    }
+
+    /**
+    * * Field Name: NotifiedUser
+    * * Display Name: Notified User
+    * * SQL Data Type: nvarchar(100)
+    */
+    get NotifiedUser(): string {
+        return this.Get('NotifiedUser');
     }
 }

@@ -41,6 +41,8 @@ import { mjBizAppsTasksTaskTemplateItemFormComponent } from "./Entities/mjBizApp
 import { mjBizAppsTasksTaskTemplateFormComponent } from "./Entities/mjBizAppsTasksTaskTemplate/mjbizappstaskstasktemplate.form.component";
 import { mjBizAppsTasksTaskTypeFormComponent } from "./Entities/mjBizAppsTasksTaskType/mjbizappstaskstasktype.form.component";
 import { mjBizAppsTasksTaskFormComponent } from "./Entities/mjBizAppsTasksTask/mjbizappstaskstask.form.component";
+import { mjBizAppsTasksTaskNotificationConfigFormComponent } from "./Entities/mjBizAppsTasksTaskNotificationConfig/mjbizappstaskstasknotificationconfig.form.component";
+import { mjBizAppsTasksTaskNotificationLogFormComponent } from "./Entities/mjBizAppsTasksTaskNotificationLog/mjbizappstaskstasknotificationlog.form.component";
    
 
 @NgModule({
@@ -86,7 +88,9 @@ declarations: [
     mjBizAppsTasksTaskTemplateItemFormComponent,
     mjBizAppsTasksTaskTemplateFormComponent,
     mjBizAppsTasksTaskTypeFormComponent,
-    mjBizAppsTasksTaskFormComponent],
+    mjBizAppsTasksTaskFormComponent,
+    mjBizAppsTasksTaskNotificationConfigFormComponent,
+    mjBizAppsTasksTaskNotificationLogFormComponent],
 imports: [
     CommonModule,
     FormsModule,

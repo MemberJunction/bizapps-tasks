@@ -163,5 +163,30 @@
         </div>
         }
     </mj-collapsible-panel>
+
+    <!-- Task Notification Configs Section -->
+    <mj-collapsible-panel
+        SectionKey="mJBizAppsTasksTaskNotificationConfigs"
+        SectionName="Task Notification Configs"
+        Icon="fa fa-table"
+        Variant="related-entity"
+        [Form]="this"
+        [FormContext]="formContext"
+        [BadgeCount]="GetSectionRowCount('mJBizAppsTasksTaskNotificationConfigs')"
+        [DefaultExpanded]="false">
+        @if (record.IsSaved) {
+        <div>
+            <mj-explorer-entity-data-grid
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ.BizApps.Tasks:Task Notification Configs','TaskTypeID')"
+                [NewRecordValues]="NewRecordValues('MJ.BizApps.Tasks:Task Notification Configs')"
+                [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskNotificationConfigs')"
+                [ShowToolbar]="false"
+                (Navigate)="OnFormNavigate($event)"
+                (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskNotificationConfigs', $event.totalRowCount)"
+                >
+            </mj-explorer-entity-data-grid>
+        </div>
+        }
+    </mj-collapsible-panel>
 </mj-record-form-container>
         

@@ -22,6 +22,7 @@ export class mjBizAppsTasksTaskFormComponent extends BaseFormComponent {
             { sectionKey: 'mJBizAppsTasksTaskDependenciesDependsOnTaskID', sectionName: 'MJ.BizApps.Tasks: Task Dependencies (Depends On Task ID)', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskLinks', sectionName: 'MJ.BizApps.Tasks: Task Links', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskActivities', sectionName: 'MJ.BizApps.Tasks: Task Activities', isExpanded: false },
+            { sectionKey: 'mJBizAppsTasksTaskNotificationLogs', sectionName: 'Task Notification Logs', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskComments', sectionName: 'MJ.BizApps.Tasks: Task Comments', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTasks', sectionName: 'MJ.BizApps.Tasks: Tasks', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskAssignments', sectionName: 'MJ.BizApps.Tasks: Task Assignments', isExpanded: false }

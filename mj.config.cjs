@@ -38,7 +38,7 @@ module.exports = {
       { SchemaName: '${mj_core_schema}', EntityNamePrefix: 'MJ: ' },
       {
         SchemaName: '__mj_BizAppsTasks',
-        EntityNamePrefix: 'MJ.BizApps.Tasks:',
+        EntityNamePrefix: 'MJ.BizApps.Tasks: ',
         EntityNameSuffix: '',
       }
     ]

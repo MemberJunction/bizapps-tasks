@@ -18,7 +18,8 @@ export class mjBizAppsTasksTaskTypeFormComponent extends BaseFormComponent {
         this.initSections([
             { sectionKey: 'details', sectionName: 'Details', isExpanded: true },
             { sectionKey: 'mJBizAppsTasksTasks', sectionName: 'MJ.BizApps.Tasks: Tasks', isExpanded: false },
-            { sectionKey: 'mJBizAppsTasksTaskTemplates', sectionName: 'MJ.BizApps.Tasks: Task Templates', isExpanded: false }
+            { sectionKey: 'mJBizAppsTasksTaskTemplates', sectionName: 'MJ.BizApps.Tasks: Task Templates', isExpanded: false },
+            { sectionKey: 'mJBizAppsTasksTaskNotificationConfigs', sectionName: 'Task Notification Configs', isExpanded: false }
         ]);
     }
 }

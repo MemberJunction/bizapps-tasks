@@ -16,6 +16,9 @@ import '@mj-biz-apps/tasks-core';
 // Import notification handler
 import { InitTaskNotificationHandler } from './event-handlers/TaskNotificationHandler.js';
 
+// Import scheduled job drivers (registers via @RegisterClass for scheduling engine discovery)
+import './scheduled-jobs/OverdueTaskNotificationJob.js';
+
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 /**
