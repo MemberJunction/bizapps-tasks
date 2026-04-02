@@ -692,14 +692,43 @@ export class TaskEditPanelComponent implements OnChanges {
         await entity.Save();
         const savedID = entity.Get('ID') as string;
 
-        // Save assignees (new ones only for now)
+        // Save assignees — create new, update existing, delete removed
         if (this.peopleEntityID) {
+            // Load current assignments from DB to diff against
+            const rv2 = new RunView();
+            const currentAssignments = this.TaskID ? await rv2.RunView<any>({
+                EntityName: 'MJ.BizApps.Tasks: Task Assignments',
+                ExtraFilter: `TaskID = '${savedID}'`,
+                ResultType: 'simple',
+            }) : null;
+            const existingIDs = new Set(this.assignees.filter(a => !a.IsNew && a.ExistingID).map(a => a.ExistingID!));
+
+            // Delete removed assignments (ones in DB but no longer in form)
+            for (const dbRow of currentAssignments?.Results ?? []) {
+                if (!existingIDs.has(dbRow.ID)) {
+                    const del = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Task Assignments');
+                    const pk = new CompositeKey([{ FieldName: 'ID', Value: dbRow.ID }]);
+                    await del.InnerLoad(pk);
+                    await del.Delete();
+                }
+            }
+
             for (const a of this.assignees) {
-                if (a.IsNew && a.PersonID) {
+                if (!a.PersonID) continue;
+                if (a.IsNew) {
+                    // Create new assignment
                     const assignment = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Task Assignments');
                     assignment.NewRecord();
                     assignment.Set('TaskID', savedID);
                     assignment.Set('AssigneeEntityID', this.peopleEntityID);
+                    assignment.Set('AssigneeRecordID', a.PersonID);
+                    if (a.RoleID) assignment.Set('RoleID', a.RoleID);
+                    await assignment.Save();
+                } else if (a.ExistingID) {
+                    // Update existing assignment (person or role may have changed)
+                    const assignment = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Task Assignments');
+                    const pk = new CompositeKey([{ FieldName: 'ID', Value: a.ExistingID }]);
+                    await assignment.InnerLoad(pk);
                     assignment.Set('AssigneeRecordID', a.PersonID);
                     if (a.RoleID) assignment.Set('RoleID', a.RoleID);
                     await assignment.Save();

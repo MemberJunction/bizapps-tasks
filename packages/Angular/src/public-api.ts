@@ -16,3 +16,4 @@ export * from './lib/components/task-kanban/task-kanban.component.js';
 export * from './lib/components/task-gantt/task-gantt.component.js';
 export * from './lib/components/task-template-wizard/task-template-wizard.component.js';
 export * from './lib/components/task-dashboard/task-dashboard.component.js';
+export * from './lib/components/task-panel/task-panel.component.js';
