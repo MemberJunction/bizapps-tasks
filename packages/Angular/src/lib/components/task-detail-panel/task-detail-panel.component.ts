@@ -221,6 +221,13 @@ interface ActivityEntry {
             font-size: 14px; color: #6366f1; font-weight: 500;
         }
         .parent-link i { font-size: 12px; }
+        .link-row {
+            display: flex; align-items: center; gap: 8px; padding: 5px 0;
+            font-size: 13px; color: #475569;
+        }
+        .link-icon { font-size: 11px; color: #94a3b8; }
+        .link-entity { font-weight: 600; color: #1e293b; }
+        .link-desc { color: #94a3b8; }
 
         /* ─── Status Badge ─── */
         .status-badge {
@@ -316,6 +323,7 @@ export class TaskDetailPanelComponent implements OnChanges {
     task: any = null;
     parentTaskName: string | null = null;
     assignees: TaskAssigneeInfo[] = [];
+    taskLinks: { ID: string; EntityName: string; Description: string | null }[] = [];
     timeline: ActivityEntry[] = [];
     loading = false;
     newComment = '';
@@ -344,7 +352,7 @@ export class TaskDetailPanelComponent implements OnChanges {
         });
         this.task = result?.Results?.[0] ?? null;
 
-        await Promise.all([this.loadAssignees(), this.loadTimeline(), this.loadParentTask()]);
+        await Promise.all([this.loadAssignees(), this.loadTimeline(), this.loadParentTask(), this.loadTaskLinks()]);
         this.loading = false;
         this.cdr.markForCheck();
     }
@@ -360,6 +368,32 @@ export class TaskDetailPanelComponent implements OnChanges {
             MaxRows: 1,
         });
         this.parentTaskName = result?.Results?.[0]?.Name ?? null;
+    }
+
+    private async loadTaskLinks(): Promise<void> {
+        this.taskLinks = [];
+        if (!this.TaskID) return;
+        const rv = new RunView();
+        const [linksResult, entitiesResult] = await Promise.all([
+            rv.RunView<any>({
+                EntityName: 'MJ.BizApps.Tasks: Task Links',
+                ExtraFilter: `TaskID = '${this.TaskID}'`,
+                ResultType: 'simple',
+            }),
+            new RunView().RunView<any>({
+                EntityName: 'MJ: Entities',
+                ResultType: 'simple',
+            }),
+        ]);
+        const entityMap = new Map<string, string>();
+        for (const e of entitiesResult?.Results ?? []) {
+            entityMap.set(e.ID, e.Name);
+        }
+        this.taskLinks = (linksResult?.Results ?? []).map((l: any) => ({
+            ID: l.ID,
+            EntityName: entityMap.get(l.EntityID) ?? l.EntityID,
+            Description: l.Description,
+        }));
     }
 
     private async loadAssignees(): Promise<void> {

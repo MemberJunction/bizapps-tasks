@@ -301,6 +301,8 @@ export class TaskEditPanelComponent implements OnChanges {
     @Input() TaskID: string | null = null;
     @Input() DefaultCategoryID: string | null = null;
     @Input() DefaultTypeID: string | null = null;
+    /** Narrow the assignee picker. Pass an ExtraFilter string or an array of Person IDs. */
+    @Input() AssigneeScope: string | string[] | null = null;
 
     @Output() Saved = new EventEmitter<string>();
     @Output() Cancel = new EventEmitter<void>();
@@ -411,7 +413,7 @@ export class TaskEditPanelComponent implements OnChanges {
         const [types, cats, ppl, rls, tasks, tags, entity] = await Promise.all([
             rv.RunView<any>({ EntityName: 'MJ.BizApps.Tasks: Task Types', ExtraFilter: 'IsActive = 1', ResultType: 'simple' }),
             new RunView().RunView<any>({ EntityName: 'MJ.BizApps.Tasks: Task Categories', ExtraFilter: 'IsActive = 1', OrderBy: 'Sequence ASC', ResultType: 'simple' }),
-            new RunView().RunView<any>({ EntityName: 'MJ.BizApps.Common: People', ResultType: 'simple' }),
+            new RunView().RunView<any>({ EntityName: 'MJ.BizApps.Common: People', ExtraFilter: this.buildAssigneeScopeFilter(), ResultType: 'simple' }),
             new RunView().RunView<any>({ EntityName: 'MJ.BizApps.Tasks: Task Roles', OrderBy: 'Sequence ASC', ResultType: 'simple' }),
             new RunView().RunView<any>({ EntityName: 'MJ.BizApps.Tasks: Tasks', ResultType: 'simple' }),
             new RunView().RunView<any>({ EntityName: 'MJ.BizApps.Tasks: Task Tags', ResultType: 'simple' }),
@@ -429,6 +431,15 @@ export class TaskEditPanelComponent implements OnChanges {
             await this.loadExistingTags();
         }
         this.cdr.markForCheck();
+    }
+
+    private buildAssigneeScopeFilter(): string | undefined {
+        if (!this.AssigneeScope) return undefined;
+        if (Array.isArray(this.AssigneeScope)) {
+            if (this.AssigneeScope.length === 0) return undefined;
+            return `ID IN (${this.AssigneeScope.map(id => `'${id}'`).join(',')})`;
+        }
+        return this.AssigneeScope; // ExtraFilter string
     }
 
     addAssignee(): void {

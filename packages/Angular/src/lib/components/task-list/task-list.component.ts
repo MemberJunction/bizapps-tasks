@@ -78,6 +78,27 @@ export class BeforeStatusChangeEvent {
                 </div>
             }
 
+            <!-- Bulk actions -->
+            @if (selectedIDs.length > 0) {
+                <div class="bulk-bar">
+                    <span class="bulk-count">{{ selectedIDs.length }} selected</span>
+                    <select [(ngModel)]="bulkStatus" class="bulk-select">
+                        <option value="">Change status...</option>
+                        <option value="Open">Open</option>
+                        <option value="InProgress">In Progress</option>
+                        <option value="Blocked">Blocked</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Cancelled">Cancelled</option>
+                    </select>
+                    @if (bulkStatus === 'InProgress') {
+                        <input type="number" [(ngModel)]="bulkPercent" name="bulkPct"
+                               min="0" max="100" placeholder="%" class="bulk-pct-input" />
+                    }
+                    <button class="bulk-btn bulk-apply" [disabled]="!bulkStatus" (click)="applyBulkStatus()">Apply</button>
+                    <button class="bulk-btn bulk-cancel" (click)="selectedIDs = []; cdr.markForCheck()">Clear</button>
+                </div>
+            }
+
             <!-- Task cards -->
             @if (!loading) {
                 <div class="task-grid">
@@ -85,9 +106,16 @@ export class BeforeStatusChangeEvent {
                         <div class="task-card"
                              [class.overdue]="task.IsOverdue"
                              [class.completed]="task.Status === 'Completed'"
+                             [class.selected]="selectedIDs.includes(task.ID)"
                              [class.sub-task]="task.Depth > 0"
                              [style.margin-left.px]="task.Depth * 28"
                              (click)="onTaskClick(task)">
+
+                            <!-- Checkbox -->
+                            <input type="checkbox" class="task-checkbox"
+                                   [checked]="selectedIDs.includes(task.ID)"
+                                   (click)="$event.stopPropagation()"
+                                   (change)="toggleSelect(task.ID)" />
 
                             <!-- Priority dot -->
                             <div [class]="'priority-dot priority-' + task.Priority.toLowerCase()"></div>
@@ -224,6 +252,34 @@ export class BeforeStatusChangeEvent {
             transform: translateY(-1px);
         }
 
+        /* ─── Bulk Actions ─── */
+        .bulk-bar {
+            display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+            background: #eef2ff; border-radius: 10px; margin-bottom: 12px;
+            border: 1px solid #c7d2fe;
+        }
+        .bulk-count { font-size: 13px; font-weight: 700; color: #4338ca; }
+        .bulk-select {
+            padding: 5px 8px; border: 1px solid #cbd5e1; border-radius: 8px;
+            font-size: 13px; font-family: inherit;
+        }
+        .bulk-btn {
+            padding: 5px 14px; border-radius: 8px; font-size: 13px;
+            cursor: pointer; font-family: inherit; border: 1px solid #cbd5e1;
+        }
+        .bulk-apply { background: #6366f1; color: #fff; border-color: #6366f1; }
+        .bulk-apply:disabled { opacity: 0.4; cursor: not-allowed; }
+        .bulk-cancel { background: #fff; }
+        .bulk-pct-input {
+            width: 60px; padding: 5px 8px; border: 1px solid #cbd5e1; border-radius: 8px;
+            font-size: 13px; font-family: inherit; text-align: center;
+        }
+        .task-checkbox {
+            width: 15px; height: 15px; cursor: pointer; flex-shrink: 0;
+            accent-color: #6366f1;
+        }
+        .task-card.selected { background: #eef2ff; }
+
         /* ─── Task Grid ─── */
         .task-grid { display: flex; flex-direction: column; gap: 8px; }
 
@@ -352,11 +408,14 @@ export class TaskListComponent implements OnInit {
 
     tasks: TaskRow[] = [];
     filteredTasks: TaskRow[] = [];
+    selectedIDs: string[] = [];
+    bulkStatus = '';
+    bulkPercent: number | null = null;
     loading = false;
     searchText = '';
     statusFilter = '';
     private searchTimeout: any;
-    private cdr = inject(ChangeDetectorRef);
+    cdr = inject(ChangeDetectorRef);
 
     statusFilters = [
         { label: 'All', value: '' },
@@ -577,6 +636,45 @@ export class TaskListComponent implements OnInit {
             ...t,
             Depth: t.ParentID && filteredIDs.has(t.ParentID) ? t.Depth : 0,
         }));
+    }
+
+    // -- Selection + Bulk --
+    toggleSelect(taskID: string): void {
+        const idx = this.selectedIDs.indexOf(taskID);
+        if (idx >= 0) this.selectedIDs.splice(idx, 1);
+        else this.selectedIDs.push(taskID);
+        this.cdr.markForCheck();
+    }
+
+    async applyBulkStatus(): Promise<void> {
+        if (!this.bulkStatus || this.selectedIDs.length === 0) return;
+        const status = this.bulkStatus;
+        const pct = this.bulkPercent;
+        // Clear selection immediately so UI updates
+        const ids = [...this.selectedIDs];
+        this.selectedIDs = [];
+        this.bulkStatus = '';
+        this.bulkPercent = null;
+        this.cdr.markForCheck();
+
+        for (const id of ids) {
+            try {
+                const entity = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Tasks');
+                const pk = new CompositeKey([{ FieldName: 'ID', Value: id }]);
+                await entity.InnerLoad(pk);
+                entity.Set('Status', status);
+                if (status === 'InProgress' && pct != null) {
+                    entity.Set('PercentComplete', Math.min(100, Math.max(0, pct)));
+                }
+                if (status === 'Completed') {
+                    entity.Set('PercentComplete', 100);
+                }
+                await entity.Save();
+            } catch (e) {
+                console.error(`Failed to update task ${id}:`, e);
+            }
+        }
+        await this.loadTasks();
     }
 
     // -- Events --
