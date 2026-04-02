@@ -13,6 +13,9 @@ import '@mj-biz-apps/tasks-actions';
 // Import core services to trigger any class registrations
 import '@mj-biz-apps/tasks-core';
 
+// Import notification handler
+import { InitTaskNotificationHandler } from './event-handlers/TaskNotificationHandler.js';
+
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 /**
@@ -32,5 +35,6 @@ export const RESOLVER_PATHS: string[] = [
  * This function exists as the entry point for DynamicPackageLoader.
  */
 export function LoadBizAppsTasksServer(): void {
+    InitTaskNotificationHandler();
     console.log('[BizAppsTasks] Server loaded');
 }
