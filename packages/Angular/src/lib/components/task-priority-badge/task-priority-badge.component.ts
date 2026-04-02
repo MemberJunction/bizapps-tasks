@@ -3,7 +3,14 @@ import { CommonModule } from '@angular/common';
 
 /**
  * Inline priority indicator with color-coded badge.
- * Displays Low / Medium / High / Critical with matching colors.
+ *
+ * Renders a small pill showing the priority level (Low, Medium, High, Critical)
+ * with contextual background and text colors.
+ *
+ * @example
+ * ```html
+ * <bizapps-task-priority-badge [Priority]="'High'"></bizapps-task-priority-badge>
+ * ```
  */
 @Component({
     selector: 'bizapps-task-priority-badge',
@@ -29,8 +36,13 @@ import { CommonModule } from '@angular/common';
     `]
 })
 export class TaskPriorityBadgeComponent {
+    /**
+     * Priority level to display. Must be one of: `'Low'`, `'Medium'`, `'High'`, `'Critical'`.
+     * @default 'Medium'
+     */
     @Input() Priority: string = 'Medium';
 
+    /** @internal CSS class derived from the Priority value. */
     get cssClass(): string {
         return 'priority-' + (this.Priority || 'medium').toLowerCase();
     }

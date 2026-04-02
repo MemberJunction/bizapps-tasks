@@ -1,6 +1,6 @@
 import { Component, EventEmitter, Input, Output, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { TaskListComponent, TaskRow, BeforeTaskSelectedEvent } from '../task-list/task-list.component';
+import { TaskListComponent, TaskRow } from '../task-list/task-list.component';
 import { TaskKanbanComponent } from '../task-kanban/task-kanban.component';
 import { TaskGanttComponent } from '../task-gantt/task-gantt.component';
 import { TaskDetailPanelComponent } from '../task-detail-panel/task-detail-panel.component';
@@ -155,49 +155,134 @@ type PanelMode = 'none' | 'detail' | 'edit' | 'template';
         }
     `]
 })
+/**
+ * Full-featured Tasks dashboard combining list, kanban, and gantt views
+ * with a view toggle toolbar, slide-in detail/edit panels, and template wizard.
+ *
+ * Designed to be registered as a standalone MJ Application with its own nav
+ * entry, or embedded within any consuming app's layout. Internally composes
+ * {@link TaskListComponent}, {@link TaskKanbanComponent}, {@link TaskGanttComponent},
+ * {@link TaskDetailPanelComponent}, {@link TaskEditPanelComponent}, and
+ * {@link TaskTemplateWizardComponent}.
+ *
+ * @example
+ * ```html
+ * <bizapps-task-dashboard
+ *     [CategoryID]="committeeCategoryId"
+ *     [PersonID]="currentUserPersonID"
+ *     (TaskSelected)="onTaskOpened($event)">
+ * </bizapps-task-dashboard>
+ * ```
+ */
 export class TaskDashboardComponent {
+    // ── Inputs ──────────────────────────────────────────────
+
+    /**
+     * Filter all views (list, kanban, gantt) to a specific category.
+     * Pass `null` to show all tasks across categories.
+     */
     @Input() CategoryID: string | null = null;
+
+    /**
+     * Additional SQL WHERE clause filter applied to all views.
+     */
     @Input() ExtraFilter: string | null = null;
+
+    /**
+     * PersonID of the currently logged-in user. Passed to the detail panel
+     * for attributing comments, and to the template wizard for assignee defaults.
+     */
     @Input() PersonID: string | null = null;
 
+    // ── Outputs ─────────────────────────────────────────────
+
+    /**
+     * Emitted when a task is selected (clicked) in any view. Payload is the task ID.
+     */
     @Output() TaskSelected = new EventEmitter<string>();
 
+    // ── View References ─────────────────────────────────────
+
+    /** @internal */
     @ViewChild('taskList') taskList?: TaskListComponent;
+    /** @internal */
     @ViewChild('taskKanban') taskKanban?: TaskKanbanComponent;
+    /** @internal */
     @ViewChild('taskGantt') taskGantt?: TaskGanttComponent;
 
+    // ── Internal State ──────────────────────────────────────
+
+    /** @internal Current active view tab. */
     viewMode: ViewMode = 'list';
+    /** @internal Current slide-in panel state. */
     panelMode: PanelMode = 'none';
+    /** @internal Task ID for the open detail/edit panel, or null for new task. */
     selectedTaskID: string | null = null;
 
+    // ── Public Methods ──────────────────────────────────────
+
+    /**
+     * Refreshes whichever view is currently active (list, kanban, or gantt).
+     */
+    RefreshCurrentView(): void {
+        this.taskList?.Refresh();
+        this.taskKanban?.Refresh();
+        this.taskGantt?.Refresh();
+    }
+
+    /**
+     * Programmatically opens the detail panel for a specific task.
+     * @param taskID - The task to display.
+     */
+    OpenDetailPanel(taskID: string): void {
+        this.openPanel('detail', taskID);
+    }
+
+    /**
+     * Programmatically opens the edit panel. Pass a task ID to edit,
+     * or `null` to create a new task.
+     * @param taskID - The task to edit, or `null` for new.
+     */
+    OpenEditPanel(taskID: string | null): void {
+        this.openPanel('edit', taskID);
+    }
+
+    /**
+     * Closes any open slide-in panel (detail, edit, or template wizard).
+     */
+    ClosePanel(): void {
+        this.closePanel();
+    }
+
+    // ── Internal Event Handlers ─────────────────────────────
+
+    /** @internal */
     onTaskSelected(task: TaskRow): void {
         this.openPanel('detail', task.ID);
         this.TaskSelected.emit(task.ID);
     }
 
+    /** @internal */
     openPanel(mode: PanelMode, taskID?: string | null): void {
         this.panelMode = mode;
         this.selectedTaskID = taskID ?? null;
     }
 
+    /** @internal */
     closePanel(): void {
         this.panelMode = 'none';
         this.selectedTaskID = null;
     }
 
-    onTaskSaved(taskID: string): void {
+    /** @internal */
+    onTaskSaved(_taskID: string): void {
         this.closePanel();
-        this.refreshCurrentView();
+        this.RefreshCurrentView();
     }
 
-    onTemplateCreated(tasks: any[]): void {
+    /** @internal */
+    onTemplateCreated(_tasks: any[]): void {
         this.closePanel();
-        this.refreshCurrentView();
-    }
-
-    private refreshCurrentView(): void {
-        this.taskList?.Refresh();
-        this.taskKanban?.Refresh();
-        this.taskGantt?.Refresh();
+        this.RefreshCurrentView();
     }
 }

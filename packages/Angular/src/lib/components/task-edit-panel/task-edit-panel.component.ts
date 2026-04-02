@@ -3,12 +3,28 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CompositeKey, Metadata, RunView } from '@memberjunction/core';
 
+/** @internal Represents one assignee row in the edit form. */
 interface AssigneeRow {
     PersonID: string;
     PersonName: string;
     RoleID: string;
     IsNew: boolean;
     ExistingID?: string;
+}
+
+/**
+ * Cancellable event emitted before a task is saved from the edit panel.
+ * Set `Cancel = true` to prevent the save from proceeding.
+ */
+export class BeforeTaskSaveEvent {
+    /** Set to `true` to prevent the task from being saved. */
+    Cancel = false;
+    constructor(
+        /** The task ID being edited, or `null` for a new task. */
+        public TaskID: string | null,
+        /** The form data about to be saved. */
+        public FormData: Record<string, any>
+    ) {}
 }
 
 @Component({
@@ -152,9 +168,20 @@ interface AssigneeRow {
                                 </button>
                             </div>
                         }
-                        <button type="button" class="btn-add-assignee" (click)="addAssignee()">
-                            <i class="fa-solid fa-plus"></i> Add Assignee
-                        </button>
+                        <div class="add-row">
+                            <button type="button" class="btn-add-assignee" (click)="addAssignee()">
+                                <i class="fa-solid fa-plus"></i> Add Assignee
+                            </button>
+                            <div class="new-role-row">
+                                <input type="text" [(ngModel)]="newRoleName" name="newRole"
+                                       placeholder="New role..." class="form-input new-role-input"
+                                       (keydown.enter)="createRole(); $event.preventDefault()" />
+                                <button type="button" class="btn-create-tag" (click)="createRole()"
+                                        [disabled]="!newRoleName.trim() || creatingRole">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Tags -->
@@ -252,6 +279,9 @@ interface AssigneeRow {
             width: 100%; justify-content: center; margin-top: 4px;
         }
         .btn-add-assignee:hover { background: #f8fafc; border-color: #6366f1; color: #6366f1; }
+        .add-row { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+        .new-role-row { display: flex; gap: 4px; align-items: center; }
+        .new-role-input { width: 120px; font-size: 13px; padding: 6px 10px; }
 
         /* Tags */
         .tags-row {
@@ -297,37 +327,126 @@ interface AssigneeRow {
         }
     `]
 })
+/**
+ * Slide-in panel for creating or editing a task.
+ *
+ * Provides a full form with all task fields: name, description, status, priority,
+ * dates, hours, percent complete, parent task, task type, category, blocked reason,
+ * and completion notes. Also supports:
+ *
+ * - **Multi-person assignment** with role selection and inline role creation
+ * - **Tag management** with existing tag picker and inline tag creation
+ * - **Parent task selection** to build sub-task hierarchies
+ * - **Scoped assignee picker** via the {@link AssigneeScope} input
+ *
+ * On save, creates/updates the task entity plus any new assignments and tag links.
+ *
+ * @example
+ * ```html
+ * <bizapps-task-edit-panel
+ *     [TaskID]="selectedTaskID"
+ *     [DefaultCategoryID]="committeeCategoryId"
+ *     [AssigneeScope]="committeeMemberIDs"
+ *     (BeforeSave)="onBeforeSave($event)"
+ *     (Saved)="onTaskSaved($event)"
+ *     (Cancel)="closePanel()">
+ * </bizapps-task-edit-panel>
+ * ```
+ */
 export class TaskEditPanelComponent implements OnChanges {
+    // ── Inputs ──────────────────────────────────────────────
+
+    /**
+     * Task ID to edit. Pass `null` or omit to create a new task.
+     * When changed, the form reloads the task data from the server.
+     */
     @Input() TaskID: string | null = null;
+
+    /**
+     * Default category ID pre-selected for new tasks. Ignored when editing
+     * an existing task (the task's current category is used instead).
+     */
     @Input() DefaultCategoryID: string | null = null;
+
+    /**
+     * Default task type ID pre-selected for new tasks. Ignored when editing.
+     */
     @Input() DefaultTypeID: string | null = null;
-    /** Narrow the assignee picker. Pass an ExtraFilter string or an array of Person IDs. */
+
+    /**
+     * Narrows the assignee person picker. Accepts either:
+     * - A SQL `ExtraFilter` string (e.g. `"ID IN (SELECT PersonID FROM ...)"`)
+     * - An array of Person ID strings to include
+     *
+     * When `null`, all people in BizAppsCommon are shown.
+     */
     @Input() AssigneeScope: string | string[] | null = null;
 
+    // ── Outputs ─────────────────────────────────────────────
+
+    /**
+     * Emitted **before** the task is saved. Cancellable — set `event.Cancel = true`
+     * to prevent the save. The event payload includes the form data.
+     */
+    @Output() BeforeSave = new EventEmitter<BeforeTaskSaveEvent>();
+
+    /**
+     * Emitted **after** the task has been successfully saved. Payload is the
+     * saved task's ID (useful for new tasks where the ID wasn't known beforehand).
+     */
     @Output() Saved = new EventEmitter<string>();
+
+    /**
+     * Emitted when the user clicks "Cancel" or the close button.
+     */
     @Output() Cancel = new EventEmitter<void>();
 
+    // ── Internal State ──────────────────────────────────────
+
+    /** @internal */
     form: any = {};
+    /** @internal */
     isNew = true;
+    /** @internal */
     loading = false;
+    /** @internal */
     saving = false;
+    /** @internal */
     taskTypes: any[] = [];
+    /** @internal */
     categories: any[] = [];
+    /** @internal */
     people: any[] = [];
+    /** @internal */
     roles: any[] = [];
+    /** @internal */
     availableTasks: any[] = [];
+    /** @internal */
     allTags: any[] = [];
+    /** @internal */
     selectedTags: any[] = [];
+    /** @internal */
     assignees: AssigneeRow[] = [];
+    /** @internal */
     newTagName = '';
+    /** @internal */
     creatingTag = false;
+    /** @internal */
+    newRoleName = '';
+    /** @internal */
+    creatingRole = false;
+    /** @internal */
     private peopleEntityID: string | null = null;
+    /** @internal */
     private cdr = inject(ChangeDetectorRef);
 
+    /** @internal Returns tags not already selected. */
     get availableTagsFiltered(): any[] {
         const selectedIDs = new Set(this.selectedTags.map((t: any) => t.ID));
         return this.allTags.filter(t => !selectedIDs.has(t.ID));
     }
+
+    // ── Lifecycle ───────────────────────────────────────────
 
     ngOnChanges(changes: SimpleChanges): void {
         if (changes['TaskID']) {
@@ -471,6 +590,31 @@ export class TaskEditPanelComponent implements OnChanges {
         this.cdr.markForCheck();
     }
 
+    async createRole(): Promise<void> {
+        const name = this.newRoleName.trim();
+        if (!name || this.creatingRole) return;
+
+        const existing = this.roles.find((r: any) => r.Name.toLowerCase() === name.toLowerCase());
+        if (existing) {
+            this.newRoleName = '';
+            this.cdr.markForCheck();
+            return;
+        }
+
+        this.creatingRole = true;
+        this.cdr.markForCheck();
+
+        const role = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Task Roles');
+        role.NewRecord();
+        role.Set('Name', name);
+        await role.Save();
+
+        this.roles.push({ ID: role.Get('ID'), Name: name });
+        this.newRoleName = '';
+        this.creatingRole = false;
+        this.cdr.markForCheck();
+    }
+
     async createAndAddTag(): Promise<void> {
         const name = this.newTagName.trim();
         if (!name || this.creatingTag) return;
@@ -514,6 +658,11 @@ export class TaskEditPanelComponent implements OnChanges {
 
     async save(): Promise<void> {
         if (!this.form.Name?.trim()) return;
+
+        const before = new BeforeTaskSaveEvent(this.TaskID, { ...this.form });
+        this.BeforeSave.emit(before);
+        if (before.Cancel) return;
+
         this.saving = true;
         this.cdr.markForCheck();
 

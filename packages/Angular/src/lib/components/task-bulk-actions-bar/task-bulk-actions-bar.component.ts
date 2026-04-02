@@ -2,15 +2,39 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
+/**
+ * Describes a bulk action to be performed on selected tasks.
+ * Emitted by {@link TaskBulkActionsBarComponent} when the user applies an action.
+ */
 export interface BulkActionEvent {
+    /** The type of bulk action being performed. */
     Action: 'StatusChange' | 'Reassign' | 'Cancel';
+    /** Array of task IDs the action applies to. */
     TaskIDs: string[];
+    /** New status value — only set when `Action === 'StatusChange'`. */
     NewStatus?: string;
 }
 
 /**
- * Appears when items are multi-selected in TaskListComponent.
- * Actions: bulk Status change, bulk Reassign, bulk Cancel.
+ * Contextual toolbar that appears when one or more tasks are selected via
+ * checkboxes in the {@link TaskListComponent}.
+ *
+ * Provides bulk actions: status change (with dropdown), cancel all selected
+ * tasks, and clear selection. The component is typically embedded inside
+ * TaskListComponent and is not used standalone.
+ *
+ * **Note:** As of the current implementation, the bulk action bar in
+ * TaskListComponent is rendered inline rather than using this component.
+ * This standalone version is available for custom layouts.
+ *
+ * @example
+ * ```html
+ * <bizapps-task-bulk-actions-bar
+ *     [SelectedTaskIDs]="selectedIDs"
+ *     (BulkAction)="onBulkAction($event)"
+ *     (ClearSelection)="clearSelection()">
+ * </bizapps-task-bulk-actions-bar>
+ * ```
  */
 @Component({
     selector: 'bizapps-task-bulk-actions-bar',
@@ -27,10 +51,10 @@ export interface BulkActionEvent {
                     <option value="Blocked">Blocked</option>
                     <option value="Completed">Completed</option>
                 </select>
-                <button class="bulk-btn apply" (click)="onApplyStatus()" [disabled]="!selectedStatus">
+                <button class="bulk-btn apply" (click)="OnApplyStatus()" [disabled]="!selectedStatus">
                     Apply
                 </button>
-                <button class="bulk-btn cancel-tasks" (click)="onCancelTasks()">
+                <button class="bulk-btn cancel-tasks" (click)="OnCancelTasks()">
                     Cancel Tasks
                 </button>
                 <button class="bulk-btn clear" (click)="ClearSelection.emit()">
@@ -61,13 +85,38 @@ export interface BulkActionEvent {
     `]
 })
 export class TaskBulkActionsBarComponent {
+    // ── Inputs ──────────────────────────────────────────────
+
+    /**
+     * Array of currently selected task IDs. When non-empty, the bar is visible.
+     * Typically bound to the parent component's selection state.
+     */
     @Input() SelectedTaskIDs: string[] = [];
+
+    // ── Outputs ─────────────────────────────────────────────
+
+    /**
+     * Emitted when the user applies a bulk action (status change or cancel).
+     * The parent component is responsible for executing the action against the
+     * task entities and refreshing the list.
+     */
     @Output() BulkAction = new EventEmitter<BulkActionEvent>();
+
+    /**
+     * Emitted when the user clicks "Clear Selection". The parent should
+     * reset its selection state in response.
+     */
     @Output() ClearSelection = new EventEmitter<void>();
 
+    // ── Internal State ──────────────────────────────────────
+
+    /** @internal */
     selectedStatus = '';
 
-    onApplyStatus(): void {
+    // ── Internal Event Handlers ─────────────────────────────
+
+    /** @internal Emits a StatusChange bulk action with the selected status. */
+    OnApplyStatus(): void {
         if (!this.selectedStatus) return;
         this.BulkAction.emit({
             Action: 'StatusChange',
@@ -77,7 +126,8 @@ export class TaskBulkActionsBarComponent {
         this.selectedStatus = '';
     }
 
-    onCancelTasks(): void {
+    /** @internal Emits a Cancel bulk action for all selected tasks. */
+    OnCancelTasks(): void {
         this.BulkAction.emit({
             Action: 'Cancel',
             TaskIDs: this.SelectedTaskIDs,

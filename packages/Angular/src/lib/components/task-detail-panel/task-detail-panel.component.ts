@@ -4,12 +4,36 @@ import { FormsModule } from '@angular/forms';
 import { Metadata, RunView } from '@memberjunction/core';
 import { TaskAssigneeInfo } from '../task-assignee-list/task-assignee-list.component';
 
-interface ActivityEntry {
+/**
+ * A single entry in the activity/comment timeline displayed by
+ * {@link TaskDetailPanelComponent}.
+ */
+export interface ActivityEntry {
+    /** Whether this is an automatic activity log or a user-authored comment. */
     Type: 'activity' | 'comment';
+    /** When the entry was created. */
     Timestamp: Date;
+    /** Resolved person name, if applicable (null for system-generated activities). */
     PersonName?: string;
+    /** Human-readable content text. */
     Content: string;
+    /** Activity type code (e.g. 'StatusChange', 'Created'). Only set for activity entries. */
     ActivityType?: string;
+}
+
+/**
+ * Cancellable event emitted before a comment is posted on a task.
+ * Set `Cancel = true` to prevent the comment from being saved.
+ */
+export class BeforeCommentPostedEvent {
+    /** Set to `true` to prevent the comment from being posted. */
+    Cancel = false;
+    constructor(
+        /** The task ID the comment is being posted on. */
+        public TaskID: string,
+        /** The comment content about to be posted. */
+        public Content: string
+    ) {}
 }
 
 @Component({
@@ -150,8 +174,8 @@ interface ActivityEntry {
                         <div class="comment-input-row">
                             <input type="text" [(ngModel)]="newComment"
                                    placeholder="Add a comment..." class="comment-input"
-                                   (keydown.enter)="postComment()" />
-                            <button class="btn-post" (click)="postComment()" [disabled]="!newComment.trim()">Post</button>
+                                   (keydown.enter)="PostComment()" />
+                            <button class="btn-post" (click)="PostComment()" [disabled]="!newComment.trim()">Post</button>
                         </div>
                         <div class="timeline">
                             @for (entry of timeline; track entry.Timestamp) {
@@ -313,33 +337,111 @@ interface ActivityEntry {
         .is-comment .entry-content { font-style: italic; color: #334155; }
     `]
 })
+/**
+ * Read-only slide-in detail view for a single task.
+ *
+ * Displays all task fields, a progress bar, resolved assignee names with roles
+ * and per-person status dots, parent task reference, blocked reason banner,
+ * and a chronological activity + comment timeline with inline comment creation.
+ *
+ * Has an "Edit" button that emits {@link EditRequested} — consuming apps
+ * respond by opening a {@link TaskEditPanelComponent}.
+ *
+ * **No routing** — raises events only. Consuming apps wire events to their
+ * own panel/navigation logic.
+ *
+ * @example
+ * ```html
+ * <bizapps-task-detail-panel
+ *     [TaskID]="selectedTaskID"
+ *     [PersonID]="currentUserPersonID"
+ *     (EditRequested)="openEditPanel($event)"
+ *     (BeforeCommentPosted)="onBeforeComment($event)"
+ *     (AfterCommentPosted)="onCommentPosted()"
+ *     (Close)="closePanel()">
+ * </bizapps-task-detail-panel>
+ * ```
+ */
 export class TaskDetailPanelComponent implements OnChanges {
+    // ── Inputs ──────────────────────────────────────────────
+
+    /**
+     * ID of the task to display. When changed, the panel reloads all data
+     * (task fields, assignees, timeline, parent). Pass `null` to hide the panel.
+     */
     @Input() TaskID: string | null = null;
+
+    /**
+     * PersonID of the currently logged-in user. Used to attribute comments
+     * posted via the inline comment input. Pass `null` if unknown.
+     */
     @Input() PersonID: string | null = null;
 
+    // ── Outputs ─────────────────────────────────────────────
+
+    /**
+     * Emitted when the user clicks the "Edit" button. Payload is the TaskID.
+     * Consuming apps should open a {@link TaskEditPanelComponent} in response.
+     */
     @Output() EditRequested = new EventEmitter<string>();
+
+    /**
+     * Emitted **before** a comment is posted. Cancellable — set
+     * `event.Cancel = true` to prevent the comment from being saved.
+     */
+    @Output() BeforeCommentPosted = new EventEmitter<BeforeCommentPostedEvent>();
+
+    /**
+     * Emitted **after** a comment has been successfully saved and the
+     * timeline has been reloaded.
+     */
+    @Output() AfterCommentPosted = new EventEmitter<void>();
+
+    /**
+     * Emitted when the user clicks the close (×) button.
+     * Consuming apps should hide or dismiss the panel in response.
+     */
     @Output() Close = new EventEmitter<void>();
 
+    // ── Internal State ──────────────────────────────────────
+
+    /** @internal Loaded task record. */
     task: any = null;
+    /** @internal Resolved parent task name, or null if top-level. */
     parentTaskName: string | null = null;
+    /** @internal Resolved assignee list with display names and roles. */
     assignees: TaskAssigneeInfo[] = [];
+    /** @internal Loaded TaskLink records (kept for API consumers, not displayed). */
     taskLinks: { ID: string; EntityName: string; Description: string | null }[] = [];
+    /** @internal Merged activity + comment timeline, sorted newest-first. */
     timeline: ActivityEntry[] = [];
+    /** @internal */
     loading = false;
+    /** @internal */
     newComment = '';
+    /** @internal */
     private cdr = inject(ChangeDetectorRef);
+
+    // ── Lifecycle ───────────────────────────────────────────
 
     ngOnChanges(changes: SimpleChanges): void {
         if (changes['TaskID'] && this.TaskID) {
-            this.loadTask();
+            this.LoadTask();
         }
     }
 
+    // ── Public Methods ──────────────────────────────────────
+
+    /** @internal Formats camelCase status values for display (e.g. "InProgress" → "In Progress"). */
     formatStatus(status: string): string {
         return status?.replace(/([a-z])([A-Z])/g, '$1 $2') ?? '';
     }
 
-    async loadTask(): Promise<void> {
+    /**
+     * Reloads all task data from the server: task fields, assignees,
+     * timeline, and parent task name. Call this after external mutations.
+     */
+    async LoadTask(): Promise<void> {
         if (!this.TaskID) return;
         this.loading = true;
         this.cdr.markForCheck();
@@ -481,8 +583,18 @@ export class TaskDetailPanelComponent implements OnChanges {
         this.timeline = entries.sort((a, b) => b.Timestamp.getTime() - a.Timestamp.getTime());
     }
 
-    async postComment(): Promise<void> {
+    /**
+     * Posts a new comment on the current task. Emits {@link BeforeCommentPosted}
+     * (cancellable) before saving and {@link AfterCommentPosted} after success.
+     * Called internally by the comment input, but can also be called programmatically.
+     */
+    async PostComment(): Promise<void> {
         if (!this.newComment.trim() || !this.TaskID) return;
+
+        const before = new BeforeCommentPostedEvent(this.TaskID, this.newComment.trim());
+        this.BeforeCommentPosted.emit(before);
+        if (before.Cancel) return;
+
         const comment = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Task Comments');
         comment.NewRecord();
         comment.Set('TaskID', this.TaskID);
@@ -492,5 +604,6 @@ export class TaskDetailPanelComponent implements OnChanges {
         this.newComment = '';
         await this.loadTimeline();
         this.cdr.markForCheck();
+        this.AfterCommentPosted.emit();
     }
 }

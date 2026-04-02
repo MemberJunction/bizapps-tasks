@@ -1,16 +1,18 @@
 import { Component, EventEmitter, Input, Output, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { BaseEntity, Metadata, RunView } from '@memberjunction/core';
+import { BaseEntity, RunView } from '@memberjunction/core';
 import { TaskTemplateService } from '@mj-biz-apps/tasks-core';
 import { TaskPriorityBadgeComponent } from '../task-priority-badge/task-priority-badge.component';
 
+/** @internal Represents a selectable template in step 1. */
 interface TemplateOption {
     ID: string;
     Name: string;
     Description: string | null;
 }
 
+/** @internal Represents a preview row showing what will be created. */
 interface PreviewItem {
     Name: string;
     Priority: string;
@@ -20,6 +22,7 @@ interface PreviewItem {
     Depth: number;
 }
 
+/** @internal Represents a role placeholder to be filled with a real assignee. */
 interface RolePlaceholder {
     RoleID: string;
     RoleName: string;
@@ -28,12 +31,26 @@ interface RolePlaceholder {
 }
 
 /**
- * Multi-step wizard for creating tasks from a template:
- *   Step 1: Pick template
- *   Step 2: Set start date + category
- *   Step 3: Preview generated timeline
- *   Step 4: Assign people to role placeholders
- *   Step 5: Create
+ * Multi-step wizard for instantiating tasks from a {@link TaskTemplate}.
+ *
+ * Guides the user through 4 steps:
+ * 1. **Pick template** — select from active TaskTemplates
+ * 2. **Configure** — set start date and optional category
+ * 3. **Preview** — see the generated task hierarchy with calculated due dates
+ * 4. **Assign** — fill in role placeholders with real people
+ *
+ * On completion, calls {@link TaskTemplateService.instantiateTemplate} to
+ * hydrate real Task records with hierarchy, dependencies, and assignments.
+ *
+ * @example
+ * ```html
+ * <bizapps-task-template-wizard
+ *     [DefaultCategoryID]="committeeCategoryId"
+ *     [PersonEntityID]="peopleEntityID"
+ *     (Created)="onTasksCreated($event)"
+ *     (Cancelled)="closeWizard()">
+ * </bizapps-task-template-wizard>
+ * ```
  */
 @Component({
     selector: 'bizapps-task-template-wizard',
@@ -190,25 +207,61 @@ interface RolePlaceholder {
     `]
 })
 export class TaskTemplateWizardComponent implements OnInit {
+    // ── Inputs ──────────────────────────────────────────────
+
+    /**
+     * Default category to pre-select in step 2 (Configure).
+     * The user can override this in the wizard.
+     */
     @Input() DefaultCategoryID: string | null = null;
+
+    /**
+     * Entity ID for the "MJ.BizApps.Common: People" entity.
+     * Used as the `AssigneeEntityID` when creating TaskAssignment records
+     * from role placeholders. If not provided, the wizard will still work
+     * but role assignment will not populate the entity ID.
+     */
     @Input() PersonEntityID: string | null = null;
 
+    // ── Outputs ─────────────────────────────────────────────
+
+    /**
+     * Emitted after all tasks have been successfully created from the template.
+     * Payload is the array of created Task entity objects.
+     */
     @Output() Created = new EventEmitter<BaseEntity[]>();
+
+    /**
+     * Emitted when the user clicks "Cancel" at any step.
+     */
     @Output() Cancelled = new EventEmitter<void>();
 
-    steps = ['Template', 'Configure', 'Preview', 'Assign'];
-    step = 0;
-    templates: TemplateOption[] = [];
-    categories: any[] = [];
-    selectedTemplateID: string | null = null;
-    startDateStr = new Date().toISOString().split('T')[0];
-    categoryID: string | null = null;
-    previewItems: PreviewItem[] = [];
-    rolePlaceholders: RolePlaceholder[] = [];
-    creating = false;
+    // ── Internal State ──────────────────────────────────────
 
+    /** @internal */
+    steps = ['Template', 'Configure', 'Preview', 'Assign'];
+    /** @internal Current wizard step index (0-based). */
+    step = 0;
+    /** @internal */
+    templates: TemplateOption[] = [];
+    /** @internal */
+    categories: any[] = [];
+    /** @internal */
+    selectedTemplateID: string | null = null;
+    /** @internal */
+    startDateStr = new Date().toISOString().split('T')[0];
+    /** @internal */
+    categoryID: string | null = null;
+    /** @internal */
+    previewItems: PreviewItem[] = [];
+    /** @internal */
+    rolePlaceholders: RolePlaceholder[] = [];
+    /** @internal */
+    creating = false;
+    /** @internal */
     private templateService = new TaskTemplateService();
 
+    /** @internal Whether the "Next" button should be enabled for the current step. */
     get canAdvance(): boolean {
         if (this.step === 0) return !!this.selectedTemplateID;
         if (this.step === 1) return !!this.startDateStr;

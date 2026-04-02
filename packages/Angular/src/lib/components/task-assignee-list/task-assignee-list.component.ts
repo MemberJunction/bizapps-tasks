@@ -1,16 +1,36 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
+/**
+ * Represents a single assignee displayed by {@link TaskAssigneeListComponent}.
+ */
 export interface TaskAssigneeInfo {
+    /** Unique record ID of the assignee (Person ID or Agent ID). */
     AssigneeRecordID: string;
+    /** Human-readable display name (e.g. "Sarah Chen"). */
     DisplayName: string;
+    /** Optional role name (e.g. "Reviewer", "Observer"). Shown as a tooltip. */
     RoleName?: string;
+    /** Per-assignee progress status. Controls the indicator dot color. */
     Status: 'Pending' | 'InProgress' | 'Completed';
 }
 
 /**
- * Avatar/name chips for assigned entities (people, agents) with per-assignee
- * status indicator dots: green (Completed), blue (InProgress), gray (Pending).
+ * Displays a horizontal list of assignee chips with per-person status indicator dots.
+ *
+ * Each chip shows the assignee's name and a colored dot reflecting their individual
+ * status on the task: gray (Pending), blue (InProgress), green (Completed).
+ * When no assignees are provided, renders "Unassigned" in muted text.
+ *
+ * @example
+ * ```html
+ * <bizapps-task-assignee-list
+ *     [Assignees]="[
+ *         { AssigneeRecordID: '...', DisplayName: 'Sarah Chen', RoleName: 'Primary', Status: 'InProgress' },
+ *         { AssigneeRecordID: '...', DisplayName: 'Marcus Williams', RoleName: 'Reviewer', Status: 'Pending' }
+ *     ]">
+ * </bizapps-task-assignee-list>
+ * ```
  */
 @Component({
     selector: 'bizapps-task-assignee-list',
@@ -45,5 +65,10 @@ export interface TaskAssigneeInfo {
     `]
 })
 export class TaskAssigneeListComponent {
+    /**
+     * Array of assignees to render. Each entry produces one chip with a status dot
+     * and display name. Pass an empty array to show the "Unassigned" placeholder.
+     * @default []
+     */
     @Input() Assignees: TaskAssigneeInfo[] = [];
 }

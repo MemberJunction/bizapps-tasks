@@ -1,13 +1,45 @@
-import { Component, EventEmitter, Input, Output, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, inject, Input, Output, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CompositeKey, Metadata, RunView } from '@memberjunction/core';
 import { TaskPriorityBadgeComponent } from '../task-priority-badge/task-priority-badge.component';
 
+/**
+ * Cancellable event emitted before a drag-and-drop status change on the Kanban board.
+ * Set `Cancel = true` to prevent the status change from being persisted.
+ *
+ * @example
+ * ```ts
+ * onBeforeChange(event: BeforeKanbanStatusChangeEvent) {
+ *     if (event.NewStatus === 'Completed' && !confirm('Mark as done?')) {
+ *         event.Cancel = true;
+ *     }
+ * }
+ * ```
+ */
 export class BeforeKanbanStatusChangeEvent {
+    /** Set to `true` to prevent the status change. */
     Cancel = false;
-    constructor(public TaskID: string, public OldStatus: string, public NewStatus: string) {}
+    constructor(
+        /** ID of the task being moved. */
+        public TaskID: string,
+        /** The status column the card was dragged from. */
+        public OldStatus: string,
+        /** The status column the card was dropped into. */
+        public NewStatus: string
+    ) {}
 }
 
+/**
+ * Event emitted after a drag-and-drop status change has been persisted.
+ */
+export interface AfterKanbanStatusChangeEvent {
+    /** ID of the task that was moved. */
+    TaskID: string;
+    /** The new status that was saved. */
+    NewStatus: string;
+}
+
+/** @internal Represents a single card on the Kanban board. */
 interface KanbanCard {
     ID: string;
     Name: string;
@@ -17,6 +49,7 @@ interface KanbanCard {
     Sequence: number;
 }
 
+/** @internal Represents a status column on the Kanban board. */
 interface KanbanColumn {
     Status: string;
     Label: string;
@@ -25,12 +58,28 @@ interface KanbanColumn {
 }
 
 /**
- * Kanban board with columns per status. Supports drag-and-drop for
- * status changes and manual reordering via Sequence.
+ * Kanban board with columns per task status (Open, In Progress, Blocked, Completed).
+ *
+ * Supports native HTML5 drag-and-drop to move cards between columns, which
+ * triggers a status change on the underlying task entity. Cards show the task
+ * name, priority badge, and due date.
+ *
+ * Cancelled tasks are excluded from the board by default.
+ *
+ * @example
+ * ```html
+ * <bizapps-task-kanban
+ *     [CategoryID]="committeeCategoryId"
+ *     (BeforeStatusChange)="onBeforeChange($event)"
+ *     (AfterStatusChange)="onAfterChange($event)"
+ *     (TaskClicked)="openDetailPanel($event)">
+ * </bizapps-task-kanban>
+ * ```
  */
 @Component({
     selector: 'bizapps-task-kanban',
     standalone: true,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [CommonModule, TaskPriorityBadgeComponent],
     template: `
         <div class="kanban-board">
@@ -97,28 +146,71 @@ interface KanbanColumn {
     `]
 })
 export class TaskKanbanComponent implements OnInit {
+    // ── Inputs ──────────────────────────────────────────────
+
+    /**
+     * Filter board to a specific category. Pass a TaskCategory ID to scope
+     * the board, or `null` to show all tasks.
+     */
     @Input() CategoryID: string | null = null;
+
+    /**
+     * Additional SQL WHERE clause filter appended to the task query.
+     */
     @Input() ExtraFilter: string | null = null;
 
+    // ── Outputs ─────────────────────────────────────────────
+
+    /**
+     * Emitted **before** a drag-and-drop status change is persisted.
+     * Cancellable — set `event.Cancel = true` to prevent the change.
+     */
     @Output() BeforeStatusChange = new EventEmitter<BeforeKanbanStatusChangeEvent>();
-    @Output() AfterStatusChange = new EventEmitter<{ TaskID: string; NewStatus: string }>();
+
+    /**
+     * Emitted **after** a drag-and-drop status change has been saved.
+     */
+    @Output() AfterStatusChange = new EventEmitter<AfterKanbanStatusChangeEvent>();
+
+    /**
+     * Emitted when a card is clicked (not dragged). Payload is the task ID.
+     * Consuming apps should open a detail or edit panel in response.
+     */
     @Output() TaskClicked = new EventEmitter<string>();
 
+    // ── Internal State ──────────────────────────────────────
+
+    /** @internal */
     columns: KanbanColumn[] = [
         { Status: 'Open',       Label: 'Open',        Cards: [], Color: '#3b82f6' },
         { Status: 'InProgress', Label: 'In Progress',  Cards: [], Color: '#8b5cf6' },
         { Status: 'Blocked',    Label: 'Blocked',      Cards: [], Color: '#ef4444' },
         { Status: 'Completed',  Label: 'Completed',    Cards: [], Color: '#22c55e' },
     ];
-
+    /** @internal */
     private dragCardID: string | null = null;
+    /** @internal */
     private dragSourceStatus: string | null = null;
+    /** @internal */
+    private cdr = inject(ChangeDetectorRef);
 
-    ngOnInit(): void { this.loadTasks(); }
+    // ── Lifecycle ───────────────────────────────────────────
 
-    Refresh(): void { this.loadTasks(); }
+    ngOnInit(): void { this.LoadTasks(); }
 
-    async loadTasks(): Promise<void> {
+    // ── Public Methods ──────────────────────────────────────
+
+    /**
+     * Reloads all task data and re-populates the board columns.
+     * Call this after external changes to refresh the board.
+     */
+    Refresh(): void { this.LoadTasks(); }
+
+    /**
+     * Loads tasks from the server and distributes them into status columns.
+     * Called automatically on init and after each drag-and-drop.
+     */
+    async LoadTasks(): Promise<void> {
         const rv = new RunView();
         const filters: string[] = ["Status <> 'Cancelled'"];
         if (this.CategoryID) filters.push(`CategoryID = '${this.CategoryID}'`);
@@ -145,18 +237,24 @@ export class TaskKanbanComponent implements OnInit {
                 Sequence: r.Sequence ?? 100,
             });
         }
+        this.cdr.markForCheck();
     }
 
+    // ── Drag and Drop ───────────────────────────────────────
+
+    /** @internal */
     onDragStart(event: DragEvent, card: KanbanCard, sourceStatus: string): void {
         this.dragCardID = card.ID;
         this.dragSourceStatus = sourceStatus;
         event.dataTransfer?.setData('text/plain', card.ID);
     }
 
+    /** @internal */
     onDragOver(event: DragEvent): void {
         event.preventDefault();
     }
 
+    /** @internal */
     async onDrop(event: DragEvent, targetStatus: string): Promise<void> {
         event.preventDefault();
         if (!this.dragCardID || this.dragSourceStatus === targetStatus) return;
@@ -174,6 +272,6 @@ export class TaskKanbanComponent implements OnInit {
         this.AfterStatusChange.emit({ TaskID: this.dragCardID, NewStatus: targetStatus });
         this.dragCardID = null;
         this.dragSourceStatus = null;
-        await this.loadTasks();
+        await this.LoadTasks();
     }
 }

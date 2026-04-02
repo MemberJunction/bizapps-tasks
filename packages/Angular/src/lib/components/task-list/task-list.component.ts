@@ -3,32 +3,80 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Metadata, RunView, CompositeKey } from '@memberjunction/core';
 
+/**
+ * Represents a single task row as displayed by {@link TaskListComponent}.
+ * Contains denormalized data including resolved assignee names, tags, and
+ * computed fields like overdue/due-soon indicators.
+ */
 export interface TaskRow {
+    /** Unique task ID (GUID). */
     ID: string;
+    /** Task name / title. */
     Name: string;
+    /** Optional longer description. Truncated in the list view. */
     Description: string | null;
+    /** Current status: Open, InProgress, Blocked, Completed, Cancelled. */
     Status: string;
+    /** Priority level: Low, Medium, High, Critical. */
     Priority: string;
+    /** Due date, or null if none set. */
     DueAt: Date | null;
+    /** Completion percentage (0–100). */
     PercentComplete: number;
+    /** Estimated hours for the task. */
     HoursEstimated: number | null;
+    /** Parent task ID for sub-task hierarchy, or null for top-level. */
     ParentID: string | null;
+    /** Nesting depth in the hierarchy (0 = top-level). Adjusted when filtering. */
     Depth: number;
+    /** Resolved assignee details including display name, role, and per-person status. */
     Assignees: { Name: string; Role: string; Status: string }[];
+    /** Resolved tag details including display name and color code. */
     Tags: { Name: string; Color: string }[];
+    /** True if the task is active (not Completed/Cancelled) and past its DueAt. */
     IsOverdue: boolean;
+    /** True if the task is active and due within the next 48 hours. */
     IsDueSoon: boolean;
+    /** Number of direct child tasks. Used to show the parent folder icon. */
     ChildCount: number;
 }
 
+/**
+ * Cancellable event emitted before a task is selected in the list.
+ * Set `Cancel = true` in a handler to prevent the selection from proceeding.
+ *
+ * @example
+ * ```html
+ * <bizapps-task-list (BeforeTaskSelected)="onBefore($event)"></bizapps-task-list>
+ * ```
+ * ```ts
+ * onBefore(event: BeforeTaskSelectedEvent) {
+ *     if (someCondition) event.Cancel = true;
+ * }
+ * ```
+ */
 export class BeforeTaskSelectedEvent {
+    /** Set to `true` to prevent the task selection. */
     Cancel = false;
-    constructor(public Task: TaskRow) {}
+    constructor(
+        /** The task row that is about to be selected. */
+        public Task: TaskRow
+    ) {}
 }
 
+/**
+ * Cancellable event emitted before a bulk status change is applied to a task.
+ * Set `Cancel = true` to skip the status change for this specific task.
+ */
 export class BeforeStatusChangeEvent {
+    /** Set to `true` to prevent this status change. */
     Cancel = false;
-    constructor(public Task: TaskRow, public NewStatus: string) {}
+    constructor(
+        /** The task whose status is about to change. */
+        public Task: TaskRow,
+        /** The new status value that will be applied. */
+        public NewStatus: string
+    ) {}
 }
 
 @Component({
@@ -393,30 +441,120 @@ export class BeforeStatusChangeEvent {
         }
     `]
 })
+/**
+ * Embeddable, filterable task list with hierarchical display, multi-select,
+ * bulk operations, search, and urgency indicators.
+ *
+ * Renders tasks as premium cards with priority dots, progress bars, assignee
+ * chips, tags, and status badges. Supports parent/child hierarchy with
+ * indentation, and flattens orphaned sub-tasks when filtering.
+ *
+ * **No routing** — raises events only. Consuming apps wire events to their
+ * own navigation or panel logic.
+ *
+ * @example
+ * ```html
+ * <bizapps-task-list
+ *     [CategoryID]="committeeCategoryId"
+ *     [ShowCreateButton]="isOfficer"
+ *     (BeforeTaskSelected)="onBeforeSelect($event)"
+ *     (AfterTaskSelected)="onTaskSelected($event)"
+ *     (CreateTask)="openNewTaskPanel()">
+ * </bizapps-task-list>
+ * ```
+ */
 export class TaskListComponent implements OnInit {
+    // ── Inputs ──────────────────────────────────────────────
+
+    /**
+     * Filter tasks to a specific category. Pass a TaskCategory ID to scope
+     * the list (e.g., to a single committee). Pass `null` to show all categories.
+     */
     @Input() CategoryID: string | null = null;
+
+    /**
+     * Additional SQL WHERE clause filter appended to the task query.
+     * Use this for advanced filtering beyond CategoryID, e.g.:
+     * `"ID IN (SELECT TaskID FROM ... WHERE ...)"`.
+     */
     @Input() ExtraFilter: string | null = null;
+
+    /**
+     * Pre-select a status filter on initialization. Must match one of:
+     * `'Open'`, `'InProgress'`, `'Blocked'`, `'Completed'`, `'Cancelled'`.
+     * Pass `null` to default to "All".
+     */
     @Input() StatusFilter: string | null = null;
+
+    /**
+     * Whether to show the "+ New Task" button in the toolbar.
+     * Typically bound to a permission check (e.g., `isOfficer`).
+     * @default false
+     */
     @Input() ShowCreateButton = false;
+
+    /**
+     * Compact mode reduces padding, hides descriptions, and optimizes for
+     * scanning on small screens or embedded widgets.
+     * @default false
+     */
     @Input() Compact = false;
 
+    // ── Outputs ─────────────────────────────────────────────
+
+    /**
+     * Emitted **before** a task is selected (clicked). The event is cancellable:
+     * set `event.Cancel = true` in the handler to prevent the selection.
+     */
     @Output() BeforeTaskSelected = new EventEmitter<BeforeTaskSelectedEvent>();
+
+    /**
+     * Emitted **after** a task is selected. Contains the full {@link TaskRow}
+     * data for the selected task. Use this to open a detail or edit panel.
+     */
     @Output() AfterTaskSelected = new EventEmitter<TaskRow>();
+
+    /**
+     * Emitted **before** a bulk status change is applied to each task.
+     * The event is cancellable per-task.
+     */
     @Output() BeforeStatusChange = new EventEmitter<BeforeStatusChangeEvent>();
+
+    /**
+     * Emitted **after** a bulk status change has been applied to a task.
+     */
     @Output() AfterStatusChange = new EventEmitter<TaskRow>();
+
+    /**
+     * Emitted when the user clicks the "+ New Task" button.
+     * The consuming app should open its create-task flow in response.
+     */
     @Output() CreateTask = new EventEmitter<void>();
 
+    // ── Internal State ──────────────────────────────────────
+
+    /** @internal Full unfiltered task list. */
     tasks: TaskRow[] = [];
+    /** @internal Currently visible tasks after filtering. */
     filteredTasks: TaskRow[] = [];
+    /** @internal IDs of tasks selected via checkboxes for bulk operations. */
     selectedIDs: string[] = [];
+    /** @internal */
     bulkStatus = '';
+    /** @internal */
     bulkPercent: number | null = null;
+    /** @internal */
     loading = false;
+    /** @internal */
     searchText = '';
+    /** @internal */
     statusFilter = '';
+    /** @internal */
     private searchTimeout: any;
+    /** @internal */
     cdr = inject(ChangeDetectorRef);
 
+    /** @internal Status filter pill definitions. */
     statusFilters = [
         { label: 'All', value: '' },
         { label: 'Open', value: 'Open' },
@@ -425,19 +563,39 @@ export class TaskListComponent implements OnInit {
         { label: 'Completed', value: 'Completed' },
     ];
 
+    // ── Lifecycle ───────────────────────────────────────────
+
     ngOnInit(): void {
         if (this.StatusFilter) this.statusFilter = this.StatusFilter;
         this.loadTasks();
     }
 
+    // ── Public Methods ──────────────────────────────────────
+
+    /**
+     * Reloads all task data from the server and re-applies filters.
+     * Call this after external changes (e.g., a task was created or
+     * updated via a different component).
+     */
     Refresh(): void { this.loadTasks(); }
 
+    /**
+     * Programmatically selects a task by ID, triggering the same
+     * Before/After event flow as a user click.
+     * @param taskID - The ID of the task to select.
+     */
     SelectTask(taskID: string): void {
         const task = this.tasks.find(t => t.ID === taskID);
         if (task) this.onTaskClick(task);
     }
 
-    ClearSelection(): void {}
+    /**
+     * Deselects all checked tasks and hides the bulk action bar.
+     */
+    ClearSelection(): void {
+        this.selectedIDs = [];
+        this.cdr.markForCheck();
+    }
 
     formatStatus(status: string): string {
         if (!status) return '';
