@@ -151,36 +151,49 @@ export class BeforeStatusChangeEvent {
             @if (!loading) {
                 <div class="task-grid">
                     @for (task of filteredTasks; track task.ID) {
-                        <div class="task-card"
-                             [class.overdue]="task.IsOverdue"
-                             [class.completed]="task.Status === 'Completed'"
-                             [class.selected]="selectedIDs.includes(task.ID)"
-                             [class.sub-task]="task.Depth > 0"
-                             [style.margin-left.px]="task.Depth * 28"
-                             (click)="onTaskClick(task)">
+                        <!-- Skip sub-tasks whose parent is collapsed -->
+                        @if (task.Depth === 0 || isParentExpanded(task)) {
+                            <div class="task-card-wrapper" [class.is-child]="task.Depth > 0">
+                                <!-- Tree connector line for sub-tasks -->
+                                @if (task.Depth > 0) {
+                                    <div class="tree-connector">
+                                        <div class="tree-line-vertical"></div>
+                                        <div class="tree-line-horizontal"></div>
+                                    </div>
+                                }
+                                <div class="task-card"
+                                     [class.overdue]="task.IsOverdue"
+                                     [class.completed]="task.Status === 'Completed'"
+                                     [class.selected]="selectedIDs.includes(task.ID)"
+                                     [class.sub-task]="task.Depth > 0"
+                                     (click)="onTaskClick(task)">
 
-                            <!-- Checkbox -->
-                            <input type="checkbox" class="task-checkbox"
-                                   [checked]="selectedIDs.includes(task.ID)"
-                                   (click)="$event.stopPropagation()"
-                                   (change)="toggleSelect(task.ID)" />
+                                    <!-- Checkbox -->
+                                    <input type="checkbox" class="task-checkbox"
+                                           [checked]="selectedIDs.includes(task.ID)"
+                                           (click)="$event.stopPropagation()"
+                                           (change)="toggleSelect(task.ID)" />
 
-                            <!-- Priority dot -->
-                            <div [class]="'priority-dot priority-' + task.Priority.toLowerCase()"></div>
+                                    <!-- Expand/collapse toggle for parents -->
+                                    @if (task.ChildCount > 0) {
+                                        <button class="expand-toggle" (click)="toggleExpand(task.ID); $event.stopPropagation()">
+                                            <i [class]="expandedIDs.has(task.ID) ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-right'"></i>
+                                        </button>
+                                    }
 
-                            <!-- Content -->
-                            <div class="card-content">
-                                <div class="card-title-row">
-                                    <h4 class="card-title">
-                                        @if (task.ChildCount > 0) {
-                                            <i class="fa-solid fa-folder-open parent-icon"></i>
-                                        }
-                                        @if (task.Depth > 0 && task.ParentID) {
-                                            <i class="fa-solid fa-turn-up fa-flip-horizontal sub-icon"></i>
-                                        }
-                                        {{ task.Name }}
-                                    </h4>
-                                </div>
+                                    <!-- Priority dot -->
+                                    <div [class]="'priority-dot priority-' + task.Priority.toLowerCase()"></div>
+
+                                    <!-- Content -->
+                                    <div class="card-content">
+                                        <div class="card-title-row">
+                                            <h4 class="card-title">
+                                                @if (task.ChildCount > 0) {
+                                                    <span class="child-count-badge">{{ task.ChildCount }}</span>
+                                                }
+                                                {{ task.Name }}
+                                            </h4>
+                                        </div>
 
                                 @if (!Compact && task.Description) {
                                     <p class="card-desc">{{ task.Description }}</p>
@@ -238,8 +251,32 @@ export class BeforeStatusChangeEvent {
                                 </span>
                             </div>
                         </div>
+                    </div>
+                        }
                     }
                 </div>
+
+                <!-- Quick-add inline -->
+                @if (ShowQuickAdd) {
+                    <div class="quick-add-row">
+                        <i class="fa-solid fa-plus quick-add-icon"></i>
+                        <input type="text" [(ngModel)]="quickAddName" name="quickAdd"
+                               placeholder="Add a task..."
+                               class="quick-add-input"
+                               (keydown.enter)="quickAddTask()" />
+                        <select [(ngModel)]="quickAddPersonID" name="quickAddPerson" class="quick-add-person">
+                            <option value="">Unassigned</option>
+                            @for (p of quickAddPeople; track p.ID) {
+                                <option [value]="p.ID">{{ p.FirstName }} {{ p.LastName }}</option>
+                            }
+                        </select>
+                        @if (quickAddName.trim()) {
+                            <button class="quick-add-btn" (click)="quickAddTask()" [disabled]="quickAdding">
+                                {{ quickAdding ? '...' : 'Add' }}
+                            </button>
+                        }
+                    </div>
+                }
             }
         </div>
     `,
@@ -329,14 +366,47 @@ export class BeforeStatusChangeEvent {
         .task-card.selected { background: #eef2ff; }
 
         /* ─── Task Grid ─── */
-        .task-grid { display: flex; flex-direction: column; gap: 8px; }
+        .task-grid { display: flex; flex-direction: column; gap: 4px; }
+
+        /* ─── Tree Structure ─── */
+        .task-card-wrapper {
+            position: relative;
+            display: flex; align-items: stretch;
+        }
+        .task-card-wrapper.is-child {
+            margin-left: 32px;
+        }
+        .tree-connector {
+            position: relative; width: 24px; flex-shrink: 0;
+        }
+        .tree-line-vertical {
+            position: absolute; left: 11px; top: -4px; bottom: 50%;
+            width: 1px; background: #d1d5db;
+        }
+        .tree-line-horizontal {
+            position: absolute; left: 11px; top: 50%; width: 12px;
+            height: 1px; background: #d1d5db;
+        }
+        .expand-toggle {
+            display: flex; align-items: center; justify-content: center;
+            width: 22px; height: 22px; border-radius: 6px; border: 1px solid #e2e8f0;
+            background: #fff; color: #94a3b8; cursor: pointer; flex-shrink: 0;
+            font-size: 10px; margin-right: 4px; transition: all 0.15s;
+        }
+        .expand-toggle:hover { background: #f1f5f9; color: #6366f1; border-color: #c7d2fe; }
+        .child-count-badge {
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+            background: #eef2ff; color: #6366f1; font-size: 10px; font-weight: 700;
+            margin-right: 4px;
+        }
 
         .task-card {
             background: #fff; border-radius: 14px; padding: 16px 20px;
             display: flex; align-items: flex-start; gap: 14px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.04);
             transition: box-shadow 0.25s ease, transform 0.25s ease;
-            cursor: pointer;
+            cursor: pointer; flex: 1;
         }
         .task-card:hover {
             box-shadow: 0 8px 30px rgba(0,0,0,0.07);
@@ -346,7 +416,7 @@ export class BeforeStatusChangeEvent {
             background: #fff5f5; border-left: 3px solid #f43f5e;
         }
         .task-card.completed { opacity: 0.55; }
-        .task-card.sub-task { border-radius: 10px; padding: 12px 16px; }
+        .task-card.sub-task { border-radius: 10px; padding: 12px 16px; flex: 1; }
 
         /* ─── Priority Dot ─── */
         .priority-dot {
@@ -364,8 +434,6 @@ export class BeforeStatusChangeEvent {
             font-size: 15px; font-weight: 600; color: #0f172a; margin: 0;
             letter-spacing: -0.2px; display: flex; align-items: center; gap: 6px;
         }
-        .parent-icon { font-size: 12px; color: #6366f1; }
-        .sub-icon { font-size: 10px; color: #94a3b8; }
         .card-desc {
             font-size: 13px; color: #94a3b8; line-height: 1.4; margin: 4px 0 0 0;
             display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
@@ -426,6 +494,35 @@ export class BeforeStatusChangeEvent {
         .status-completed { background: #d1fae5; color: #065f46; }
         .status-blocked { background: #fef2f2; color: #991b1b; }
         .status-cancelled { background: #f1f5f9; color: #64748b; }
+
+        /* ─── Quick Add ─── */
+        .quick-add-row {
+            display: flex; align-items: center; gap: 10px;
+            padding: 12px 20px; margin-top: 4px;
+            border: 1px dashed #d1d5db; border-radius: 14px;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .quick-add-row:focus-within {
+            border-color: #6366f1; background: #fafbff;
+        }
+        .quick-add-icon { color: #94a3b8; font-size: 13px; }
+        .quick-add-input {
+            flex: 1; border: none; background: transparent; font-size: 14px;
+            font-family: inherit; outline: none; color: #1e293b;
+        }
+        .quick-add-input::placeholder { color: #94a3b8; }
+        .quick-add-btn {
+            padding: 5px 14px; border: none; border-radius: 8px;
+            background: #6366f1; color: #fff; font-size: 13px; font-weight: 600;
+            cursor: pointer; font-family: inherit; flex-shrink: 0;
+        }
+        .quick-add-person {
+            padding: 4px 8px; border: 1px solid #e2e8f0; border-radius: 8px;
+            font-size: 13px; font-family: inherit; color: #475569;
+            background: #fff; max-width: 180px; flex-shrink: 0;
+        }
+        .quick-add-person:focus { border-color: #6366f1; outline: none; }
+        .quick-add-btn:disabled { opacity: 0.4; }
 
         /* ─── Empty State ─── */
         .empty-state { text-align: center; padding: 64px 24px; }
@@ -500,6 +597,29 @@ export class TaskListComponent implements OnInit {
      */
     @Input() Compact = false;
 
+    /**
+     * Whether to show the quick-add inline input at the bottom of the list.
+     * Creates a task with just a name and sensible defaults (Status=Open,
+     * Priority=Medium, CategoryID from the component's CategoryID input).
+     * @default false
+     */
+    @Input() ShowQuickAdd = false;
+
+    /**
+     * Default TypeID used when creating tasks via quick-add.
+     * If not set, the first active TaskType is used.
+     */
+    @Input() QuickAddDefaultTypeID: string | null = null;
+
+    /**
+     * Narrows the assignee person picker in quick-add. Accepts either:
+     * - A SQL `ExtraFilter` string (e.g. `"ID IN (SELECT PersonID FROM ...)"`)
+     * - An array of Person ID strings to include
+     *
+     * When `null`, all people in BizAppsCommon are shown.
+     */
+    @Input() AssigneeScope: string | string[] | null = null;
+
     // ── Outputs ─────────────────────────────────────────────
 
     /**
@@ -531,6 +651,12 @@ export class TaskListComponent implements OnInit {
      */
     @Output() CreateTask = new EventEmitter<void>();
 
+    /**
+     * Emitted after a task is created via the quick-add input.
+     * Payload is the new task's ID.
+     */
+    @Output() AfterTaskCreated = new EventEmitter<string>();
+
     // ── Internal State ──────────────────────────────────────
 
     /** @internal Full unfiltered task list. */
@@ -539,6 +665,16 @@ export class TaskListComponent implements OnInit {
     filteredTasks: TaskRow[] = [];
     /** @internal IDs of tasks selected via checkboxes for bulk operations. */
     selectedIDs: string[] = [];
+    /** @internal IDs of parent tasks that are expanded to show children. */
+    expandedIDs = new Set<string>();
+    /** @internal */
+    quickAddName = '';
+    /** @internal */
+    quickAddPersonID = '';
+    /** @internal */
+    quickAddPeople: any[] = [];
+    /** @internal */
+    quickAdding = false;
     /** @internal */
     bulkStatus = '';
     /** @internal */
@@ -568,6 +704,7 @@ export class TaskListComponent implements OnInit {
     ngOnInit(): void {
         if (this.StatusFilter) this.statusFilter = this.StatusFilter;
         this.loadTasks();
+        if (this.ShowQuickAdd) this.loadQuickAddPeople();
     }
 
     // ── Public Methods ──────────────────────────────────────
@@ -577,7 +714,7 @@ export class TaskListComponent implements OnInit {
      * Call this after external changes (e.g., a task was created or
      * updated via a different component).
      */
-    Refresh(): void { this.loadTasks(); }
+    async Refresh(): Promise<void> { await this.loadTasks(); }
 
     /**
      * Programmatically selects a task by ID, triggering the same
@@ -594,6 +731,133 @@ export class TaskListComponent implements OnInit {
      */
     ClearSelection(): void {
         this.selectedIDs = [];
+        this.cdr.markForCheck();
+    }
+
+    /**
+     * Toggles the expand/collapse state of a parent task.
+     * @param taskID - The parent task ID to toggle.
+     */
+    ToggleExpand(taskID: string): void {
+        if (this.expandedIDs.has(taskID)) {
+            this.expandedIDs.delete(taskID);
+        } else {
+            this.expandedIDs.add(taskID);
+        }
+        this.cdr.markForCheck();
+    }
+
+    /** @internal Template helper — toggles expand state. */
+    toggleExpand(taskID: string): void { this.ToggleExpand(taskID); }
+
+    /** @internal Returns true if the task's parent is expanded (or task is top-level). */
+    isParentExpanded(task: TaskRow): boolean {
+        if (!task.ParentID) return true;
+        return this.expandedIDs.has(task.ParentID);
+    }
+
+    // ── Quick Add ───────────────────────────────────────────
+
+    /** @internal Loads people for the quick-add assignee picker. */
+    private async loadQuickAddPeople(): Promise<void> {
+        let extraFilter: string | undefined;
+        if (Array.isArray(this.AssigneeScope)) {
+            const ids = this.AssigneeScope.map(id => `'${id}'`).join(',');
+            extraFilter = `ID IN (${ids})`;
+        } else if (typeof this.AssigneeScope === 'string' && this.AssigneeScope) {
+            extraFilter = this.AssigneeScope;
+        }
+        const rv = new RunView();
+        const result = await rv.RunView<any>({
+            EntityName: 'MJ.BizApps.Common: People',
+            ExtraFilter: extraFilter,
+            OrderBy: 'LastName ASC, FirstName ASC',
+            ResultType: 'simple',
+        });
+        this.quickAddPeople = result?.Results ?? [];
+        this.cdr.markForCheck();
+    }
+
+    /**
+     * Creates a task with just a name via the inline quick-add input.
+     * Uses sensible defaults: Status=Open, Priority=Medium, CategoryID
+     * from the component's input, first active TaskType.
+     */
+    async quickAddTask(): Promise<void> {
+        const name = this.quickAddName.trim();
+        if (!name || this.quickAdding) return;
+        this.quickAdding = true;
+        this.cdr.markForCheck();
+
+        try {
+            // Resolve default TypeID if not provided
+            let typeID = this.QuickAddDefaultTypeID;
+            if (!typeID) {
+                const rv = new RunView();
+                const types = await rv.RunView<any>({
+                    EntityName: 'MJ.BizApps.Tasks: Task Types',
+                    ExtraFilter: 'IsActive = 1',
+                    OrderBy: 'Name ASC',
+                    MaxRows: 1,
+                    ResultType: 'simple',
+                });
+                typeID = types?.Results?.[0]?.ID ?? null;
+            }
+
+            if (!typeID) {
+                console.error('Quick-add failed: no TaskType found. Ensure at least one active Task Type exists.');
+                return;
+            }
+
+            const entity = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Tasks');
+            entity.NewRecord();
+            entity.Set('Name', name);
+            entity.Set('Status', 'Open');
+            entity.Set('Priority', 'Medium');
+            entity.Set('TypeID', typeID);
+            if (this.CategoryID) entity.Set('CategoryID', this.CategoryID);
+            const saved = await entity.Save();
+
+            if (!saved) {
+                console.error('Quick-add Save() returned false. LatestResult:', entity.LatestResult);
+                return;
+            }
+
+            const savedID = entity.Get('ID') as string;
+
+            // Create assignment if a person was selected
+            if (this.quickAddPersonID) {
+                try {
+                    const peEntityResult = await new RunView().RunView<any>({
+                        EntityName: 'MJ: Entities',
+                        ExtraFilter: `Name = 'MJ.BizApps.Common: People'`,
+                        ResultType: 'simple',
+                        MaxRows: 1,
+                    });
+                    const peopleEntityID = peEntityResult?.Results?.[0]?.ID;
+                    if (peopleEntityID) {
+                        const assignment = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Task Assignments');
+                        assignment.NewRecord();
+                        assignment.Set('TaskID', savedID);
+                        assignment.Set('AssigneeEntityID', peopleEntityID);
+                        assignment.Set('AssigneeRecordID', this.quickAddPersonID);
+                        assignment.Set('Status', 'Pending');
+                        await assignment.Save();
+                    }
+                } catch (e) {
+                    console.error('Quick-add assignment failed:', e);
+                }
+            }
+
+            this.quickAddName = '';
+            this.quickAddPersonID = '';
+            this.AfterTaskCreated.emit(savedID);
+            await this.loadTasks();
+        } catch (e) {
+            console.error('Quick-add failed:', e);
+        }
+
+        this.quickAdding = false;
         this.cdr.markForCheck();
     }
 
@@ -710,7 +974,7 @@ export class TaskListComponent implements OnInit {
             if (!task) continue;
             task.Assignees.push({
                 Name: personMap.get(a.AssigneeRecordID) ?? 'Unknown',
-                Role: roleMap.get(a.RoleID) ?? 'Assignee',
+                Role: roleMap.get(a.RoleID) ?? 'Primary',
                 Status: a.Status ?? 'Pending',
             });
         }

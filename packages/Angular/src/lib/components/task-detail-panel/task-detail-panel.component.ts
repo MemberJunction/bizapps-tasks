@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, inject, Input, Output, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Metadata, RunView } from '@memberjunction/core';
+import { Metadata, RunView, CompositeKey } from '@memberjunction/core';
 import { TaskAssigneeInfo } from '../task-assignee-list/task-assignee-list.component';
 
 /**
@@ -54,6 +54,19 @@ export class BeforeCommentPostedEvent {
                             <button class="btn-edit" (click)="EditRequested.emit(TaskID!)">
                                 <i class="fa-solid fa-pen"></i> Edit
                             </button>
+                            @if (ShowDelete) {
+                                @if (!confirmingDelete) {
+                                    <button class="btn-delete" (click)="confirmingDelete = true">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                } @else {
+                                    <span class="delete-confirm">
+                                        Delete?
+                                        <button class="btn-confirm-yes" (click)="onDelete()">Yes</button>
+                                        <button class="btn-confirm-no" (click)="confirmingDelete = false">No</button>
+                                    </span>
+                                }
+                            }
                             <button class="btn-close" (click)="Close.emit()">
                                 <i class="fa-solid fa-xmark"></i>
                             </button>
@@ -229,6 +242,28 @@ export class BeforeCommentPostedEvent {
             transition: all 0.15s;
         }
         .btn-close:hover { background: #f8fafc; color: #64748b; }
+        .btn-delete {
+            padding: 7px 10px; border: 1px solid #e2e8f0; border-radius: 8px;
+            background: #fff; color: #94a3b8; font-size: 14px; cursor: pointer;
+            transition: all 0.15s;
+        }
+        .btn-delete:hover { background: #fef2f2; color: #f43f5e; border-color: #fecaca; }
+        .delete-confirm {
+            display: inline-flex; align-items: center; gap: 6px;
+            font-size: 13px; font-weight: 600; color: #f43f5e;
+        }
+        .btn-confirm-yes {
+            padding: 4px 10px; border: none; border-radius: 6px;
+            background: #f43f5e; color: #fff; font-size: 12px; font-weight: 600;
+            cursor: pointer; font-family: inherit;
+        }
+        .btn-confirm-yes:hover { background: #e11d48; }
+        .btn-confirm-no {
+            padding: 4px 10px; border: 1px solid #e2e8f0; border-radius: 6px;
+            background: #fff; color: #64748b; font-size: 12px; font-weight: 600;
+            cursor: pointer; font-family: inherit;
+        }
+        .btn-confirm-no:hover { background: #f8fafc; }
 
         /* ─── Fields ─── */
         .field-row { display: flex; gap: 24px; margin-bottom: 16px; }
@@ -377,6 +412,9 @@ export class TaskDetailPanelComponent implements OnChanges {
      */
     @Input() PersonID: string | null = null;
 
+    /** Whether to show the delete button. @default false */
+    @Input() ShowDelete = false;
+
     // ── Outputs ─────────────────────────────────────────────
 
     /**
@@ -403,10 +441,18 @@ export class TaskDetailPanelComponent implements OnChanges {
      */
     @Output() Close = new EventEmitter<void>();
 
+    /**
+     * Emitted when the user confirms task deletion. Payload is the TaskID.
+     * The consuming app should delete the entity and refresh the list.
+     */
+    @Output() DeleteRequested = new EventEmitter<string>();
+
     // ── Internal State ──────────────────────────────────────
 
     /** @internal Loaded task record. */
     task: any = null;
+    /** @internal Whether the delete confirmation is showing. */
+    confirmingDelete = false;
     /** @internal Resolved parent task name, or null if top-level. */
     parentTaskName: string | null = null;
     /** @internal Resolved assignee list with display names and roles. */
@@ -605,5 +651,50 @@ export class TaskDetailPanelComponent implements OnChanges {
         await this.loadTimeline();
         this.cdr.markForCheck();
         this.AfterCommentPosted.emit();
+    }
+
+    /** @internal Deletes child records then the task itself. */
+    async onDelete(): Promise<void> {
+        this.confirmingDelete = false;
+        if (!this.TaskID) return;
+        try {
+            const rv = new RunView();
+            // Delete child records in dependency order
+            const childEntities = [
+                'MJ.BizApps.Tasks: Task Activities',
+                'MJ.BizApps.Tasks: Task Comments',
+                'MJ.BizApps.Tasks: Task Tag Links',
+                'MJ.BizApps.Tasks: Task Assignments',
+                'MJ.BizApps.Tasks: Task Dependencies',
+                'MJ.BizApps.Tasks: Task Links',
+                'MJ.BizApps.Tasks: Task Notification Logs',
+            ];
+            for (const entityName of childEntities) {
+                const result = await rv.RunView<any>({
+                    EntityName: entityName,
+                    ExtraFilter: `TaskID = '${this.TaskID}'`,
+                    ResultType: 'simple',
+                });
+                for (const row of result?.Results ?? []) {
+                    const child = await Metadata.Provider.GetEntityObject(entityName);
+                    const pk = new CompositeKey([{ FieldName: 'ID', Value: row.ID }]);
+                    await child.InnerLoad(pk);
+                    await child.Delete();
+                }
+            }
+
+            // Now delete the task
+            const entity = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Tasks');
+            const pk = new CompositeKey([{ FieldName: 'ID', Value: this.TaskID }]);
+            await entity.InnerLoad(pk);
+            const deleted = await entity.Delete();
+            if (deleted) {
+                this.DeleteRequested.emit(this.TaskID);
+            } else {
+                console.error('Delete failed:', entity.LatestResult);
+            }
+        } catch (e) {
+            console.error('Delete failed:', e);
+        }
     }
 }

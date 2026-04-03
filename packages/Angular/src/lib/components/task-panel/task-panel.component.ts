@@ -107,11 +107,15 @@ export class BeforePanelCloseEvent {
                     [ExtraFilter]="ExtraFilter"
                     [StatusFilter]="StatusFilter"
                     [ShowCreateButton]="ShowCreateButton"
+                    [ShowQuickAdd]="ShowQuickAdd"
+                    [QuickAddDefaultTypeID]="DefaultTypeID"
+                    [AssigneeScope]="AssigneeScope"
                     [Compact]="Compact"
                     (BeforeTaskSelected)="onBeforeTaskSelected($event)"
                     (AfterTaskSelected)="onAfterTaskSelected($event)"
                     (BeforeStatusChange)="BeforeStatusChange.emit($event)"
                     (AfterStatusChange)="AfterStatusChange.emit($event)"
+                    (AfterTaskCreated)="AfterTaskCreated.emit($event)"
                     (CreateTask)="onCreateTask()">
                 </bizapps-task-list>
             </div>
@@ -124,7 +128,9 @@ export class BeforePanelCloseEvent {
                             #detailPanel
                             [TaskID]="selectedTaskID"
                             [PersonID]="PersonID"
+                            [ShowDelete]="ShowDelete"
                             (EditRequested)="onEditRequested($event)"
+                            (DeleteRequested)="onDeleteRequested($event)"
                             (BeforeCommentPosted)="BeforeCommentPosted.emit($event)"
                             (AfterCommentPosted)="AfterCommentPosted.emit()"
                             (Close)="closePanel()">
@@ -200,11 +206,20 @@ export class TaskPanelComponent {
      */
     @Input() ShowCreateButton = false;
 
+    /** Whether to show the delete button in the detail panel. @default false */
+    @Input() ShowDelete = false;
+
     /**
      * Compact mode for the list. Passed through.
      * @default false
      */
     @Input() Compact = false;
+
+    /**
+     * Whether to show the quick-add inline input at the bottom of the list.
+     * @default false
+     */
+    @Input() ShowQuickAdd = false;
 
     /**
      * PersonID of the current user. Used for comment attribution in the
@@ -281,6 +296,12 @@ export class TaskPanelComponent {
      * Payload is the saved task's ID.
      */
     @Output() AfterTaskSaved = new EventEmitter<string>();
+
+    /**
+     * Emitted after a task is created via the quick-add input.
+     * Payload is the new task's ID.
+     */
+    @Output() AfterTaskCreated = new EventEmitter<string>();
 
     /**
      * Emitted after the panel closes (for any reason).
@@ -361,6 +382,15 @@ export class TaskPanelComponent {
     /** @internal */
     onEditRequested(taskID: string): void {
         this.tryOpenPanel('edit', taskID);
+    }
+
+    /** @internal Handles delete from the detail panel — closes panel and refreshes list. */
+    async onDeleteRequested(_taskID: string): Promise<void> {
+        this.panelMode = 'none';
+        this.selectedTaskID = null;
+        this.cdr.markForCheck();
+        await this.taskList?.Refresh();
+        this.cdr.markForCheck();
     }
 
     /** @internal */
