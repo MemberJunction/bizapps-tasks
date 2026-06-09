@@ -13,25 +13,16 @@ import { FormsModule } from '@angular/forms';
 import { BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { EntityViewerModule } from '@memberjunction/ng-entity-viewer';
 import { LinkDirectivesModule } from '@memberjunction/ng-link-directives';
-import { LayoutModule } from '@progress/kendo-angular-layout';
 
 // Import Generated Components
-import { mjBizAppsCommonAddressLinkFormComponent } from "./Entities/mjBizAppsCommonAddressLink/mjbizappscommonaddresslink.form.component";
-import { mjBizAppsCommonAddressTypeFormComponent } from "./Entities/mjBizAppsCommonAddressType/mjbizappscommonaddresstype.form.component";
-import { mjBizAppsCommonAddressFormComponent } from "./Entities/mjBizAppsCommonAddress/mjbizappscommonaddress.form.component";
-import { mjBizAppsCommonContactMethodFormComponent } from "./Entities/mjBizAppsCommonContactMethod/mjbizappscommoncontactmethod.form.component";
-import { mjBizAppsCommonContactTypeFormComponent } from "./Entities/mjBizAppsCommonContactType/mjbizappscommoncontacttype.form.component";
-import { mjBizAppsCommonOrganizationTypeFormComponent } from "./Entities/mjBizAppsCommonOrganizationType/mjbizappscommonorganizationtype.form.component";
-import { mjBizAppsCommonOrganizationFormComponent } from "./Entities/mjBizAppsCommonOrganization/mjbizappscommonorganization.form.component";
-import { mjBizAppsCommonPersonFormComponent } from "./Entities/mjBizAppsCommonPerson/mjbizappscommonperson.form.component";
-import { mjBizAppsCommonRelationshipTypeFormComponent } from "./Entities/mjBizAppsCommonRelationshipType/mjbizappscommonrelationshiptype.form.component";
-import { mjBizAppsCommonRelationshipFormComponent } from "./Entities/mjBizAppsCommonRelationship/mjbizappscommonrelationship.form.component";
 import { mjBizAppsTasksTaskActivityFormComponent } from "./Entities/mjBizAppsTasksTaskActivity/mjbizappstaskstaskactivity.form.component";
 import { mjBizAppsTasksTaskAssignmentFormComponent } from "./Entities/mjBizAppsTasksTaskAssignment/mjbizappstaskstaskassignment.form.component";
 import { mjBizAppsTasksTaskCategoryFormComponent } from "./Entities/mjBizAppsTasksTaskCategory/mjbizappstaskstaskcategory.form.component";
 import { mjBizAppsTasksTaskCommentFormComponent } from "./Entities/mjBizAppsTasksTaskComment/mjbizappstaskstaskcomment.form.component";
 import { mjBizAppsTasksTaskDependencyFormComponent } from "./Entities/mjBizAppsTasksTaskDependency/mjbizappstaskstaskdependency.form.component";
 import { mjBizAppsTasksTaskLinkFormComponent } from "./Entities/mjBizAppsTasksTaskLink/mjbizappstaskstasklink.form.component";
+import { mjBizAppsTasksTaskNotificationConfigFormComponent } from "./Entities/mjBizAppsTasksTaskNotificationConfig/mjbizappstaskstasknotificationconfig.form.component";
+import { mjBizAppsTasksTaskNotificationLogFormComponent } from "./Entities/mjBizAppsTasksTaskNotificationLog/mjbizappstaskstasknotificationlog.form.component";
 import { mjBizAppsTasksTaskRoleFormComponent } from "./Entities/mjBizAppsTasksTaskRole/mjbizappstaskstaskrole.form.component";
 import { mjBizAppsTasksTaskTagLinkFormComponent } from "./Entities/mjBizAppsTasksTaskTagLink/mjbizappstaskstasktaglink.form.component";
 import { mjBizAppsTasksTaskTagFormComponent } from "./Entities/mjBizAppsTasksTaskTag/mjbizappstaskstasktag.form.component";
@@ -41,36 +32,30 @@ import { mjBizAppsTasksTaskTemplateItemFormComponent } from "./Entities/mjBizApp
 import { mjBizAppsTasksTaskTemplateFormComponent } from "./Entities/mjBizAppsTasksTaskTemplate/mjbizappstaskstasktemplate.form.component";
 import { mjBizAppsTasksTaskTypeFormComponent } from "./Entities/mjBizAppsTasksTaskType/mjbizappstaskstasktype.form.component";
 import { mjBizAppsTasksTaskFormComponent } from "./Entities/mjBizAppsTasksTask/mjbizappstaskstask.form.component";
-import { mjBizAppsTasksTaskNotificationConfigFormComponent } from "./Entities/mjBizAppsTasksTaskNotificationConfig/mjbizappstaskstasknotificationconfig.form.component";
-import { mjBizAppsTasksTaskNotificationLogFormComponent } from "./Entities/mjBizAppsTasksTaskNotificationLog/mjbizappstaskstasknotificationlog.form.component";
    
 
 @NgModule({
 declarations: [
-    mjBizAppsCommonAddressLinkFormComponent,
-    mjBizAppsCommonAddressTypeFormComponent,
-    mjBizAppsCommonAddressFormComponent,
-    mjBizAppsCommonContactMethodFormComponent,
-    mjBizAppsCommonContactTypeFormComponent,
-    mjBizAppsCommonOrganizationTypeFormComponent,
-    mjBizAppsCommonOrganizationFormComponent,
-    mjBizAppsCommonPersonFormComponent,
-    mjBizAppsCommonRelationshipTypeFormComponent,
-    mjBizAppsCommonRelationshipFormComponent,
     mjBizAppsTasksTaskActivityFormComponent,
     mjBizAppsTasksTaskAssignmentFormComponent,
     mjBizAppsTasksTaskCategoryFormComponent,
     mjBizAppsTasksTaskCommentFormComponent,
     mjBizAppsTasksTaskDependencyFormComponent,
     mjBizAppsTasksTaskLinkFormComponent,
+    mjBizAppsTasksTaskNotificationConfigFormComponent,
+    mjBizAppsTasksTaskNotificationLogFormComponent,
     mjBizAppsTasksTaskRoleFormComponent,
     mjBizAppsTasksTaskTagLinkFormComponent,
     mjBizAppsTasksTaskTagFormComponent,
-    mjBizAppsTasksTaskTemplateItemDependencyFormComponent],
+    mjBizAppsTasksTaskTemplateItemDependencyFormComponent,
+    mjBizAppsTasksTaskTemplateItemRoleFormComponent,
+    mjBizAppsTasksTaskTemplateItemFormComponent,
+    mjBizAppsTasksTaskTemplateFormComponent,
+    mjBizAppsTasksTaskTypeFormComponent,
+    mjBizAppsTasksTaskFormComponent],
 imports: [
     CommonModule,
     FormsModule,
-    LayoutModule,
     BaseFormsModule,
     EntityViewerModule,
     LinkDirectivesModule
@@ -84,34 +69,9 @@ export class GeneratedForms_SubModule_0 { }
 
 @NgModule({
 declarations: [
-    mjBizAppsTasksTaskTemplateItemRoleFormComponent,
-    mjBizAppsTasksTaskTemplateItemFormComponent,
-    mjBizAppsTasksTaskTemplateFormComponent,
-    mjBizAppsTasksTaskTypeFormComponent,
-    mjBizAppsTasksTaskFormComponent,
-    mjBizAppsTasksTaskNotificationConfigFormComponent,
-    mjBizAppsTasksTaskNotificationLogFormComponent],
-imports: [
-    CommonModule,
-    FormsModule,
-    LayoutModule,
-    BaseFormsModule,
-    EntityViewerModule,
-    LinkDirectivesModule
-],
-exports: [
-]
-})
-export class GeneratedForms_SubModule_1 { }
-    
-
-
-@NgModule({
-declarations: [
 ],
 imports: [
-    GeneratedForms_SubModule_0,
-    GeneratedForms_SubModule_1
+    GeneratedForms_SubModule_0
 ]
 })
 export class GeneratedFormsModule { }

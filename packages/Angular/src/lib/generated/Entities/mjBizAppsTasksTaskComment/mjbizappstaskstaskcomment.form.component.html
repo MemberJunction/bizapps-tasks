@@ -5,6 +5,8 @@
     (HistoryRequested)="OnHistoryRequested()"
     (ListManagementRequested)="OnListManagementRequested()">
 
+    <mj-form-panel-slot Entity="{{record.EntityInfo.Name}}" Slot="before-fields" [Record]="record" [FormComponent]="this" [FormContext]="formContext"></mj-form-panel-slot>
+
     <!-- ========================================
          FIELD PANELS
          ======================================== -->
@@ -85,14 +87,16 @@
 
     </mj-collapsible-panel>
 
+    <mj-form-panel-slot Entity="{{record.EntityInfo.Name}}" Slot="after-fields" [Record]="record" [FormComponent]="this" [FormContext]="formContext"></mj-form-panel-slot>
+
     <!-- ========================================
          RELATED ENTITY PANELS
          ======================================== -->
 
-    <!-- MJ.BizApps.Tasks: Task Comments Section -->
+    <!-- Task Comments Section -->
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksTaskComments"
-        SectionName="MJ.BizApps.Tasks: Task Comments"
+        SectionName="Task Comments"
         Icon="fa fa-table"
         Variant="related-entity"
         [Form]="this"
@@ -102,8 +106,8 @@
         @if (record.IsSaved) {
         <div>
             <mj-explorer-entity-data-grid
-                [Params]="BuildRelationshipViewParamsByEntityName('MJ.BizApps.Tasks: Task Comments','ParentID')"
-                [NewRecordValues]="NewRecordValues('MJ.BizApps.Tasks: Task Comments')"
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Comments','ParentID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Comments')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskComments')"
                 [ShowToolbar]="false"
                 (Navigate)="OnFormNavigate($event)"
@@ -113,5 +117,7 @@
         </div>
         }
     </mj-collapsible-panel>
+
+    <mj-form-panel-slot Entity="{{record.EntityInfo.Name}}" Slot="after-related" [Record]="record" [FormComponent]="this" [FormContext]="formContext"></mj-form-panel-slot>
 </mj-record-form-container>
         

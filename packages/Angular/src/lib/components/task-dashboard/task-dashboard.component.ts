@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, ViewChild } from '@angular/core';
+import { Component, EventEmitter, Input, Output, ViewChild, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TaskListComponent, TaskRow } from '../task-list/task-list.component';
 import { TaskKanbanComponent } from '../task-kanban/task-kanban.component';
@@ -25,7 +25,7 @@ type PanelMode = 'none' | 'detail' | 'edit' | 'template';
         TaskDetailPanelComponent, TaskEditPanelComponent, TaskTemplateWizardComponent,
     ],
     template: `
-        <div class="dashboard" [class.panel-open]="panelMode !== 'none'">
+        <div class="dashboard">
             <!-- Main content area -->
             <div class="dashboard-main">
                 <!-- Toolbar -->
@@ -34,17 +34,25 @@ type PanelMode = 'none' | 'detail' | 'edit' | 'template';
                         <i class="fa-solid fa-list-check"></i> Tasks
                     </h2>
                     <div class="toolbar-actions">
-                        <div class="view-toggle">
-                            <button [class.active]="viewMode === 'list'" (click)="viewMode = 'list'">
-                                <i class="fa-solid fa-list"></i> List
-                            </button>
-                            <button [class.active]="viewMode === 'kanban'" (click)="viewMode = 'kanban'">
-                                <i class="fa-solid fa-columns"></i> Board
-                            </button>
-                            <button [class.active]="viewMode === 'gantt'" (click)="viewMode = 'gantt'">
-                                <i class="fa-solid fa-chart-gantt"></i> Gantt
-                            </button>
-                        </div>
+                        @if (enabledViewCount > 1) {
+                            <div class="view-toggle">
+                                @if (EnabledViews.includes('list')) {
+                                    <button [class.active]="viewMode === 'list'" (click)="viewMode = 'list'">
+                                        <i class="fa-solid fa-list"></i> List
+                                    </button>
+                                }
+                                @if (EnabledViews.includes('kanban')) {
+                                    <button [class.active]="viewMode === 'kanban'" (click)="viewMode = 'kanban'">
+                                        <i class="fa-solid fa-columns"></i> Board
+                                    </button>
+                                }
+                                @if (EnabledViews.includes('gantt')) {
+                                    <button [class.active]="viewMode === 'gantt'" (click)="viewMode = 'gantt'">
+                                        <i class="fa-solid fa-chart-gantt"></i> Gantt
+                                    </button>
+                                }
+                            </div>
+                        }
                         <button class="btn-template" (click)="openPanel('template')">
                             <i class="fa-solid fa-copy"></i> From Template
                         </button>
@@ -84,8 +92,9 @@ type PanelMode = 'none' | 'detail' | 'edit' | 'template';
                 }
             </div>
 
-            <!-- Side panel -->
+            <!-- Slide-in panel overlay -->
             @if (panelMode !== 'none') {
+                <div class="panel-backdrop" (click)="closePanel()"></div>
                 <div class="side-panel">
                     @if (panelMode === 'detail') {
                         <bizapps-task-detail-panel
@@ -115,12 +124,23 @@ type PanelMode = 'none' | 'detail' | 'edit' | 'template';
         </div>
     `,
     styles: [`
-        .dashboard { display: flex; height: 100%; }
-        .dashboard-main { flex: 1; min-width: 0; padding: 16px; overflow: auto; }
-        .side-panel {
-            width: 480px; flex-shrink: 0; border-left: 1px solid #e5e7eb;
-            overflow-y: auto; background: #fff;
+        :host { display: block; position: relative; }
+        .dashboard { height: 100%; }
+        .dashboard-main { padding: 16px; overflow: auto; }
+        .panel-backdrop {
+            position: fixed; inset: 0; background: rgba(0, 0, 0, 0.2);
+            z-index: 999; animation: fadeIn 0.15s ease;
         }
+        .side-panel {
+            position: fixed; top: 0; right: 0; bottom: 0;
+            width: 520px; max-width: 90vw;
+            background: #fff; z-index: 1000;
+            box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+            overflow-y: auto;
+            animation: slideIn 0.2s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
         .toolbar {
             display: flex; justify-content: space-between; align-items: center;
             margin-bottom: 16px; flex-wrap: wrap; gap: 8px;
@@ -136,22 +156,19 @@ type PanelMode = 'none' | 'detail' | 'edit' | 'template';
         .view-toggle button {
             padding: 6px 12px; border: none; background: #fff; font-size: 0.85rem;
             cursor: pointer; display: flex; align-items: center; gap: 4px;
-            border-right: 1px solid #d1d5db;
+            border-right: 1px solid #d1d5db; font-family: inherit;
         }
         .view-toggle button:last-child { border-right: none; }
         .view-toggle button.active { background: #4f46e5; color: #fff; }
         .btn-create {
             padding: 6px 14px; border: none; border-radius: 6px;
-            background: #4f46e5; color: #fff; font-size: 0.85rem; cursor: pointer; font-weight: 500;
+            background: #4f46e5; color: #fff; font-size: 0.85rem; cursor: pointer;
+            font-weight: 500; font-family: inherit;
         }
         .btn-template {
             padding: 6px 14px; border: 1px solid #d1d5db; border-radius: 6px;
             background: #fff; font-size: 0.85rem; cursor: pointer;
-            display: flex; align-items: center; gap: 4px;
-        }
-        @media (max-width: 768px) {
-            .dashboard { flex-direction: column; }
-            .side-panel { width: 100%; border-left: none; border-top: 1px solid #e5e7eb; }
+            display: flex; align-items: center; gap: 4px; font-family: inherit;
         }
     `]
 })
@@ -174,7 +191,7 @@ type PanelMode = 'none' | 'detail' | 'edit' | 'template';
  * </bizapps-task-dashboard>
  * ```
  */
-export class TaskDashboardComponent {
+export class TaskDashboardComponent implements OnInit {
     // ── Inputs ──────────────────────────────────────────────
 
     /**
@@ -193,6 +210,17 @@ export class TaskDashboardComponent {
      * for attributing comments, and to the template wizard for assignee defaults.
      */
     @Input() PersonID: string | null = null;
+
+    /**
+     * Which views to make available in the toggle. Pass a subset to hide views.
+     * The first enabled view becomes the default. If only one view is enabled
+     * the toggle is hidden entirely.
+     * @default ['list', 'kanban', 'gantt']
+     */
+    @Input() EnabledViews: ViewMode[] = ['list', 'kanban', 'gantt'];
+
+    /** @internal */
+    get enabledViewCount(): number { return this.EnabledViews.length; }
 
     // ── Outputs ─────────────────────────────────────────────
 
@@ -214,6 +242,13 @@ export class TaskDashboardComponent {
 
     /** @internal Current active view tab. */
     viewMode: ViewMode = 'list';
+
+    ngOnInit(): void {
+        // Default to the first enabled view
+        if (this.EnabledViews.length > 0 && !this.EnabledViews.includes(this.viewMode)) {
+            this.viewMode = this.EnabledViews[0];
+        }
+    }
     /** @internal Current slide-in panel state. */
     panelMode: PanelMode = 'none';
     /** @internal Task ID for the open detail/edit panel, or null for new task. */

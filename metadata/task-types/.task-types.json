@@ -1,0 +1,62 @@
+[
+  {
+    "fields": {
+      "Name": "General",
+      "Description": "General-purpose task",
+      "IconClass": "fa-solid fa-circle-check",
+      "DefaultPriority": "Medium"
+    },
+    "primaryKey": {
+      "ID": "F7C1E8DE-8DAC-4BF8-943E-3D5A1210BE82"
+    },
+    "sync": {
+      "lastModified": "2026-06-09T16:59:36.921Z",
+      "checksum": "d9cb1b758ce20fc4bc9e6779250d6a445ea3d574ccdb7e07f267173cb51ff8ba"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Action Item",
+      "Description": "Action item from a meeting or discussion",
+      "IconClass": "fa-solid fa-bolt",
+      "DefaultPriority": "Medium"
+    },
+    "primaryKey": {
+      "ID": "EA525DE3-B4A9-471C-AD13-1881E2055121"
+    },
+    "sync": {
+      "lastModified": "2026-06-09T16:59:36.934Z",
+      "checksum": "861fb7ab3c0e2ca948c3abc35ade1645f90f0ed36bc121fd92c1d0b34bc3332b"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Follow-up",
+      "Description": "Follow-up on a previous discussion or decision",
+      "IconClass": "fa-solid fa-arrow-rotate-right",
+      "DefaultPriority": "Medium"
+    },
+    "primaryKey": {
+      "ID": "EE1A6B5A-A5AD-4A62-89DB-D16FFD2A415C"
+    },
+    "sync": {
+      "lastModified": "2026-06-09T16:59:36.947Z",
+      "checksum": "d4502735c5ef747c763a0f979777a2c4ef50e78bf858e8c7dc54888fd855724d"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Deliverable",
+      "Description": "A concrete output or artifact to be produced",
+      "IconClass": "fa-solid fa-file-export",
+      "DefaultPriority": "High"
+    },
+    "primaryKey": {
+      "ID": "3F002EBA-0F6A-4433-BD98-83BC5982E916"
+    },
+    "sync": {
+      "lastModified": "2026-06-09T16:59:36.958Z",
+      "checksum": "3c53d018909c197185bcd66e62e726d215435d4f3b8ceb524f67c5ab0b8e2f42"
+    }
+  }
+]

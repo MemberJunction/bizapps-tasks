@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "push": {
+    "autoCreateMissingRecords": true
+  },
+  "directoryOrder": [
+    "task-types",
+    "task-roles",
+    "task-notification-configs"
+  ],
+  "emitSyncNotes": false
+}

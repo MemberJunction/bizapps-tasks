@@ -5,6 +5,8 @@
     (HistoryRequested)="OnHistoryRequested()"
     (ListManagementRequested)="OnListManagementRequested()">
 
+    <mj-form-panel-slot Entity="{{record.EntityInfo.Name}}" Slot="before-fields" [Record]="record" [FormComponent]="this" [FormContext]="formContext"></mj-form-panel-slot>
+
     <!-- ========================================
          FIELD PANELS
          ======================================== -->
@@ -91,39 +93,16 @@
 
     </mj-collapsible-panel>
 
+    <mj-form-panel-slot Entity="{{record.EntityInfo.Name}}" Slot="after-fields" [Record]="record" [FormComponent]="this" [FormContext]="formContext"></mj-form-panel-slot>
+
     <!-- ========================================
          RELATED ENTITY PANELS
          ======================================== -->
 
-    <!-- MJ.BizApps.Tasks: Task Categories Section -->
-    <mj-collapsible-panel
-        SectionKey="mJBizAppsTasksTaskCategories"
-        SectionName="MJ.BizApps.Tasks: Task Categories"
-        Icon="fa fa-table"
-        Variant="related-entity"
-        [Form]="this"
-        [FormContext]="formContext"
-        [BadgeCount]="GetSectionRowCount('mJBizAppsTasksTaskCategories')"
-        [DefaultExpanded]="false">
-        @if (record.IsSaved) {
-        <div>
-            <mj-explorer-entity-data-grid
-                [Params]="BuildRelationshipViewParamsByEntityName('MJ.BizApps.Tasks: Task Categories','ParentID')"
-                [NewRecordValues]="NewRecordValues('MJ.BizApps.Tasks: Task Categories')"
-                [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskCategories')"
-                [ShowToolbar]="false"
-                (Navigate)="OnFormNavigate($event)"
-                (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskCategories', $event.totalRowCount)"
-                >
-            </mj-explorer-entity-data-grid>
-        </div>
-        }
-    </mj-collapsible-panel>
-
-    <!-- MJ.BizApps.Tasks: Task Templates Section -->
+    <!-- Task Templates Section -->
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksTaskTemplates"
-        SectionName="MJ.BizApps.Tasks: Task Templates"
+        SectionName="Task Templates"
         Icon="fa fa-table"
         Variant="related-entity"
         [Form]="this"
@@ -133,8 +112,8 @@
         @if (record.IsSaved) {
         <div>
             <mj-explorer-entity-data-grid
-                [Params]="BuildRelationshipViewParamsByEntityName('MJ.BizApps.Tasks: Task Templates','CategoryID')"
-                [NewRecordValues]="NewRecordValues('MJ.BizApps.Tasks: Task Templates')"
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Templates','CategoryID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Templates')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskTemplates')"
                 [ShowToolbar]="false"
                 (Navigate)="OnFormNavigate($event)"
@@ -145,10 +124,35 @@
         }
     </mj-collapsible-panel>
 
-    <!-- MJ.BizApps.Tasks: Tasks Section -->
+    <!-- Task Categories Section -->
+    <mj-collapsible-panel
+        SectionKey="mJBizAppsTasksTaskCategories"
+        SectionName="Task Categories"
+        Icon="fa fa-table"
+        Variant="related-entity"
+        [Form]="this"
+        [FormContext]="formContext"
+        [BadgeCount]="GetSectionRowCount('mJBizAppsTasksTaskCategories')"
+        [DefaultExpanded]="false">
+        @if (record.IsSaved) {
+        <div>
+            <mj-explorer-entity-data-grid
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Categories','ParentID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Categories')"
+                [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskCategories')"
+                [ShowToolbar]="false"
+                (Navigate)="OnFormNavigate($event)"
+                (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskCategories', $event.totalRowCount)"
+                >
+            </mj-explorer-entity-data-grid>
+        </div>
+        }
+    </mj-collapsible-panel>
+
+    <!-- Tasks Section -->
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksTasks"
-        SectionName="MJ.BizApps.Tasks: Tasks"
+        SectionName="Tasks"
         Icon="fa fa-table"
         Variant="related-entity"
         [Form]="this"
@@ -158,8 +162,8 @@
         @if (record.IsSaved) {
         <div>
             <mj-explorer-entity-data-grid
-                [Params]="BuildRelationshipViewParamsByEntityName('MJ.BizApps.Tasks: Tasks','CategoryID')"
-                [NewRecordValues]="NewRecordValues('MJ.BizApps.Tasks: Tasks')"
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Tasks','CategoryID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Tasks')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTasks')"
                 [ShowToolbar]="false"
                 (Navigate)="OnFormNavigate($event)"
@@ -169,5 +173,7 @@
         </div>
         }
     </mj-collapsible-panel>
+
+    <mj-form-panel-slot Entity="{{record.EntityInfo.Name}}" Slot="after-related" [Record]="record" [FormComponent]="this" [FormContext]="formContext"></mj-form-panel-slot>
 </mj-record-form-container>
         
