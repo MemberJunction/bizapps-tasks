@@ -13,6 +13,7 @@
     "build:stream": "turbo --log-order=stream build",
     "build:generated": "turbo --log-order=stream build --filter=\"@mj-biz-apps/tasks-entities\" --filter=\"@mj-biz-apps/tasks-actions\"",
     "build:packages": "turbo --log-order=stream build --filter=\"@mj-biz-apps/tasks-*\"",
+    "test": "turbo test",
     "mj": "npx @memberjunction/cli",
     "mj:migrate": "npx @memberjunction/cli migrate",
     "mj:codegen": "npx @memberjunction/cli codegen"
@@ -23,9 +24,11 @@
   },
   "packageManager": "npm@10.5.0",
   "devDependencies": {
+    "@vitest/coverage-v8": "1.6.1",
     "tsc-alias": "^1.8.16",
     "turbo": "^2.9.3",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "1.6.1"
   },
   "engines": {
     "node": ">=18.0.0",

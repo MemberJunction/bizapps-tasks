@@ -15,5 +15,12 @@
     "skipLibCheck": true,
     "types": [],
     "useDefineForClassFields": false
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    "**/*.spec.ts",
+    "**/*.test.ts"
+  ]
 }
