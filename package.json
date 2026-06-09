@@ -4,6 +4,7 @@
   "license": "ISC",
   "description": "BizApps Tasks - Reusable task management app for MemberJunction business applications",
   "workspaces": [
+    "apps/*",
     "packages/*"
   ],
   "scripts": {
