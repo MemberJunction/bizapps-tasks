@@ -1,0 +1,19 @@
+[
+  {
+    "fields": {
+      "TaskTypeID": null,
+      "OverdueNotificationsEnabled": true,
+      "OverdueGracePeriodHours": 0,
+      "OverdueRepeatIntervalHours": 24,
+      "NotifyAssignees": true,
+      "NotifyCreator": true
+    },
+    "primaryKey": {
+      "ID": "47883863-B19C-483E-A380-4F4C45611B60"
+    },
+    "sync": {
+      "lastModified": "2026-06-09T16:59:37.028Z",
+      "checksum": "cb60af3c9dfa4b94f9acf080cdc3ffd0b159ef1e5e89b7964e7a017fcb56ce2d"
+    }
+  }
+]

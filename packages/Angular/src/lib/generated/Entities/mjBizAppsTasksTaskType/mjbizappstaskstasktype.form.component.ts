@@ -4,7 +4,7 @@ import { RegisterClass } from '@memberjunction/global';
 import { BaseFormComponent } from '@memberjunction/ng-base-forms';
 import {  } from "@memberjunction/ng-entity-viewer"
 
-@RegisterClass(BaseFormComponent, 'MJ.BizApps.Tasks: Task Types') // Tell MemberJunction about this class
+@RegisterClass(BaseFormComponent, 'MJ_BizApps_Tasks: Task Types') // Tell MemberJunction about this class
 @Component({
     standalone: false,
     selector: 'gen-mjbizappstaskstasktype-form',
@@ -17,9 +17,9 @@ export class mjBizAppsTasksTaskTypeFormComponent extends BaseFormComponent {
         await super.ngOnInit();
         this.initSections([
             { sectionKey: 'details', sectionName: 'Details', isExpanded: true },
-            { sectionKey: 'mJBizAppsTasksTasks', sectionName: 'MJ.BizApps.Tasks: Tasks', isExpanded: false },
-            { sectionKey: 'mJBizAppsTasksTaskTemplates', sectionName: 'MJ.BizApps.Tasks: Task Templates', isExpanded: false },
-            { sectionKey: 'mJBizAppsTasksTaskNotificationConfigs', sectionName: 'Task Notification Configs', isExpanded: false }
+            { sectionKey: 'mJBizAppsTasksTaskNotificationConfigs', sectionName: 'Task Notification Configs', isExpanded: false },
+            { sectionKey: 'mJBizAppsTasksTasks', sectionName: 'Tasks', isExpanded: false },
+            { sectionKey: 'mJBizAppsTasksTaskTemplates', sectionName: 'Task Templates', isExpanded: false }
         ]);
     }
 }

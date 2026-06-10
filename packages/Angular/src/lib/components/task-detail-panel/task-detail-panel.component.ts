@@ -494,7 +494,7 @@ export class TaskDetailPanelComponent implements OnChanges {
 
         const rv = new RunView();
         const result = await rv.RunView<any>({
-            EntityName: 'MJ.BizApps.Tasks: Tasks',
+            EntityName: 'MJ_BizApps_Tasks: Tasks',
             ExtraFilter: `ID = '${this.TaskID}'`,
             ResultType: 'simple',
         });
@@ -510,7 +510,7 @@ export class TaskDetailPanelComponent implements OnChanges {
         if (!this.task?.ParentID) return;
         const rv = new RunView();
         const result = await rv.RunView<any>({
-            EntityName: 'MJ.BizApps.Tasks: Tasks',
+            EntityName: 'MJ_BizApps_Tasks: Tasks',
             ExtraFilter: `ID = '${this.task.ParentID}'`,
             ResultType: 'simple',
             MaxRows: 1,
@@ -524,7 +524,7 @@ export class TaskDetailPanelComponent implements OnChanges {
         const rv = new RunView();
         const [linksResult, entitiesResult] = await Promise.all([
             rv.RunView<any>({
-                EntityName: 'MJ.BizApps.Tasks: Task Links',
+                EntityName: 'MJ_BizApps_Tasks: Task Links',
                 ExtraFilter: `TaskID = '${this.TaskID}'`,
                 ResultType: 'simple',
             }),
@@ -549,16 +549,16 @@ export class TaskDetailPanelComponent implements OnChanges {
         const rv = new RunView();
         const [assignmentResult, peopleResult, rolesResult] = await Promise.all([
             rv.RunView<any>({
-                EntityName: 'MJ.BizApps.Tasks: Task Assignments',
+                EntityName: 'MJ_BizApps_Tasks: Task Assignments',
                 ExtraFilter: `TaskID = '${this.TaskID}'`,
                 ResultType: 'simple',
             }),
             new RunView().RunView<any>({
-                EntityName: 'MJ.BizApps.Common: People',
+                EntityName: 'MJ_BizApps_Common: People',
                 ResultType: 'simple',
             }),
             new RunView().RunView<any>({
-                EntityName: 'MJ.BizApps.Tasks: Task Roles',
+                EntityName: 'MJ_BizApps_Tasks: Task Roles',
                 ResultType: 'simple',
             }),
         ]);
@@ -586,19 +586,19 @@ export class TaskDetailPanelComponent implements OnChanges {
 
         const [activities, comments, people] = await Promise.all([
             rv.RunView<any>({
-                EntityName: 'MJ.BizApps.Tasks: Task Activities',
+                EntityName: 'MJ_BizApps_Tasks: Task Activities',
                 ExtraFilter: `TaskID = '${this.TaskID}'`,
                 OrderBy: '__mj_CreatedAt DESC',
                 ResultType: 'simple',
             }),
             new RunView().RunView<any>({
-                EntityName: 'MJ.BizApps.Tasks: Task Comments',
+                EntityName: 'MJ_BizApps_Tasks: Task Comments',
                 ExtraFilter: `TaskID = '${this.TaskID}'`,
                 OrderBy: '__mj_CreatedAt DESC',
                 ResultType: 'simple',
             }),
             new RunView().RunView<any>({
-                EntityName: 'MJ.BizApps.Common: People',
+                EntityName: 'MJ_BizApps_Common: People',
                 ResultType: 'simple',
             }),
         ]);
@@ -641,7 +641,7 @@ export class TaskDetailPanelComponent implements OnChanges {
         this.BeforeCommentPosted.emit(before);
         if (before.Cancel) return;
 
-        const comment = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Task Comments');
+        const comment = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Comments');
         comment.NewRecord();
         comment.Set('TaskID', this.TaskID);
         if (this.PersonID) comment.Set('PersonID', this.PersonID);
@@ -661,13 +661,13 @@ export class TaskDetailPanelComponent implements OnChanges {
             const rv = new RunView();
             // Delete child records in dependency order
             const childEntities = [
-                'MJ.BizApps.Tasks: Task Activities',
-                'MJ.BizApps.Tasks: Task Comments',
-                'MJ.BizApps.Tasks: Task Tag Links',
-                'MJ.BizApps.Tasks: Task Assignments',
-                'MJ.BizApps.Tasks: Task Dependencies',
-                'MJ.BizApps.Tasks: Task Links',
-                'MJ.BizApps.Tasks: Task Notification Logs',
+                'MJ_BizApps_Tasks: Task Activities',
+                'MJ_BizApps_Tasks: Task Comments',
+                'MJ_BizApps_Tasks: Task Tag Links',
+                'MJ_BizApps_Tasks: Task Assignments',
+                'MJ_BizApps_Tasks: Task Dependencies',
+                'MJ_BizApps_Tasks: Task Links',
+                'MJ_BizApps_Tasks: Task Notification Logs',
             ];
             for (const entityName of childEntities) {
                 const result = await rv.RunView<any>({
@@ -684,7 +684,7 @@ export class TaskDetailPanelComponent implements OnChanges {
             }
 
             // Now delete the task
-            const entity = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Tasks');
+            const entity = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Tasks');
             const pk = new CompositeKey([{ FieldName: 'ID', Value: this.TaskID }]);
             await entity.InnerLoad(pk);
             const deleted = await entity.Delete();

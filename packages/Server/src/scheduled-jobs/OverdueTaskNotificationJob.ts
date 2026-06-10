@@ -134,7 +134,7 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
     }> {
         const rv = new RunView();
         const result = await rv.RunView<NotificationConfig>({
-            EntityName: 'MJ.BizApps.Tasks: Task Notification Configs',
+            EntityName: 'MJ_BizApps_Tasks: Task Notification Configs',
             ResultType: 'simple',
         }, contextUser);
 
@@ -174,7 +174,7 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
 
         // Base query: overdue + not completed/cancelled
         const result = await rv.RunView<OverdueTask>({
-            EntityName: 'MJ.BizApps.Tasks: Tasks',
+            EntityName: 'MJ_BizApps_Tasks: Tasks',
             ExtraFilter: `DueAt < GETUTCDATE() AND Status NOT IN ('Completed', 'Cancelled')`,
             ResultType: 'simple',
         }, contextUser);
@@ -215,7 +215,7 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
         // Assignees
         if (config.NotifyAssignees) {
             const assignments = await rv.RunView<any>({
-                EntityName: 'MJ.BizApps.Tasks: Task Assignments',
+                EntityName: 'MJ_BizApps_Tasks: Task Assignments',
                 ExtraFilter: `TaskID='${task.ID}'`,
                 ResultType: 'simple',
             }, contextUser);
@@ -239,7 +239,7 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
     private async getLinkedUserID(personID: string, contextUser: UserInfo): Promise<string | null> {
         const rv = new RunView();
         const result = await rv.RunView<any>({
-            EntityName: 'MJ.BizApps.Common: People',
+            EntityName: 'MJ_BizApps_Common: People',
             ExtraFilter: `ID='${personID}'`,
             Fields: ['ID', 'LinkedUserID'],
             ResultType: 'simple',
@@ -297,7 +297,7 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
         // 2. TaskType.OnOverdueActionID
         const rv = new RunView();
         const typeResult = await rv.RunView<any>({
-            EntityName: 'MJ.BizApps.Tasks: Task Types',
+            EntityName: 'MJ_BizApps_Tasks: Task Types',
             ExtraFilter: `ID='${task.TypeID}'`,
             ResultType: 'simple',
             MaxRows: 1,
@@ -354,7 +354,7 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
 
         for (const userID of userIDs) {
             try {
-                const log = await md.GetEntityObject<any>('MJ.BizApps.Tasks: Task Notification Logs', contextUser);
+                const log = await md.GetEntityObject<any>('MJ_BizApps_Tasks: Task Notification Logs', contextUser);
                 log.NewRecord();
                 log.Set('TaskID', task.ID);
                 log.Set('NotificationType', notificationType);
@@ -369,7 +369,7 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
     private async stampOverdueNotifiedAt(taskID: string, contextUser: UserInfo): Promise<void> {
         try {
             const md = new Metadata();
-            const task = await md.GetEntityObject<any>('MJ.BizApps.Tasks: Tasks', contextUser);
+            const task = await md.GetEntityObject<any>('MJ_BizApps_Tasks: Tasks', contextUser);
             const { CompositeKey } = await import('@memberjunction/core');
             const pk = new CompositeKey([{ FieldName: 'ID', Value: taskID }]);
             await task.InnerLoad(pk);

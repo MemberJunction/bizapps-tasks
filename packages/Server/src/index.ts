@@ -13,11 +13,16 @@ import '@mj-biz-apps/tasks-actions';
 // Import core services to trigger any class registrations
 import '@mj-biz-apps/tasks-core';
 
+// Import server-side entity subclasses (priority-2 overrides with server-only
+// side-effects such as sub-task progress rollup).
+import { LoadBizAppsTasksEntitiesServer } from '@mj-biz-apps/tasks-entities-server';
+
 // Import notification handler
 import { InitTaskNotificationHandler } from './event-handlers/TaskNotificationHandler.js';
 
 // Import scheduled job drivers (registers via @RegisterClass for scheduling engine discovery)
 import './scheduled-jobs/OverdueTaskNotificationJob.js';
+export { OverdueTaskNotificationJob } from './scheduled-jobs/OverdueTaskNotificationJob.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -38,6 +43,7 @@ export const RESOLVER_PATHS: string[] = [
  * This function exists as the entry point for DynamicPackageLoader.
  */
 export function LoadBizAppsTasksServer(): void {
+    LoadBizAppsTasksEntitiesServer();
     InitTaskNotificationHandler();
     console.log('[BizAppsTasks] Server loaded');
 }

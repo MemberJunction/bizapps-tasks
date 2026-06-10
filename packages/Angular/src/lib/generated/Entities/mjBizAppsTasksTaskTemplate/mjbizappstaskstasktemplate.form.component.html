@@ -5,6 +5,8 @@
     (HistoryRequested)="OnHistoryRequested()"
     (ListManagementRequested)="OnListManagementRequested()">
 
+    <mj-form-panel-slot Entity="{{record.EntityInfo.Name}}" Slot="before-fields" [Record]="record" [FormComponent]="this" [FormContext]="formContext"></mj-form-panel-slot>
+
     <!-- ========================================
          FIELD PANELS
          ======================================== -->
@@ -76,14 +78,16 @@
 
     </mj-collapsible-panel>
 
+    <mj-form-panel-slot Entity="{{record.EntityInfo.Name}}" Slot="after-fields" [Record]="record" [FormComponent]="this" [FormContext]="formContext"></mj-form-panel-slot>
+
     <!-- ========================================
          RELATED ENTITY PANELS
          ======================================== -->
 
-    <!-- MJ.BizApps.Tasks: Task Template Items Section -->
+    <!-- Task Template Items Section -->
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksTaskTemplateItems"
-        SectionName="MJ.BizApps.Tasks: Task Template Items"
+        SectionName="Task Template Items"
         Icon="fa fa-table"
         Variant="related-entity"
         [Form]="this"
@@ -93,8 +97,8 @@
         @if (record.IsSaved) {
         <div>
             <mj-explorer-entity-data-grid
-                [Params]="BuildRelationshipViewParamsByEntityName('MJ.BizApps.Tasks: Task Template Items','TemplateID')"
-                [NewRecordValues]="NewRecordValues('MJ.BizApps.Tasks: Task Template Items')"
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Template Items','TemplateID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Template Items')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskTemplateItems')"
                 [ShowToolbar]="false"
                 (Navigate)="OnFormNavigate($event)"
@@ -104,5 +108,7 @@
         </div>
         }
     </mj-collapsible-panel>
+
+    <mj-form-panel-slot Entity="{{record.EntityInfo.Name}}" Slot="after-related" [Record]="record" [FormComponent]="this" [FormContext]="formContext"></mj-form-panel-slot>
 </mj-record-form-container>
         

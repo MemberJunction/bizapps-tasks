@@ -11,7 +11,7 @@
   "files": ["/dist"],
   "scripts": {
     "build": "tsc && tsc-alias -f",
-    "test": "echo \"No tests configured yet\""
+    "test": "vitest run"
   },
   "author": "MemberJunction.com",
   "license": "ISC",
@@ -20,19 +20,20 @@
   },
   "dependencies": {
     "@mj-biz-apps/tasks-entities": "1.0.0",
+    "@mj-biz-apps/tasks-entities-server": "1.0.0",
     "@mj-biz-apps/tasks-actions": "1.0.0",
     "@mj-biz-apps/tasks-core": "1.0.0",
     "class-validator": "^0.14.3"
   },
   "peerDependencies": {
-    "@memberjunction/core": ">=5.10.0",
-    "@memberjunction/core-entities": ">=5.10.0",
-    "@memberjunction/global": ">=5.10.0",
-    "@memberjunction/server": ">=5.10.0",
-    "@memberjunction/sqlserver-dataprovider": ">=5.10.0",
-    "@memberjunction/scheduling-engine": ">=5.10.0",
-    "@memberjunction/scheduling-base-types": ">=5.10.0",
-    "@memberjunction/actions": ">=5.10.0"
+    "@memberjunction/core": "^5.38.0",
+    "@memberjunction/core-entities": "^5.38.0",
+    "@memberjunction/global": "^5.38.0",
+    "@memberjunction/server": "^5.38.0",
+    "@memberjunction/sqlserver-dataprovider": "^5.38.0",
+    "@memberjunction/scheduling-engine": "^5.38.0",
+    "@memberjunction/scheduling-base-types": "^5.38.0",
+    "@memberjunction/actions": "^5.38.0"
   },
   "repository": {
     "type": "git",

@@ -30,15 +30,41 @@ module.exports = {
     },
   ],
 
-  // Default excludeSchemas covers sys, staging, __mj.
   // Run CodeGen against MJ_BizAppTask (clean DB) — not MJ_5_9_0 which has Committees cross-schema FKs.
+  //
+  // Scope CodeGen to the schema tasks OWNS (__mj_BizAppsTasks). Exclude core (__mj)
+  // and __mj_BizAppsCommon — tasks only references those via FK; they are owned by
+  // MJ core and bizapps-common respectively and consumed as npm packages.
+  // (Matches the bizapps-accounting convention; the codegen-lib defaults do NOT
+  // exclude __mj_BizAppsCommon, so it must be listed explicitly.)
+  excludeSchemas: ['sys', 'staging', 'dbo', '__mj', '__mj_BizAppsCommon'],
+
+  // SQL output configuration with Flyway placeholders.
+  // The app's own schema (__mj_BizAppsTasks) maps to ${flyway:defaultSchema} so it is
+  // resolved at migrate time; core MJ uses the named ${mjSchema} placeholder.
+  // __mj_BizAppsCommon is left literal (matches the bizapps-accounting convention).
+  SQLOutput: {
+    enabled: true,
+    folderPath: './migrations/codegen/',
+    appendToFile: false,
+    convertCoreSchemaToFlywayMigrationFile: true,
+    omitRecurringScriptsFromLog: false,
+    schemaPlaceholders: [
+      // Order matters: more-specific schemas must come first because
+      // substitution is run sequentially with a greedy regex. If '__mj'
+      // were listed first, it would also match the '__mj' prefix of
+      // '__mj_BizAppsTasks', producing '${mjSchema}_BizAppsTasks'.
+      { schema: '__mj_BizAppsTasks', placeholder: '${flyway:defaultSchema}' },
+      { schema: '__mj', placeholder: '${mjSchema}' }
+    ]
+  },
 
   newEntityDefaults: {
     NameRulesBySchema: [
       { SchemaName: '${mj_core_schema}', EntityNamePrefix: 'MJ: ' },
       {
         SchemaName: '__mj_BizAppsTasks',
-        EntityNamePrefix: 'MJ.BizApps.Tasks: ',
+        EntityNamePrefix: 'MJ_BizApps_Tasks: ',
         EntityNameSuffix: '',
       }
     ]

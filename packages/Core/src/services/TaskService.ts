@@ -1,4 +1,4 @@
-import { BaseEntity, CompositeKey, Metadata, RunView } from "@memberjunction/core";
+import { BaseEntity, CompositeKey, Metadata, RunView, UserInfo } from "@memberjunction/core";
 
 /**
  * Core task management service.
@@ -21,13 +21,13 @@ export class TaskService {
      *
      * Call this after saving a child task whose PercentComplete or Status changed.
      */
-    async rollupParentProgress(parentTaskID: string): Promise<void> {
+    async rollupParentProgress(parentTaskID: string, contextUser?: UserInfo): Promise<void> {
         const rv = new RunView();
         const children = await rv.RunView<BaseEntity>({
-            EntityName: 'MJ.BizApps.Tasks: Tasks',
+            EntityName: 'MJ_BizApps_Tasks: Tasks',
             ExtraFilter: `ParentID = '${parentTaskID}'`,
             ResultType: 'simple',
-        });
+        }, contextUser);
 
         if (!children?.Results?.length) return;
 
@@ -51,13 +51,21 @@ export class TaskService {
         const newPct = totalWeight > 0 ? Math.round(weightedSum / totalWeight) : 0;
 
         // Load the parent task as an entity to trigger subclass validation
-        const parentTask = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Tasks');
+        const parentTask = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Tasks', contextUser);
         const pk = new CompositeKey([{ FieldName: 'ID', Value: parentTaskID }]);
         await parentTask.InnerLoad(pk);
 
-        parentTask.Set('PercentComplete', newPct);
+        const currentPct = parentTask.Get('PercentComplete') as number;
+        const shouldComplete = allCompleted && parentTask.Get('Status') !== 'Completed';
 
-        if (allCompleted && parentTask.Get('Status') !== 'Completed') {
+        // Only write when something actually changes — this also prevents the
+        // server save-event handler from re-triggering rollup in an infinite loop.
+        if (currentPct === newPct && !shouldComplete) {
+            return;
+        }
+
+        parentTask.Set('PercentComplete', newPct);
+        if (shouldComplete) {
             parentTask.Set('Status', 'Completed');
         }
 
@@ -66,7 +74,7 @@ export class TaskService {
         // Recurse up the tree
         const grandParentID = parentTask.Get('ParentID') as string | null;
         if (grandParentID) {
-            await this.rollupParentProgress(grandParentID);
+            await this.rollupParentProgress(grandParentID, contextUser);
         }
     }
 
@@ -86,7 +94,7 @@ export class TaskService {
         newValue?: string;
         description: string;
     }): Promise<void> {
-        const activity = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Task Activities');
+        const activity = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Activities');
         activity.NewRecord();
         activity.Set('TaskID', params.taskID);
         if (params.personID) activity.Set('PersonID', params.personID);
