@@ -8,5 +8,12 @@
     "task-roles",
     "task-notification-configs"
   ],
-  "emitSyncNotes": false
+  "emitSyncNotes": false,
+  "sqlLogging": {
+    "enabled": true,
+    "outputDirectory": "./sql_logging",
+    "formatAsMigration": true,
+    "filterPatterns": ["*spCreateAIPromptRun*", "*spUpdateAIPromptRun*"],
+    "filterType": "exclude"
+  }
 }
