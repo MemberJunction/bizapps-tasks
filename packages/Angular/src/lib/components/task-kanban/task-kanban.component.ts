@@ -92,17 +92,20 @@ export class TaskKanbanComponent implements OnInit {
 
     Refresh(): void { this.LoadTasks(); }
 
-    async LoadTasks(): Promise<void> {
+    async LoadTasks(bypassCache: boolean = false): Promise<void> {
         const rv = new RunView();
         const filters: string[] = ["Status <> 'Cancelled'"];
         if (this.CategoryID) filters.push(`CategoryID = '${this.CategoryID}'`);
         if (this.ExtraFilter) filters.push(this.ExtraFilter);
 
         const result = await rv.RunView<any>({
-            EntityName: 'MJ.BizApps.Tasks: Tasks',
+            EntityName: 'MJ_BizApps_Tasks: Tasks',
             ExtraFilter: filters.join(' AND '),
             OrderBy: 'Sequence ASC',
             ResultType: 'simple',
+            // Bypass cache on post-mutation reloads (e.g. after drag status change)
+            // so the board reflects the change immediately.
+            BypassCache: bypassCache,
         });
 
         this.cards = (result?.Results ?? []).map((r: any) => ({
@@ -124,14 +127,14 @@ export class TaskKanbanComponent implements OnInit {
         this.BeforeStatusChange.emit(before);
         if (before.Cancel) return;
 
-        const entity = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Tasks');
+        const entity = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Tasks');
         const pk = new CompositeKey([{ FieldName: 'ID', Value: event.Card.ID }]);
         await entity.InnerLoad(pk);
         entity.Set('Status', event.ToColumn);
         await entity.Save();
 
         this.AfterStatusChange.emit({ TaskID: event.Card.ID, NewStatus: event.ToColumn });
-        await this.LoadTasks();
+        await this.LoadTasks(true);
     }
 
     onCardClicked(card: KanbanCardData): void {

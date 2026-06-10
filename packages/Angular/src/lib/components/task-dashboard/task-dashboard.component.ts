@@ -100,7 +100,9 @@ type PanelMode = 'none' | 'detail' | 'edit' | 'template';
                         <bizapps-task-detail-panel
                             [TaskID]="selectedTaskID"
                             [PersonID]="PersonID"
+                            [ShowDelete]="ShowDelete"
                             (EditRequested)="openPanel('edit', $event)"
+                            (DeleteRequested)="onTaskDeleted()"
                             (Close)="closePanel()">
                         </bizapps-task-detail-panel>
                     }
@@ -219,6 +221,13 @@ export class TaskDashboardComponent implements OnInit {
      */
     @Input() EnabledViews: ViewMode[] = ['list', 'kanban', 'gantt'];
 
+    /**
+     * Whether to show the delete control in the task detail panel.
+     * Host apps pass this based on the current user's permissions.
+     * @default false
+     */
+    @Input() ShowDelete = false;
+
     /** @internal */
     get enabledViewCount(): number { return this.EnabledViews.length; }
 
@@ -311,6 +320,12 @@ export class TaskDashboardComponent implements OnInit {
 
     /** @internal */
     onTaskSaved(_taskID: string): void {
+        this.closePanel();
+        this.RefreshCurrentView();
+    }
+
+    /** @internal */
+    onTaskDeleted(): void {
         this.closePanel();
         this.RefreshCurrentView();
     }

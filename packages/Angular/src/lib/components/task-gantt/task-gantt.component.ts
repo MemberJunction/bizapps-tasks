@@ -58,13 +58,13 @@ export class TaskGanttComponent implements OnInit {
 
         const [tasksResult, depsResult] = await Promise.all([
             rv.RunView<any>({
-                EntityName: 'MJ.BizApps.Tasks: Tasks',
+                EntityName: 'MJ_BizApps_Tasks: Tasks',
                 ExtraFilter: filters.join(' AND '),
                 OrderBy: 'Sequence ASC',
                 ResultType: 'simple',
             }),
             new RunView().RunView<any>({
-                EntityName: 'MJ.BizApps.Tasks: Task Dependencies',
+                EntityName: 'MJ_BizApps_Tasks: Task Dependencies',
                 ResultType: 'simple',
             }),
         ]);

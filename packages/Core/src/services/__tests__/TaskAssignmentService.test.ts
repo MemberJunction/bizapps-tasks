@@ -109,7 +109,7 @@ describe('TaskAssignmentService.getAssignmentsForTask', () => {
 
     expect(result).toBe(rows);
     expect(runViewMock).toHaveBeenCalledWith(expect.objectContaining({
-      EntityName: 'MJ.BizApps.Tasks: Task Assignments',
+      EntityName: 'MJ_BizApps_Tasks: Task Assignments',
       ExtraFilter: "TaskID = 'task-4'",
     }));
   });

@@ -69,15 +69,15 @@ function wireRunView(opts: {
 }) {
   runViewMock.mockImplementation((params: any) => {
     switch (params.EntityName) {
-      case 'MJ.BizApps.Tasks: Task Notification Configs':
+      case 'MJ_BizApps_Tasks: Task Notification Configs':
         return Promise.resolve({ Results: opts.configs ?? [] });
-      case 'MJ.BizApps.Tasks: Tasks':
+      case 'MJ_BizApps_Tasks: Tasks':
         return Promise.resolve({ Results: opts.tasks ?? [] });
-      case 'MJ.BizApps.Tasks: Task Assignments':
+      case 'MJ_BizApps_Tasks: Task Assignments':
         return Promise.resolve({ Results: opts.assignments ?? [] });
-      case 'MJ.BizApps.Common: People':
+      case 'MJ_BizApps_Common: People':
         return Promise.resolve({ Results: opts.people ?? [] });
-      case 'MJ.BizApps.Tasks: Task Types':
+      case 'MJ_BizApps_Tasks: Task Types':
         return Promise.resolve({ Results: [] });
       default:
         return Promise.resolve({ Results: [] });

@@ -2,13 +2,13 @@ import { BaseEntity, Metadata, RunView, ValidationResult, ValidationErrorInfo, V
 import { RegisterClass } from "@memberjunction/global";
 
 /**
- * Custom entity subclass for MJ.BizApps.Tasks: Task Dependencies.
+ * Custom entity subclass for MJ_BizApps_Tasks: Task Dependencies.
  * Prevents circular dependencies by walking the dependency graph
  * before allowing a save.
  *
  * Registered with priority 1 to override the CodeGen-generated base class.
  */
-@RegisterClass(BaseEntity, 'MJ.BizApps.Tasks: Task Dependencies', 1)
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Task Dependencies', 1)
 export class TaskDependencyEntity extends BaseEntity {
 
     public override Validate(): ValidationResult {
@@ -80,7 +80,7 @@ export class TaskDependencyEntity extends BaseEntity {
             // Load all tasks that `current` depends on
             const rv = new RunView();
             const upstream = await rv.RunView<BaseEntity>({
-                EntityName: 'MJ.BizApps.Tasks: Task Dependencies',
+                EntityName: 'MJ_BizApps_Tasks: Task Dependencies',
                 ExtraFilter: `TaskID = '${current}'`,
                 ResultType: 'simple',
             });

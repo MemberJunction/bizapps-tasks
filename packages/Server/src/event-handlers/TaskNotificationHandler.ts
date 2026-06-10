@@ -23,9 +23,9 @@ import { MJEventType, MJGlobal, MJEvent } from '@memberjunction/global';
 import { Subscription } from 'rxjs';
 
 /** Entity names we listen for */
-const TASKS_ENTITY = 'MJ.BizApps.Tasks: Tasks';
-const TASK_ASSIGNMENTS_ENTITY = 'MJ.BizApps.Tasks: Task Assignments';
-const TASK_COMMENTS_ENTITY = 'MJ.BizApps.Tasks: Task Comments';
+const TASKS_ENTITY = 'MJ_BizApps_Tasks: Tasks';
+const TASK_ASSIGNMENTS_ENTITY = 'MJ_BizApps_Tasks: Task Assignments';
+const TASK_COMMENTS_ENTITY = 'MJ_BizApps_Tasks: Task Comments';
 
 /**
  * Initializes the global event subscription for task notifications.
@@ -193,7 +193,7 @@ async function handleAssignmentSave(event: BaseEntityEvent): Promise<void> {
     let roleStr = '';
     if (roleID) {
         const roleResult = await new RunView().RunView<any>({
-            EntityName: 'MJ.BizApps.Tasks: Task Roles',
+            EntityName: 'MJ_BizApps_Tasks: Task Roles',
             ExtraFilter: `ID='${roleID}'`,
             ResultType: 'simple',
             MaxRows: 1,
@@ -283,7 +283,7 @@ async function invokeTaskTypeAction(
 
     const rv = new RunView();
     const typeResult = await rv.RunView<any>({
-        EntityName: 'MJ.BizApps.Tasks: Task Types',
+        EntityName: 'MJ_BizApps_Tasks: Task Types',
         ExtraFilter: `ID='${typeID}'`,
         ResultType: 'simple',
         MaxRows: 1,
@@ -368,7 +368,7 @@ async function getTaskAssigneeUserIDs(taskID: string, contextUser: UserInfo): Pr
     const inClause = personIDs.map((id: string) => `'${id}'`).join(',');
 
     const people = await rv.RunView<any>({
-        EntityName: 'MJ.BizApps.Common: People',
+        EntityName: 'MJ_BizApps_Common: People',
         ExtraFilter: `ID IN (${inClause}) AND LinkedUserID IS NOT NULL`,
         Fields: ['ID', 'LinkedUserID'],
         ResultType: 'simple',
@@ -389,7 +389,7 @@ async function getTaskAssigneeUserIDs(taskID: string, contextUser: UserInfo): Pr
 async function getPersonLinkedUserID(personID: string, contextUser: UserInfo): Promise<string | null> {
     const rv = new RunView();
     const result = await rv.RunView<any>({
-        EntityName: 'MJ.BizApps.Common: People',
+        EntityName: 'MJ_BizApps_Common: People',
         ExtraFilter: `ID='${personID}'`,
         Fields: ['ID', 'LinkedUserID'],
         ResultType: 'simple',
@@ -405,7 +405,7 @@ async function getPersonLinkedUserID(personID: string, contextUser: UserInfo): P
 async function getPersonName(personID: string, contextUser: UserInfo): Promise<string | null> {
     const rv = new RunView();
     const result = await rv.RunView<any>({
-        EntityName: 'MJ.BizApps.Common: People',
+        EntityName: 'MJ_BizApps_Common: People',
         ExtraFilter: `ID='${personID}'`,
         Fields: ['ID', 'FirstName', 'LastName'],
         ResultType: 'simple',

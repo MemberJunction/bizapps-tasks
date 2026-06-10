@@ -214,6 +214,9 @@ export class BeforeTaskSaveEvent {
                         </div>
                     </div>
 
+                    @if (saveError) {
+                        <div class="form-save-error" role="alert">{{ saveError }}</div>
+                    }
                     <div class="form-actions">
                         <button type="button" class="btn-secondary" (click)="Cancel.emit()">Cancel</button>
                         <button type="submit" class="btn-primary" [disabled]="saving || !form.Name?.trim()">
@@ -309,6 +312,11 @@ export class BeforeTaskSaveEvent {
         .btn-create-tag:disabled { opacity: 0.4; cursor: not-allowed; }
 
         /* Actions */
+        .form-save-error {
+            margin-top: 16px; padding: 10px 12px; border-radius: 6px;
+            background: var(--mj-status-error-bg); color: var(--mj-status-error-text);
+            border: 1px solid var(--mj-status-error-border); font-size: 13px;
+        }
         .form-actions {
             display: flex; gap: 8px; justify-content: flex-end;
             margin-top: 20px; padding-top: 16px; border-top: 1px solid #f1f5f9;
@@ -413,6 +421,8 @@ export class TaskEditPanelComponent implements OnChanges {
     saving = false;
     /** @internal */
     taskTypes: any[] = [];
+    /** @internal Error surfaced when a save fails so the panel doesn't close silently. */
+    saveError: string | null = null;
     /** @internal */
     categories: any[] = [];
     /** @internal */
@@ -477,7 +487,7 @@ export class TaskEditPanelComponent implements OnChanges {
         this.cdr.markForCheck();
         const rv = new RunView();
         const result = await rv.RunView<any>({
-            EntityName: 'MJ.BizApps.Tasks: Tasks',
+            EntityName: 'MJ_BizApps_Tasks: Tasks',
             ExtraFilter: `ID = '${this.TaskID}'`,
             ResultType: 'simple',
         });
@@ -502,7 +512,7 @@ export class TaskEditPanelComponent implements OnChanges {
         if (!this.TaskID) return;
         const rv = new RunView();
         const result = await rv.RunView<any>({
-            EntityName: 'MJ.BizApps.Tasks: Task Assignments',
+            EntityName: 'MJ_BizApps_Tasks: Task Assignments',
             ExtraFilter: `TaskID = '${this.TaskID}'`,
             ResultType: 'simple',
         });
@@ -519,7 +529,7 @@ export class TaskEditPanelComponent implements OnChanges {
         if (!this.TaskID) return;
         const rv = new RunView();
         const result = await rv.RunView<any>({
-            EntityName: 'MJ.BizApps.Tasks: Task Tag Links',
+            EntityName: 'MJ_BizApps_Tasks: Task Tag Links',
             ExtraFilter: `TaskID = '${this.TaskID}'`,
             ResultType: 'simple',
         });
@@ -530,15 +540,20 @@ export class TaskEditPanelComponent implements OnChanges {
     private async loadLookups(): Promise<void> {
         const rv = new RunView();
         const [types, cats, ppl, rls, tasks, tags, entity] = await Promise.all([
-            rv.RunView<any>({ EntityName: 'MJ.BizApps.Tasks: Task Types', ExtraFilter: 'IsActive = 1', ResultType: 'simple' }),
-            new RunView().RunView<any>({ EntityName: 'MJ.BizApps.Tasks: Task Categories', ExtraFilter: 'IsActive = 1', OrderBy: 'Sequence ASC', ResultType: 'simple' }),
-            new RunView().RunView<any>({ EntityName: 'MJ.BizApps.Common: People', ExtraFilter: this.buildAssigneeScopeFilter(), ResultType: 'simple' }),
-            new RunView().RunView<any>({ EntityName: 'MJ.BizApps.Tasks: Task Roles', OrderBy: 'Sequence ASC', ResultType: 'simple' }),
-            new RunView().RunView<any>({ EntityName: 'MJ.BizApps.Tasks: Tasks', ResultType: 'simple' }),
-            new RunView().RunView<any>({ EntityName: 'MJ.BizApps.Tasks: Task Tags', ResultType: 'simple' }),
-            new RunView().RunView<any>({ EntityName: 'MJ: Entities', ExtraFilter: `Name = 'MJ.BizApps.Common: People'`, ResultType: 'simple', MaxRows: 1 }),
+            rv.RunView<any>({ EntityName: 'MJ_BizApps_Tasks: Task Types', ExtraFilter: 'IsActive = 1', ResultType: 'simple' }),
+            new RunView().RunView<any>({ EntityName: 'MJ_BizApps_Tasks: Task Categories', ExtraFilter: 'IsActive = 1', OrderBy: 'Sequence ASC', ResultType: 'simple' }),
+            new RunView().RunView<any>({ EntityName: 'MJ_BizApps_Common: People', ExtraFilter: this.buildAssigneeScopeFilter(), ResultType: 'simple' }),
+            new RunView().RunView<any>({ EntityName: 'MJ_BizApps_Tasks: Task Roles', OrderBy: 'Sequence ASC', ResultType: 'simple' }),
+            new RunView().RunView<any>({ EntityName: 'MJ_BizApps_Tasks: Tasks', ResultType: 'simple' }),
+            new RunView().RunView<any>({ EntityName: 'MJ_BizApps_Tasks: Task Tags', ResultType: 'simple' }),
+            new RunView().RunView<any>({ EntityName: 'MJ: Entities', ExtraFilter: `Name = 'MJ_BizApps_Common: People'`, ResultType: 'simple', MaxRows: 1 }),
         ]);
         this.taskTypes = types?.Results ?? [];
+        // TypeID is a required FK on Tasks. For a new task with no type chosen yet,
+        // default to the first active type so a save can't silently fail on the FK.
+        if (!this.TaskID && !this.form.TypeID && this.taskTypes.length > 0) {
+            this.form.TypeID = this.taskTypes[0].ID;
+        }
         this.categories = cats?.Results ?? [];
         this.people = ppl?.Results ?? [];
         this.roles = rls?.Results ?? [];
@@ -604,7 +619,7 @@ export class TaskEditPanelComponent implements OnChanges {
         this.creatingRole = true;
         this.cdr.markForCheck();
 
-        const role = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Task Roles');
+        const role = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Roles');
         role.NewRecord();
         role.Set('Name', name);
         await role.Save();
@@ -637,7 +652,7 @@ export class TaskEditPanelComponent implements OnChanges {
         this.creatingTag = true;
         this.cdr.markForCheck();
 
-        const tag = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Task Tags');
+        const tag = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Tags');
         tag.NewRecord();
         tag.Set('Name', name);
         tag.Set('ColorCode', color);
@@ -667,7 +682,7 @@ export class TaskEditPanelComponent implements OnChanges {
         this.cdr.markForCheck();
 
         // Save the task
-        const entity = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Tasks');
+        const entity = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Tasks');
         if (this.TaskID) {
             const pk = new CompositeKey([{ FieldName: 'ID', Value: this.TaskID }]);
             await entity.InnerLoad(pk);
@@ -689,7 +704,15 @@ export class TaskEditPanelComponent implements OnChanges {
         if (this.form.TypeID) entity.Set('TypeID', this.form.TypeID);
         entity.Set('CategoryID', this.form.CategoryID || null);
 
-        await entity.Save();
+        const taskSaved = await entity.Save();
+        if (!taskSaved) {
+            this.saveError = entity.LatestResult?.CompleteMessage ?? 'Failed to save task.';
+            console.error('Task Save() returned false:', this.saveError);
+            this.saving = false;
+            this.cdr.markForCheck();
+            return;
+        }
+        this.saveError = null;
         const savedID = entity.Get('ID') as string;
 
         // Save assignees — create new, update existing, delete removed
@@ -697,7 +720,7 @@ export class TaskEditPanelComponent implements OnChanges {
             // Load current assignments from DB to diff against
             const rv2 = new RunView();
             const currentAssignments = this.TaskID ? await rv2.RunView<any>({
-                EntityName: 'MJ.BizApps.Tasks: Task Assignments',
+                EntityName: 'MJ_BizApps_Tasks: Task Assignments',
                 ExtraFilter: `TaskID = '${savedID}'`,
                 ResultType: 'simple',
             }) : null;
@@ -706,7 +729,7 @@ export class TaskEditPanelComponent implements OnChanges {
             // Delete removed assignments (ones in DB but no longer in form)
             for (const dbRow of currentAssignments?.Results ?? []) {
                 if (!existingIDs.has(dbRow.ID)) {
-                    const del = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Task Assignments');
+                    const del = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Assignments');
                     const pk = new CompositeKey([{ FieldName: 'ID', Value: dbRow.ID }]);
                     await del.InnerLoad(pk);
                     await del.Delete();
@@ -717,7 +740,7 @@ export class TaskEditPanelComponent implements OnChanges {
                 if (!a.PersonID) continue;
                 if (a.IsNew) {
                     // Create new assignment
-                    const assignment = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Task Assignments');
+                    const assignment = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Assignments');
                     assignment.NewRecord();
                     assignment.Set('TaskID', savedID);
                     assignment.Set('AssigneeEntityID', this.peopleEntityID);
@@ -726,7 +749,7 @@ export class TaskEditPanelComponent implements OnChanges {
                     await assignment.Save();
                 } else if (a.ExistingID) {
                     // Update existing assignment (person or role may have changed)
-                    const assignment = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Task Assignments');
+                    const assignment = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Assignments');
                     const pk = new CompositeKey([{ FieldName: 'ID', Value: a.ExistingID }]);
                     await assignment.InnerLoad(pk);
                     assignment.Set('AssigneeRecordID', a.PersonID);
@@ -741,27 +764,38 @@ export class TaskEditPanelComponent implements OnChanges {
             // Load existing tag links
             const rv = new RunView();
             const existing = await rv.RunView<any>({
-                EntityName: 'MJ.BizApps.Tasks: Task Tag Links',
+                EntityName: 'MJ_BizApps_Tasks: Task Tag Links',
                 ExtraFilter: `TaskID = '${savedID}'`,
                 ResultType: 'simple',
             });
-            const existingTagIDs = new Set((existing?.Results ?? []).map((l: any) => l.TagID));
+            const existingLinks = existing?.Results ?? [];
+            const existingTagIDs = new Set(existingLinks.map((l: any) => l.TagID));
             const selectedTagIDs = new Set(this.selectedTags.map((t: any) => t.ID));
 
             // Add new
             for (const tagID of selectedTagIDs) {
                 if (!existingTagIDs.has(tagID)) {
-                    const link = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Task Tag Links');
+                    const link = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Tag Links');
                     link.NewRecord();
                     link.Set('TaskID', savedID);
                     link.Set('TagID', tagID);
                     await link.Save();
                 }
             }
+
+            // Remove deselected — delete links whose tag is no longer selected
+            for (const existingLink of existingLinks) {
+                if (!selectedTagIDs.has(existingLink.TagID)) {
+                    const link = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Tag Links');
+                    const pk = new CompositeKey([{ FieldName: 'ID', Value: existingLink.ID }]);
+                    await link.InnerLoad(pk);
+                    await link.Delete();
+                }
+            }
         } else {
             // New task — just create all tag links
             for (const tag of this.selectedTags) {
-                const link = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Task Tag Links');
+                const link = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Tag Links');
                 link.NewRecord();
                 link.Set('TaskID', savedID);
                 link.Set('TagID', tag.ID);
