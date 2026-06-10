@@ -16,7 +16,12 @@
     "test": "turbo test",
     "mj": "npx @memberjunction/cli",
     "mj:migrate": "npx @memberjunction/cli migrate",
-    "mj:codegen": "npx @memberjunction/cli codegen"
+    "mj:codegen": "npx @memberjunction/cli codegen",
+    "change": "changeset",
+    "version": "changeset version",
+    "commitpush": "node ci/commit_push.mjs",
+    "mergemain": "node ci/merge_main.mjs",
+    "mergemain:update-lock": "node ci/merge_main_and_update_lock.mjs"
   },
   "repository": {
     "type": "git",
@@ -24,7 +29,9 @@
   },
   "packageManager": "npm@10.5.0",
   "devDependencies": {
+    "@changesets/cli": "^2.29.8",
     "@vitest/coverage-v8": "1.6.1",
+    "simple-git": "^3.31.1",
     "tsc-alias": "^1.8.16",
     "turbo": "^2.9.3",
     "typescript": "^5.9.3",
