@@ -158,75 +158,9 @@ describe('TaskEntity.Validate — status transition side-effects', () => {
   });
 });
 
-describe('TaskEntity.Save — post-save activity logging', () => {
-  it('logs a Created activity for a new task', async () => {
-    const activity = { NewRecord: vi.fn(), Set: vi.fn(), Save: vi.fn(async () => true), Get: vi.fn() };
-    getEntityObjectMock.mockResolvedValue(activity);
-    runViewMock.mockResolvedValue({ Results: [] });
-
-    const t = makeTask({ ID: 'task-1', Name: 'New Task', Status: 'Open', ParentID: null }, {}, false /* not saved → new */);
-    await t.Save();
-
-    const types = activity.Set.mock.calls.filter((c: any[]) => c[0] === 'ActivityType').map((c: any[]) => c[1]);
-    expect(types).toContain('Created');
-  });
-
-  it('logs a StatusChange activity for an existing task whose status changed', async () => {
-    const activity = { NewRecord: vi.fn(), Set: vi.fn(), Save: vi.fn(async () => true), Get: vi.fn() };
-    getEntityObjectMock.mockResolvedValue(activity);
-    runViewMock.mockResolvedValue({ Results: [] });
-
-    const t = makeTask(
-      { ID: 'task-2', Name: 'T', Status: 'InProgress', ParentID: null },
-      { Status: { old: 'Open' } },
-      true /* already saved → update */,
-    );
-    await t.Save();
-
-    const types = activity.Set.mock.calls.filter((c: any[]) => c[0] === 'ActivityType').map((c: any[]) => c[1]);
-    expect(types).toContain('StatusChange');
-  });
-
-  it('logs a Completed activity when status changed to Completed', async () => {
-    const activity = { NewRecord: vi.fn(), Set: vi.fn(), Save: vi.fn(async () => true), Get: vi.fn() };
-    getEntityObjectMock.mockResolvedValue(activity);
-    runViewMock.mockResolvedValue({ Results: [] });
-
-    const t = makeTask(
-      { ID: 'task-3', Name: 'T', Status: 'Completed', ParentID: null },
-      { Status: { old: 'InProgress' } },
-      true,
-    );
-    await t.Save();
-
-    const types = activity.Set.mock.calls.filter((c: any[]) => c[0] === 'ActivityType').map((c: any[]) => c[1]);
-    expect(types).toContain('StatusChange');
-    expect(types).toContain('Completed');
-  });
-
-  it('triggers parent rollup when a child task with a parent changes percent', async () => {
-    const activity = { NewRecord: vi.fn(), Set: vi.fn(), Save: vi.fn(async () => true), Get: vi.fn() };
-    const parent = {
-      Set: vi.fn(), Save: vi.fn(async () => true),
-      Get: vi.fn((f: string) => (f === 'PercentComplete' ? 0 : null)),
-      InnerLoad: vi.fn(async () => true),
-    };
-    // GetEntityObject called for: activity log(s), then parent rollup load
-    getEntityObjectMock.mockResolvedValue(activity);
-    getEntityObjectMock.mockResolvedValueOnce(activity).mockResolvedValueOnce(parent);
-    // rollup children query
-    runViewMock.mockResolvedValue({ Results: [{ PercentComplete: 50 }] });
-
-    const t = makeTask(
-      { ID: 'child-1', Name: 'Child', Status: 'InProgress', PercentComplete: 50, ParentID: 'parent-1' },
-      { PercentComplete: { old: 0 } },
-      true,
-    );
-    await t.Save();
-
-    // parent rollup should have queried children
-    expect(runViewMock).toHaveBeenCalledWith(expect.objectContaining({
-      ExtraFilter: "ParentID = 'parent-1'",
-    }));
-  });
-});
+// NOTE: Activity logging and sub-task progress rollup were moved OUT of this
+// client-safe TaskEntity subclass into the server-only TaskEntityServer
+// (tasks-entities-server) so they run once on the server, never duplicated in
+// the browser. Activity-logging coverage now lives in tasks-entities-server's
+// tests; rollup logic is covered by TaskService's unit tests. This shared
+// subclass now owns only validation + in-record field side-effects (above).
