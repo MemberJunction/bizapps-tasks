@@ -15,7 +15,6 @@ Sub-directory CLAUDE.md files extend this root guide with topic-specific rules. 
 
 | Path | Scope |
 |------|-------|
-| [`migrations/CLAUDE.md`](migrations/CLAUDE.md) | Database migration authoring rules — naming, hardcoded UUIDs, system columns, CodeGen handoff |
 | [`docker/CLAUDE.md`](docker/CLAUDE.md) | Docker workbench + MJAPI container configurations |
 | [`metadata/CLAUDE.md`](metadata/CLAUDE.md) | Metadata file authoring — `@lookup` / `@file` / `@parent` refs, sync push, JSON-type interfaces |
 | [`packages/Actions/CLAUDE.md`](packages/Actions/CLAUDE.md) | Action authoring patterns, parameter validation, error handling |
@@ -462,7 +461,6 @@ MemberJunction uses `@RegisterClass` decorators with a dynamic class factory (`M
 **See:** [packages/CodeGenLib/CLASS_MANIFEST_GUIDE.md](plans/complete/codegen/CLASS_MANIFEST_GUIDE.md) for comprehensive documentation on the manifest system, including how external consumers and MJ distribution users should configure their projects.
 
 ## Database Migrations
-- See `/migrations/CLAUDE.md` for comprehensive migration guidelines
 - **Migration folder**: Always use the highest-numbered `migrations/v*/` folder (currently `migrations/v5/`). Check `ls migrations/v*/` if unsure.
 - Key points:
   - Use format `VYYYYMMDDHHMM__v[VERSION].x_[DESCRIPTION].sql`
