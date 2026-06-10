@@ -4,7 +4,7 @@ import { RegisterClass } from '@memberjunction/global';
 import { BaseFormComponent } from '@memberjunction/ng-base-forms';
 import {  } from "@memberjunction/ng-entity-viewer"
 
-@RegisterClass(BaseFormComponent, 'MJ.BizApps.Tasks: Tasks') // Tell MemberJunction about this class
+@RegisterClass(BaseFormComponent, 'MJ_BizApps_Tasks: Tasks') // Tell MemberJunction about this class
 @Component({
     standalone: false,
     selector: 'gen-mjbizappstaskstask-form',
@@ -17,15 +17,15 @@ export class mjBizAppsTasksTaskFormComponent extends BaseFormComponent {
         await super.ngOnInit();
         this.initSections([
             { sectionKey: 'details', sectionName: 'Details', isExpanded: true },
-            { sectionKey: 'mJBizAppsTasksTaskDependenciesTaskID', sectionName: 'MJ.BizApps.Tasks: Task Dependencies (Task ID)', isExpanded: false },
-            { sectionKey: 'mJBizAppsTasksTaskTagLinks', sectionName: 'MJ.BizApps.Tasks: Task Tag Links', isExpanded: false },
-            { sectionKey: 'mJBizAppsTasksTaskDependenciesDependsOnTaskID', sectionName: 'MJ.BizApps.Tasks: Task Dependencies (Depends On Task ID)', isExpanded: false },
-            { sectionKey: 'mJBizAppsTasksTaskLinks', sectionName: 'MJ.BizApps.Tasks: Task Links', isExpanded: false },
-            { sectionKey: 'mJBizAppsTasksTaskActivities', sectionName: 'MJ.BizApps.Tasks: Task Activities', isExpanded: false },
-            { sectionKey: 'mJBizAppsTasksTaskNotificationLogs', sectionName: 'Task Notification Logs', isExpanded: false },
-            { sectionKey: 'mJBizAppsTasksTaskComments', sectionName: 'MJ.BizApps.Tasks: Task Comments', isExpanded: false },
-            { sectionKey: 'mJBizAppsTasksTasks', sectionName: 'MJ.BizApps.Tasks: Tasks', isExpanded: false },
-            { sectionKey: 'mJBizAppsTasksTaskAssignments', sectionName: 'MJ.BizApps.Tasks: Task Assignments', isExpanded: false }
+            { sectionKey: 'mJBizAppsTasksTaskDependenciesDependsOnTaskID', sectionName: 'Task Dependencies (Depends On Task ID)', isExpanded: false },
+            { sectionKey: 'mJBizAppsTasksTaskDependenciesTaskID', sectionName: 'Task Dependencies (Task ID)', isExpanded: false },
+            { sectionKey: 'mJBizAppsTasksTasks', sectionName: 'Tasks', isExpanded: false },
+            { sectionKey: 'mJBizAppsTasksTaskAssignments', sectionName: 'Task Assignments', isExpanded: false },
+            { sectionKey: 'mJBizAppsTasksTaskLinks', sectionName: 'Task Links', isExpanded: false },
+            { sectionKey: 'mJBizAppsTasksTaskComments', sectionName: 'Task Comments', isExpanded: false },
+            { sectionKey: 'mJBizAppsTasksTaskActivities', sectionName: 'Task Activities', isExpanded: false },
+            { sectionKey: 'mJBizAppsTasksTaskTagLinks', sectionName: 'Task Tag Links', isExpanded: false },
+            { sectionKey: 'mJBizAppsTasksTaskNotificationLogs', sectionName: 'Task Notification Logs', isExpanded: false }
         ]);
     }
 }

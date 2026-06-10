@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, inject, Input, Output, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BaseEntity, RunView } from '@memberjunction/core';
@@ -216,7 +216,7 @@ export class TaskTemplateWizardComponent implements OnInit {
     @Input() DefaultCategoryID: string | null = null;
 
     /**
-     * Entity ID for the "MJ.BizApps.Common: People" entity.
+     * Entity ID for the "MJ_BizApps_Common: People" entity.
      * Used as the `AssigneeEntityID` when creating TaskAssignment records
      * from role placeholders. If not provided, the wizard will still work
      * but role assignment will not populate the entity ID.
@@ -260,6 +260,7 @@ export class TaskTemplateWizardComponent implements OnInit {
     creating = false;
     /** @internal */
     private templateService = new TaskTemplateService();
+    private cdr = inject(ChangeDetectorRef);
 
     /** @internal Whether the "Next" button should be enabled for the current step. */
     get canAdvance(): boolean {
@@ -277,24 +278,26 @@ export class TaskTemplateWizardComponent implements OnInit {
     private async loadTemplates(): Promise<void> {
         const rv = new RunView();
         const result = await rv.RunView<any>({
-            EntityName: 'MJ.BizApps.Tasks: Task Templates',
+            EntityName: 'MJ_BizApps_Tasks: Task Templates',
             ExtraFilter: 'IsActive = 1',
             ResultType: 'simple',
         });
         this.templates = (result?.Results ?? []).map((t: any) => ({
             ID: t.ID, Name: t.Name, Description: t.Description,
         }));
+        this.cdr.markForCheck();
     }
 
     private async loadCategories(): Promise<void> {
         const rv = new RunView();
         const result = await rv.RunView<any>({
-            EntityName: 'MJ.BizApps.Tasks: Task Categories',
+            EntityName: 'MJ_BizApps_Tasks: Task Categories',
             ExtraFilter: 'IsActive = 1',
             OrderBy: 'Sequence ASC',
             ResultType: 'simple',
         });
         this.categories = result?.Results ?? [];
+        this.cdr.markForCheck();
     }
 
     async onNext(): Promise<void> {
@@ -307,17 +310,19 @@ export class TaskTemplateWizardComponent implements OnInit {
             await this.loadRolePlaceholders();
         }
         this.step++;
+        this.cdr.markForCheck();
     }
 
     onBack(): void {
         if (this.step > 0) this.step--;
+        this.cdr.markForCheck();
     }
 
     private async buildPreview(): Promise<void> {
         if (!this.selectedTemplateID) return;
         const rv = new RunView();
         const result = await rv.RunView<any>({
-            EntityName: 'MJ.BizApps.Tasks: Task Template Items',
+            EntityName: 'MJ_BizApps_Tasks: Task Template Items',
             ExtraFilter: `TemplateID = '${this.selectedTemplateID}'`,
             OrderBy: 'Sequence ASC',
             ResultType: 'simple',
@@ -347,6 +352,7 @@ export class TaskTemplateWizardComponent implements OnInit {
                 Depth: depthMap.get(item.ID) ?? 0,
             };
         });
+        this.cdr.markForCheck();
     }
 
     private async loadRolePlaceholders(): Promise<void> {
@@ -355,16 +361,16 @@ export class TaskTemplateWizardComponent implements OnInit {
 
         // Get all template items
         const itemsResult = await rv.RunView<any>({
-            EntityName: 'MJ.BizApps.Tasks: Task Template Items',
+            EntityName: 'MJ_BizApps_Tasks: Task Template Items',
             ExtraFilter: `TemplateID = '${this.selectedTemplateID}'`,
             ResultType: 'simple',
         });
         const itemIDs = (itemsResult?.Results ?? []).map((i: any) => `'${i.ID}'`).join(',');
-        if (!itemIDs) { this.rolePlaceholders = []; return; }
+        if (!itemIDs) { this.rolePlaceholders = []; this.cdr.markForCheck(); return; }
 
         // Get unique roles across all template items
         const rolesResult = await new RunView().RunView<any>({
-            EntityName: 'MJ.BizApps.Tasks: Task Template Item Roles',
+            EntityName: 'MJ_BizApps_Tasks: Task Template Item Roles',
             ExtraFilter: `ItemID IN (${itemIDs})`,
             ResultType: 'simple',
         });
@@ -376,7 +382,7 @@ export class TaskTemplateWizardComponent implements OnInit {
         const roleNames = new Map<string, string>();
         if (roleIDs.size > 0) {
             const rolesLookup = await new RunView().RunView<any>({
-                EntityName: 'MJ.BizApps.Tasks: Task Roles',
+                EntityName: 'MJ_BizApps_Tasks: Task Roles',
                 ExtraFilter: `ID IN (${[...roleIDs].map(id => `'${id}'`).join(',')})`,
                 ResultType: 'simple',
             });
@@ -389,6 +395,7 @@ export class TaskTemplateWizardComponent implements OnInit {
             AssigneeEntityID: this.PersonEntityID ?? '',
             AssigneeRecordID: '',
         }));
+        this.cdr.markForCheck();
     }
 
     async onCreate(): Promise<void> {
@@ -413,6 +420,7 @@ export class TaskTemplateWizardComponent implements OnInit {
         });
 
         this.creating = false;
+        this.cdr.markForCheck();
         this.Created.emit(tasks);
     }
 }

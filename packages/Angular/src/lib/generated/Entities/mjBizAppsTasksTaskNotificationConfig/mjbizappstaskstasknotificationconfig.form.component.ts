@@ -3,7 +3,7 @@ import { mjBizAppsTasksTaskNotificationConfigEntity } from '@mj-biz-apps/tasks-e
 import { RegisterClass } from '@memberjunction/global';
 import { BaseFormComponent } from '@memberjunction/ng-base-forms';
 
-@RegisterClass(BaseFormComponent, 'MJ.BizApps.Tasks:Task Notification Configs') // Tell MemberJunction about this class
+@RegisterClass(BaseFormComponent, 'MJ_BizApps_Tasks: Task Notification Configs') // Tell MemberJunction about this class
 @Component({
     standalone: false,
     selector: 'gen-mjbizappstaskstasknotificationconfig-form',

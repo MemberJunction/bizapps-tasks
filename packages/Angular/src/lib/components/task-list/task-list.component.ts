@@ -769,7 +769,7 @@ export class TaskListComponent implements OnInit {
         }
         const rv = new RunView();
         const result = await rv.RunView<any>({
-            EntityName: 'MJ.BizApps.Common: People',
+            EntityName: 'MJ_BizApps_Common: People',
             ExtraFilter: extraFilter,
             OrderBy: 'LastName ASC, FirstName ASC',
             ResultType: 'simple',
@@ -795,7 +795,7 @@ export class TaskListComponent implements OnInit {
             if (!typeID) {
                 const rv = new RunView();
                 const types = await rv.RunView<any>({
-                    EntityName: 'MJ.BizApps.Tasks: Task Types',
+                    EntityName: 'MJ_BizApps_Tasks: Task Types',
                     ExtraFilter: 'IsActive = 1',
                     OrderBy: 'Name ASC',
                     MaxRows: 1,
@@ -809,7 +809,7 @@ export class TaskListComponent implements OnInit {
                 return;
             }
 
-            const entity = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Tasks');
+            const entity = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Tasks');
             entity.NewRecord();
             entity.Set('Name', name);
             entity.Set('Status', 'Open');
@@ -830,13 +830,13 @@ export class TaskListComponent implements OnInit {
                 try {
                     const peEntityResult = await new RunView().RunView<any>({
                         EntityName: 'MJ: Entities',
-                        ExtraFilter: `Name = 'MJ.BizApps.Common: People'`,
+                        ExtraFilter: `Name = 'MJ_BizApps_Common: People'`,
                         ResultType: 'simple',
                         MaxRows: 1,
                     });
                     const peopleEntityID = peEntityResult?.Results?.[0]?.ID;
                     if (peopleEntityID) {
-                        const assignment = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Task Assignments');
+                        const assignment = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Assignments');
                         assignment.NewRecord();
                         assignment.Set('TaskID', savedID);
                         assignment.Set('AssigneeEntityID', peopleEntityID);
@@ -852,7 +852,7 @@ export class TaskListComponent implements OnInit {
             this.quickAddName = '';
             this.quickAddPersonID = '';
             this.AfterTaskCreated.emit(savedID);
-            await this.loadTasks();
+            await this.loadTasks(true);
         } catch (e) {
             console.error('Quick-add failed:', e);
         }
@@ -866,7 +866,7 @@ export class TaskListComponent implements OnInit {
         return status.replace(/([a-z])([A-Z])/g, '$1 $2');
     }
 
-    async loadTasks(): Promise<void> {
+    async loadTasks(bypassCache: boolean = false): Promise<void> {
         this.loading = true;
         this.cdr.markForCheck();
 
@@ -876,10 +876,13 @@ export class TaskListComponent implements OnInit {
         if (this.ExtraFilter) filters.push(this.ExtraFilter);
 
         const result = await rv.RunView<any>({
-            EntityName: 'MJ.BizApps.Tasks: Tasks',
+            EntityName: 'MJ_BizApps_Tasks: Tasks',
             ExtraFilter: filters.length ? filters.join(' AND ') : undefined,
             OrderBy: 'Sequence ASC, DueAt ASC',
             ResultType: 'simple',
+            // After a mutation the filtered view cache may not yet reflect the
+            // change; bypass it so the reload shows current data immediately.
+            BypassCache: bypassCache,
         });
 
         const now = new Date();
@@ -943,19 +946,19 @@ export class TaskListComponent implements OnInit {
 
         const [assignments, people] = await Promise.all([
             rv.RunView<any>({
-                EntityName: 'MJ.BizApps.Tasks: Task Assignments',
+                EntityName: 'MJ_BizApps_Tasks: Task Assignments',
                 ExtraFilter: `TaskID IN (${taskIDs})`,
                 ResultType: 'simple',
             }),
             new RunView().RunView<any>({
-                EntityName: 'MJ.BizApps.Common: People',
+                EntityName: 'MJ_BizApps_Common: People',
                 ResultType: 'simple',
             }),
         ]);
 
         // Load roles
         const roles = await new RunView().RunView<any>({
-            EntityName: 'MJ.BizApps.Tasks: Task Roles',
+            EntityName: 'MJ_BizApps_Tasks: Task Roles',
             ResultType: 'simple',
         });
 
@@ -987,12 +990,12 @@ export class TaskListComponent implements OnInit {
 
         const [tagLinks, tags] = await Promise.all([
             rv.RunView<any>({
-                EntityName: 'MJ.BizApps.Tasks: Task Tag Links',
+                EntityName: 'MJ_BizApps_Tasks: Task Tag Links',
                 ExtraFilter: `TaskID IN (${taskIDs})`,
                 ResultType: 'simple',
             }),
             new RunView().RunView<any>({
-                EntityName: 'MJ.BizApps.Tasks: Task Tags',
+                EntityName: 'MJ_BizApps_Tasks: Task Tags',
                 ResultType: 'simple',
             }),
         ]);
@@ -1081,7 +1084,7 @@ export class TaskListComponent implements OnInit {
 
         for (const id of ids) {
             try {
-                const entity = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Tasks');
+                const entity = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Tasks');
                 const pk = new CompositeKey([{ FieldName: 'ID', Value: id }]);
                 await entity.InnerLoad(pk);
                 entity.Set('Status', status);
@@ -1096,7 +1099,7 @@ export class TaskListComponent implements OnInit {
                 console.error(`Failed to update task ${id}:`, e);
             }
         }
-        await this.loadTasks();
+        await this.loadTasks(true);
     }
 
     // -- Events --

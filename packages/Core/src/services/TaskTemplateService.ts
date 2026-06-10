@@ -31,13 +31,13 @@ export class TaskTemplateService {
         const rv = new RunView();
 
         // 1. Load the template
-        const template = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Task Templates');
+        const template = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Templates');
         const pk = new CompositeKey([{ FieldName: 'ID', Value: templateID }]);
         await template.InnerLoad(pk);
 
         // 2. Load all template items
         const itemsResult = await rv.RunView<BaseEntity>({
-            EntityName: 'MJ.BizApps.Tasks: Task Template Items',
+            EntityName: 'MJ_BizApps_Tasks: Task Template Items',
             ExtraFilter: `TemplateID = '${templateID}'`,
             OrderBy: 'Sequence ASC',
             ResultType: 'simple',
@@ -54,7 +54,7 @@ export class TaskTemplateService {
 
         for (const item of sorted) {
             const itemID = (item as any).ID as string;
-            const task = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Tasks');
+            const task = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Tasks');
             task.NewRecord();
             task.Set('Name', (item as any).Name);
             task.Set('Description', (item as any).Description ?? null);
@@ -143,7 +143,7 @@ export class TaskTemplateService {
 
         const rv = new RunView();
         const rolesResult = await rv.RunView<BaseEntity>({
-            EntityName: 'MJ.BizApps.Tasks: Task Template Item Roles',
+            EntityName: 'MJ_BizApps_Tasks: Task Template Item Roles',
             ExtraFilter: `ItemID = '${templateItemID}'`,
             ResultType: 'simple',
         });
@@ -153,7 +153,7 @@ export class TaskTemplateService {
             const assignee = assigneeMap.get(roleID);
             if (!assignee) continue;
 
-            const assignment = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Task Assignments');
+            const assignment = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Assignments');
             assignment.NewRecord();
             assignment.Set('TaskID', taskID);
             assignment.Set('AssigneeEntityID', assignee.entityID);
@@ -175,7 +175,7 @@ export class TaskTemplateService {
 
         // Get all template items for this template (we need their IDs to filter deps)
         const itemsResult = await rv.RunView<BaseEntity>({
-            EntityName: 'MJ.BizApps.Tasks: Task Template Items',
+            EntityName: 'MJ_BizApps_Tasks: Task Template Items',
             ExtraFilter: `TemplateID = '${templateID}'`,
             ResultType: 'simple',
         });
@@ -183,7 +183,7 @@ export class TaskTemplateService {
         if (!itemIDs) return;
 
         const depsResult = await rv.RunView<BaseEntity>({
-            EntityName: 'MJ.BizApps.Tasks: Task Template Item Dependencies',
+            EntityName: 'MJ_BizApps_Tasks: Task Template Item Dependencies',
             ExtraFilter: `ItemID IN (${itemIDs})`,
             ResultType: 'simple',
         });
@@ -195,7 +195,7 @@ export class TaskTemplateService {
             const dependsOnTaskID = itemToTaskID.get(dependsOnItemID);
             if (!taskID || !dependsOnTaskID) continue;
 
-            const taskDep = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Task Dependencies');
+            const taskDep = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Dependencies');
             taskDep.NewRecord();
             taskDep.Set('TaskID', taskID);
             taskDep.Set('DependsOnTaskID', dependsOnTaskID);

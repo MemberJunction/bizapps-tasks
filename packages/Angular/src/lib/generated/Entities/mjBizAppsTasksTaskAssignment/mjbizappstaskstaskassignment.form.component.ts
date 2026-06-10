@@ -3,7 +3,7 @@ import { mjBizAppsTasksTaskAssignmentEntity } from '@mj-biz-apps/tasks-entities'
 import { RegisterClass } from '@memberjunction/global';
 import { BaseFormComponent } from '@memberjunction/ng-base-forms';
 
-@RegisterClass(BaseFormComponent, 'MJ.BizApps.Tasks: Task Assignments') // Tell MemberJunction about this class
+@RegisterClass(BaseFormComponent, 'MJ_BizApps_Tasks: Task Assignments') // Tell MemberJunction about this class
 @Component({
     standalone: false,
     selector: 'gen-mjbizappstaskstaskassignment-form',

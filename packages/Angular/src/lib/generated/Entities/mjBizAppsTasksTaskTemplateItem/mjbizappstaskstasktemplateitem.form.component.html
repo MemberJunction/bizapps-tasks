@@ -5,6 +5,8 @@
     (HistoryRequested)="OnHistoryRequested()"
     (ListManagementRequested)="OnListManagementRequested()">
 
+    <mj-form-panel-slot Entity="{{record.EntityInfo.Name}}" Slot="before-fields" [Record]="record" [FormComponent]="this" [FormContext]="formContext"></mj-form-panel-slot>
+
     <!-- ========================================
          FIELD PANELS
          ======================================== -->
@@ -108,39 +110,41 @@
 
     </mj-collapsible-panel>
 
+    <mj-form-panel-slot Entity="{{record.EntityInfo.Name}}" Slot="after-fields" [Record]="record" [FormComponent]="this" [FormContext]="formContext"></mj-form-panel-slot>
+
     <!-- ========================================
          RELATED ENTITY PANELS
          ======================================== -->
 
-    <!-- MJ.BizApps.Tasks: Task Template Item Dependencies (Depends On Item ID) Section -->
+    <!-- Task Template Items Section -->
     <mj-collapsible-panel
-        SectionKey="mJBizAppsTasksTaskTemplateItemDependenciesDependsOnItemID"
-        SectionName="MJ.BizApps.Tasks: Task Template Item Dependencies (Depends On Item ID)"
+        SectionKey="mJBizAppsTasksTaskTemplateItems"
+        SectionName="Task Template Items"
         Icon="fa fa-table"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"
-        [BadgeCount]="GetSectionRowCount('mJBizAppsTasksTaskTemplateItemDependenciesDependsOnItemID')"
+        [BadgeCount]="GetSectionRowCount('mJBizAppsTasksTaskTemplateItems')"
         [DefaultExpanded]="false">
         @if (record.IsSaved) {
         <div>
             <mj-explorer-entity-data-grid
-                [Params]="BuildRelationshipViewParamsByEntityName('MJ.BizApps.Tasks: Task Template Item Dependencies','DependsOnItemID')"
-                [NewRecordValues]="NewRecordValues('MJ.BizApps.Tasks: Task Template Item Dependencies')"
-                [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskTemplateItemDependenciesDependsOnItemID')"
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Template Items','ParentItemID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Template Items')"
+                [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskTemplateItems')"
                 [ShowToolbar]="false"
                 (Navigate)="OnFormNavigate($event)"
-                (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskTemplateItemDependenciesDependsOnItemID', $event.totalRowCount)"
+                (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskTemplateItems', $event.totalRowCount)"
                 >
             </mj-explorer-entity-data-grid>
         </div>
         }
     </mj-collapsible-panel>
 
-    <!-- MJ.BizApps.Tasks: Task Template Item Roles Section -->
+    <!-- Task Template Item Roles Section -->
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksTaskTemplateItemRoles"
-        SectionName="MJ.BizApps.Tasks: Task Template Item Roles"
+        SectionName="Task Template Item Roles"
         Icon="fa fa-table"
         Variant="related-entity"
         [Form]="this"
@@ -150,8 +154,8 @@
         @if (record.IsSaved) {
         <div>
             <mj-explorer-entity-data-grid
-                [Params]="BuildRelationshipViewParamsByEntityName('MJ.BizApps.Tasks: Task Template Item Roles','ItemID')"
-                [NewRecordValues]="NewRecordValues('MJ.BizApps.Tasks: Task Template Item Roles')"
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Template Item Roles','ItemID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Template Item Roles')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskTemplateItemRoles')"
                 [ShowToolbar]="false"
                 (Navigate)="OnFormNavigate($event)"
@@ -162,10 +166,35 @@
         }
     </mj-collapsible-panel>
 
-    <!-- MJ.BizApps.Tasks: Task Template Item Dependencies (Item ID) Section -->
+    <!-- Task Template Item Dependencies (Depends On Item ID) Section -->
+    <mj-collapsible-panel
+        SectionKey="mJBizAppsTasksTaskTemplateItemDependenciesDependsOnItemID"
+        SectionName="Task Template Item Dependencies (Depends On Item ID)"
+        Icon="fa fa-table"
+        Variant="related-entity"
+        [Form]="this"
+        [FormContext]="formContext"
+        [BadgeCount]="GetSectionRowCount('mJBizAppsTasksTaskTemplateItemDependenciesDependsOnItemID')"
+        [DefaultExpanded]="false">
+        @if (record.IsSaved) {
+        <div>
+            <mj-explorer-entity-data-grid
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Template Item Dependencies','DependsOnItemID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Template Item Dependencies')"
+                [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskTemplateItemDependenciesDependsOnItemID')"
+                [ShowToolbar]="false"
+                (Navigate)="OnFormNavigate($event)"
+                (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskTemplateItemDependenciesDependsOnItemID', $event.totalRowCount)"
+                >
+            </mj-explorer-entity-data-grid>
+        </div>
+        }
+    </mj-collapsible-panel>
+
+    <!-- Task Template Item Dependencies (Item ID) Section -->
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksTaskTemplateItemDependenciesItemID"
-        SectionName="MJ.BizApps.Tasks: Task Template Item Dependencies (Item ID)"
+        SectionName="Task Template Item Dependencies (Item ID)"
         Icon="fa fa-table"
         Variant="related-entity"
         [Form]="this"
@@ -175,8 +204,8 @@
         @if (record.IsSaved) {
         <div>
             <mj-explorer-entity-data-grid
-                [Params]="BuildRelationshipViewParamsByEntityName('MJ.BizApps.Tasks: Task Template Item Dependencies','ItemID')"
-                [NewRecordValues]="NewRecordValues('MJ.BizApps.Tasks: Task Template Item Dependencies')"
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Template Item Dependencies','ItemID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Template Item Dependencies')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskTemplateItemDependenciesItemID')"
                 [ShowToolbar]="false"
                 (Navigate)="OnFormNavigate($event)"
@@ -187,29 +216,6 @@
         }
     </mj-collapsible-panel>
 
-    <!-- MJ.BizApps.Tasks: Task Template Items Section -->
-    <mj-collapsible-panel
-        SectionKey="mJBizAppsTasksTaskTemplateItems"
-        SectionName="MJ.BizApps.Tasks: Task Template Items"
-        Icon="fa fa-table"
-        Variant="related-entity"
-        [Form]="this"
-        [FormContext]="formContext"
-        [BadgeCount]="GetSectionRowCount('mJBizAppsTasksTaskTemplateItems')"
-        [DefaultExpanded]="false">
-        @if (record.IsSaved) {
-        <div>
-            <mj-explorer-entity-data-grid
-                [Params]="BuildRelationshipViewParamsByEntityName('MJ.BizApps.Tasks: Task Template Items','ParentItemID')"
-                [NewRecordValues]="NewRecordValues('MJ.BizApps.Tasks: Task Template Items')"
-                [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskTemplateItems')"
-                [ShowToolbar]="false"
-                (Navigate)="OnFormNavigate($event)"
-                (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskTemplateItems', $event.totalRowCount)"
-                >
-            </mj-explorer-entity-data-grid>
-        </div>
-        }
-    </mj-collapsible-panel>
+    <mj-form-panel-slot Entity="{{record.EntityInfo.Name}}" Slot="after-related" [Record]="record" [FormComponent]="this" [FormContext]="formContext"></mj-form-panel-slot>
 </mj-record-form-container>
         

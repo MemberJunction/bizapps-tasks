@@ -21,7 +21,7 @@ export class TaskAssignmentService {
         roleNotes?: string;
         assignedByPersonID?: string;
     }): Promise<BaseEntity> {
-        const assignment = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Task Assignments');
+        const assignment = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Assignments');
         assignment.NewRecord();
         assignment.Set('TaskID', params.taskID);
         assignment.Set('AssigneeEntityID', params.assigneeEntityID);
@@ -47,7 +47,7 @@ export class TaskAssignmentService {
      * Removes an assignment and logs the removal.
      */
     async removeAssignment(assignmentID: string, removedByPersonID?: string): Promise<void> {
-        const assignment = await Metadata.Provider.GetEntityObject('MJ.BizApps.Tasks: Task Assignments');
+        const assignment = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Assignments');
         const pk = new CompositeKey([{ FieldName: 'ID', Value: assignmentID }]);
         await assignment.InnerLoad(pk);
 
@@ -71,7 +71,7 @@ export class TaskAssignmentService {
     async getAssignmentsForTask(taskID: string): Promise<BaseEntity[]> {
         const rv = new RunView();
         const result = await rv.RunView<BaseEntity>({
-            EntityName: 'MJ.BizApps.Tasks: Task Assignments',
+            EntityName: 'MJ_BizApps_Tasks: Task Assignments',
             ExtraFilter: `TaskID = '${taskID}'`,
             ResultType: 'entity_object',
         });

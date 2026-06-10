@@ -4,7 +4,7 @@ import { RegisterClass } from '@memberjunction/global';
 import { BaseFormComponent } from '@memberjunction/ng-base-forms';
 import {  } from "@memberjunction/ng-entity-viewer"
 
-@RegisterClass(BaseFormComponent, 'MJ.BizApps.Tasks: Task Tags') // Tell MemberJunction about this class
+@RegisterClass(BaseFormComponent, 'MJ_BizApps_Tasks: Task Tags') // Tell MemberJunction about this class
 @Component({
     standalone: false,
     selector: 'gen-mjbizappstaskstasktag-form',
@@ -17,7 +17,7 @@ export class mjBizAppsTasksTaskTagFormComponent extends BaseFormComponent {
         await super.ngOnInit();
         this.initSections([
             { sectionKey: 'details', sectionName: 'Details', isExpanded: true },
-            { sectionKey: 'mJBizAppsTasksTaskTagLinks', sectionName: 'MJ.BizApps.Tasks: Task Tag Links', isExpanded: false }
+            { sectionKey: 'mJBizAppsTasksTaskTagLinks', sectionName: 'Task Tag Links', isExpanded: false }
         ]);
     }
 }

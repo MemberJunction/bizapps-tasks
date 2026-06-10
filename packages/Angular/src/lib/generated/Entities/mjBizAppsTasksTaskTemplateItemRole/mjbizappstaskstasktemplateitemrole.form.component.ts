@@ -3,7 +3,7 @@ import { mjBizAppsTasksTaskTemplateItemRoleEntity } from '@mj-biz-apps/tasks-ent
 import { RegisterClass } from '@memberjunction/global';
 import { BaseFormComponent } from '@memberjunction/ng-base-forms';
 
-@RegisterClass(BaseFormComponent, 'MJ.BizApps.Tasks: Task Template Item Roles') // Tell MemberJunction about this class
+@RegisterClass(BaseFormComponent, 'MJ_BizApps_Tasks: Task Template Item Roles') // Tell MemberJunction about this class
 @Component({
     standalone: false,
     selector: 'gen-mjbizappstaskstasktemplateitemrole-form',

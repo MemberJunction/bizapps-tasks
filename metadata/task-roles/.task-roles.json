@@ -1,0 +1,44 @@
+[
+  {
+    "fields": {
+      "Name": "Primary",
+      "Description": "Primary person responsible for completing the task",
+      "Sequence": 10
+    },
+    "primaryKey": {
+      "ID": "E1DFE8EA-3A94-45BC-9E7E-7421CC4E8235"
+    },
+    "sync": {
+      "lastModified": "2026-06-09T16:59:36.981Z",
+      "checksum": "3869064d109d6a33bd41def9b1db3293ae919d6239b51db03515660df359779a"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Reviewer",
+      "Description": "Reviews and approves the completed work",
+      "Sequence": 20
+    },
+    "primaryKey": {
+      "ID": "D682BD3B-213D-4239-9FBA-4E28F60EC763"
+    },
+    "sync": {
+      "lastModified": "2026-06-09T16:59:36.992Z",
+      "checksum": "168e7d22a54d4ee7b9394862e0986a4ecc79077a849163715e3a9f2437f69b07"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Observer",
+      "Description": "Kept informed of progress but not actively working on the task",
+      "Sequence": 30
+    },
+    "primaryKey": {
+      "ID": "561A6B4A-8FC4-42EA-9B47-C80E4E9F65D4"
+    },
+    "sync": {
+      "lastModified": "2026-06-09T16:59:37.001Z",
+      "checksum": "3f11257b9a74d9151b6a71a35a6a713206dfdecd89ea653f8e76bd5618fbea98"
+    }
+  }
+]
