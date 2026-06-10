@@ -18,20 +18,28 @@ for pkg_json in $(find packages -name "package.json" -maxdepth 2 -not -path "*/n
 
   CHECKED=$((CHECKED + 1))
 
-  # Check if package exists on npm with retry logic
+  # Check if package exists on npm with retry logic.
+  # npm view returns exit 1 for BOTH "not found" (E404) and transient errors
+  # (rate-limiting from rapid calls, network blips), so a single exit-1 is not
+  # conclusive. Retry on the first failure and only treat as missing if it
+  # consistently fails — this distinguishes a real 404 from a flaky lookup.
   EXISTS=false
   for attempt in $(seq 1 $MAX_RETRIES); do
-    if timeout 10 npm view "$name" version > /dev/null 2>&1; then
+    # Use timeout if available (Linux/GitHub Actions), otherwise run without
+    # timeout (macOS, where `timeout` is not installed by default).
+    if command -v timeout > /dev/null 2>&1; then
+      timeout 10 npm view "$name" version > /dev/null 2>&1
+    else
+      npm view "$name" version > /dev/null 2>&1
+    fi
+    if [ $? -eq 0 ]; then
       EXISTS=true
       break
     fi
-    exit_code=$?
-    if [ $exit_code -eq 1 ]; then
-      # Package not found (E404) — no point retrying
-      break
+    # Ambiguous failure — wait and retry rather than assuming 404
+    if [ "$attempt" -lt "$MAX_RETRIES" ]; then
+      sleep $RETRY_DELAY
     fi
-    # Network error or timeout — retry
-    sleep $RETRY_DELAY
   done
 
   if [ "$EXISTS" = false ]; then
