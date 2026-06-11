@@ -1,14 +1,16 @@
 {
   "name": "@mj-biz-apps/tasks-actions",
   "type": "module",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "BizApps Tasks Action Subclasses",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "publishConfig": {
     "access": "public"
   },
-  "files": ["/dist"],
+  "files": [
+    "/dist"
+  ],
   "scripts": {
     "build": "tsc && tsc-alias -f",
     "test": "vitest run"

@@ -1,14 +1,16 @@
 {
   "name": "@mj-biz-apps/tasks-entities-server",
   "type": "module",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "BizApps Tasks server-side entity subclasses - lifecycle hooks (sub-task progress rollup) that must run server-only",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "publishConfig": {
     "access": "public"
   },
-  "files": ["/dist"],
+  "files": [
+    "/dist"
+  ],
   "scripts": {
     "build": "tsc && tsc-alias -f",
     "test": "vitest run"
@@ -19,8 +21,8 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@mj-biz-apps/tasks-entities": "1.0.0",
-    "@mj-biz-apps/tasks-core": "1.0.0"
+    "@mj-biz-apps/tasks-entities": "1.0.1",
+    "@mj-biz-apps/tasks-core": "1.0.1"
   },
   "peerDependencies": {
     "@memberjunction/core": "^5.38.0",
