@@ -1,3 +1,26 @@
+/**
+ * BizApps Tasks Angular Bootstrap
+ *
+ * Client-side bootstrap package for the BizApps Tasks Open App.
+ * Imports the entity classes, generated form components, and the class
+ * registration manifest so every @RegisterClass decorator fires and nothing
+ * gets tree-shaken out of consumer builds.
+ */
+
+// Import entity package to trigger @RegisterClass decorators for entity
+// subclasses (incl. the custom priority-1 TaskEntity / TaskDependencyEntity).
+import '@mj-biz-apps/tasks-entities';
+
+// Import generated form components (triggers @RegisterClass for form components).
+import './lib/generated/generated-forms.module.js';
+
+// Import the class registrations manifest (static code path the bundler can't
+// tree-shake — anchors every @RegisterClass class from tasks-entities).
+import { CLASS_REGISTRATIONS } from './lib/generated/class-registrations-manifest.js';
+
+// Re-export for consumers.
+export { CLASS_REGISTRATIONS } from './lib/generated/class-registrations-manifest.js';
+
 // Generated forms
 export * from './lib/generated/generated-forms.module.js';
 
