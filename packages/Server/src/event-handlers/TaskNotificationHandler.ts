@@ -27,6 +27,24 @@ const TASKS_ENTITY = 'MJ_BizApps_Tasks: Tasks';
 const TASK_ASSIGNMENTS_ENTITY = 'MJ_BizApps_Tasks: Task Assignments';
 const TASK_COMMENTS_ENTITY = 'MJ_BizApps_Tasks: Task Comments';
 
+/** The TaskType FK columns that can carry an action hook. */
+type TaskTypeActionColumn =
+    | 'OnAssignActionID'
+    | 'OnCompleteActionID'
+    | 'OnOverdueActionID'
+    | 'OnPercentChangeActionID'
+    | 'OnRejectActionID'
+    | 'OnCancelActionID';
+
+/** Outcome of invoking a TaskType action hook (post-commit, non-blocking). */
+type ActionHookResult = {
+    /** True when an action was configured and actually invoked. */
+    Invoked: boolean;
+    /** Whether the invoked action reported success. Undefined when nothing was invoked. */
+    Success?: boolean;
+    Message?: string;
+};
+
 /**
  * Initializes the global event subscription for task notifications.
  * Call once at server startup from {@link LoadBizAppsTasksServer}.
@@ -143,6 +161,43 @@ async function handleTaskSave(event: BaseEntityEvent): Promise<void> {
             LogStatus(`[BizAppsTasks] Sent blocked notification for "${taskName}" to ${userIDs.length} assignee(s)`);
         }
     }
+
+    if (status === 'Cancelled') {
+        // A cancellation that follows a Rejected decision is treated as a rejection,
+        // firing OnReject (e.g. "return the source record to Draft"); a plain cancel
+        // fires OnCancel. Both are post-commit and non-blocking.
+        const rejected = await taskHasRejectedDecision(taskID, contextUser);
+        await invokeTaskTypeAction(task, rejected ? 'OnRejectActionID' : 'OnCancelActionID', contextUser);
+    }
+}
+
+/**
+ * Returns true when the task has a TaskDecision with the 'Rejected' outcome.
+ * Used to distinguish a rejection from a plain cancellation when routing hooks.
+ *
+ * Resolves the rejected outcome by its stable Code, then matches decisions by
+ * OutcomeID — so renaming the outcome's display Name doesn't break routing.
+ */
+async function taskHasRejectedDecision(taskID: string, contextUser: UserInfo): Promise<boolean> {
+    const rv = new RunView();
+    const outcomeResult = await rv.RunView<{ ID: string }>({
+        EntityName: 'MJ_BizApps_Tasks: Task Decision Outcomes',
+        ExtraFilter: `Code = 'Rejected'`,
+        Fields: ['ID'],
+        ResultType: 'simple',
+        MaxRows: 1,
+    }, contextUser);
+    const rejectedOutcomeID = outcomeResult?.Results?.[0]?.ID;
+    if (!rejectedOutcomeID) return false;
+
+    const result = await rv.RunView<{ ID: string }>({
+        EntityName: 'MJ_BizApps_Tasks: Task Decisions',
+        ExtraFilter: `TaskID = '${taskID}' AND OutcomeID = '${rejectedOutcomeID}'`,
+        Fields: ['ID'],
+        ResultType: 'simple',
+        MaxRows: 1,
+    }, contextUser);
+    return (result?.Results?.length ?? 0) > 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -272,14 +327,18 @@ async function handleCommentSave(event: BaseEntityEvent): Promise<void> {
 /**
  * Looks up the TaskType for a task entity and invokes the specified action
  * FK column if it has a value.
+ *
+ * Post-commit and non-blocking: the action's result is consumed (captured and
+ * recorded as a TaskActivity, logged on failure) but a failed action does NOT
+ * roll back the task save that triggered it.
  */
 async function invokeTaskTypeAction(
     task: BaseEntity,
-    actionColumn: 'OnAssignActionID' | 'OnCompleteActionID' | 'OnOverdueActionID' | 'OnPercentChangeActionID',
+    actionColumn: TaskTypeActionColumn,
     contextUser: UserInfo,
-): Promise<void> {
+): Promise<ActionHookResult> {
     const typeID = task.Get('TypeID') as string | null;
-    if (!typeID) return;
+    if (!typeID) return { Invoked: false };
 
     const rv = new RunView();
     const typeResult = await rv.RunView<any>({
@@ -290,35 +349,49 @@ async function invokeTaskTypeAction(
     }, contextUser);
 
     const taskType = typeResult?.Results?.[0];
-    if (!taskType) return;
+    if (!taskType) return { Invoked: false };
 
     const actionID = taskType[actionColumn] as string | null;
-    if (!actionID) return;
+    if (!actionID) return { Invoked: false };
 
+    const taskName = task.Get('Name') as string;
     try {
         // Dynamic import to avoid hard dependency on @memberjunction/actions
         const { ActionEngineServer } = await import('@memberjunction/actions');
         await ActionEngineServer.Instance.Config(false, contextUser);
         const action = ActionEngineServer.Instance.Actions.find((a: any) => a.ID === actionID);
         if (!action) {
-            LogError(`[BizAppsTasks] Action ${actionID} not found for TaskType ${actionColumn}`);
-            return;
+            const msg = `Action ${actionID} not found for TaskType ${actionColumn}`;
+            LogError(`[BizAppsTasks] ${msg}`);
+            return { Invoked: false, Message: msg };
         }
 
-        await ActionEngineServer.Instance.RunAction({
+        const result = await ActionEngineServer.Instance.RunAction({
             Action: action,
             ContextUser: contextUser,
             Params: [
                 { Name: 'TaskID', Value: task.Get('ID'), Type: 'Input' },
-                { Name: 'TaskName', Value: task.Get('Name'), Type: 'Input' },
+                { Name: 'TaskName', Value: taskName, Type: 'Input' },
                 { Name: 'Status', Value: task.Get('Status'), Type: 'Input' },
             ],
             Filters: [],
         });
-        LogStatus(`[BizAppsTasks] Invoked ${actionColumn} action for task "${task.Get('Name')}"`);
+
+        const success = result?.Success === true;
+        const message = result?.Message ?? undefined;
+
+        if (success) {
+            LogStatus(`[BizAppsTasks] Invoked ${actionColumn} action for task "${taskName}"`);
+        } else {
+            // Loud, non-blocking: downstream failure (e.g. "return Order to Draft" failed)
+            // is surfaced for operators but does not roll back the task transition.
+            LogError(`[BizAppsTasks] ${actionColumn} action for task "${taskName}" reported failure: ${message ?? 'no message'}`);
+        }
+        return { Invoked: true, Success: success, Message: message };
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         LogError(`[BizAppsTasks] Failed to invoke ${actionColumn}: ${msg}`);
+        return { Invoked: true, Success: false, Message: msg };
     }
 }
 
@@ -327,7 +400,7 @@ async function invokeTaskTypeAction(
  */
 async function invokeTaskTypeActionByTaskID(
     taskID: string,
-    actionColumn: 'OnAssignActionID' | 'OnCompleteActionID' | 'OnOverdueActionID' | 'OnPercentChangeActionID',
+    actionColumn: TaskTypeActionColumn,
     contextUser: UserInfo,
 ): Promise<void> {
     const rv = new RunView();

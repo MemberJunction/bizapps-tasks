@@ -58,5 +58,20 @@
       "lastModified": "2026-06-09T16:59:36.958Z",
       "checksum": "3c53d018909c197185bcd66e62e726d215435d4f3b8ceb524f67c5ab0b8e2f42"
     }
+  },
+  {
+    "fields": {
+      "Name": "Approval Request",
+      "Description": "An approval/decision workflow request routed to one or more approvers. Consumers wire OnReject/OnCancel/OnComplete actions to feed the decision back to the source record.",
+      "IconClass": "fa-solid fa-stamp",
+      "DefaultPriority": "High"
+    },
+    "primaryKey": {
+      "ID": "5961EDE5-B996-4083-BE48-64634B4D8D1C"
+    },
+    "sync": {
+      "lastModified": "2026-06-22T21:18:46.401Z",
+      "checksum": "5324e65f3c50f348a27348e8d35271f82828f3a75121afe4d77c1847c498ca14"
+    }
   }
 ]

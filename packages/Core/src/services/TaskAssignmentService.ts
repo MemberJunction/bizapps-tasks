@@ -1,4 +1,4 @@
-import { BaseEntity, CompositeKey, Metadata, RunView } from "@memberjunction/core";
+import { BaseEntity, CompositeKey, Metadata, RunView, UserInfo } from "@memberjunction/core";
 import { TaskService } from "./TaskService.js";
 
 /**
@@ -20,8 +20,8 @@ export class TaskAssignmentService {
         roleID?: string;
         roleNotes?: string;
         assignedByPersonID?: string;
-    }): Promise<BaseEntity> {
-        const assignment = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Assignments');
+    }, contextUser?: UserInfo): Promise<BaseEntity> {
+        const assignment = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Assignments', contextUser);
         assignment.NewRecord();
         assignment.Set('TaskID', params.taskID);
         assignment.Set('AssigneeEntityID', params.assigneeEntityID);
@@ -38,7 +38,7 @@ export class TaskAssignmentService {
             activityType: 'AssignmentAdded',
             newValue: params.assigneeRecordID,
             description: `Assignee added to task`,
-        });
+        }, contextUser);
 
         return assignment;
     }

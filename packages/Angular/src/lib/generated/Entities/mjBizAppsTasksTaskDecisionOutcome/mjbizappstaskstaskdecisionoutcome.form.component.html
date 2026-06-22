@@ -20,25 +20,7 @@
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
-            FieldName="TaskID"
-            Type="textbox"
-            [EditMode]="EditMode"
-            [FormContext]="formContext"
-            LinkType="Record"
-        ></mj-form-field>
-        <mj-form-field 
-            [Record]="record"
-            [ShowLabel]="true"
-            FieldName="AssigneeEntityID"
-            Type="textbox"
-            [EditMode]="EditMode"
-            [FormContext]="formContext"
-            LinkType="Record"
-        ></mj-form-field>
-        <mj-form-field 
-            [Record]="record"
-            [ShowLabel]="true"
-            FieldName="AssigneeRecordID"
+            FieldName="Name"
             Type="textbox"
             [EditMode]="EditMode"
             [FormContext]="formContext"
@@ -46,16 +28,7 @@
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
-            FieldName="RoleID"
-            Type="textbox"
-            [EditMode]="EditMode"
-            [FormContext]="formContext"
-            LinkType="Record"
-        ></mj-form-field>
-        <mj-form-field 
-            [Record]="record"
-            [ShowLabel]="true"
-            FieldName="RoleNotes"
+            FieldName="Code"
             Type="textbox"
             [EditMode]="EditMode"
             [FormContext]="formContext"
@@ -63,25 +36,32 @@
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
-            FieldName="Status"
-            Type="select"
+            FieldName="Description"
+            Type="textarea"
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
-            FieldName="AssignedByPersonID"
-            Type="textbox"
+            FieldName="Sequence"
+            Type="number"
             [EditMode]="EditMode"
             [FormContext]="formContext"
-            LinkType="Record"
         ></mj-form-field>
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
-            FieldName="AssignedAt"
-            Type="datepicker"
+            FieldName="IsTerminal"
+            Type="checkbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="IsActive"
+            Type="checkbox"
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
@@ -123,7 +103,7 @@
         @if (record.IsSaved) {
         <div>
             <mj-explorer-entity-data-grid
-                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Decisions','TaskAssignmentID')"
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Decisions','OutcomeID')"
                 [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Decisions')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskDecisions')"
                 [ShowToolbar]="false"

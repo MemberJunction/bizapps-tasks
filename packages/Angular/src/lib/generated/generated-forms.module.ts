@@ -19,6 +19,8 @@ import { mjBizAppsTasksTaskActivityFormComponent } from "./Entities/mjBizAppsTas
 import { mjBizAppsTasksTaskAssignmentFormComponent } from "./Entities/mjBizAppsTasksTaskAssignment/mjbizappstaskstaskassignment.form.component";
 import { mjBizAppsTasksTaskCategoryFormComponent } from "./Entities/mjBizAppsTasksTaskCategory/mjbizappstaskstaskcategory.form.component";
 import { mjBizAppsTasksTaskCommentFormComponent } from "./Entities/mjBizAppsTasksTaskComment/mjbizappstaskstaskcomment.form.component";
+import { mjBizAppsTasksTaskDecisionOutcomeFormComponent } from "./Entities/mjBizAppsTasksTaskDecisionOutcome/mjbizappstaskstaskdecisionoutcome.form.component";
+import { mjBizAppsTasksTaskDecisionFormComponent } from "./Entities/mjBizAppsTasksTaskDecision/mjbizappstaskstaskdecision.form.component";
 import { mjBizAppsTasksTaskDependencyFormComponent } from "./Entities/mjBizAppsTasksTaskDependency/mjbizappstaskstaskdependency.form.component";
 import { mjBizAppsTasksTaskLinkFormComponent } from "./Entities/mjBizAppsTasksTaskLink/mjbizappstaskstasklink.form.component";
 import { mjBizAppsTasksTaskNotificationConfigFormComponent } from "./Entities/mjBizAppsTasksTaskNotificationConfig/mjbizappstaskstasknotificationconfig.form.component";
@@ -40,6 +42,8 @@ declarations: [
     mjBizAppsTasksTaskAssignmentFormComponent,
     mjBizAppsTasksTaskCategoryFormComponent,
     mjBizAppsTasksTaskCommentFormComponent,
+    mjBizAppsTasksTaskDecisionOutcomeFormComponent,
+    mjBizAppsTasksTaskDecisionFormComponent,
     mjBizAppsTasksTaskDependencyFormComponent,
     mjBizAppsTasksTaskLinkFormComponent,
     mjBizAppsTasksTaskNotificationConfigFormComponent,

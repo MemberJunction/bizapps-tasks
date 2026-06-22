@@ -27,7 +27,7 @@ export const mjBizAppsTasksTaskActivitySchema = z.object({
         * * Display Name: Person ID
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)`),
-    ActivityType: z.union([z.literal('AssignmentAdded'), z.literal('AssignmentRemoved'), z.literal('Completed'), z.literal('Created'), z.literal('DependencyAdded'), z.literal('DependencyRemoved'), z.literal('DueDateChanged'), z.literal('PercentCompleteChanged'), z.literal('PriorityChanged'), z.literal('StatusChange')]).describe(`
+    ActivityType: z.union([z.literal('AssignmentAdded'), z.literal('AssignmentRemoved'), z.literal('Completed'), z.literal('Created'), z.literal('DecisionRecorded'), z.literal('DependencyAdded'), z.literal('DependencyRemoved'), z.literal('DueDateChanged'), z.literal('PercentCompleteChanged'), z.literal('PriorityChanged'), z.literal('StatusChange')]).describe(`
         * * Field Name: ActivityType
         * * Display Name: Activity Type
         * * SQL Data Type: nvarchar(50)
@@ -37,6 +37,7 @@ export const mjBizAppsTasksTaskActivitySchema = z.object({
     *   * AssignmentRemoved
     *   * Completed
     *   * Created
+    *   * DecisionRecorded
     *   * DependencyAdded
     *   * DependencyRemoved
     *   * DueDateChanged
@@ -275,6 +276,131 @@ export const mjBizAppsTasksTaskCommentSchema = z.object({
 });
 
 export type mjBizAppsTasksTaskCommentEntityType = z.infer<typeof mjBizAppsTasksTaskCommentSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Task Decision Outcomes
+ */
+export const mjBizAppsTasksTaskDecisionOutcomeSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()`),
+    Name: z.string().describe(`
+        * * Field Name: Name
+        * * Display Name: Name
+        * * SQL Data Type: nvarchar(100)
+        * * Description: Human-readable outcome label (e.g. Approved, Rejected, Approved With Conditions).`),
+    Code: z.string().describe(`
+        * * Field Name: Code
+        * * Display Name: Code
+        * * SQL Data Type: nvarchar(50)
+        * * Description: Stable machine code for the outcome, used by orchestration code to map outcome to task status (e.g. Approved, Rejected, ApprovedWithConditions).`),
+    Description: z.string().nullable().describe(`
+        * * Field Name: Description
+        * * Display Name: Description
+        * * SQL Data Type: nvarchar(MAX)`),
+    Sequence: z.number().describe(`
+        * * Field Name: Sequence
+        * * Display Name: Sequence
+        * * SQL Data Type: int
+        * * Default Value: 100
+        * * Description: Display ordering for the outcome in decision pickers.`),
+    IsTerminal: z.boolean().describe(`
+        * * Field Name: IsTerminal
+        * * Display Name: Is Terminal
+        * * SQL Data Type: bit
+        * * Default Value: 1
+        * * Description: When 1, recording this outcome closes the approval (terminal). When 0, the decision is interim and the task remains open.`),
+    IsActive: z.boolean().describe(`
+        * * Field Name: IsActive
+        * * Display Name: Is Active
+        * * SQL Data Type: bit
+        * * Default Value: 1
+        * * Description: When 0, the outcome is hidden from new decision pickers but preserved on historical decisions.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+});
+
+export type mjBizAppsTasksTaskDecisionOutcomeEntityType = z.infer<typeof mjBizAppsTasksTaskDecisionOutcomeSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Task Decisions
+ */
+export const mjBizAppsTasksTaskDecisionSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()`),
+    TaskID: z.string().describe(`
+        * * Field Name: TaskID
+        * * Display Name: Task ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
+        * * Description: The task this decision was recorded against.`),
+    OutcomeID: z.string().describe(`
+        * * Field Name: OutcomeID
+        * * Display Name: Outcome ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Task Decision Outcomes (vwTaskDecisionOutcomes.ID)
+        * * Description: The decision outcome (FK to TaskDecisionOutcome).`),
+    DecidedByPersonID: z.string().nullable().describe(`
+        * * Field Name: DecidedByPersonID
+        * * Display Name: Decided By Person ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: The Person who made the decision.`),
+    DecidedAt: z.date().describe(`
+        * * Field Name: DecidedAt
+        * * Display Name: Decided At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()
+        * * Description: When the decision was recorded.`),
+    DecisionNotes: z.string().nullable().describe(`
+        * * Field Name: DecisionNotes
+        * * Display Name: Decision Notes
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: Free-text rationale or conditions attached to the decision.`),
+    TaskAssignmentID: z.string().nullable().describe(`
+        * * Field Name: TaskAssignmentID
+        * * Display Name: Task Assignment ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Task Assignments (vwTaskAssignments.ID)
+        * * Description: Optional link to the specific TaskAssignment this decision belongs to, for per-assignee decisions in multi-approver flows. Null for a task-level decision.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Task: z.string().describe(`
+        * * Field Name: Task
+        * * Display Name: Task
+        * * SQL Data Type: nvarchar(255)`),
+    Outcome: z.string().describe(`
+        * * Field Name: Outcome
+        * * Display Name: Outcome
+        * * SQL Data Type: nvarchar(100)`),
+    DecidedByPerson: z.string().nullable().describe(`
+        * * Field Name: DecidedByPerson
+        * * Display Name: Decided By Person
+        * * SQL Data Type: nvarchar(201)`),
+});
+
+export type mjBizAppsTasksTaskDecisionEntityType = z.infer<typeof mjBizAppsTasksTaskDecisionSchema>;
 
 /**
  * zod schema definition for the entity MJ_BizApps_Tasks: Task Dependencies
@@ -899,6 +1025,18 @@ export const mjBizAppsTasksTaskTypeSchema = z.object({
         * * Display Name: Updated At
         * * SQL Data Type: datetimeoffset
         * * Default Value: getutcdate()`),
+    OnRejectActionID: z.string().nullable().describe(`
+        * * Field Name: OnRejectActionID
+        * * Display Name: On Reject Action ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: Actions (vwActions.ID)
+        * * Description: Action invoked when a task of this type transitions to a rejected decision (post-commit, non-blocking). Used by approval workflows.`),
+    OnCancelActionID: z.string().nullable().describe(`
+        * * Field Name: OnCancelActionID
+        * * Display Name: On Cancel Action ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: Actions (vwActions.ID)
+        * * Description: Action invoked when a task of this type transitions to Cancelled (post-commit, non-blocking).`),
     OnAssignAction: z.string().nullable().describe(`
         * * Field Name: OnAssignAction
         * * Display Name: On Assign Action
@@ -914,6 +1052,14 @@ export const mjBizAppsTasksTaskTypeSchema = z.object({
     OnPercentChangeAction: z.string().nullable().describe(`
         * * Field Name: OnPercentChangeAction
         * * Display Name: On Percent Change Action
+        * * SQL Data Type: nvarchar(425)`),
+    OnRejectAction: z.string().nullable().describe(`
+        * * Field Name: OnRejectAction
+        * * Display Name: On Reject Action
+        * * SQL Data Type: nvarchar(425)`),
+    OnCancelAction: z.string().nullable().describe(`
+        * * Field Name: OnCancelAction
+        * * Display Name: On Cancel Action
         * * SQL Data Type: nvarchar(425)`),
 });
 
@@ -1135,6 +1281,7 @@ export class mjBizAppsTasksTaskActivityEntity extends BaseEntity<mjBizAppsTasksT
     *   * AssignmentRemoved
     *   * Completed
     *   * Created
+    *   * DecisionRecorded
     *   * DependencyAdded
     *   * DependencyRemoved
     *   * DueDateChanged
@@ -1142,10 +1289,10 @@ export class mjBizAppsTasksTaskActivityEntity extends BaseEntity<mjBizAppsTasksT
     *   * PriorityChanged
     *   * StatusChange
     */
-    get ActivityType(): 'AssignmentAdded' | 'AssignmentRemoved' | 'Completed' | 'Created' | 'DependencyAdded' | 'DependencyRemoved' | 'DueDateChanged' | 'PercentCompleteChanged' | 'PriorityChanged' | 'StatusChange' {
+    get ActivityType(): 'AssignmentAdded' | 'AssignmentRemoved' | 'Completed' | 'Created' | 'DecisionRecorded' | 'DependencyAdded' | 'DependencyRemoved' | 'DueDateChanged' | 'PercentCompleteChanged' | 'PriorityChanged' | 'StatusChange' {
         return this.Get('ActivityType');
     }
-    set ActivityType(value: 'AssignmentAdded' | 'AssignmentRemoved' | 'Completed' | 'Created' | 'DependencyAdded' | 'DependencyRemoved' | 'DueDateChanged' | 'PercentCompleteChanged' | 'PriorityChanged' | 'StatusChange') {
+    set ActivityType(value: 'AssignmentAdded' | 'AssignmentRemoved' | 'Completed' | 'Created' | 'DecisionRecorded' | 'DependencyAdded' | 'DependencyRemoved' | 'DueDateChanged' | 'PercentCompleteChanged' | 'PriorityChanged' | 'StatusChange') {
         this.Set('ActivityType', value);
     }
 
@@ -1740,6 +1887,324 @@ export class mjBizAppsTasksTaskCommentEntity extends BaseEntity<mjBizAppsTasksTa
     */
     get RootParentID(): string | null {
         return this.Get('RootParentID');
+    }
+}
+
+
+/**
+ * MJ_BizApps_Tasks: Task Decision Outcomes - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: TaskDecisionOutcome
+ * * Base View: vwTaskDecisionOutcomes
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Task Decision Outcomes')
+export class mjBizAppsTasksTaskDecisionOutcomeEntity extends BaseEntity<mjBizAppsTasksTaskDecisionOutcomeEntityType> {
+    /**
+    * Loads the MJ_BizApps_Tasks: Task Decision Outcomes record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Task Decision Outcomes record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksTaskDecisionOutcomeEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: Name
+    * * Display Name: Name
+    * * SQL Data Type: nvarchar(100)
+    * * Description: Human-readable outcome label (e.g. Approved, Rejected, Approved With Conditions).
+    */
+    get Name(): string {
+        return this.Get('Name');
+    }
+    set Name(value: string) {
+        this.Set('Name', value);
+    }
+
+    /**
+    * * Field Name: Code
+    * * Display Name: Code
+    * * SQL Data Type: nvarchar(50)
+    * * Description: Stable machine code for the outcome, used by orchestration code to map outcome to task status (e.g. Approved, Rejected, ApprovedWithConditions).
+    */
+    get Code(): string {
+        return this.Get('Code');
+    }
+    set Code(value: string) {
+        this.Set('Code', value);
+    }
+
+    /**
+    * * Field Name: Description
+    * * Display Name: Description
+    * * SQL Data Type: nvarchar(MAX)
+    */
+    get Description(): string | null {
+        return this.Get('Description');
+    }
+    set Description(value: string | null) {
+        this.Set('Description', value);
+    }
+
+    /**
+    * * Field Name: Sequence
+    * * Display Name: Sequence
+    * * SQL Data Type: int
+    * * Default Value: 100
+    * * Description: Display ordering for the outcome in decision pickers.
+    */
+    get Sequence(): number {
+        return this.Get('Sequence');
+    }
+    set Sequence(value: number) {
+        this.Set('Sequence', value);
+    }
+
+    /**
+    * * Field Name: IsTerminal
+    * * Display Name: Is Terminal
+    * * SQL Data Type: bit
+    * * Default Value: 1
+    * * Description: When 1, recording this outcome closes the approval (terminal). When 0, the decision is interim and the task remains open.
+    */
+    get IsTerminal(): boolean {
+        return this.Get('IsTerminal');
+    }
+    set IsTerminal(value: boolean) {
+        this.Set('IsTerminal', value);
+    }
+
+    /**
+    * * Field Name: IsActive
+    * * Display Name: Is Active
+    * * SQL Data Type: bit
+    * * Default Value: 1
+    * * Description: When 0, the outcome is hidden from new decision pickers but preserved on historical decisions.
+    */
+    get IsActive(): boolean {
+        return this.Get('IsActive');
+    }
+    set IsActive(value: boolean) {
+        this.Set('IsActive', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+}
+
+
+/**
+ * MJ_BizApps_Tasks: Task Decisions - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: TaskDecision
+ * * Base View: vwTaskDecisions
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Task Decisions')
+export class mjBizAppsTasksTaskDecisionEntity extends BaseEntity<mjBizAppsTasksTaskDecisionEntityType> {
+    /**
+    * Loads the MJ_BizApps_Tasks: Task Decisions record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Task Decisions record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksTaskDecisionEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: TaskID
+    * * Display Name: Task ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
+    * * Description: The task this decision was recorded against.
+    */
+    get TaskID(): string {
+        return this.Get('TaskID');
+    }
+    set TaskID(value: string) {
+        this.Set('TaskID', value);
+    }
+
+    /**
+    * * Field Name: OutcomeID
+    * * Display Name: Outcome ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Task Decision Outcomes (vwTaskDecisionOutcomes.ID)
+    * * Description: The decision outcome (FK to TaskDecisionOutcome).
+    */
+    get OutcomeID(): string {
+        return this.Get('OutcomeID');
+    }
+    set OutcomeID(value: string) {
+        this.Set('OutcomeID', value);
+    }
+
+    /**
+    * * Field Name: DecidedByPersonID
+    * * Display Name: Decided By Person ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+    * * Description: The Person who made the decision.
+    */
+    get DecidedByPersonID(): string | null {
+        return this.Get('DecidedByPersonID');
+    }
+    set DecidedByPersonID(value: string | null) {
+        this.Set('DecidedByPersonID', value);
+    }
+
+    /**
+    * * Field Name: DecidedAt
+    * * Display Name: Decided At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    * * Description: When the decision was recorded.
+    */
+    get DecidedAt(): Date {
+        return this.Get('DecidedAt');
+    }
+    set DecidedAt(value: Date) {
+        this.Set('DecidedAt', value);
+    }
+
+    /**
+    * * Field Name: DecisionNotes
+    * * Display Name: Decision Notes
+    * * SQL Data Type: nvarchar(MAX)
+    * * Description: Free-text rationale or conditions attached to the decision.
+    */
+    get DecisionNotes(): string | null {
+        return this.Get('DecisionNotes');
+    }
+    set DecisionNotes(value: string | null) {
+        this.Set('DecisionNotes', value);
+    }
+
+    /**
+    * * Field Name: TaskAssignmentID
+    * * Display Name: Task Assignment ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Task Assignments (vwTaskAssignments.ID)
+    * * Description: Optional link to the specific TaskAssignment this decision belongs to, for per-assignee decisions in multi-approver flows. Null for a task-level decision.
+    */
+    get TaskAssignmentID(): string | null {
+        return this.Get('TaskAssignmentID');
+    }
+    set TaskAssignmentID(value: string | null) {
+        this.Set('TaskAssignmentID', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: Task
+    * * Display Name: Task
+    * * SQL Data Type: nvarchar(255)
+    */
+    get Task(): string {
+        return this.Get('Task');
+    }
+
+    /**
+    * * Field Name: Outcome
+    * * Display Name: Outcome
+    * * SQL Data Type: nvarchar(100)
+    */
+    get Outcome(): string {
+        return this.Get('Outcome');
+    }
+
+    /**
+    * * Field Name: DecidedByPerson
+    * * Display Name: Decided By Person
+    * * SQL Data Type: nvarchar(201)
+    */
+    get DecidedByPerson(): string | null {
+        return this.Get('DecidedByPerson');
     }
 }
 
@@ -3381,6 +3846,34 @@ export class mjBizAppsTasksTaskTypeEntity extends BaseEntity<mjBizAppsTasksTaskT
     }
 
     /**
+    * * Field Name: OnRejectActionID
+    * * Display Name: On Reject Action ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ: Actions (vwActions.ID)
+    * * Description: Action invoked when a task of this type transitions to a rejected decision (post-commit, non-blocking). Used by approval workflows.
+    */
+    get OnRejectActionID(): string | null {
+        return this.Get('OnRejectActionID');
+    }
+    set OnRejectActionID(value: string | null) {
+        this.Set('OnRejectActionID', value);
+    }
+
+    /**
+    * * Field Name: OnCancelActionID
+    * * Display Name: On Cancel Action ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ: Actions (vwActions.ID)
+    * * Description: Action invoked when a task of this type transitions to Cancelled (post-commit, non-blocking).
+    */
+    get OnCancelActionID(): string | null {
+        return this.Get('OnCancelActionID');
+    }
+    set OnCancelActionID(value: string | null) {
+        this.Set('OnCancelActionID', value);
+    }
+
+    /**
     * * Field Name: OnAssignAction
     * * Display Name: On Assign Action
     * * SQL Data Type: nvarchar(425)
@@ -3414,6 +3907,24 @@ export class mjBizAppsTasksTaskTypeEntity extends BaseEntity<mjBizAppsTasksTaskT
     */
     get OnPercentChangeAction(): string | null {
         return this.Get('OnPercentChangeAction');
+    }
+
+    /**
+    * * Field Name: OnRejectAction
+    * * Display Name: On Reject Action
+    * * SQL Data Type: nvarchar(425)
+    */
+    get OnRejectAction(): string | null {
+        return this.Get('OnRejectAction');
+    }
+
+    /**
+    * * Field Name: OnCancelAction
+    * * Display Name: On Cancel Action
+    * * SQL Data Type: nvarchar(425)
+    */
+    get OnCancelAction(): string | null {
+        return this.Get('OnCancelAction');
     }
 }
 

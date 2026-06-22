@@ -1,15 +1,18 @@
 import { BaseEntity, Metadata, RunView, ValidationResult, ValidationErrorInfo, ValidationErrorType } from "@memberjunction/core";
 import { RegisterClass } from "@memberjunction/global";
+import { mjBizAppsTasksTaskDependencyEntity } from "../generated/entity_subclasses.js";
 
 /**
  * Custom entity subclass for MJ_BizApps_Tasks: Task Dependencies.
  * Prevents circular dependencies by walking the dependency graph
  * before allowing a save.
  *
- * Registered with priority 1 to override the CodeGen-generated base class.
+ * Extends the CodeGen-generated entity (per MJ convention) so the strongly-typed
+ * field accessors are inherited; registered with priority 1 to override the
+ * generated base class.
  */
 @RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Task Dependencies', 1)
-export class TaskDependencyEntity extends BaseEntity {
+export class TaskDependencyEntity extends mjBizAppsTasksTaskDependencyEntity {
 
     public override Validate(): ValidationResult {
         const result = super.Validate();

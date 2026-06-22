@@ -1,17 +1,17 @@
 import { Component } from '@angular/core';
-import { mjBizAppsTasksTaskAssignmentEntity } from '@mj-biz-apps/tasks-entities';
+import { mjBizAppsTasksTaskDecisionOutcomeEntity } from '@mj-biz-apps/tasks-entities';
 import { RegisterClass } from '@memberjunction/global';
 import { BaseFormComponent } from '@memberjunction/ng-base-forms';
 import {  } from "@memberjunction/ng-entity-viewer"
 
-@RegisterClass(BaseFormComponent, 'MJ_BizApps_Tasks: Task Assignments') // Tell MemberJunction about this class
+@RegisterClass(BaseFormComponent, 'MJ_BizApps_Tasks: Task Decision Outcomes') // Tell MemberJunction about this class
 @Component({
     standalone: false,
-    selector: 'gen-mjbizappstaskstaskassignment-form',
-    templateUrl: './mjbizappstaskstaskassignment.form.component.html'
+    selector: 'gen-mjbizappstaskstaskdecisionoutcome-form',
+    templateUrl: './mjbizappstaskstaskdecisionoutcome.form.component.html'
 })
-export class mjBizAppsTasksTaskAssignmentFormComponent extends BaseFormComponent {
-    public record!: mjBizAppsTasksTaskAssignmentEntity;
+export class mjBizAppsTasksTaskDecisionOutcomeFormComponent extends BaseFormComponent {
+    public record!: mjBizAppsTasksTaskDecisionOutcomeEntity;
 
     override async ngOnInit() {
         await super.ngOnInit();
