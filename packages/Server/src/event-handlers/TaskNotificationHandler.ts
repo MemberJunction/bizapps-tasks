@@ -377,22 +377,37 @@ async function invokeTaskTypeAction(
             Filters: [],
         });
 
-        const success = result?.Success === true;
-        const message = result?.Message ?? undefined;
-
-        if (success) {
-            LogStatus(`[BizAppsTasks] Invoked ${actionColumn} action for task "${taskName}"`);
-        } else {
-            // Loud, non-blocking: downstream failure (e.g. "return Order to Draft" failed)
-            // is surfaced for operators but does not roll back the task transition.
-            LogError(`[BizAppsTasks] ${actionColumn} action for task "${taskName}" reported failure: ${message ?? 'no message'}`);
-        }
-        return { Invoked: true, Success: success, Message: message };
+        return interpretActionHookResult(result, actionColumn, taskName);
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         LogError(`[BizAppsTasks] Failed to invoke ${actionColumn}: ${msg}`);
         return { Invoked: true, Success: false, Message: msg };
     }
+}
+
+/**
+ * Consumes an action's RunAction result: captures Success/Message and logs the
+ * outcome (success via LogStatus, failure loudly via LogError). Post-commit and
+ * non-blocking — a failed action does NOT roll back the task transition.
+ *
+ * Exported for unit testing the result-capture branch (issue #8, item 2).
+ */
+export function interpretActionHookResult(
+    result: { Success?: boolean; Message?: string } | null | undefined,
+    actionColumn: TaskTypeActionColumn,
+    taskName: string,
+): ActionHookResult {
+    const success = result?.Success === true;
+    const message = result?.Message ?? undefined;
+
+    if (success) {
+        LogStatus(`[BizAppsTasks] Invoked ${actionColumn} action for task "${taskName}"`);
+    } else {
+        // Loud, non-blocking: downstream failure (e.g. "return Order to Draft" failed)
+        // is surfaced for operators but does not roll back the task transition.
+        LogError(`[BizAppsTasks] ${actionColumn} action for task "${taskName}" reported failure: ${message ?? 'no message'}`);
+    }
+    return { Invoked: true, Success: success, Message: message };
 }
 
 /**
