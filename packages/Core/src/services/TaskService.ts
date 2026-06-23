@@ -93,8 +93,8 @@ export class TaskService {
         previousValue?: string;
         newValue?: string;
         description: string;
-    }): Promise<void> {
-        const activity = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Activities');
+    }, contextUser?: UserInfo): Promise<void> {
+        const activity = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Activities', contextUser);
         activity.NewRecord();
         activity.Set('TaskID', params.taskID);
         if (params.personID) activity.Set('PersonID', params.personID);

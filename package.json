@@ -16,6 +16,7 @@
     "test": "turbo test",
     "mj": "npx @memberjunction/cli",
     "mj:migrate": "npx @memberjunction/cli migrate",
+    "mj:migrate:convert": "npx @memberjunction/cli migrate convert --source-dir ./migrations --output-dir ./migrations-pg --schema __mj_BizAppsTasks && node scripts/pg-finalize.mjs",
     "mj:codegen": "npx @memberjunction/cli codegen",
     "change": "changeset",
     "version": "changeset version",
@@ -35,7 +36,8 @@
     "tsc-alias": "^1.8.16",
     "turbo": "^2.9.3",
     "typescript": "^5.9.3",
-    "vitest": "1.6.1"
+    "vitest": "1.6.1",
+    "zod": "^3.25.76"
   },
   "engines": {
     "node": ">=18.0.0",

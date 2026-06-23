@@ -1,0 +1,53 @@
+[
+  {
+    "fields": {
+      "Name": "Approved",
+      "Code": "Approved",
+      "Description": "The request was approved without conditions.",
+      "Sequence": 10,
+      "IsTerminal": true,
+      "IsActive": true
+    },
+    "primaryKey": {
+      "ID": "17597703-5724-4FC8-8A13-28CF5BA96E05"
+    },
+    "sync": {
+      "lastModified": "2026-06-23T21:14:52.556Z",
+      "checksum": "326db03637bbf8a617f1952b11169a4e87ed37220a5689ac6e6a5b6bc5bf1ac0"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Rejected",
+      "Code": "Rejected",
+      "Description": "The request was rejected.",
+      "Sequence": 20,
+      "IsTerminal": true,
+      "IsActive": true
+    },
+    "primaryKey": {
+      "ID": "94C600A5-2CAB-4B52-A9D2-995768EAABD5"
+    },
+    "sync": {
+      "lastModified": "2026-06-23T21:14:52.568Z",
+      "checksum": "3bf40696aaea7a87b5ec995694fd9c84bb818d1112e874deadfa2e8e22301d5a"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Approved With Conditions",
+      "Code": "ApprovedWithConditions",
+      "Description": "The request was approved subject to the conditions in the decision notes.",
+      "Sequence": 30,
+      "IsTerminal": true,
+      "IsActive": true
+    },
+    "primaryKey": {
+      "ID": "06C79086-AC2D-4E54-ADDB-CCAFC46D0DB7"
+    },
+    "sync": {
+      "lastModified": "2026-06-23T21:14:52.578Z",
+      "checksum": "e200096f13e58968d30a060c8269f96e9a9304cd57e84edcdaddd5c448cb0bde"
+    }
+  }
+]

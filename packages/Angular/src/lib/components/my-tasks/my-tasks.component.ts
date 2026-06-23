@@ -44,7 +44,7 @@ import { TaskListComponent, TaskRow, BeforeTaskSelectedEvent, BeforeStatusChange
     `,
     styles: [`
         .my-tasks-title {
-            margin: 0 0 8px; font-size: 1.1rem; font-weight: 600; color: #1f2937;
+            margin: 0 0 8px; font-size: 1.1rem; font-weight: var(--mj-font-semibold); color: var(--mj-text-primary);
         }
     `]
 })

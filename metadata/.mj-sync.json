@@ -6,6 +6,7 @@
   "directoryOrder": [
     "task-types",
     "task-roles",
+    "task-decision-outcomes",
     "task-notification-configs"
   ],
   "emitSyncNotes": false,

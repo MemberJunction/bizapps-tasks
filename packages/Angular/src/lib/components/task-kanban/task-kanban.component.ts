@@ -26,18 +26,18 @@ export interface AfterKanbanStatusChangeEvent {
 
 /** Priority → color mapping for card accents. */
 const PRIORITY_COLORS: Record<string, string> = {
-    Critical: '#ef4444',
-    High: '#f97316',
-    Medium: '#eab308',
-    Low: '#22c55e',
+    Critical: 'var(--mj-status-error)',
+    High: 'var(--mj-status-warning)',
+    Medium: 'var(--mj-status-info)',
+    Low: 'var(--mj-status-success)',
 };
 
 /** Priority → badge background mapping. */
 const PRIORITY_BADGE_COLORS: Record<string, string> = {
-    Critical: '#fef2f2',
-    High: '#fff7ed',
-    Medium: '#fefce8',
-    Low: '#f0fdf4',
+    Critical: 'var(--mj-status-error-bg)',
+    High: 'var(--mj-status-warning-bg)',
+    Medium: 'var(--mj-status-info-bg)',
+    Low: 'var(--mj-status-success-bg)',
 };
 
 /**
@@ -79,10 +79,10 @@ export class TaskKanbanComponent implements OnInit {
     @Output() TaskClicked = new EventEmitter<string>();
 
     columns: KanbanColumnDef[] = [
-        { Key: 'Open',       Label: 'Open',        Color: '#3b82f6' },
-        { Key: 'InProgress', Label: 'In Progress',  Color: '#8b5cf6' },
-        { Key: 'Blocked',    Label: 'Blocked',      Color: '#ef4444' },
-        { Key: 'Completed',  Label: 'Completed',    Color: '#22c55e' },
+        { Key: 'Open',       Label: 'Open',        Color: 'var(--mj-status-info)' },
+        { Key: 'InProgress', Label: 'In Progress',  Color: 'var(--mj-brand-primary)' },
+        { Key: 'Blocked',    Label: 'Blocked',      Color: 'var(--mj-status-error)' },
+        { Key: 'Completed',  Label: 'Completed',    Color: 'var(--mj-status-success)' },
     ];
 
     cards: KanbanCardData[] = [];

@@ -1,5 +1,6 @@
 import { BaseEntity, ValidationResult, ValidationErrorInfo, ValidationErrorType } from "@memberjunction/core";
 import { RegisterClass } from "@memberjunction/global";
+import { mjBizAppsTasksTaskEntity } from "../generated/entity_subclasses.js";
 
 /**
  * Custom entity subclass for MJ_BizApps_Tasks: Tasks.
@@ -8,10 +9,12 @@ import { RegisterClass } from "@memberjunction/global";
  * side-effects (StartedAt/CompletedAt/PercentComplete). Server-only side-effects
  * (activity logging, sub-task rollup) live in TaskEntityServer.
  *
- * Registered with priority 1 to override the CodeGen-generated base class (priority 0).
+ * Extends the CodeGen-generated entity (per MJ convention) so the strongly-typed
+ * field accessors are inherited, and is registered with priority 1 to override the
+ * generated base class (priority 0).
  */
 @RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Tasks', 1)
-export class TaskEntity extends BaseEntity {
+export class TaskEntity extends mjBizAppsTasksTaskEntity {
 
     // ---------------------------------------------------------------
     // Validation

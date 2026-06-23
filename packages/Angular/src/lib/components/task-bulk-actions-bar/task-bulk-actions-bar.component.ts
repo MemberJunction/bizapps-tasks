@@ -66,22 +66,22 @@ export interface BulkActionEvent {
     styles: [`
         .bulk-bar {
             display: flex; align-items: center; gap: 8px;
-            padding: 8px 12px; background: #eef2ff; border-radius: 6px;
-            border: 1px solid #c7d2fe;
+            padding: 8px 12px; background: color-mix(in srgb, var(--mj-brand-primary) 8%, var(--mj-bg-surface)); border-radius: var(--mj-radius-md);
+            border: 1px solid color-mix(in srgb, var(--mj-brand-primary) 30%, var(--mj-border-default));
         }
-        .count { font-weight: 600; font-size: 0.85rem; color: #4338ca; }
+        .count { font-weight: var(--mj-font-semibold); font-size: 0.85rem; color: var(--mj-brand-primary); }
         .bulk-select {
-            padding: 4px 8px; border-radius: 4px; border: 1px solid #cbd5e1;
+            padding: 4px 8px; border-radius: var(--mj-radius-sm); border: 1px solid var(--mj-border-strong);
             font-size: 0.85rem;
         }
         .bulk-btn {
-            padding: 4px 12px; border-radius: 4px; font-size: 0.85rem;
-            border: 1px solid #cbd5e1; cursor: pointer; background: #fff;
+            padding: 4px 12px; border-radius: var(--mj-radius-sm); font-size: 0.85rem;
+            border: 1px solid var(--mj-border-strong); cursor: pointer; background: var(--mj-bg-surface);
         }
         .bulk-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .bulk-btn.apply { background: #4f46e5; color: #fff; border-color: #4f46e5; }
-        .bulk-btn.cancel-tasks { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
-        .bulk-btn.clear { background: #f9fafb; }
+        .bulk-btn.apply { background: var(--mj-brand-primary); color: var(--mj-text-inverse); border-color: var(--mj-brand-primary); }
+        .bulk-btn.cancel-tasks { background: var(--mj-status-error-bg); color: var(--mj-status-error-text); border-color: var(--mj-status-error-border); }
+        .bulk-btn.clear { background: var(--mj-bg-page); }
     `]
 })
 export class TaskBulkActionsBarComponent {

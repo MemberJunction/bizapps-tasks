@@ -159,13 +159,13 @@ export class BeforePanelCloseEvent {
 
         .task-panel-backdrop {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0, 0, 0, 0.2); z-index: 999;
+            background: var(--mj-bg-overlay); z-index: 999;
             animation: fadeIn 0.2s ease;
         }
         .task-panel-slide {
             position: fixed; top: 0; right: 0; width: 480px; height: 100vh;
-            background: #fff; z-index: 1000; overflow-y: auto;
-            box-shadow: -8px 0 30px rgba(0, 0, 0, 0.12);
+            background: var(--mj-bg-surface); z-index: 1000; overflow-y: auto;
+            box-shadow: var(--mj-shadow-lg);
             animation: slideIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
         @keyframes slideIn {
