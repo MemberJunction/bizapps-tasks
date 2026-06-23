@@ -1,5 +1,24 @@
 /* BizAppsTasks Test Harness Styles */
-body {
+
+/* Full MJ Explorer design system (Golden Layout, Kendo theme, MJ components,
+   --mj-* design tokens) — mirrors the bizapps-common / bizapps-accounting harness. */
+@use "@memberjunction/ng-explorer-app/dist/styles.scss" as *;
+
+html,
+body,
+my-app {
+  padding: 0;
   margin: 0;
-  font-family: 'Ubuntu', sans-serif;
+  height: 100%;
+  overflow: hidden;
+}
+
+my-app {
+  display: flex;
+  flex-direction: column;
+}
+
+kendo-drawer-container {
+  flex: 1 1 auto;
+  overflow-y: auto;
 }

@@ -38,48 +38,111 @@ export interface ApprovalRow {
     imports: [CommonModule, ApprovalDecisionPanelComponent],
     template: `
         <div class="approval-inbox">
-            <h3 class="inbox-title">Approvals</h3>
-
-            @if (Loading) {
-                <div class="inbox-empty">Loading…</div>
-            } @else if (LoadError) {
-                <div class="inbox-error">{{ LoadError }}</div>
-            } @else if (Approvals.length === 0) {
-                <div class="inbox-empty">No approvals waiting on you.</div>
-            } @else {
-                <ul class="inbox-list">
-                    @for (a of Approvals; track a.ID) {
-                        <li class="inbox-item"
-                            [class.selected]="a.ID === SelectedApprovalID"
-                            (click)="Select(a.ID)">
-                            <span class="item-name">{{ a.Name }}</span>
-                            <span class="item-priority" [attr.data-priority]="a.Priority">{{ a.Priority }}</span>
-                        </li>
+            <div class="inbox-card">
+                <div class="inbox-card-header">
+                    <h3 class="inbox-title"><i class="fa-solid fa-stamp"></i> Approvals</h3>
+                    @if (!Loading && !LoadError && Approvals.length > 0) {
+                        <span class="inbox-count">{{ Approvals.length }} pending</span>
                     }
-                </ul>
+                </div>
 
-                @if (SelectedApprovalID) {
-                    <bizapps-approval-decision-panel
-                        [TaskID]="SelectedApprovalID"
-                        [DecidedByPersonID]="ApproverPersonID"
-                        (DecisionRecorded)="onDecisionRecorded($event)"
-                        (Cancelled)="SelectedApprovalID = null">
-                    </bizapps-approval-decision-panel>
+                @if (Loading) {
+                    <div class="inbox-empty">Loading…</div>
+                } @else if (LoadError) {
+                    <div class="inbox-error">{{ LoadError }}</div>
+                } @else if (Approvals.length === 0) {
+                    <div class="inbox-empty"><i class="fa-regular fa-circle-check"></i> No approvals waiting on you.</div>
+                } @else {
+                    <ul class="inbox-list">
+                        @for (a of Approvals; track a.ID) {
+                            <li class="inbox-row"
+                                [class.selected]="a.ID === SelectedApprovalID"
+                                (click)="Select(a.ID)" tabindex="0">
+                                <div class="row-main">
+                                    <span class="row-name">{{ a.Name }}</span>
+                                    @if (a.Description) { <span class="row-desc">{{ a.Description }}</span> }
+                                </div>
+                                <span class="badge" [class]="priorityBadgeClass(a.Priority)">{{ a.Priority }}</span>
+                            </li>
+                        }
+                    </ul>
                 }
+            </div>
+
+            @if (SelectedApprovalID) {
+                <bizapps-approval-decision-panel
+                    [TaskID]="SelectedApprovalID"
+                    [DecidedByPersonID]="ApproverPersonID"
+                    (DecisionRecorded)="onDecisionRecorded($event)"
+                    (Cancelled)="SelectedApprovalID = null">
+                </bizapps-approval-decision-panel>
             }
         </div>
     `,
     styles: [`
-        .approval-inbox { display: flex; flex-direction: column; gap: 8px; }
-        .inbox-title { margin: 0 0 4px; font-size: 1.1rem; font-weight: 600; color: var(--mj-text-primary); }
-        .inbox-empty { color: var(--mj-text-muted); padding: 12px 0; }
-        .inbox-error { color: var(--mj-status-error-text); background: var(--mj-status-error-bg); border: 1px solid var(--mj-status-error-border); border-radius: 4px; padding: 8px; font-size: 0.85rem; }
+        :host { display: block; }
+        .approval-inbox { display: flex; flex-direction: column; gap: var(--mj-space-4, 16px); }
+
+        .inbox-card {
+            background: var(--mj-bg-surface);
+            border: 1px solid var(--mj-border-default);
+            border-radius: var(--mj-radius-lg, 12px);
+            box-shadow: var(--mj-shadow-sm, 0 1px 2px 0 rgba(0,0,0,0.05));
+            overflow: hidden;
+        }
+        .inbox-card-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: var(--mj-space-3, 12px) var(--mj-space-4, 16px);
+            border-bottom: 1px solid var(--mj-border-subtle);
+        }
+        .inbox-title {
+            margin: 0; font-size: var(--mj-text-base, 1rem); font-weight: var(--mj-font-semibold, 600);
+            color: var(--mj-text-primary); display: flex; align-items: center; gap: var(--mj-space-2, 8px);
+        }
+        .inbox-title i { color: var(--mj-brand-primary); }
+        .inbox-count { font-size: var(--mj-text-sm, 0.875rem); color: var(--mj-text-muted); }
+
+        .inbox-empty {
+            color: var(--mj-text-muted); padding: var(--mj-space-5, 20px) var(--mj-space-4, 16px);
+            font-size: var(--mj-text-sm, 0.875rem); display: flex; align-items: center; gap: var(--mj-space-2, 8px);
+        }
+        .inbox-error {
+            color: var(--mj-status-error-text); background: var(--mj-status-error-bg);
+            border-top: 1px solid var(--mj-status-error-border);
+            padding: var(--mj-space-3, 12px) var(--mj-space-4, 16px); font-size: var(--mj-text-sm, 0.875rem);
+        }
+
         .inbox-list { list-style: none; margin: 0; padding: 0; }
-        .inbox-item { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--mj-border-subtle); border-radius: 4px; margin-bottom: 4px; cursor: pointer; }
-        .inbox-item:hover { background: var(--mj-bg-surface-hover); }
-        .inbox-item.selected { border-color: var(--mj-brand-primary); background: color-mix(in srgb, var(--mj-brand-primary) 8%, var(--mj-bg-surface)); }
-        .item-name { color: var(--mj-text-primary); font-weight: 500; }
-        .item-priority { font-size: 0.75rem; color: var(--mj-text-secondary); }
+        .inbox-row {
+            display: flex; align-items: center; justify-content: space-between; gap: var(--mj-space-3, 12px);
+            padding: var(--mj-space-3, 12px) var(--mj-space-4, 16px);
+            border-bottom: 1px solid var(--mj-border-subtle); cursor: pointer;
+            transition: background 150ms ease; border-left: 3px solid transparent;
+        }
+        .inbox-row:last-child { border-bottom: none; }
+        .inbox-row:hover { background: var(--mj-bg-surface-hover); }
+        .inbox-row.selected {
+            background: color-mix(in srgb, var(--mj-brand-primary) 8%, var(--mj-bg-surface));
+            border-left-color: var(--mj-brand-primary);
+        }
+        .row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .row-name { color: var(--mj-text-primary); font-weight: var(--mj-font-medium, 500); }
+        .row-desc {
+            color: var(--mj-text-muted); font-size: var(--mj-text-sm, 0.875rem);
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+
+        /* ── priority badge (token pill) ── */
+        .badge {
+            flex-shrink: 0; display: inline-block; padding: 3px 10px; border-radius: var(--mj-radius-full, 9999px);
+            font-size: var(--mj-text-xs, 0.75rem); font-weight: var(--mj-font-bold, 700);
+            text-transform: uppercase; letter-spacing: 0.04em; line-height: 1.4;
+            color: var(--mj-text-primary); background: var(--mj-bg-surface-sunken);
+        }
+        .badge--critical { color: var(--mj-status-error-text); background: var(--mj-status-error-bg); }
+        .badge--high { color: var(--mj-status-warning-text); background: var(--mj-status-warning-bg); }
+        .badge--medium { color: var(--mj-status-info-text); background: var(--mj-status-info-bg); }
+        .badge--low { color: var(--mj-text-secondary); background: var(--mj-bg-surface-sunken); }
     `]
 })
 export class ApprovalInboxComponent implements OnInit {
@@ -158,6 +221,16 @@ export class ApprovalInboxComponent implements OnInit {
 
     Select(approvalID: string): void {
         this.SelectedApprovalID = approvalID;
+    }
+
+    /** Maps a task priority to its badge modifier class (token-driven status colors). */
+    priorityBadgeClass(priority: string): string {
+        switch ((priority || '').toLowerCase()) {
+            case 'critical': return 'badge--critical';
+            case 'high': return 'badge--high';
+            case 'medium': return 'badge--medium';
+            default: return 'badge--low';
+        }
     }
 
     onDecisionRecorded(event: DecisionRecordedEvent): void {

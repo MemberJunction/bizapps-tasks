@@ -49,18 +49,18 @@ export interface TaskAssigneeInfo {
     `,
     styles: [`
         :host { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-        .no-assignees { color: #9ca3af; font-size: 0.85rem; font-style: italic; }
+        .no-assignees { color: var(--mj-text-disabled); font-size: 0.85rem; font-style: italic; }
         .assignee-chip {
             display: inline-flex; align-items: center; gap: 4px;
-            padding: 2px 8px; border-radius: 12px;
-            background: #f3f4f6; font-size: 0.8rem;
+            padding: 2px 8px; border-radius: var(--mj-radius-lg);
+            background: var(--mj-bg-surface-sunken); font-size: 0.8rem;
         }
         .status-dot {
             width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
         }
-        .dot-pending { background: #9ca3af; }
-        .dot-inprogress { background: #3b82f6; }
-        .dot-completed { background: #22c55e; }
+        .dot-pending { background: var(--mj-text-disabled); }
+        .dot-inprogress { background: var(--mj-status-info); }
+        .dot-completed { background: var(--mj-status-success); }
         .assignee-name { white-space: nowrap; }
     `]
 })

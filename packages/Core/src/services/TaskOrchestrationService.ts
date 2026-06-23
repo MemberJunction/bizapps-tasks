@@ -85,7 +85,7 @@ export class TaskOrchestrationService {
     // ---------------------------------------------------------------
 
     /** Creates a new task and returns the saved entity. */
-    async CreateTask(params: CreateTaskParams, contextUser: UserInfo): Promise<mjBizAppsTasksTaskEntity> {
+    async CreateTask(params: CreateTaskParams, contextUser?: UserInfo): Promise<mjBizAppsTasksTaskEntity> {
         const md = new Metadata();
         const task = await md.GetEntityObject<mjBizAppsTasksTaskEntity>(TASKS_ENTITY, contextUser);
         task.NewRecord();
@@ -114,7 +114,7 @@ export class TaskOrchestrationService {
      * applies status side-effects (StartedAt/CompletedAt) and the server save-event
      * handler fires any configured action hooks.
      */
-    async TransitionStatus(taskID: string, newStatus: TaskStatus, contextUser: UserInfo): Promise<mjBizAppsTasksTaskEntity> {
+    async TransitionStatus(taskID: string, newStatus: TaskStatus, contextUser?: UserInfo): Promise<mjBizAppsTasksTaskEntity> {
         const task = await this.loadTask(taskID, contextUser);
         if (task.Status === newStatus) {
             return task; // no-op; avoid a redundant save + hook fire
@@ -138,7 +138,7 @@ export class TaskOrchestrationService {
      * The status transition fires the existing server hook seam, so consumers' OnReject /
      * OnCancel / OnComplete actions run as a side-effect of recording the decision.
      */
-    async RecordDecision(params: RecordDecisionParams, contextUser: UserInfo): Promise<RecordDecisionResult> {
+    async RecordDecision(params: RecordDecisionParams, contextUser?: UserInfo): Promise<RecordDecisionResult> {
         const outcome = await this.resolveOutcome(params.OutcomeCode, contextUser);
 
         const md = new Metadata();
@@ -183,7 +183,7 @@ export class TaskOrchestrationService {
      * Creates an approval-request task, optionally links it to a source record,
      * and assigns the named approvers. Returns the created task.
      */
-    async CreateApprovalRequest(params: CreateApprovalRequestParams, contextUser: UserInfo): Promise<mjBizAppsTasksTaskEntity> {
+    async CreateApprovalRequest(params: CreateApprovalRequestParams, contextUser?: UserInfo): Promise<mjBizAppsTasksTaskEntity> {
         const task = await this.CreateTask({
             Name: params.Name,
             TypeID: params.TypeID,
@@ -217,7 +217,7 @@ export class TaskOrchestrationService {
     // Helpers
     // ---------------------------------------------------------------
 
-    private async loadTask(taskID: string, contextUser: UserInfo): Promise<mjBizAppsTasksTaskEntity> {
+    private async loadTask(taskID: string, contextUser?: UserInfo): Promise<mjBizAppsTasksTaskEntity> {
         const md = new Metadata();
         const task = await md.GetEntityObject<mjBizAppsTasksTaskEntity>(TASKS_ENTITY, contextUser);
         const loaded = await task.InnerLoad(new CompositeKey([{ FieldName: 'ID', Value: taskID }]));
@@ -238,7 +238,7 @@ export class TaskOrchestrationService {
         }
     }
 
-    private async resolveOutcome(code: TaskDecisionOutcomeCode, contextUser: UserInfo): Promise<mjBizAppsTasksTaskDecisionOutcomeEntity> {
+    private async resolveOutcome(code: TaskDecisionOutcomeCode, contextUser?: UserInfo): Promise<mjBizAppsTasksTaskDecisionOutcomeEntity> {
         const rv = new RunView();
         const result = await rv.RunView<mjBizAppsTasksTaskDecisionOutcomeEntity>({
             EntityName: TASK_DECISION_OUTCOMES_ENTITY,
@@ -254,7 +254,7 @@ export class TaskOrchestrationService {
         return outcome;
     }
 
-    private async linkSourceRecord(taskID: string, entityID: string, recordID: string, contextUser: UserInfo): Promise<void> {
+    private async linkSourceRecord(taskID: string, entityID: string, recordID: string, contextUser?: UserInfo): Promise<void> {
         const md = new Metadata();
         const link = await md.GetEntityObject<mjBizAppsTasksTaskLinkEntity>(TASK_LINKS_ENTITY, contextUser);
         link.NewRecord();

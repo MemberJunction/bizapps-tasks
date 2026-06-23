@@ -1,11 +1,8 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, inject, Input, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { CompositeKey, LogError, Metadata, RunView } from '@memberjunction/core';
-import {
-    mjBizAppsTasksTaskEntity,
-    mjBizAppsTasksTaskDecisionEntity,
-} from '@mj-biz-apps/tasks-entities';
+import { RunView } from '@memberjunction/core';
+import { TaskOrchestrationService, TaskDecisionOutcomeCode } from '@mj-biz-apps/tasks-core';
 
 /** A selectable decision outcome loaded from the TaskDecisionOutcome lookup. */
 export interface DecisionOutcomeOption {
@@ -61,48 +58,92 @@ export interface DecisionRecordedEvent {
             } @else {
                 <h3 class="decision-title">{{ TaskName || 'Approval Decision' }}</h3>
 
-                <label class="decision-label" for="outcome">Outcome</label>
-                <select id="outcome" class="mj-input" [(ngModel)]="SelectedOutcomeCode" [disabled]="Saving">
-                    @for (o of Outcomes; track o.Code) {
-                        <option [value]="o.Code">{{ o.Name }}</option>
-                    }
-                </select>
+                <div class="field">
+                    <label class="field-label" for="outcome">Outcome</label>
+                    <select id="outcome" class="mj-select" [(ngModel)]="SelectedOutcomeCode" [disabled]="Saving">
+                        @for (o of Outcomes; track o.Code) {
+                            <option [value]="o.Code">{{ o.Name }}</option>
+                        }
+                    </select>
+                </div>
 
-                <label class="decision-label" for="notes">Notes</label>
-                <textarea id="notes" class="mj-textarea" rows="4"
-                    [(ngModel)]="Notes" [disabled]="Saving"
-                    placeholder="Optional rationale or conditions…"></textarea>
+                <div class="field">
+                    <label class="field-label" for="notes">Notes</label>
+                    <textarea id="notes" class="mj-textarea" rows="4"
+                        [(ngModel)]="Notes" [disabled]="Saving"
+                        placeholder="Optional rationale or conditions…"></textarea>
+                </div>
 
                 @if (SaveError) {
                     <div class="decision-error">{{ SaveError }}</div>
                 }
 
                 <div class="decision-actions">
-                    <button class="btn btn-primary" (click)="Submit()" [disabled]="Saving || !SelectedOutcomeCode">
+                    <button type="button" class="mj-btn mj-btn--primary" (click)="Submit()" [disabled]="Saving || !SelectedOutcomeCode">
                         {{ Saving ? 'Recording…' : 'Record Decision' }}
                     </button>
-                    <button class="btn btn-secondary" (click)="Cancelled.emit()" [disabled]="Saving">Cancel</button>
+                    <button type="button" class="mj-btn mj-btn--secondary" (click)="Cancelled.emit()" [disabled]="Saving">Cancel</button>
                 </div>
             }
         </div>
     `,
     styles: [`
-        .decision-panel { display: flex; flex-direction: column; gap: 8px; padding: 16px; background: var(--mj-bg-surface); }
-        .decision-title { margin: 0 0 4px; font-size: 1.1rem; font-weight: 600; color: var(--mj-text-primary); }
-        .decision-label { font-size: 0.85rem; font-weight: 600; color: var(--mj-text-secondary); margin-top: 4px; }
-        .decision-loading { color: var(--mj-text-muted); padding: 12px 0; }
-        .decision-error { color: var(--mj-status-error-text); background: var(--mj-status-error-bg); border: 1px solid var(--mj-status-error-border); border-radius: 4px; padding: 8px; font-size: 0.85rem; }
-        .decision-actions { display: flex; gap: 8px; margin-top: 8px; }
-        .btn { padding: 8px 16px; border-radius: 4px; border: 1px solid transparent; cursor: pointer; font-weight: 600; }
-        .btn[disabled] { opacity: 0.6; cursor: not-allowed; }
-        .btn-primary { background: var(--mj-brand-primary); color: var(--mj-text-inverse); }
-        .btn-primary:hover:not([disabled]) { background: var(--mj-brand-primary-hover); }
-        .btn-secondary { background: var(--mj-bg-surface-card); color: var(--mj-text-primary); border-color: var(--mj-border-default); }
-        .btn-secondary:hover:not([disabled]) { background: var(--mj-bg-surface-hover); }
+        :host { display: block; }
+        .decision-panel {
+            display: flex; flex-direction: column; gap: var(--mj-space-4, 16px);
+            padding: var(--mj-space-5, 20px);
+            background: var(--mj-bg-surface);
+            border: 1px solid var(--mj-border-default);
+            border-radius: var(--mj-radius-lg, 12px);
+            box-shadow: var(--mj-shadow-sm, 0 1px 2px 0 rgba(0,0,0,0.05));
+        }
+        .decision-title { margin: 0; font-size: var(--mj-text-lg, 1.125rem); font-weight: var(--mj-font-semibold, 600); color: var(--mj-text-primary); }
+        .decision-loading { color: var(--mj-text-muted); padding: var(--mj-space-3, 12px) 0; }
+        .decision-error {
+            color: var(--mj-status-error-text); background: var(--mj-status-error-bg);
+            border: 1px solid var(--mj-status-error-border); border-radius: var(--mj-radius-sm, 4px);
+            padding: var(--mj-space-2, 8px) var(--mj-space-3, 12px); font-size: var(--mj-text-sm, 0.875rem);
+        }
+
+        /* ── form fields ── */
+        .field { display: flex; flex-direction: column; gap: var(--mj-space-2, 8px); }
+        .field-label { font-size: var(--mj-text-sm, 0.875rem); font-weight: var(--mj-font-semibold, 600); color: var(--mj-text-primary); }
+        .mj-select, .mj-textarea {
+            width: 100%; padding: 8px 12px; min-height: 38px;
+            font-family: inherit; font-size: var(--mj-text-sm, 0.875rem); line-height: 1.5;
+            color: var(--mj-text-primary); background: var(--mj-bg-surface);
+            border: 1px solid var(--mj-border-default); border-radius: var(--mj-radius-sm, 4px);
+            transition: border-color 150ms ease, box-shadow 150ms ease; outline: none;
+        }
+        .mj-textarea { min-height: 80px; resize: vertical; }
+        .mj-select::placeholder, .mj-textarea::placeholder { color: var(--mj-text-disabled); }
+        .mj-select:hover:not(:disabled), .mj-textarea:hover:not(:disabled) { border-color: var(--mj-border-strong); }
+        .mj-select:focus, .mj-textarea:focus {
+            border-color: var(--mj-brand-primary);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--mj-brand-primary) 15%, transparent);
+        }
+        .mj-select:disabled, .mj-textarea:disabled { opacity: 0.5; cursor: not-allowed; background: var(--mj-bg-surface-sunken); }
+
+        /* ── buttons (token-driven, confirm-left) ── */
+        .decision-actions { display: flex; gap: var(--mj-space-2, 8px); margin-top: var(--mj-space-1, 4px); }
+        .mj-btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 9px 18px; border: 1px solid transparent; border-radius: var(--mj-radius-md, 8px);
+            font-family: inherit; font-size: var(--mj-text-sm, 0.875rem); font-weight: var(--mj-font-semibold, 600);
+            line-height: 1.5; cursor: pointer; white-space: nowrap;
+            transition: background 150ms ease, border-color 150ms ease, box-shadow 200ms ease, transform 200ms ease;
+        }
+        .mj-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .mj-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--mj-brand-primary) 25%, transparent); }
+        .mj-btn--primary { background: var(--mj-brand-primary); color: var(--mj-brand-on-primary, #fff); border-color: var(--mj-brand-primary); }
+        .mj-btn--primary:hover:not(:disabled) { background: var(--mj-brand-primary-hover); border-color: var(--mj-brand-primary-hover); transform: translateY(-1px); box-shadow: var(--mj-shadow-md, 0 4px 6px -1px rgba(0,0,0,0.1)); }
+        .mj-btn--secondary { background: var(--mj-bg-surface-sunken); color: var(--mj-text-primary); border-color: var(--mj-border-default); }
+        .mj-btn--secondary:hover:not(:disabled) { background: var(--mj-bg-surface-hover); border-color: var(--mj-border-strong); }
     `]
 })
 export class ApprovalDecisionPanelComponent implements OnInit {
     private cdr = inject(ChangeDetectorRef);
+    private orchestration = new TaskOrchestrationService();
 
     // ── Inputs ──────────────────────────────────────────────
 
@@ -201,14 +242,23 @@ export class ApprovalDecisionPanelComponent implements OnInit {
         this.SaveError = null;
         this.cdr.detectChanges();
         try {
-            await this.recordDecision(outcome);
-            const newStatus = outcome.IsTerminal ? await this.transitionForOutcome(outcome.Code) : null;
+            // Delegate to the shared orchestration service so the decision row,
+            // the DecisionRecorded activity log, and the status transition all
+            // happen through ONE code path (server + browser identical). The
+            // service falls back to the provider's CurrentUser when contextUser
+            // is omitted (client-side), per the MJ pattern.
+            const result = await this.orchestration.RecordDecision({
+                TaskID: this._taskID,
+                OutcomeCode: outcome.Code as TaskDecisionOutcomeCode,
+                DecidedByPersonID: this.DecidedByPersonID ?? undefined,
+                Notes: this.Notes || undefined,
+            });
             this.DecisionRecorded.emit({
                 TaskID: this._taskID,
                 OutcomeCode: outcome.Code,
                 OutcomeName: outcome.Name,
                 Notes: this.Notes || null,
-                NewStatus: newStatus,
+                NewStatus: result.NewStatus as 'Completed' | 'Cancelled' | null,
             });
         } catch (err) {
             this.SaveError = err instanceof Error ? err.message : String(err);
@@ -216,35 +266,5 @@ export class ApprovalDecisionPanelComponent implements OnInit {
             this.Saving = false;
             this.cdr.detectChanges();
         }
-    }
-
-    private async recordDecision(outcome: DecisionOutcomeOption): Promise<void> {
-        const md = new Metadata();
-        const decision = await md.GetEntityObject<mjBizAppsTasksTaskDecisionEntity>('MJ_BizApps_Tasks: Task Decisions');
-        decision.NewRecord();
-        decision.TaskID = this._taskID!;
-        decision.OutcomeID = outcome.ID;
-        if (this.DecidedByPersonID) decision.DecidedByPersonID = this.DecidedByPersonID;
-        if (this.Notes) decision.DecisionNotes = this.Notes;
-        if (!(await decision.Save())) {
-            throw new Error(`Failed to record decision: ${decision.LatestResult?.CompleteMessage ?? 'unknown error'}`);
-        }
-    }
-
-    /** Transitions the task per the terminal outcome and returns the new status. */
-    private async transitionForOutcome(code: string): Promise<'Completed' | 'Cancelled'> {
-        const newStatus: 'Completed' | 'Cancelled' = code === 'Rejected' ? 'Cancelled' : 'Completed';
-        const md = new Metadata();
-        const task = await md.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
-        const loaded = await task.InnerLoad(new CompositeKey([{ FieldName: 'ID', Value: this._taskID! }]));
-        if (!loaded) {
-            throw new Error(`Task ${this._taskID} not found`);
-        }
-        if (task.Status === newStatus) return newStatus;
-        task.Status = newStatus;
-        if (!(await task.Save())) {
-            throw new Error(`Failed to transition task: ${task.LatestResult?.CompleteMessage ?? 'unknown error'}`);
-        }
-        return newStatus;
     }
 }
