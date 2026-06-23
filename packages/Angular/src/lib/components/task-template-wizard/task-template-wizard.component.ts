@@ -162,48 +162,48 @@ interface RolePlaceholder {
         .step-dot {
             width: 28px; height: 28px; border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
-            font-size: 0.8rem; font-weight: 600;
-            background: #e5e7eb; color: #6b7280;
+            font-size: 0.8rem; font-weight: var(--mj-font-semibold);
+            background: var(--mj-border-default); color: var(--mj-text-muted);
         }
-        .step-dot.active { background: #4f46e5; color: #fff; }
-        .step-dot.done { background: #22c55e; color: #fff; }
+        .step-dot.active { background: var(--mj-brand-primary); color: var(--mj-text-inverse); }
+        .step-dot.done { background: var(--mj-status-success); color: var(--mj-text-inverse); }
         .step-content { margin-bottom: 20px; }
         .step-content h3 { margin: 0 0 12px; font-size: 1rem; }
         .template-card {
-            padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 6px;
+            padding: 10px 12px; border: 1px solid var(--mj-border-default); border-radius: var(--mj-radius-md);
             margin-bottom: 6px; cursor: pointer; transition: border-color 0.15s;
         }
-        .template-card:hover { border-color: #a5b4fc; }
-        .template-card.selected { border-color: #4f46e5; background: #eef2ff; }
-        .template-name { font-weight: 500; font-size: 0.9rem; }
-        .template-desc { font-size: 0.8rem; color: #6b7280; margin-top: 2px; }
+        .template-card:hover { border-color: color-mix(in srgb, var(--mj-brand-primary) 30%, var(--mj-border-default)); }
+        .template-card.selected { border-color: var(--mj-brand-primary); background: color-mix(in srgb, var(--mj-brand-primary) 8%, var(--mj-bg-surface)); }
+        .template-name { font-weight: var(--mj-font-medium); font-size: 0.9rem; }
+        .template-desc { font-size: 0.8rem; color: var(--mj-text-muted); margin-top: 2px; }
         .form-group { margin-bottom: 12px; }
-        .form-group label { display: block; font-size: 0.8rem; color: #374151; margin-bottom: 3px; font-weight: 500; }
+        .form-group label { display: block; font-size: 0.8rem; color: var(--mj-text-secondary); margin-bottom: 3px; font-weight: var(--mj-font-medium); }
         .form-input {
-            width: 100%; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px;
+            width: 100%; padding: 6px 10px; border: 1px solid var(--mj-border-strong); border-radius: var(--mj-radius-md);
             font-size: 0.875rem; box-sizing: border-box;
         }
         .preview-item {
             display: flex; align-items: center; gap: 8px; padding: 6px 0;
-            border-bottom: 1px solid #f3f4f6; font-size: 0.85rem;
+            border-bottom: 1px solid var(--mj-border-default); font-size: 0.85rem;
         }
         .preview-name { flex: 1; }
-        .preview-due { color: #6b7280; font-size: 0.8rem; }
+        .preview-due { color: var(--mj-text-muted); font-size: 0.8rem; }
         .role-row { margin-bottom: 10px; }
-        .role-row label { display: block; font-size: 0.8rem; font-weight: 500; margin-bottom: 3px; }
-        .empty { color: #9ca3af; font-style: italic; }
+        .role-row label { display: block; font-size: 0.8rem; font-weight: var(--mj-font-medium); margin-bottom: 3px; }
+        .empty { color: var(--mj-text-disabled); font-style: italic; }
         .wizard-nav { display: flex; gap: 8px; }
         .btn-primary {
-            padding: 8px 20px; border: none; border-radius: 6px;
-            background: #4f46e5; color: #fff; font-size: 0.875rem; cursor: pointer; font-weight: 500;
+            padding: 8px 20px; border: none; border-radius: var(--mj-radius-md);
+            background: var(--mj-brand-primary); color: var(--mj-text-inverse); font-size: 0.875rem; cursor: pointer; font-weight: var(--mj-font-medium);
         }
         .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-secondary {
-            padding: 8px 20px; border: 1px solid #d1d5db; border-radius: 6px;
-            background: #fff; font-size: 0.875rem; cursor: pointer;
+            padding: 8px 20px; border: 1px solid var(--mj-border-strong); border-radius: var(--mj-radius-md);
+            background: var(--mj-bg-surface); font-size: 0.875rem; cursor: pointer;
         }
         .btn-secondary:disabled { opacity: 0.4; }
-        .btn-cancel { padding: 8px 20px; border: none; background: none; color: #6b7280; cursor: pointer; font-size: 0.875rem; margin-left: auto; }
+        .btn-cancel { padding: 8px 20px; border: none; background: none; color: var(--mj-text-muted); cursor: pointer; font-size: 0.875rem; margin-left: auto; }
     `]
 })
 export class TaskTemplateWizardComponent implements OnInit {

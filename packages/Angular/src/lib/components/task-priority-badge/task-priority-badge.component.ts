@@ -23,16 +23,16 @@ import { CommonModule } from '@angular/common';
         .priority-badge {
             display: inline-block;
             padding: 2px 8px;
-            border-radius: 4px;
+            border-radius: var(--mj-radius-sm);
             font-size: 0.75rem;
-            font-weight: 600;
+            font-weight: var(--mj-font-semibold);
             text-transform: uppercase;
             letter-spacing: 0.03em;
         }
-        .priority-low { background: #e0e7ff; color: #3730a3; }
-        .priority-medium { background: #fef3c7; color: #92400e; }
-        .priority-high { background: #fed7aa; color: #9a3412; }
-        .priority-critical { background: #fecaca; color: #991b1b; }
+        .priority-low { background: var(--mj-bg-surface-sunken); color: var(--mj-text-muted); }
+        .priority-medium { background: var(--mj-status-info-bg); color: var(--mj-status-info-text); }
+        .priority-high { background: var(--mj-status-warning-bg); color: var(--mj-status-warning-text); }
+        .priority-critical { background: var(--mj-status-error-bg); color: var(--mj-status-error-text); }
     `]
 })
 export class TaskPriorityBadgeComponent {

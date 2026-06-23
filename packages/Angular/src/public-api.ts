@@ -40,3 +40,5 @@ export * from './lib/components/task-gantt/task-gantt.component.js';
 export * from './lib/components/task-template-wizard/task-template-wizard.component.js';
 export * from './lib/components/task-dashboard/task-dashboard.component.js';
 export * from './lib/components/task-panel/task-panel.component.js';
+export * from './lib/components/approval-decision-panel/approval-decision-panel.component.js';
+export * from './lib/components/approval-inbox/approval-inbox.component.js';

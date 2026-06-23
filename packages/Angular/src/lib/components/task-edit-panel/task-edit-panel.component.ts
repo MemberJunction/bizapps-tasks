@@ -230,34 +230,34 @@ export class BeforeTaskSaveEvent {
     styles: [`
         :host {
             display: block;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: var(--mj-font-family);
             -webkit-font-smoothing: antialiased;
         }
         .edit-panel { padding: 28px 24px; }
         .panel-header {
             display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;
         }
-        .panel-header h2 { margin: 0; font-size: 20px; font-weight: 700; color: #0f172a; letter-spacing: -0.3px; }
+        .panel-header h2 { margin: 0; font-size: 20px; font-weight: var(--mj-font-bold); color: var(--mj-text-primary); letter-spacing: -0.3px; }
         .btn-close {
-            padding: 7px 10px; border: 1px solid #e2e8f0; border-radius: 8px;
-            background: #fff; color: #94a3b8; font-size: 14px; cursor: pointer;
+            padding: 7px 10px; border: 1px solid var(--mj-border-default); border-radius: var(--mj-radius-md);
+            background: var(--mj-bg-surface); color: var(--mj-text-disabled); font-size: 14px; cursor: pointer;
         }
-        .btn-close:hover { background: #f8fafc; color: #64748b; }
-        .panel-loading { padding: 64px; text-align: center; color: #94a3b8; }
+        .btn-close:hover { background: var(--mj-bg-page); color: var(--mj-text-muted); }
+        .panel-loading { padding: 64px; text-align: center; color: var(--mj-text-disabled); }
 
         .form-group { margin-bottom: 14px; }
         .form-group label {
-            display: block; font-size: 11px; font-weight: 700; color: #94a3b8;
+            display: block; font-size: 11px; font-weight: var(--mj-font-bold); color: var(--mj-text-disabled);
             text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;
         }
         .form-input {
-            width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 10px;
+            width: 100%; padding: 8px 12px; border: 1px solid var(--mj-border-default); border-radius: var(--mj-radius-md);
             font-size: 14px; box-sizing: border-box; font-family: inherit;
             transition: border-color 0.15s, box-shadow 0.15s;
         }
         .form-input:focus {
-            outline: none; border-color: #6366f1;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+            outline: none; border-color: var(--mj-brand-primary);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--mj-brand-primary) 15%, transparent);
         }
         textarea.form-input { resize: vertical; }
         .form-row { display: flex; gap: 12px; }
@@ -270,18 +270,18 @@ export class BeforeTaskSaveEvent {
         .assignee-select { flex: 2; }
         .role-select { flex: 1; }
         .btn-remove {
-            padding: 6px 8px; border: 1px solid #e2e8f0; border-radius: 8px;
-            background: #fff; color: #94a3b8; cursor: pointer; font-size: 12px;
+            padding: 6px 8px; border: 1px solid var(--mj-border-default); border-radius: var(--mj-radius-md);
+            background: var(--mj-bg-surface); color: var(--mj-text-disabled); cursor: pointer; font-size: 12px;
             flex-shrink: 0;
         }
-        .btn-remove:hover { background: #fef2f2; color: #ef4444; border-color: #fecaca; }
+        .btn-remove:hover { background: var(--mj-status-error-bg); color: var(--mj-status-error); border-color: var(--mj-status-error-border); }
         .btn-add-assignee {
-            padding: 6px 12px; border: 1px dashed #cbd5e1; border-radius: 8px;
-            background: transparent; color: #64748b; font-size: 13px; cursor: pointer;
+            padding: 6px 12px; border: 1px dashed var(--mj-border-strong); border-radius: var(--mj-radius-md);
+            background: transparent; color: var(--mj-text-muted); font-size: 13px; cursor: pointer;
             font-family: inherit; display: flex; align-items: center; gap: 5px;
             width: 100%; justify-content: center; margin-top: 4px;
         }
-        .btn-add-assignee:hover { background: #f8fafc; border-color: #6366f1; color: #6366f1; }
+        .btn-add-assignee:hover { background: var(--mj-bg-page); border-color: var(--mj-brand-primary); color: var(--mj-brand-primary); }
         .add-row { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
         .new-role-row { display: flex; gap: 4px; align-items: center; }
         .new-role-input { width: 120px; font-size: 13px; padding: 6px 10px; }
@@ -292,7 +292,7 @@ export class BeforeTaskSaveEvent {
         }
         .tag-chip {
             display: inline-flex; align-items: center; gap: 4px;
-            padding: 2px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;
+            padding: 2px 10px; border-radius: var(--mj-radius-md); font-size: 12px; font-weight: var(--mj-font-semibold);
         }
         .tag-remove {
             background: none; border: none; cursor: pointer; font-size: 14px;
@@ -301,37 +301,37 @@ export class BeforeTaskSaveEvent {
         .tag-remove:hover { opacity: 1; }
         .tag-input-row { display: flex; gap: 6px; align-items: center; }
         .tag-select { flex: 1; }
-        .tag-or { font-size: 12px; color: #94a3b8; flex-shrink: 0; }
+        .tag-or { font-size: 12px; color: var(--mj-text-disabled); flex-shrink: 0; }
         .tag-new-input { flex: 1; }
         .btn-create-tag {
-            padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 10px;
-            background: #fff; color: #6366f1; cursor: pointer; font-size: 13px;
+            padding: 8px 10px; border: 1px solid var(--mj-border-default); border-radius: var(--mj-radius-md);
+            background: var(--mj-bg-surface); color: var(--mj-brand-primary); cursor: pointer; font-size: 13px;
             flex-shrink: 0;
         }
-        .btn-create-tag:hover { background: #eef2ff; border-color: #6366f1; }
+        .btn-create-tag:hover { background: color-mix(in srgb, var(--mj-brand-primary) 8%, var(--mj-bg-surface)); border-color: var(--mj-brand-primary); }
         .btn-create-tag:disabled { opacity: 0.4; cursor: not-allowed; }
 
         /* Actions */
         .form-save-error {
-            margin-top: 16px; padding: 10px 12px; border-radius: 6px;
+            margin-top: 16px; padding: 10px 12px; border-radius: var(--mj-radius-md);
             background: var(--mj-status-error-bg); color: var(--mj-status-error-text);
             border: 1px solid var(--mj-status-error-border); font-size: 13px;
         }
         .form-actions {
             display: flex; gap: 8px; justify-content: flex-end;
-            margin-top: 20px; padding-top: 16px; border-top: 1px solid #f1f5f9;
+            margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--mj-border-subtle);
         }
         .btn-primary {
-            padding: 9px 22px; border: none; border-radius: 10px;
-            background: #6366f1; color: #fff; font-size: 14px; font-weight: 600;
+            padding: 9px 22px; border: none; border-radius: var(--mj-radius-md);
+            background: var(--mj-brand-primary); color: var(--mj-text-inverse); font-size: 14px; font-weight: var(--mj-font-semibold);
             cursor: pointer; font-family: inherit;
-            box-shadow: 0 1px 3px rgba(99, 102, 241, 0.3);
+            box-shadow: var(--mj-shadow-sm);
         }
-        .btn-primary:hover { background: #4f46e5; }
+        .btn-primary:hover { background: var(--mj-brand-primary-hover); }
         .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
         .btn-secondary {
-            padding: 9px 22px; border: 1px solid #e2e8f0; border-radius: 10px;
-            background: #fff; font-size: 14px; cursor: pointer; font-family: inherit;
+            padding: 9px 22px; border: 1px solid var(--mj-border-default); border-radius: var(--mj-radius-md);
+            background: var(--mj-bg-surface); font-size: 14px; cursor: pointer; font-family: inherit;
         }
     `]
 })
