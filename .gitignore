@@ -6,6 +6,7 @@ build/
 .turbo/
 .angular/
 .cache/
+.claude/
 .env
 *.log
 output/
