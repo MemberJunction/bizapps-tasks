@@ -214,13 +214,13 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
 
         // Assignees
         if (config.NotifyAssignees) {
-            const assignments = await rv.RunView<any>({
+            const assignments = await rv.RunView<{ AssigneeRecordID: string }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Assignments',
                 ExtraFilter: `TaskID='${task.ID}'`,
                 ResultType: 'simple',
             }, contextUser);
 
-            const personIDs = (assignments?.Results ?? []).map((a: any) => a.AssigneeRecordID as string);
+            const personIDs = (assignments?.Results ?? []).map(a => a.AssigneeRecordID);
             for (const personID of personIDs) {
                 const uid = await this.getLinkedUserID(personID, contextUser);
                 if (uid) userIDs.add(uid);
@@ -238,7 +238,7 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
 
     private async getLinkedUserID(personID: string, contextUser: UserInfo): Promise<string | null> {
         const rv = new RunView();
-        const result = await rv.RunView<any>({
+        const result = await rv.RunView<{ ID: string; LinkedUserID: string | null }>({
             EntityName: 'MJ_BizApps_Common: People',
             ExtraFilter: `ID='${personID}'`,
             Fields: ['ID', 'LinkedUserID'],
@@ -296,7 +296,7 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
 
         // 2. TaskType.OnOverdueActionID
         const rv = new RunView();
-        const typeResult = await rv.RunView<any>({
+        const typeResult = await rv.RunView<{ OnOverdueActionID: string | null }>({
             EntityName: 'MJ_BizApps_Tasks: Task Types',
             ExtraFilter: `ID='${task.TypeID}'`,
             ResultType: 'simple',

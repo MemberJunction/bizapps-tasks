@@ -4,6 +4,19 @@ import { FormsModule } from '@angular/forms';
 import { Metadata, RunView, CompositeKey } from '@memberjunction/core';
 
 /**
+ * Minimal shape of a Person row as queried by {@link TaskListComponent}
+ * for assignee resolution and the quick-add person picker.
+ */
+export interface TaskListPersonRow {
+    /** Person ID (GUID). */
+    ID: string;
+    /** Person's first name. */
+    FirstName: string;
+    /** Person's last name. */
+    LastName: string;
+}
+
+/**
  * Represents a single task row as displayed by {@link TaskListComponent}.
  * Contains denormalized data including resolved assignee names, tags, and
  * computed fields like overdue/due-soon indicators.
@@ -672,7 +685,7 @@ export class TaskListComponent implements OnInit {
     /** @internal */
     quickAddPersonID = '';
     /** @internal */
-    quickAddPeople: any[] = [];
+    quickAddPeople: TaskListPersonRow[] = [];
     /** @internal */
     quickAdding = false;
     /** @internal */
@@ -768,7 +781,7 @@ export class TaskListComponent implements OnInit {
             extraFilter = this.AssigneeScope;
         }
         const rv = new RunView();
-        const result = await rv.RunView<any>({
+        const result = await rv.RunView<TaskListPersonRow>({
             EntityName: 'MJ_BizApps_Common: People',
             ExtraFilter: extraFilter,
             OrderBy: 'LastName ASC, FirstName ASC',
@@ -794,7 +807,7 @@ export class TaskListComponent implements OnInit {
             let typeID = this.QuickAddDefaultTypeID;
             if (!typeID) {
                 const rv = new RunView();
-                const types = await rv.RunView<any>({
+                const types = await rv.RunView<{ ID: string }>({
                     EntityName: 'MJ_BizApps_Tasks: Task Types',
                     ExtraFilter: 'IsActive = 1',
                     OrderBy: 'Name ASC',
@@ -828,7 +841,7 @@ export class TaskListComponent implements OnInit {
             // Create assignment if a person was selected
             if (this.quickAddPersonID) {
                 try {
-                    const peEntityResult = await new RunView().RunView<any>({
+                    const peEntityResult = await new RunView().RunView<{ ID: string }>({
                         EntityName: 'MJ: Entities',
                         ExtraFilter: `Name = 'MJ_BizApps_Common: People'`,
                         ResultType: 'simple',
@@ -875,7 +888,17 @@ export class TaskListComponent implements OnInit {
         if (this.CategoryID) filters.push(`CategoryID = '${this.CategoryID}'`);
         if (this.ExtraFilter) filters.push(this.ExtraFilter);
 
-        const result = await rv.RunView<any>({
+        const result = await rv.RunView<{
+            ID: string;
+            Name: string;
+            Description: string | null;
+            Status: string;
+            Priority: string;
+            DueAt: Date | null;
+            PercentComplete: number | null;
+            HoursEstimated: number | null;
+            ParentID: string | null;
+        }>({
             EntityName: 'MJ_BizApps_Tasks: Tasks',
             ExtraFilter: filters.length ? filters.join(' AND ') : undefined,
             OrderBy: 'Sequence ASC, DueAt ASC',
@@ -945,19 +968,19 @@ export class TaskListComponent implements OnInit {
         const taskIDs = this.tasks.map(t => `'${t.ID}'`).join(',');
 
         const [assignments, people] = await Promise.all([
-            rv.RunView<any>({
+            rv.RunView<{ TaskID: string; AssigneeRecordID: string; RoleID: string | null; Status: string | null }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Assignments',
                 ExtraFilter: `TaskID IN (${taskIDs})`,
                 ResultType: 'simple',
             }),
-            new RunView().RunView<any>({
+            new RunView().RunView<TaskListPersonRow>({
                 EntityName: 'MJ_BizApps_Common: People',
                 ResultType: 'simple',
             }),
         ]);
 
         // Load roles
-        const roles = await new RunView().RunView<any>({
+        const roles = await new RunView().RunView<{ ID: string; Name: string }>({
             EntityName: 'MJ_BizApps_Tasks: Task Roles',
             ResultType: 'simple',
         });
@@ -977,7 +1000,7 @@ export class TaskListComponent implements OnInit {
             if (!task) continue;
             task.Assignees.push({
                 Name: personMap.get(a.AssigneeRecordID) ?? 'Unknown',
-                Role: roleMap.get(a.RoleID) ?? 'Primary',
+                Role: (a.RoleID ? roleMap.get(a.RoleID) : undefined) ?? 'Primary',
                 Status: a.Status ?? 'Pending',
             });
         }
@@ -989,12 +1012,12 @@ export class TaskListComponent implements OnInit {
         const taskIDs = this.tasks.map(t => `'${t.ID}'`).join(',');
 
         const [tagLinks, tags] = await Promise.all([
-            rv.RunView<any>({
+            rv.RunView<{ TaskID: string; TagID: string }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Tag Links',
                 ExtraFilter: `TaskID IN (${taskIDs})`,
                 ResultType: 'simple',
             }),
-            new RunView().RunView<any>({
+            new RunView().RunView<{ ID: string; Name: string; ColorCode: string | null }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Tags',
                 ResultType: 'simple',
             }),

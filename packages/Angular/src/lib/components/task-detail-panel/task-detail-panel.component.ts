@@ -21,6 +21,28 @@ export interface ActivityEntry {
     ActivityType?: string;
 }
 
+/** @internal Narrow shape for People rows read by the detail panel. */
+interface PersonRow {
+    ID: string;
+    FirstName: string;
+    LastName: string;
+}
+
+/** @internal Narrow shape for the Task fields read by the detail panel template + logic. */
+interface TaskRow {
+    Name: string;
+    Status: string;
+    Priority: string;
+    ParentID: string | null;
+    PercentComplete: number;
+    DueAt: Date | null;
+    StartedAt: Date | null;
+    HoursEstimated: number | null;
+    HoursActual: number | null;
+    Description: string | null;
+    BlockedReason: string | null;
+}
+
 /**
  * Cancellable event emitted before a comment is posted on a task.
  * Set `Cancel = true` to prevent the comment from being saved.
@@ -450,7 +472,7 @@ export class TaskDetailPanelComponent implements OnChanges {
     // ── Internal State ──────────────────────────────────────
 
     /** @internal Loaded task record. */
-    task: any = null;
+    task: TaskRow | null = null;
     /** @internal Whether the delete confirmation is showing. */
     confirmingDelete = false;
     /** @internal Resolved parent task name, or null if top-level. */
@@ -493,7 +515,7 @@ export class TaskDetailPanelComponent implements OnChanges {
         this.cdr.markForCheck();
 
         const rv = new RunView();
-        const result = await rv.RunView<any>({
+        const result = await rv.RunView<TaskRow>({
             EntityName: 'MJ_BizApps_Tasks: Tasks',
             ExtraFilter: `ID = '${this.TaskID}'`,
             ResultType: 'simple',
@@ -509,7 +531,7 @@ export class TaskDetailPanelComponent implements OnChanges {
         this.parentTaskName = null;
         if (!this.task?.ParentID) return;
         const rv = new RunView();
-        const result = await rv.RunView<any>({
+        const result = await rv.RunView<{ Name: string }>({
             EntityName: 'MJ_BizApps_Tasks: Tasks',
             ExtraFilter: `ID = '${this.task.ParentID}'`,
             ResultType: 'simple',
@@ -523,12 +545,12 @@ export class TaskDetailPanelComponent implements OnChanges {
         if (!this.TaskID) return;
         const rv = new RunView();
         const [linksResult, entitiesResult] = await Promise.all([
-            rv.RunView<any>({
+            rv.RunView<{ ID: string; EntityID: string; Description: string | null }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Links',
                 ExtraFilter: `TaskID = '${this.TaskID}'`,
                 ResultType: 'simple',
             }),
-            new RunView().RunView<any>({
+            new RunView().RunView<{ ID: string; Name: string }>({
                 EntityName: 'MJ: Entities',
                 ResultType: 'simple',
             }),
@@ -537,7 +559,7 @@ export class TaskDetailPanelComponent implements OnChanges {
         for (const e of entitiesResult?.Results ?? []) {
             entityMap.set(e.ID, e.Name);
         }
-        this.taskLinks = (linksResult?.Results ?? []).map((l: any) => ({
+        this.taskLinks = (linksResult?.Results ?? []).map((l) => ({
             ID: l.ID,
             EntityName: entityMap.get(l.EntityID) ?? l.EntityID,
             Description: l.Description,
@@ -548,16 +570,16 @@ export class TaskDetailPanelComponent implements OnChanges {
         if (!this.TaskID) return;
         const rv = new RunView();
         const [assignmentResult, peopleResult, rolesResult] = await Promise.all([
-            rv.RunView<any>({
+            rv.RunView<{ AssigneeRecordID: string; RoleID: string; Status: 'Pending' | 'InProgress' | 'Completed' | null }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Assignments',
                 ExtraFilter: `TaskID = '${this.TaskID}'`,
                 ResultType: 'simple',
             }),
-            new RunView().RunView<any>({
+            new RunView().RunView<PersonRow>({
                 EntityName: 'MJ_BizApps_Common: People',
                 ResultType: 'simple',
             }),
-            new RunView().RunView<any>({
+            new RunView().RunView<{ ID: string; Name: string }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Roles',
                 ResultType: 'simple',
             }),
@@ -572,7 +594,7 @@ export class TaskDetailPanelComponent implements OnChanges {
             roleMap.set(r.ID, r.Name);
         }
 
-        this.assignees = (assignmentResult?.Results ?? []).map((a: any) => ({
+        this.assignees = (assignmentResult?.Results ?? []).map((a) => ({
             AssigneeRecordID: a.AssigneeRecordID,
             DisplayName: personMap.get(a.AssigneeRecordID) ?? a.AssigneeRecordID,
             RoleName: roleMap.get(a.RoleID) ?? '',
@@ -585,19 +607,19 @@ export class TaskDetailPanelComponent implements OnChanges {
         const rv = new RunView();
 
         const [activities, comments, people] = await Promise.all([
-            rv.RunView<any>({
+            rv.RunView<{ __mj_CreatedAt: Date; PersonID: string | null; ActivityType: string; Description: string | null }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Activities',
                 ExtraFilter: `TaskID = '${this.TaskID}'`,
                 OrderBy: '__mj_CreatedAt DESC',
                 ResultType: 'simple',
             }),
-            new RunView().RunView<any>({
+            new RunView().RunView<{ __mj_CreatedAt: Date; PersonID: string; Content: string }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Comments',
                 ExtraFilter: `TaskID = '${this.TaskID}'`,
                 OrderBy: '__mj_CreatedAt DESC',
                 ResultType: 'simple',
             }),
-            new RunView().RunView<any>({
+            new RunView().RunView<PersonRow>({
                 EntityName: 'MJ_BizApps_Common: People',
                 ResultType: 'simple',
             }),
@@ -670,7 +692,7 @@ export class TaskDetailPanelComponent implements OnChanges {
                 'MJ_BizApps_Tasks: Task Notification Logs',
             ];
             for (const entityName of childEntities) {
-                const result = await rv.RunView<any>({
+                const result = await rv.RunView<{ ID: string }>({
                     EntityName: entityName,
                     ExtraFilter: `TaskID = '${this.TaskID}'`,
                     ResultType: 'simple',
