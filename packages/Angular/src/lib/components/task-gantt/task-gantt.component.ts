@@ -57,13 +57,25 @@ export class TaskGanttComponent implements OnInit {
         if (this.ExtraFilter) filters.push(this.ExtraFilter);
 
         const [tasksResult, depsResult] = await Promise.all([
-            rv.RunView<any>({
+            rv.RunView<{
+                ID: string;
+                Name: string;
+                StartedAt: string | null;
+                DueAt: string | null;
+                PercentComplete: number;
+                ParentID: string | null;
+            }>({
                 EntityName: 'MJ_BizApps_Tasks: Tasks',
                 ExtraFilter: filters.join(' AND '),
                 OrderBy: 'Sequence ASC',
                 ResultType: 'simple',
             }),
-            new RunView().RunView<any>({
+            new RunView().RunView<{
+                ID: string;
+                TaskID: string;
+                DependsOnTaskID: string;
+                DependencyType: string;
+            }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Dependencies',
                 ResultType: 'simple',
             }),
@@ -72,7 +84,7 @@ export class TaskGanttComponent implements OnInit {
         const tasks = tasksResult?.Results ?? [];
         const deps = depsResult?.Results ?? [];
 
-        this.items = tasks.map((t: any) => {
+        this.items = tasks.map((t) => {
             const startDate = t.StartedAt ? new Date(t.StartedAt) : (t.DueAt ? new Date(new Date(t.DueAt).getTime() - 7 * 86400000) : new Date());
             const endDate = t.DueAt ? new Date(t.DueAt) : undefined;
             const duration = endDate ? undefined : 7;
@@ -89,10 +101,10 @@ export class TaskGanttComponent implements OnInit {
             } as GanttItemData;
         });
 
-        const taskIDs = new Set(tasks.map((t: any) => t.ID));
+        const taskIDs = new Set(tasks.map((t) => t.ID));
         this.links = deps
-            .filter((d: any) => taskIDs.has(d.TaskID) && taskIDs.has(d.DependsOnTaskID))
-            .map((d: any) => ({
+            .filter((d) => taskIDs.has(d.TaskID) && taskIDs.has(d.DependsOnTaskID))
+            .map((d) => ({
                 ID: d.ID,
                 SourceID: d.DependsOnTaskID,
                 TargetID: d.TaskID,

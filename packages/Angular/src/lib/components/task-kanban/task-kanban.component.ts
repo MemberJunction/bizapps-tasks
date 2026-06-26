@@ -98,7 +98,14 @@ export class TaskKanbanComponent implements OnInit {
         if (this.CategoryID) filters.push(`CategoryID = '${this.CategoryID}'`);
         if (this.ExtraFilter) filters.push(this.ExtraFilter);
 
-        const result = await rv.RunView<any>({
+        const result = await rv.RunView<{
+            ID: string;
+            Name: string;
+            Description: string | null;
+            Status: string;
+            Priority: string;
+            DueAt: string | null;
+        }>({
             EntityName: 'MJ_BizApps_Tasks: Tasks',
             ExtraFilter: filters.join(' AND '),
             OrderBy: 'Sequence ASC',
@@ -108,7 +115,7 @@ export class TaskKanbanComponent implements OnInit {
             BypassCache: bypassCache,
         });
 
-        this.cards = (result?.Results ?? []).map((r: any) => ({
+        this.cards = (result?.Results ?? []).map((r) => ({
             ID: r.ID,
             Title: r.Name,
             Subtitle: r.Description || undefined,
