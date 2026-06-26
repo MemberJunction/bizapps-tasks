@@ -4,7 +4,7 @@
   "name": "mj-bizapps-tasks",
   "displayName": "Tasks",
   "description": "Reusable task management with multi-person assignment, sub-tasks, dependencies, Kanban/Gantt views, templates, and activity tracking",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "license": "ISC",
   "icon": "fa-solid fa-list-check",
   "publisher": {
@@ -60,6 +60,17 @@
     "visibility": "public",
     "sourceDirectory": "packages"
   },
-  "categories": ["Business", "Productivity"],
-  "tags": ["tasks", "task-management", "kanban", "gantt", "assignments", "dependencies", "templates"]
+  "categories": [
+    "Business",
+    "Productivity"
+  ],
+  "tags": [
+    "tasks",
+    "task-management",
+    "kanban",
+    "gantt",
+    "assignments",
+    "dependencies",
+    "templates"
+  ]
 }
