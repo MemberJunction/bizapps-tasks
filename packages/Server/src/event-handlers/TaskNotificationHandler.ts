@@ -36,6 +36,12 @@ type TaskTypeActionColumn =
     | 'OnRejectActionID'
     | 'OnCancelActionID';
 
+/** Row shape for a Person resolved to its linked MJ UserID. */
+interface PersonLinkRow {
+    ID: string;
+    LinkedUserID: string | null;
+}
+
 /** Outcome of invoking a TaskType action hook (post-commit, non-blocking). */
 type ActionHookResult = {
     /** True when an action was configured and actually invoked. */
@@ -228,7 +234,7 @@ async function handleAssignmentSave(event: BaseEntityEvent): Promise<void> {
 
     // Load the task to get its name and details
     const rv = new RunView();
-    const taskResult = await rv.RunView<any>({
+    const taskResult = await rv.RunView<{ Name: string; Priority: string; DueAt: string | null }>({
         EntityName: TASKS_ENTITY,
         ExtraFilter: `ID='${taskID}'`,
         ResultType: 'simple',
@@ -238,8 +244,8 @@ async function handleAssignmentSave(event: BaseEntityEvent): Promise<void> {
     const task = taskResult?.Results?.[0];
     if (!task) return;
 
-    const taskName = task.Name as string;
-    const priority = task.Priority as string;
+    const taskName = task.Name;
+    const priority = task.Priority;
     const dueAt = task.DueAt ? formatDate(new Date(task.DueAt)) : null;
     const dueStr = dueAt ? ` Due: ${dueAt}.` : '';
 
@@ -247,7 +253,7 @@ async function handleAssignmentSave(event: BaseEntityEvent): Promise<void> {
     const roleID = assignment.Get('RoleID') as string | null;
     let roleStr = '';
     if (roleID) {
-        const roleResult = await new RunView().RunView<any>({
+        const roleResult = await new RunView().RunView<{ Name: string }>({
             EntityName: 'MJ_BizApps_Tasks: Task Roles',
             ExtraFilter: `ID='${roleID}'`,
             ResultType: 'simple',
@@ -293,7 +299,7 @@ async function handleCommentSave(event: BaseEntityEvent): Promise<void> {
 
     // Get task name
     const rv = new RunView();
-    const taskResult = await rv.RunView<any>({
+    const taskResult = await rv.RunView<{ Name: string }>({
         EntityName: TASKS_ENTITY,
         ExtraFilter: `ID='${taskID}'`,
         ResultType: 'simple',
@@ -341,7 +347,7 @@ async function invokeTaskTypeAction(
     if (!typeID) return { Invoked: false };
 
     const rv = new RunView();
-    const typeResult = await rv.RunView<any>({
+    const typeResult = await rv.RunView<Record<TaskTypeActionColumn, string | null>>({
         EntityName: 'MJ_BizApps_Tasks: Task Types',
         ExtraFilter: `ID='${typeID}'`,
         ResultType: 'simple',
@@ -351,7 +357,7 @@ async function invokeTaskTypeAction(
     const taskType = typeResult?.Results?.[0];
     if (!taskType) return { Invoked: false };
 
-    const actionID = taskType[actionColumn] as string | null;
+    const actionID = taskType[actionColumn];
     if (!actionID) return { Invoked: false };
 
     const taskName = task.Get('Name') as string;
@@ -419,13 +425,13 @@ async function invokeTaskTypeActionByTaskID(
     contextUser: UserInfo,
 ): Promise<void> {
     const rv = new RunView();
-    const result = await rv.RunView<any>({
+    const result = await rv.RunView<BaseEntity>({
         EntityName: TASKS_ENTITY,
         ExtraFilter: `ID='${taskID}'`,
         ResultType: 'entity_object',
         MaxRows: 1,
     }, contextUser);
-    const task = result?.Results?.[0] as BaseEntity | undefined;
+    const task = result?.Results?.[0];
     if (task) {
         await invokeTaskTypeAction(task, actionColumn, contextUser);
     }
@@ -442,7 +448,7 @@ async function invokeTaskTypeActionByTaskID(
 async function getTaskAssigneeUserIDs(taskID: string, contextUser: UserInfo): Promise<string[]> {
     const rv = new RunView();
 
-    const assignments = await rv.RunView<any>({
+    const assignments = await rv.RunView<{ AssigneeRecordID: string }>({
         EntityName: TASK_ASSIGNMENTS_ENTITY,
         ExtraFilter: `TaskID='${taskID}'`,
         ResultType: 'simple',
@@ -452,10 +458,10 @@ async function getTaskAssigneeUserIDs(taskID: string, contextUser: UserInfo): Pr
         return [];
     }
 
-    const personIDs = assignments.Results.map((a: any) => a.AssigneeRecordID as string);
+    const personIDs = assignments.Results.map(a => a.AssigneeRecordID);
     const inClause = personIDs.map((id: string) => `'${id}'`).join(',');
 
-    const people = await rv.RunView<any>({
+    const people = await rv.RunView<PersonLinkRow>({
         EntityName: 'MJ_BizApps_Common: People',
         ExtraFilter: `ID IN (${inClause}) AND LinkedUserID IS NOT NULL`,
         Fields: ['ID', 'LinkedUserID'],
@@ -467,7 +473,7 @@ async function getTaskAssigneeUserIDs(taskID: string, contextUser: UserInfo): Pr
     }
 
     return people.Results
-        .map((p: any) => p.LinkedUserID as string | null)
+        .map(p => p.LinkedUserID)
         .filter((id: string | null): id is string => id != null);
 }
 
@@ -476,7 +482,7 @@ async function getTaskAssigneeUserIDs(taskID: string, contextUser: UserInfo): Pr
  */
 async function getPersonLinkedUserID(personID: string, contextUser: UserInfo): Promise<string | null> {
     const rv = new RunView();
-    const result = await rv.RunView<any>({
+    const result = await rv.RunView<PersonLinkRow>({
         EntityName: 'MJ_BizApps_Common: People',
         ExtraFilter: `ID='${personID}'`,
         Fields: ['ID', 'LinkedUserID'],
@@ -492,7 +498,7 @@ async function getPersonLinkedUserID(personID: string, contextUser: UserInfo): P
  */
 async function getPersonName(personID: string, contextUser: UserInfo): Promise<string | null> {
     const rv = new RunView();
-    const result = await rv.RunView<any>({
+    const result = await rv.RunView<{ FirstName: string; LastName: string }>({
         EntityName: 'MJ_BizApps_Common: People',
         ExtraFilter: `ID='${personID}'`,
         Fields: ['ID', 'FirstName', 'LastName'],

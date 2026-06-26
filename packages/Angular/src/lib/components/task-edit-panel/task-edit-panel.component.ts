@@ -12,6 +12,13 @@ interface AssigneeRow {
     ExistingID?: string;
 }
 
+/** @internal Narrow shape for a person row read from MJ_BizApps_Common: People. */
+interface PersonRow {
+    ID: string;
+    FirstName: string | null;
+    LastName: string | null;
+}
+
 /**
  * Cancellable event emitted before a task is saved from the edit panel.
  * Set `Cancel = true` to prevent the save from proceeding.
@@ -486,7 +493,21 @@ export class TaskEditPanelComponent implements OnChanges {
         this.loading = true;
         this.cdr.markForCheck();
         const rv = new RunView();
-        const result = await rv.RunView<any>({
+        const result = await rv.RunView<{
+            Name: string;
+            Description: string | null;
+            Status: string;
+            Priority: string;
+            DueAt: Date | null;
+            PercentComplete: number | null;
+            HoursEstimated: number | null;
+            HoursActual: number | null;
+            BlockedReason: string | null;
+            CompletionNotes: string | null;
+            TypeID: string;
+            CategoryID: string | null;
+            ParentID: string | null;
+        }>({
             EntityName: 'MJ_BizApps_Tasks: Tasks',
             ExtraFilter: `ID = '${this.TaskID}'`,
             ResultType: 'simple',
@@ -511,12 +532,12 @@ export class TaskEditPanelComponent implements OnChanges {
     private async loadExistingAssignees(): Promise<void> {
         if (!this.TaskID) return;
         const rv = new RunView();
-        const result = await rv.RunView<any>({
+        const result = await rv.RunView<{ ID: string; AssigneeRecordID: string; RoleID: string | null }>({
             EntityName: 'MJ_BizApps_Tasks: Task Assignments',
             ExtraFilter: `TaskID = '${this.TaskID}'`,
             ResultType: 'simple',
         });
-        this.assignees = (result?.Results ?? []).map((a: any) => ({
+        this.assignees = (result?.Results ?? []).map(a => ({
             PersonID: a.AssigneeRecordID,
             PersonName: '',
             RoleID: a.RoleID ?? '',
@@ -528,25 +549,25 @@ export class TaskEditPanelComponent implements OnChanges {
     private async loadExistingTags(): Promise<void> {
         if (!this.TaskID) return;
         const rv = new RunView();
-        const result = await rv.RunView<any>({
+        const result = await rv.RunView<{ TagID: string }>({
             EntityName: 'MJ_BizApps_Tasks: Task Tag Links',
             ExtraFilter: `TaskID = '${this.TaskID}'`,
             ResultType: 'simple',
         });
-        const tagIDs = (result?.Results ?? []).map((l: any) => l.TagID);
+        const tagIDs = (result?.Results ?? []).map(l => l.TagID);
         this.selectedTags = this.allTags.filter(t => tagIDs.includes(t.ID));
     }
 
     private async loadLookups(): Promise<void> {
         const rv = new RunView();
         const [types, cats, ppl, rls, tasks, tags, entity] = await Promise.all([
-            rv.RunView<any>({ EntityName: 'MJ_BizApps_Tasks: Task Types', ExtraFilter: 'IsActive = 1', ResultType: 'simple' }),
-            new RunView().RunView<any>({ EntityName: 'MJ_BizApps_Tasks: Task Categories', ExtraFilter: 'IsActive = 1', OrderBy: 'Sequence ASC', ResultType: 'simple' }),
-            new RunView().RunView<any>({ EntityName: 'MJ_BizApps_Common: People', ExtraFilter: this.buildAssigneeScopeFilter(), ResultType: 'simple' }),
-            new RunView().RunView<any>({ EntityName: 'MJ_BizApps_Tasks: Task Roles', OrderBy: 'Sequence ASC', ResultType: 'simple' }),
-            new RunView().RunView<any>({ EntityName: 'MJ_BizApps_Tasks: Tasks', ResultType: 'simple' }),
-            new RunView().RunView<any>({ EntityName: 'MJ_BizApps_Tasks: Task Tags', ResultType: 'simple' }),
-            new RunView().RunView<any>({ EntityName: 'MJ: Entities', ExtraFilter: `Name = 'MJ_BizApps_Common: People'`, ResultType: 'simple', MaxRows: 1 }),
+            rv.RunView<{ ID: string; Name: string }>({ EntityName: 'MJ_BizApps_Tasks: Task Types', ExtraFilter: 'IsActive = 1', ResultType: 'simple' }),
+            new RunView().RunView<{ ID: string; Name: string }>({ EntityName: 'MJ_BizApps_Tasks: Task Categories', ExtraFilter: 'IsActive = 1', OrderBy: 'Sequence ASC', ResultType: 'simple' }),
+            new RunView().RunView<PersonRow>({ EntityName: 'MJ_BizApps_Common: People', ExtraFilter: this.buildAssigneeScopeFilter(), ResultType: 'simple' }),
+            new RunView().RunView<{ ID: string; Name: string }>({ EntityName: 'MJ_BizApps_Tasks: Task Roles', OrderBy: 'Sequence ASC', ResultType: 'simple' }),
+            new RunView().RunView<{ ID: string; Name: string }>({ EntityName: 'MJ_BizApps_Tasks: Tasks', ResultType: 'simple' }),
+            new RunView().RunView<{ ID: string; Name: string; ColorCode: string | null }>({ EntityName: 'MJ_BizApps_Tasks: Task Tags', ResultType: 'simple' }),
+            new RunView().RunView<{ ID: string }>({ EntityName: 'MJ: Entities', ExtraFilter: `Name = 'MJ_BizApps_Common: People'`, ResultType: 'simple', MaxRows: 1 }),
         ]);
         this.taskTypes = types?.Results ?? [];
         // TypeID is a required FK on Tasks. For a new task with no type chosen yet,
@@ -557,7 +578,7 @@ export class TaskEditPanelComponent implements OnChanges {
         this.categories = cats?.Results ?? [];
         this.people = ppl?.Results ?? [];
         this.roles = rls?.Results ?? [];
-        this.availableTasks = (tasks?.Results ?? []).filter((t: any) => t.ID !== this.TaskID);
+        this.availableTasks = (tasks?.Results ?? []).filter(t => t.ID !== this.TaskID);
         this.allTags = tags?.Results ?? [];
         this.peopleEntityID = entity?.Results?.[0]?.ID ?? null;
 
@@ -719,7 +740,7 @@ export class TaskEditPanelComponent implements OnChanges {
         if (this.peopleEntityID) {
             // Load current assignments from DB to diff against
             const rv2 = new RunView();
-            const currentAssignments = this.TaskID ? await rv2.RunView<any>({
+            const currentAssignments = this.TaskID ? await rv2.RunView<{ ID: string }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Assignments',
                 ExtraFilter: `TaskID = '${savedID}'`,
                 ResultType: 'simple',
@@ -763,13 +784,13 @@ export class TaskEditPanelComponent implements OnChanges {
         if (this.TaskID) {
             // Load existing tag links
             const rv = new RunView();
-            const existing = await rv.RunView<any>({
+            const existing = await rv.RunView<{ ID: string; TagID: string }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Tag Links',
                 ExtraFilter: `TaskID = '${savedID}'`,
                 ResultType: 'simple',
             });
             const existingLinks = existing?.Results ?? [];
-            const existingTagIDs = new Set(existingLinks.map((l: any) => l.TagID));
+            const existingTagIDs = new Set(existingLinks.map(l => l.TagID));
             const selectedTagIDs = new Set(this.selectedTags.map((t: any) => t.ID));
 
             // Add new

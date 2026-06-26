@@ -22,6 +22,15 @@ interface PreviewItem {
     Depth: number;
 }
 
+/** @internal Narrow shape of a Task Template Item row loaded via RunView. */
+interface TaskTemplateItemRow {
+    ID: string;
+    Name: string;
+    ParentItemID: string | null;
+    DaysFromStart: number | null;
+    Priority: string;
+}
+
 /** @internal Represents a role placeholder to be filled with a real assignee. */
 interface RolePlaceholder {
     RoleID: string;
@@ -245,7 +254,7 @@ export class TaskTemplateWizardComponent implements OnInit {
     /** @internal */
     templates: TemplateOption[] = [];
     /** @internal */
-    categories: any[] = [];
+    categories: { ID: string; Name: string }[] = [];
     /** @internal */
     selectedTemplateID: string | null = null;
     /** @internal */
@@ -277,12 +286,12 @@ export class TaskTemplateWizardComponent implements OnInit {
 
     private async loadTemplates(): Promise<void> {
         const rv = new RunView();
-        const result = await rv.RunView<any>({
+        const result = await rv.RunView<{ ID: string; Name: string; Description: string | null }>({
             EntityName: 'MJ_BizApps_Tasks: Task Templates',
             ExtraFilter: 'IsActive = 1',
             ResultType: 'simple',
         });
-        this.templates = (result?.Results ?? []).map((t: any) => ({
+        this.templates = (result?.Results ?? []).map((t) => ({
             ID: t.ID, Name: t.Name, Description: t.Description,
         }));
         this.cdr.markForCheck();
@@ -290,7 +299,7 @@ export class TaskTemplateWizardComponent implements OnInit {
 
     private async loadCategories(): Promise<void> {
         const rv = new RunView();
-        const result = await rv.RunView<any>({
+        const result = await rv.RunView<{ ID: string; Name: string }>({
             EntityName: 'MJ_BizApps_Tasks: Task Categories',
             ExtraFilter: 'IsActive = 1',
             OrderBy: 'Sequence ASC',
@@ -321,7 +330,7 @@ export class TaskTemplateWizardComponent implements OnInit {
     private async buildPreview(): Promise<void> {
         if (!this.selectedTemplateID) return;
         const rv = new RunView();
-        const result = await rv.RunView<any>({
+        const result = await rv.RunView<TaskTemplateItemRow>({
             EntityName: 'MJ_BizApps_Tasks: Task Template Items',
             ExtraFilter: `TemplateID = '${this.selectedTemplateID}'`,
             OrderBy: 'Sequence ASC',
@@ -337,7 +346,7 @@ export class TaskTemplateWizardComponent implements OnInit {
             depthMap.set(item.ID, parentDepth + 1);
         }
 
-        this.previewItems = items.map((item: any) => {
+        this.previewItems = items.map((item) => {
             let dueAt: Date | null = null;
             if (item.DaysFromStart != null) {
                 dueAt = new Date(startDate);
@@ -360,16 +369,16 @@ export class TaskTemplateWizardComponent implements OnInit {
         const rv = new RunView();
 
         // Get all template items
-        const itemsResult = await rv.RunView<any>({
+        const itemsResult = await rv.RunView<TaskTemplateItemRow>({
             EntityName: 'MJ_BizApps_Tasks: Task Template Items',
             ExtraFilter: `TemplateID = '${this.selectedTemplateID}'`,
             ResultType: 'simple',
         });
-        const itemIDs = (itemsResult?.Results ?? []).map((i: any) => `'${i.ID}'`).join(',');
+        const itemIDs = (itemsResult?.Results ?? []).map((i) => `'${i.ID}'`).join(',');
         if (!itemIDs) { this.rolePlaceholders = []; this.cdr.markForCheck(); return; }
 
         // Get unique roles across all template items
-        const rolesResult = await new RunView().RunView<any>({
+        const rolesResult = await new RunView().RunView<{ RoleID: string }>({
             EntityName: 'MJ_BizApps_Tasks: Task Template Item Roles',
             ExtraFilter: `ItemID IN (${itemIDs})`,
             ResultType: 'simple',
@@ -381,7 +390,7 @@ export class TaskTemplateWizardComponent implements OnInit {
 
         const roleNames = new Map<string, string>();
         if (roleIDs.size > 0) {
-            const rolesLookup = await new RunView().RunView<any>({
+            const rolesLookup = await new RunView().RunView<{ ID: string; Name: string }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Roles',
                 ExtraFilter: `ID IN (${[...roleIDs].map(id => `'${id}'`).join(',')})`,
                 ResultType: 'simple',
