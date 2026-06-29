@@ -8,8 +8,8 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Schema
-CREATE SCHEMA IF NOT EXISTS __mj_BizAppsTasks;
-SET search_path TO __mj_BizAppsTasks, public;
+CREATE SCHEMA IF NOT EXISTS "__mj_BizAppsTasks";
+SET search_path TO "__mj_BizAppsTasks", public;
 
 -- Ensure backslashes in string literals are treated literally (not as escape sequences)
 SET standard_conforming_strings = on;
@@ -54,7 +54,7 @@ SET standard_conforming_strings = on;
 --   p_IconClass_45bb317a := 'fa-solid fa-stamp';
 --   p_DefaultPriority_45bb317a := 'High';
 --   p_IsActive_45bb317a := TRUE;
---   PERFORM __mj_BizAppsTasks."spCreateTaskType"(p_ID := p_ID_45bb317a, p_Name := p_Name_45bb317a, p_Description := p_Description_45bb317a, p_IconClass := p_IconClass_45bb317a, p_DefaultPriority := p_DefaultPriority_45bb317a, p_OnAssignActionID := p_OnAssignActionID_45bb317a, p_OnAssignActionID_Clear := TRUE, p_OnCompleteActionID := p_OnCompleteActionID_45bb317a, p_OnCompleteActionID_Clear := TRUE, p_OnOverdueActionID := p_OnOverdueActionID_45bb317a, p_OnOverdueActionID_Clear := TRUE, p_OnPercentChangeActionID := p_OnPercentChangeActionID_45bb317a, p_OnPercentChangeActionID_Clear := TRUE, p_IsActive := p_IsActive_45bb317a, p_OnRejectActionID := p_OnRejectActionID_45bb317a, p_OnRejectActionID_Clear := TRUE, p_OnCancelActionID := p_OnCancelActionID_45bb317a, p_OnCancelActionID_Clear := TRUE);
+--   PERFORM "__mj_BizAppsTasks"."spCreateTaskType"(p_ID := p_ID_45bb317a, p_Name := p_Name_45bb317a, p_Description := p_Description_45bb317a, p_IconClass := p_IconClass_45bb317a, p_DefaultPriority := p_DefaultPriority_45bb317a, p_OnAssignActionID := p_OnAssignActionID_45bb317a, p_OnAssignActionID_Clear := TRUE, p_OnCompleteActionID := p_OnCompleteActionID_45bb317a, p_OnCompleteActionID_Clear := TRUE, p_OnOverdueActionID := p_OnOverdueActionID_45bb317a, p_OnOverdueActionID_Clear := TRUE, p_OnPercentChangeActionID := p_OnPercentChangeActionID_45bb317a, p_OnPercentChangeActionID_Clear := TRUE, p_IsActive := p_IsActive_45bb317a, p_OnRejectActionID := p_OnRejectActionID_45bb317a, p_OnRejectActionID_Clear := TRUE, p_OnCancelActionID := p_OnCancelActionID_45bb317a, p_OnCancelActionID_Clear := TRUE);
 -- END $mj$;
 
 -- Save MJ_BizApps_Tasks: Task Decision Outcomes (core SP call only)
@@ -75,7 +75,7 @@ SET standard_conforming_strings = on;
 --   p_Sequence_f7145d84 := 10;
 --   p_IsTerminal_f7145d84 := TRUE;
 --   p_IsActive_f7145d84 := TRUE;
---   PERFORM __mj_BizAppsTasks."spCreateTaskDecisionOutcome"(p_ID := p_ID_f7145d84, p_Name := p_Name_f7145d84, p_Code := p_Code_f7145d84, p_Description := p_Description_f7145d84, p_Sequence := p_Sequence_f7145d84, p_IsTerminal := p_IsTerminal_f7145d84, p_IsActive := p_IsActive_f7145d84);
+--   PERFORM "__mj_BizAppsTasks"."spCreateTaskDecisionOutcome"(p_ID := p_ID_f7145d84, p_Name := p_Name_f7145d84, p_Code := p_Code_f7145d84, p_Description := p_Description_f7145d84, p_Sequence := p_Sequence_f7145d84, p_IsTerminal := p_IsTerminal_f7145d84, p_IsActive := p_IsActive_f7145d84);
 -- END $mj$;
 
 -- Save MJ_BizApps_Tasks: Task Decision Outcomes (core SP call only)
@@ -96,7 +96,7 @@ SET standard_conforming_strings = on;
 --   p_Sequence_ffb26e89 := 20;
 --   p_IsTerminal_ffb26e89 := TRUE;
 --   p_IsActive_ffb26e89 := TRUE;
---   PERFORM __mj_BizAppsTasks."spCreateTaskDecisionOutcome"(p_ID := p_ID_ffb26e89, p_Name := p_Name_ffb26e89, p_Code := p_Code_ffb26e89, p_Description := p_Description_ffb26e89, p_Sequence := p_Sequence_ffb26e89, p_IsTerminal := p_IsTerminal_ffb26e89, p_IsActive := p_IsActive_ffb26e89);
+--   PERFORM "__mj_BizAppsTasks"."spCreateTaskDecisionOutcome"(p_ID := p_ID_ffb26e89, p_Name := p_Name_ffb26e89, p_Code := p_Code_ffb26e89, p_Description := p_Description_ffb26e89, p_Sequence := p_Sequence_ffb26e89, p_IsTerminal := p_IsTerminal_ffb26e89, p_IsActive := p_IsActive_ffb26e89);
 -- END $mj$;
 
 -- Save MJ_BizApps_Tasks: Task Decision Outcomes (core SP call only)
@@ -117,7 +117,7 @@ SET standard_conforming_strings = on;
 --   p_Sequence_13e57da9 := 30;
 --   p_IsTerminal_13e57da9 := TRUE;
 --   p_IsActive_13e57da9 := TRUE;
---   PERFORM __mj_BizAppsTasks."spCreateTaskDecisionOutcome"(p_ID := p_ID_13e57da9, p_Name := p_Name_13e57da9, p_Code := p_Code_13e57da9, p_Description := p_Description_13e57da9, p_Sequence := p_Sequence_13e57da9, p_IsTerminal := p_IsTerminal_13e57da9, p_IsActive := p_IsActive_13e57da9);
+--   PERFORM "__mj_BizAppsTasks"."spCreateTaskDecisionOutcome"(p_ID := p_ID_13e57da9, p_Name := p_Name_13e57da9, p_Code := p_Code_13e57da9, p_Description := p_Description_13e57da9, p_Sequence := p_Sequence_13e57da9, p_IsTerminal := p_IsTerminal_13e57da9, p_IsActive := p_IsActive_13e57da9);
 -- END $mj$;
 
 
