@@ -1,5 +1,12 @@
 # @mj-biz-apps/tasks-core
 
+## 1.1.2
+
+### Patch Changes
+
+- 290772b: fix(tasks): lowercase PostgreSQL app schema name in migrations to match physical
+  - @mj-biz-apps/tasks-entities@1.1.2
+
 ## 1.1.1
 
 ### Patch Changes
