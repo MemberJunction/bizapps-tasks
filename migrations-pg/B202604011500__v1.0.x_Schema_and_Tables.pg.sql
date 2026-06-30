@@ -8,8 +8,8 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Schema
-CREATE SCHEMA IF NOT EXISTS "__mj_BizAppsTasks";
-SET search_path TO "__mj_BizAppsTasks", public;
+CREATE SCHEMA IF NOT EXISTS __mj_bizappstasks;
+SET search_path TO __mj_bizappstasks, public;
 
 -- Ensure backslashes in string literals are treated literally (not as escape sequences)
 SET standard_conforming_strings = on;
@@ -28,7 +28,7 @@ SET standard_conforming_strings = on;
 ---------------------------------------------------------------------------
 -- TaskType: General, Action Item, Follow-up, Deliverable, etc.
 ---------------------------------------------------------------------------
-CREATE TABLE "__mj_BizAppsTasks"."TaskType" (
+CREATE TABLE __mj_bizappstasks."TaskType" (
  "ID" UUID NOT NULL DEFAULT gen_random_uuid(),
  "Name" VARCHAR(100) NOT NULL,
  "Description" TEXT,
@@ -51,7 +51,7 @@ CREATE TABLE "__mj_BizAppsTasks"."TaskType" (
 ---------------------------------------------------------------------------
 -- TaskCategory: hierarchical grouping (e.g. "Finance Committee", "Q1 Audit")
 ---------------------------------------------------------------------------
-CREATE TABLE "__mj_BizAppsTasks"."TaskCategory" (
+CREATE TABLE __mj_bizappstasks."TaskCategory" (
  "ID" UUID NOT NULL DEFAULT gen_random_uuid(),
  "Name" VARCHAR(255) NOT NULL,
  "Description" TEXT,
@@ -60,13 +60,13 @@ CREATE TABLE "__mj_BizAppsTasks"."TaskCategory" (
  "Sequence" INTEGER NOT NULL DEFAULT 100,
  "IsActive" BOOLEAN NOT NULL DEFAULT TRUE,
  CONSTRAINT PK_TaskCategory PRIMARY KEY ("ID"),
- CONSTRAINT FK_TaskCategory_Parent FOREIGN KEY ("ParentID") REFERENCES "__mj_BizAppsTasks"."TaskCategory"("ID")
+ CONSTRAINT FK_TaskCategory_Parent FOREIGN KEY ("ParentID") REFERENCES __mj_bizappstasks."TaskCategory"("ID")
 );
 
 ---------------------------------------------------------------------------
 -- Task: the core work item
 ---------------------------------------------------------------------------
-CREATE TABLE "__mj_BizAppsTasks"."Task" (
+CREATE TABLE __mj_bizappstasks."Task" (
  "ID" UUID NOT NULL DEFAULT gen_random_uuid(),
  "Name" VARCHAR(255) NOT NULL,
  "Description" TEXT,
@@ -87,10 +87,10 @@ CREATE TABLE "__mj_BizAppsTasks"."Task" (
  "CreatedByPersonID" UUID,
  "OverdueNotifiedAt" TIMESTAMPTZ,
  CONSTRAINT PK_Task PRIMARY KEY ("ID"),
- CONSTRAINT FK_Task_Type FOREIGN KEY ("TypeID") REFERENCES "__mj_BizAppsTasks"."TaskType"("ID"),
- CONSTRAINT FK_Task_Category FOREIGN KEY ("CategoryID") REFERENCES "__mj_BizAppsTasks"."TaskCategory"("ID"),
- CONSTRAINT FK_Task_Parent FOREIGN KEY ("ParentID") REFERENCES "__mj_BizAppsTasks"."Task"("ID"),
- CONSTRAINT FK_Task_CreatedByPerson FOREIGN KEY ("CreatedByPersonID") REFERENCES "__mj_BizAppsCommon"."Person"("ID"),
+ CONSTRAINT FK_Task_Type FOREIGN KEY ("TypeID") REFERENCES __mj_bizappstasks."TaskType"("ID"),
+ CONSTRAINT FK_Task_Category FOREIGN KEY ("CategoryID") REFERENCES __mj_bizappstasks."TaskCategory"("ID"),
+ CONSTRAINT FK_Task_Parent FOREIGN KEY ("ParentID") REFERENCES __mj_bizappstasks."Task"("ID"),
+ CONSTRAINT FK_Task_CreatedByPerson FOREIGN KEY ("CreatedByPersonID") REFERENCES __mj_bizappscommon."Person"("ID"),
  CONSTRAINT CK_Task_Status CHECK ("Status" IN ('Open', 'InProgress', 'Blocked', 'Completed', 'Cancelled')),
  CONSTRAINT CK_Task_Priority CHECK ("Priority" IN ('Low', 'Medium', 'High', 'Critical')),
  CONSTRAINT CK_Task_PercentComplete CHECK ("PercentComplete" >= 0 AND "PercentComplete" <= 100)
@@ -99,7 +99,7 @@ CREATE TABLE "__mj_BizAppsTasks"."Task" (
 ---------------------------------------------------------------------------
 -- TaskRole: Primary, Reviewer, Observer, etc.
 ---------------------------------------------------------------------------
-CREATE TABLE "__mj_BizAppsTasks"."TaskRole" (
+CREATE TABLE __mj_bizappstasks."TaskRole" (
  "ID" UUID NOT NULL DEFAULT gen_random_uuid(),
  "Name" VARCHAR(100) NOT NULL,
  "Description" TEXT,
@@ -111,7 +111,7 @@ CREATE TABLE "__mj_BizAppsTasks"."TaskRole" (
 ---------------------------------------------------------------------------
 -- TaskAssignment: multi-person assignment with polymorphic assignee
 ---------------------------------------------------------------------------
-CREATE TABLE "__mj_BizAppsTasks"."TaskAssignment" (
+CREATE TABLE __mj_bizappstasks."TaskAssignment" (
  "ID" UUID NOT NULL DEFAULT gen_random_uuid(),
  "TaskID" UUID NOT NULL,
  "AssigneeEntityID" UUID NOT NULL,
@@ -122,10 +122,10 @@ CREATE TABLE "__mj_BizAppsTasks"."TaskAssignment" (
  "AssignedByPersonID" UUID,
  "AssignedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
  CONSTRAINT PK_TaskAssignment PRIMARY KEY ("ID"),
- CONSTRAINT FK_TaskAssignment_Task FOREIGN KEY ("TaskID") REFERENCES "__mj_BizAppsTasks"."Task"("ID"),
+ CONSTRAINT FK_TaskAssignment_Task FOREIGN KEY ("TaskID") REFERENCES __mj_bizappstasks."Task"("ID"),
  CONSTRAINT FK_TaskAssignment_AssigneeEntity FOREIGN KEY ("AssigneeEntityID") REFERENCES ${mjSchema}."Entity"("ID"),
- CONSTRAINT FK_TaskAssignment_Role FOREIGN KEY ("RoleID") REFERENCES "__mj_BizAppsTasks"."TaskRole"("ID"),
- CONSTRAINT FK_TaskAssignment_AssignedByPerson FOREIGN KEY ("AssignedByPersonID") REFERENCES "__mj_BizAppsCommon"."Person"("ID"),
+ CONSTRAINT FK_TaskAssignment_Role FOREIGN KEY ("RoleID") REFERENCES __mj_bizappstasks."TaskRole"("ID"),
+ CONSTRAINT FK_TaskAssignment_AssignedByPerson FOREIGN KEY ("AssignedByPersonID") REFERENCES __mj_bizappscommon."Person"("ID"),
  CONSTRAINT CK_TaskAssignment_Status CHECK ("Status" IN ('Pending', 'InProgress', 'Completed')),
  CONSTRAINT UQ_TaskAssignment_Unique UNIQUE ("TaskID", "AssigneeEntityID", "AssigneeRecordID", "RoleID")
 );
@@ -133,14 +133,14 @@ CREATE TABLE "__mj_BizAppsTasks"."TaskAssignment" (
 ---------------------------------------------------------------------------
 -- TaskLink: polymorphic link from tasks to any entity record
 ---------------------------------------------------------------------------
-CREATE TABLE "__mj_BizAppsTasks"."TaskLink" (
+CREATE TABLE __mj_bizappstasks."TaskLink" (
  "ID" UUID NOT NULL DEFAULT gen_random_uuid(),
  "TaskID" UUID NOT NULL,
  "EntityID" UUID NOT NULL,
  "RecordID" VARCHAR(450) NOT NULL,
  "Description" VARCHAR(500),
  CONSTRAINT PK_TaskLink PRIMARY KEY ("ID"),
- CONSTRAINT FK_TaskLink_Task FOREIGN KEY ("TaskID") REFERENCES "__mj_BizAppsTasks"."Task"("ID"),
+ CONSTRAINT FK_TaskLink_Task FOREIGN KEY ("TaskID") REFERENCES __mj_bizappstasks."Task"("ID"),
  CONSTRAINT FK_TaskLink_Entity FOREIGN KEY ("EntityID") REFERENCES ${mjSchema}."Entity"("ID"),
  CONSTRAINT UQ_TaskLink_Unique UNIQUE ("TaskID", "EntityID", "RecordID")
 );
@@ -148,14 +148,14 @@ CREATE TABLE "__mj_BizAppsTasks"."TaskLink" (
 ---------------------------------------------------------------------------
 -- TaskDependency: dependency graph between tasks
 ---------------------------------------------------------------------------
-CREATE TABLE "__mj_BizAppsTasks"."TaskDependency" (
+CREATE TABLE __mj_bizappstasks."TaskDependency" (
  "ID" UUID NOT NULL DEFAULT gen_random_uuid(),
  "TaskID" UUID NOT NULL,
  "DependsOnTaskID" UUID NOT NULL,
  "DependencyType" VARCHAR(50) NOT NULL DEFAULT 'FinishToStart',
  CONSTRAINT PK_TaskDependency PRIMARY KEY ("ID"),
- CONSTRAINT FK_TaskDependency_Task FOREIGN KEY ("TaskID") REFERENCES "__mj_BizAppsTasks"."Task"("ID"),
- CONSTRAINT FK_TaskDependency_DependsOnTask FOREIGN KEY ("DependsOnTaskID") REFERENCES "__mj_BizAppsTasks"."Task"("ID"),
+ CONSTRAINT FK_TaskDependency_Task FOREIGN KEY ("TaskID") REFERENCES __mj_bizappstasks."Task"("ID"),
+ CONSTRAINT FK_TaskDependency_DependsOnTask FOREIGN KEY ("DependsOnTaskID") REFERENCES __mj_bizappstasks."Task"("ID"),
  CONSTRAINT CK_TaskDependency_Type CHECK ("DependencyType" IN ('FinishToStart', 'StartToStart', 'FinishToFinish', 'StartToFinish')),
  CONSTRAINT CK_TaskDependency_NoSelfRef CHECK ("TaskID" <> "DependsOnTaskID"),
  CONSTRAINT UQ_TaskDependency_Unique UNIQUE ("TaskID", "DependsOnTaskID")
@@ -164,7 +164,7 @@ CREATE TABLE "__mj_BizAppsTasks"."TaskDependency" (
 ---------------------------------------------------------------------------
 -- TaskTag: lightweight cross-cutting labels
 ---------------------------------------------------------------------------
-CREATE TABLE "__mj_BizAppsTasks"."TaskTag" (
+CREATE TABLE __mj_bizappstasks."TaskTag" (
  "ID" UUID NOT NULL DEFAULT gen_random_uuid(),
  "Name" VARCHAR(100) NOT NULL,
  "ColorCode" VARCHAR(20),
@@ -176,20 +176,20 @@ CREATE TABLE "__mj_BizAppsTasks"."TaskTag" (
 ---------------------------------------------------------------------------
 -- TaskTagLink: many-to-many between Task and TaskTag
 ---------------------------------------------------------------------------
-CREATE TABLE "__mj_BizAppsTasks"."TaskTagLink" (
+CREATE TABLE __mj_bizappstasks."TaskTagLink" (
  "ID" UUID NOT NULL DEFAULT gen_random_uuid(),
  "TaskID" UUID NOT NULL,
  "TagID" UUID NOT NULL,
  CONSTRAINT PK_TaskTagLink PRIMARY KEY ("ID"),
- CONSTRAINT FK_TaskTagLink_Task FOREIGN KEY ("TaskID") REFERENCES "__mj_BizAppsTasks"."Task"("ID"),
- CONSTRAINT FK_TaskTagLink_Tag FOREIGN KEY ("TagID") REFERENCES "__mj_BizAppsTasks"."TaskTag"("ID"),
+ CONSTRAINT FK_TaskTagLink_Task FOREIGN KEY ("TaskID") REFERENCES __mj_bizappstasks."Task"("ID"),
+ CONSTRAINT FK_TaskTagLink_Tag FOREIGN KEY ("TagID") REFERENCES __mj_bizappstasks."TaskTag"("ID"),
  CONSTRAINT UQ_TaskTagLink_Unique UNIQUE ("TaskID", "TagID")
 );
 
 ---------------------------------------------------------------------------
 -- TaskComment: threaded discussion on tasks
 ---------------------------------------------------------------------------
-CREATE TABLE "__mj_BizAppsTasks"."TaskComment" (
+CREATE TABLE __mj_bizappstasks."TaskComment" (
  "ID" UUID NOT NULL DEFAULT gen_random_uuid(),
  "TaskID" UUID NOT NULL,
  "ParentID" UUID,
@@ -197,15 +197,15 @@ CREATE TABLE "__mj_BizAppsTasks"."TaskComment" (
  "Content" TEXT NOT NULL,
  "IsEdited" BOOLEAN NOT NULL DEFAULT FALSE,
  CONSTRAINT PK_TaskComment PRIMARY KEY ("ID"),
- CONSTRAINT FK_TaskComment_Task FOREIGN KEY ("TaskID") REFERENCES "__mj_BizAppsTasks"."Task"("ID"),
- CONSTRAINT FK_TaskComment_Parent FOREIGN KEY ("ParentID") REFERENCES "__mj_BizAppsTasks"."TaskComment"("ID"),
- CONSTRAINT FK_TaskComment_Person FOREIGN KEY ("PersonID") REFERENCES "__mj_BizAppsCommon"."Person"("ID")
+ CONSTRAINT FK_TaskComment_Task FOREIGN KEY ("TaskID") REFERENCES __mj_bizappstasks."Task"("ID"),
+ CONSTRAINT FK_TaskComment_Parent FOREIGN KEY ("ParentID") REFERENCES __mj_bizappstasks."TaskComment"("ID"),
+ CONSTRAINT FK_TaskComment_Person FOREIGN KEY ("PersonID") REFERENCES __mj_bizappscommon."Person"("ID")
 );
 
 ---------------------------------------------------------------------------
 -- TaskTemplate: reusable task structures (e.g. "Board Meeting Prep")
 ---------------------------------------------------------------------------
-CREATE TABLE "__mj_BizAppsTasks"."TaskTemplate" (
+CREATE TABLE __mj_bizappstasks."TaskTemplate" (
  "ID" UUID NOT NULL DEFAULT gen_random_uuid(),
  "Name" VARCHAR(255) NOT NULL,
  "Description" TEXT,
@@ -213,14 +213,14 @@ CREATE TABLE "__mj_BizAppsTasks"."TaskTemplate" (
  "TypeID" UUID,
  "IsActive" BOOLEAN NOT NULL DEFAULT TRUE,
  CONSTRAINT PK_TaskTemplate PRIMARY KEY ("ID"),
- CONSTRAINT FK_TaskTemplate_Category FOREIGN KEY ("CategoryID") REFERENCES "__mj_BizAppsTasks"."TaskCategory"("ID"),
- CONSTRAINT FK_TaskTemplate_Type FOREIGN KEY ("TypeID") REFERENCES "__mj_BizAppsTasks"."TaskType"("ID")
+ CONSTRAINT FK_TaskTemplate_Category FOREIGN KEY ("CategoryID") REFERENCES __mj_bizappstasks."TaskCategory"("ID"),
+ CONSTRAINT FK_TaskTemplate_Type FOREIGN KEY ("TypeID") REFERENCES __mj_bizappstasks."TaskType"("ID")
 );
 
 ---------------------------------------------------------------------------
 -- TaskTemplateItem: sub-task definitions within a template
 ---------------------------------------------------------------------------
-CREATE TABLE "__mj_BizAppsTasks"."TaskTemplateItem" (
+CREATE TABLE __mj_bizappstasks."TaskTemplateItem" (
  "ID" UUID NOT NULL DEFAULT gen_random_uuid(),
  "TemplateID" UUID NOT NULL,
  "Name" VARCHAR(255) NOT NULL,
@@ -231,22 +231,22 @@ CREATE TABLE "__mj_BizAppsTasks"."TaskTemplateItem" (
  "HoursEstimated" DECIMAL(8,2),
  "Sequence" INTEGER NOT NULL DEFAULT 100,
  CONSTRAINT PK_TaskTemplateItem PRIMARY KEY ("ID"),
- CONSTRAINT FK_TaskTemplateItem_Template FOREIGN KEY ("TemplateID") REFERENCES "__mj_BizAppsTasks"."TaskTemplate"("ID"),
- CONSTRAINT FK_TaskTemplateItem_Parent FOREIGN KEY ("ParentItemID") REFERENCES "__mj_BizAppsTasks"."TaskTemplateItem"("ID"),
+ CONSTRAINT FK_TaskTemplateItem_Template FOREIGN KEY ("TemplateID") REFERENCES __mj_bizappstasks."TaskTemplate"("ID"),
+ CONSTRAINT FK_TaskTemplateItem_Parent FOREIGN KEY ("ParentItemID") REFERENCES __mj_bizappstasks."TaskTemplateItem"("ID"),
  CONSTRAINT CK_TaskTemplateItem_Priority CHECK ("Priority" IN ('Low', 'Medium', 'High', 'Critical'))
 );
 
 ---------------------------------------------------------------------------
 -- TaskTemplateItemDependency: dependency graph within a template
 ---------------------------------------------------------------------------
-CREATE TABLE "__mj_BizAppsTasks"."TaskTemplateItemDependency" (
+CREATE TABLE __mj_bizappstasks."TaskTemplateItemDependency" (
  "ID" UUID NOT NULL DEFAULT gen_random_uuid(),
  "ItemID" UUID NOT NULL,
  "DependsOnItemID" UUID NOT NULL,
  "DependencyType" VARCHAR(50) NOT NULL DEFAULT 'FinishToStart',
  CONSTRAINT PK_TaskTemplateItemDependency PRIMARY KEY ("ID"),
- CONSTRAINT FK_TaskTemplateItemDep_Item FOREIGN KEY ("ItemID") REFERENCES "__mj_BizAppsTasks"."TaskTemplateItem"("ID"),
- CONSTRAINT FK_TaskTemplateItemDep_DependsOn FOREIGN KEY ("DependsOnItemID") REFERENCES "__mj_BizAppsTasks"."TaskTemplateItem"("ID"),
+ CONSTRAINT FK_TaskTemplateItemDep_Item FOREIGN KEY ("ItemID") REFERENCES __mj_bizappstasks."TaskTemplateItem"("ID"),
+ CONSTRAINT FK_TaskTemplateItemDep_DependsOn FOREIGN KEY ("DependsOnItemID") REFERENCES __mj_bizappstasks."TaskTemplateItem"("ID"),
  CONSTRAINT CK_TaskTemplateItemDep_Type CHECK ("DependencyType" IN ('FinishToStart', 'StartToStart', 'FinishToFinish', 'StartToFinish')),
  CONSTRAINT CK_TaskTemplateItemDep_NoSelfRef CHECK ("ItemID" <> "DependsOnItemID"),
  CONSTRAINT UQ_TaskTemplateItemDep_Unique UNIQUE ("ItemID", "DependsOnItemID")
@@ -255,20 +255,20 @@ CREATE TABLE "__mj_BizAppsTasks"."TaskTemplateItemDependency" (
 ---------------------------------------------------------------------------
 -- TaskTemplateItemRole: pre-defined assignment roles per template item
 ---------------------------------------------------------------------------
-CREATE TABLE "__mj_BizAppsTasks"."TaskTemplateItemRole" (
+CREATE TABLE __mj_bizappstasks."TaskTemplateItemRole" (
  "ID" UUID NOT NULL DEFAULT gen_random_uuid(),
  "ItemID" UUID NOT NULL,
  "RoleID" UUID NOT NULL,
  CONSTRAINT PK_TaskTemplateItemRole PRIMARY KEY ("ID"),
- CONSTRAINT FK_TaskTemplateItemRole_Item FOREIGN KEY ("ItemID") REFERENCES "__mj_BizAppsTasks"."TaskTemplateItem"("ID"),
- CONSTRAINT FK_TaskTemplateItemRole_Role FOREIGN KEY ("RoleID") REFERENCES "__mj_BizAppsTasks"."TaskRole"("ID"),
+ CONSTRAINT FK_TaskTemplateItemRole_Item FOREIGN KEY ("ItemID") REFERENCES __mj_bizappstasks."TaskTemplateItem"("ID"),
+ CONSTRAINT FK_TaskTemplateItemRole_Role FOREIGN KEY ("RoleID") REFERENCES __mj_bizappstasks."TaskRole"("ID"),
  CONSTRAINT UQ_TaskTemplateItemRole_Unique UNIQUE ("ItemID", "RoleID")
 );
 
 ---------------------------------------------------------------------------
 -- TaskActivity: automatic audit log for task changes
 ---------------------------------------------------------------------------
-CREATE TABLE "__mj_BizAppsTasks"."TaskActivity" (
+CREATE TABLE __mj_bizappstasks."TaskActivity" (
  "ID" UUID NOT NULL DEFAULT gen_random_uuid(),
  "TaskID" UUID NOT NULL,
  "PersonID" UUID,
@@ -277,8 +277,8 @@ CREATE TABLE "__mj_BizAppsTasks"."TaskActivity" (
  "NewValue" VARCHAR(500),
  "Description" TEXT,
  CONSTRAINT PK_TaskActivity PRIMARY KEY ("ID"),
- CONSTRAINT FK_TaskActivity_Task FOREIGN KEY ("TaskID") REFERENCES "__mj_BizAppsTasks"."Task"("ID"),
- CONSTRAINT FK_TaskActivity_Person FOREIGN KEY ("PersonID") REFERENCES "__mj_BizAppsCommon"."Person"("ID"),
+ CONSTRAINT FK_TaskActivity_Task FOREIGN KEY ("TaskID") REFERENCES __mj_bizappstasks."Task"("ID"),
+ CONSTRAINT FK_TaskActivity_Person FOREIGN KEY ("PersonID") REFERENCES __mj_bizappscommon."Person"("ID"),
  CONSTRAINT "CK_TaskActivity_Type" CHECK ("ActivityType" IN (
  'StatusChange', 'AssignmentAdded', 'AssignmentRemoved',
  'DueDateChanged', 'PriorityChanged', 'PercentCompleteChanged',
@@ -289,7 +289,7 @@ CREATE TABLE "__mj_BizAppsTasks"."TaskActivity" (
 ---------------------------------------------------------------------------
 -- TaskNotificationConfig: global + per-TaskType overdue notification settings
 ---------------------------------------------------------------------------
-CREATE TABLE "__mj_BizAppsTasks"."TaskNotificationConfig" (
+CREATE TABLE __mj_bizappstasks."TaskNotificationConfig" (
  "ID" UUID NOT NULL DEFAULT gen_random_uuid(),
  "TaskTypeID" UUID,
  "OverdueNotificationsEnabled" BOOLEAN NOT NULL DEFAULT TRUE,
@@ -299,7 +299,7 @@ CREATE TABLE "__mj_BizAppsTasks"."TaskNotificationConfig" (
  "NotifyCreator" BOOLEAN NOT NULL DEFAULT TRUE,
  "OverdueActionID" UUID,
  CONSTRAINT PK_TaskNotificationConfig PRIMARY KEY ("ID"),
- CONSTRAINT FK_TaskNotificationConfig_TaskType FOREIGN KEY ("TaskTypeID") REFERENCES "__mj_BizAppsTasks"."TaskType"("ID"),
+ CONSTRAINT FK_TaskNotificationConfig_TaskType FOREIGN KEY ("TaskTypeID") REFERENCES __mj_bizappstasks."TaskType"("ID"),
  CONSTRAINT FK_TaskNotificationConfig_Action FOREIGN KEY ("OverdueActionID") REFERENCES ${mjSchema}."Action"("ID"),
  CONSTRAINT UQ_TaskNotificationConfig_TaskType UNIQUE ("TaskTypeID")
 );
@@ -307,229 +307,229 @@ CREATE TABLE "__mj_BizAppsTasks"."TaskNotificationConfig" (
 ---------------------------------------------------------------------------
 -- TaskNotificationLog: audit trail of sent notifications
 ---------------------------------------------------------------------------
-CREATE TABLE "__mj_BizAppsTasks"."TaskNotificationLog" (
+CREATE TABLE __mj_bizappstasks."TaskNotificationLog" (
  "ID" UUID NOT NULL DEFAULT gen_random_uuid(),
  "TaskID" UUID NOT NULL,
  "NotificationType" VARCHAR(50) NOT NULL,
  "NotifiedUserID" UUID NOT NULL,
  "NotifiedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
  CONSTRAINT PK_TaskNotificationLog PRIMARY KEY ("ID"),
- CONSTRAINT FK_TaskNotificationLog_Task FOREIGN KEY ("TaskID") REFERENCES "__mj_BizAppsTasks"."Task"("ID"),
+ CONSTRAINT FK_TaskNotificationLog_Task FOREIGN KEY ("TaskID") REFERENCES __mj_bizappstasks."Task"("ID"),
  CONSTRAINT FK_TaskNotificationLog_User FOREIGN KEY ("NotifiedUserID") REFERENCES ${mjSchema}."User"("ID"),
  CONSTRAINT CK_TaskNotificationLog_Type CHECK ("NotificationType" IN ('Overdue', 'OverdueReminder'))
 );
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskLink"
+ALTER TABLE __mj_bizappstasks."TaskLink"
  ADD COLUMN IF NOT EXISTS "__mj_CreatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskLink" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskLink"
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskLink" */
+ALTER TABLE __mj_bizappstasks."TaskLink"
  ADD COLUMN IF NOT EXISTS "__mj_UpdatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskTemplateItemRole" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskTemplateItemRole"
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskTemplateItemRole" */
+ALTER TABLE __mj_bizappstasks."TaskTemplateItemRole"
  ADD COLUMN IF NOT EXISTS "__mj_CreatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskTemplateItemRole" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskTemplateItemRole"
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskTemplateItemRole" */
+ALTER TABLE __mj_bizappstasks."TaskTemplateItemRole"
  ADD COLUMN IF NOT EXISTS "__mj_UpdatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskNotificationConfig" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskNotificationConfig"
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskNotificationConfig" */
+ALTER TABLE __mj_bizappstasks."TaskNotificationConfig"
  ADD COLUMN IF NOT EXISTS "__mj_CreatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskNotificationConfig" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskNotificationConfig"
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskNotificationConfig" */
+ALTER TABLE __mj_bizappstasks."TaskNotificationConfig"
  ADD COLUMN IF NOT EXISTS "__mj_UpdatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskDependency" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskDependency"
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskDependency" */
+ALTER TABLE __mj_bizappstasks."TaskDependency"
  ADD COLUMN IF NOT EXISTS "__mj_CreatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskDependency" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskDependency"
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskDependency" */
+ALTER TABLE __mj_bizappstasks."TaskDependency"
  ADD COLUMN IF NOT EXISTS "__mj_UpdatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskTemplate" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskTemplate"
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskTemplate" */
+ALTER TABLE __mj_bizappstasks."TaskTemplate"
  ADD COLUMN IF NOT EXISTS "__mj_CreatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskTemplate" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskTemplate"
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskTemplate" */
+ALTER TABLE __mj_bizappstasks."TaskTemplate"
  ADD COLUMN IF NOT EXISTS "__mj_UpdatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskRole" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskRole"
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskRole" */
+ALTER TABLE __mj_bizappstasks."TaskRole"
  ADD COLUMN IF NOT EXISTS "__mj_CreatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskRole" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskRole"
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskRole" */
+ALTER TABLE __mj_bizappstasks."TaskRole"
  ADD COLUMN IF NOT EXISTS "__mj_UpdatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskActivity" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskActivity"
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskActivity" */
+ALTER TABLE __mj_bizappstasks."TaskActivity"
  ADD COLUMN IF NOT EXISTS "__mj_CreatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskActivity" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskActivity"
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskActivity" */
+ALTER TABLE __mj_bizappstasks."TaskActivity"
  ADD COLUMN IF NOT EXISTS "__mj_UpdatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskTagLink" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskTagLink"
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskTagLink" */
+ALTER TABLE __mj_bizappstasks."TaskTagLink"
  ADD COLUMN IF NOT EXISTS "__mj_CreatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskTagLink" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskTagLink"
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskTagLink" */
+ALTER TABLE __mj_bizappstasks."TaskTagLink"
  ADD COLUMN IF NOT EXISTS "__mj_UpdatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskTemplateItemDependency" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskTemplateItemDependency"
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskTemplateItemDependency" */
+ALTER TABLE __mj_bizappstasks."TaskTemplateItemDependency"
  ADD COLUMN IF NOT EXISTS "__mj_CreatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskTemplateItemDependency" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskTemplateItemDependency"
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskTemplateItemDependency" */
+ALTER TABLE __mj_bizappstasks."TaskTemplateItemDependency"
  ADD COLUMN IF NOT EXISTS "__mj_UpdatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskType" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskType"
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskType" */
+ALTER TABLE __mj_bizappstasks."TaskType"
  ADD COLUMN IF NOT EXISTS "__mj_CreatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskType" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskType"
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskType" */
+ALTER TABLE __mj_bizappstasks."TaskType"
  ADD COLUMN IF NOT EXISTS "__mj_UpdatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskTemplateItem" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskTemplateItem"
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskTemplateItem" */
+ALTER TABLE __mj_bizappstasks."TaskTemplateItem"
  ADD COLUMN IF NOT EXISTS "__mj_CreatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskTemplateItem" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskTemplateItem"
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskTemplateItem" */
+ALTER TABLE __mj_bizappstasks."TaskTemplateItem"
  ADD COLUMN IF NOT EXISTS "__mj_UpdatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskNotificationLog" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskNotificationLog"
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskNotificationLog" */
+ALTER TABLE __mj_bizappstasks."TaskNotificationLog"
  ADD COLUMN IF NOT EXISTS "__mj_CreatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskNotificationLog" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskNotificationLog"
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskNotificationLog" */
+ALTER TABLE __mj_bizappstasks."TaskNotificationLog"
  ADD COLUMN IF NOT EXISTS "__mj_UpdatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskComment" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskComment"
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskComment" */
+ALTER TABLE __mj_bizappstasks."TaskComment"
  ADD COLUMN IF NOT EXISTS "__mj_CreatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskComment" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskComment"
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskComment" */
+ALTER TABLE __mj_bizappstasks."TaskComment"
  ADD COLUMN IF NOT EXISTS "__mj_UpdatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskTag" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskTag"
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskTag" */
+ALTER TABLE __mj_bizappstasks."TaskTag"
  ADD COLUMN IF NOT EXISTS "__mj_CreatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskTag" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskTag"
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskTag" */
+ALTER TABLE __mj_bizappstasks."TaskTag"
  ADD COLUMN IF NOT EXISTS "__mj_UpdatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskAssignment" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskAssignment"
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskAssignment" */
+ALTER TABLE __mj_bizappstasks."TaskAssignment"
  ADD COLUMN IF NOT EXISTS "__mj_CreatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskAssignment" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskAssignment"
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskAssignment" */
+ALTER TABLE __mj_bizappstasks."TaskAssignment"
  ADD COLUMN IF NOT EXISTS "__mj_UpdatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskCategory" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskCategory"
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskCategory" */
+ALTER TABLE __mj_bizappstasks."TaskCategory"
  ADD COLUMN IF NOT EXISTS "__mj_CreatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskCategory" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskCategory"
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskCategory" */
+ALTER TABLE __mj_bizappstasks."TaskCategory"
  ADD COLUMN IF NOT EXISTS "__mj_UpdatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."Task" */
-ALTER TABLE "__mj_BizAppsTasks"."Task"
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."Task" */
+ALTER TABLE __mj_bizappstasks."Task"
  ADD COLUMN IF NOT EXISTS "__mj_CreatedAt" TIMESTAMPTZ NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."Task" */
-ALTER TABLE "__mj_BizAppsTasks"."Task"
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."Task" */
+ALTER TABLE __mj_bizappstasks."Task"
  ADD COLUMN IF NOT EXISTS "__mj_UpdatedAt" TIMESTAMPTZ NULL;
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskActivity_TaskID" ON "__mj_BizAppsTasks"."TaskActivity" ("TaskID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskActivity_TaskID" ON __mj_bizappstasks."TaskActivity" ("TaskID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskActivity_PersonID" ON "__mj_BizAppsTasks"."TaskActivity" ("PersonID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskActivity_PersonID" ON __mj_bizappstasks."TaskActivity" ("PersonID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskAssignment_TaskID" ON "__mj_BizAppsTasks"."TaskAssignment" ("TaskID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskAssignment_TaskID" ON __mj_bizappstasks."TaskAssignment" ("TaskID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskAssignment_AssigneeEntityID" ON "__mj_BizAppsTasks"."TaskAssignment" ("AssigneeEntityID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskAssignment_AssigneeEntityID" ON __mj_bizappstasks."TaskAssignment" ("AssigneeEntityID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskAssignment_RoleID" ON "__mj_BizAppsTasks"."TaskAssignment" ("RoleID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskAssignment_RoleID" ON __mj_bizappstasks."TaskAssignment" ("RoleID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskAssignment_AssignedByPersonID" ON "__mj_BizAppsTasks"."TaskAssignment" ("AssignedByPersonID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskAssignment_AssignedByPersonID" ON __mj_bizappstasks."TaskAssignment" ("AssignedByPersonID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskCategory_ParentID" ON "__mj_BizAppsTasks"."TaskCategory" ("ParentID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskCategory_ParentID" ON __mj_bizappstasks."TaskCategory" ("ParentID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskComment_TaskID" ON "__mj_BizAppsTasks"."TaskComment" ("TaskID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskComment_TaskID" ON __mj_bizappstasks."TaskComment" ("TaskID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskComment_ParentID" ON "__mj_BizAppsTasks"."TaskComment" ("ParentID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskComment_ParentID" ON __mj_bizappstasks."TaskComment" ("ParentID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskComment_PersonID" ON "__mj_BizAppsTasks"."TaskComment" ("PersonID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskComment_PersonID" ON __mj_bizappstasks."TaskComment" ("PersonID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskDependency_TaskID" ON "__mj_BizAppsTasks"."TaskDependency" ("TaskID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskDependency_TaskID" ON __mj_bizappstasks."TaskDependency" ("TaskID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskDependency_DependsOnTaskID" ON "__mj_BizAppsTasks"."TaskDependency" ("DependsOnTaskID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskDependency_DependsOnTaskID" ON __mj_bizappstasks."TaskDependency" ("DependsOnTaskID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskLink_TaskID" ON "__mj_BizAppsTasks"."TaskLink" ("TaskID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskLink_TaskID" ON __mj_bizappstasks."TaskLink" ("TaskID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskLink_EntityID" ON "__mj_BizAppsTasks"."TaskLink" ("EntityID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskLink_EntityID" ON __mj_bizappstasks."TaskLink" ("EntityID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskNotificationConfig_TaskTypeID" ON "__mj_BizAppsTasks"."TaskNotificationConfig" ("TaskTypeID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskNotificationConfig_TaskTypeID" ON __mj_bizappstasks."TaskNotificationConfig" ("TaskTypeID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskNotificationConfig_OverdueActionID" ON "__mj_BizAppsTasks"."TaskNotificationConfig" ("OverdueActionID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskNotificationConfig_OverdueActionID" ON __mj_bizappstasks."TaskNotificationConfig" ("OverdueActionID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskNotificationLog_TaskID" ON "__mj_BizAppsTasks"."TaskNotificationLog" ("TaskID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskNotificationLog_TaskID" ON __mj_bizappstasks."TaskNotificationLog" ("TaskID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskNotificationLog_NotifiedUserID" ON "__mj_BizAppsTasks"."TaskNotificationLog" ("NotifiedUserID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskNotificationLog_NotifiedUserID" ON __mj_bizappstasks."TaskNotificationLog" ("NotifiedUserID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskTagLink_TaskID" ON "__mj_BizAppsTasks"."TaskTagLink" ("TaskID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskTagLink_TaskID" ON __mj_bizappstasks."TaskTagLink" ("TaskID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskTagLink_TagID" ON "__mj_BizAppsTasks"."TaskTagLink" ("TagID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskTagLink_TagID" ON __mj_bizappstasks."TaskTagLink" ("TagID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskTemplateItemDependency_ItemID" ON "__mj_BizAppsTasks"."TaskTemplateItemDependency" ("ItemID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskTemplateItemDependency_ItemID" ON __mj_bizappstasks."TaskTemplateItemDependency" ("ItemID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskTemplateItemDependency_DependsOnItemID" ON "__mj_BizAppsTasks"."TaskTemplateItemDependency" ("DependsOnItemID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskTemplateItemDependency_DependsOnItemID" ON __mj_bizappstasks."TaskTemplateItemDependency" ("DependsOnItemID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskTemplateItemRole_ItemID" ON "__mj_BizAppsTasks"."TaskTemplateItemRole" ("ItemID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskTemplateItemRole_ItemID" ON __mj_bizappstasks."TaskTemplateItemRole" ("ItemID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskTemplateItemRole_RoleID" ON "__mj_BizAppsTasks"."TaskTemplateItemRole" ("RoleID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskTemplateItemRole_RoleID" ON __mj_bizappstasks."TaskTemplateItemRole" ("RoleID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskTemplateItem_TemplateID" ON "__mj_BizAppsTasks"."TaskTemplateItem" ("TemplateID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskTemplateItem_TemplateID" ON __mj_bizappstasks."TaskTemplateItem" ("TemplateID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskTemplateItem_ParentItemID" ON "__mj_BizAppsTasks"."TaskTemplateItem" ("ParentItemID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskTemplateItem_ParentItemID" ON __mj_bizappstasks."TaskTemplateItem" ("ParentItemID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskTemplate_CategoryID" ON "__mj_BizAppsTasks"."TaskTemplate" ("CategoryID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskTemplate_CategoryID" ON __mj_bizappstasks."TaskTemplate" ("CategoryID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskTemplate_TypeID" ON "__mj_BizAppsTasks"."TaskTemplate" ("TypeID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskTemplate_TypeID" ON __mj_bizappstasks."TaskTemplate" ("TypeID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskType_OnAssignActionID" ON "__mj_BizAppsTasks"."TaskType" ("OnAssignActionID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskType_OnAssignActionID" ON __mj_bizappstasks."TaskType" ("OnAssignActionID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskType_OnCompleteActionID" ON "__mj_BizAppsTasks"."TaskType" ("OnCompleteActionID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskType_OnCompleteActionID" ON __mj_bizappstasks."TaskType" ("OnCompleteActionID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskType_OnOverdueActionID" ON "__mj_BizAppsTasks"."TaskType" ("OnOverdueActionID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskType_OnOverdueActionID" ON __mj_bizappstasks."TaskType" ("OnOverdueActionID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskType_OnPercentChangeActionID" ON "__mj_BizAppsTasks"."TaskType" ("OnPercentChangeActionID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_TaskType_OnPercentChangeActionID" ON __mj_bizappstasks."TaskType" ("OnPercentChangeActionID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_Task_TypeID" ON "__mj_BizAppsTasks"."Task" ("TypeID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_Task_TypeID" ON __mj_bizappstasks."Task" ("TypeID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_Task_CategoryID" ON "__mj_BizAppsTasks"."Task" ("CategoryID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_Task_CategoryID" ON __mj_bizappstasks."Task" ("CategoryID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_Task_ParentID" ON "__mj_BizAppsTasks"."Task" ("ParentID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_Task_ParentID" ON __mj_bizappstasks."Task" ("ParentID");
 
-CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_Task_CreatedByPersonID" ON "__mj_BizAppsTasks"."Task" ("CreatedByPersonID");
+CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_Task_CreatedByPersonID" ON __mj_bizappstasks."Task" ("CreatedByPersonID");
 
 
 -- ===================== Helper Functions (fn*) =====================
 
-CREATE OR REPLACE FUNCTION "__mj_BizAppsTasks"."fnTaskCategoryParentID_GetRootID"(
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."fnTaskCategoryParentID_GetRootID"(
     p_RecordID UUID,
     p_ParentID UUID
 ) RETURNS TABLE("RootID" UUID) AS $fn$
@@ -539,7 +539,7 @@ CREATE OR REPLACE FUNCTION "__mj_BizAppsTasks"."fnTaskCategoryParentID_GetRootID
             "ParentID",
             "ID" AS root_parent_id,
             0 AS depth
-        FROM "__mj_BizAppsTasks"."TaskCategory"
+        FROM __mj_bizappstasks."TaskCategory"
         WHERE "ID" = COALESCE(p_ParentID, p_RecordID)
 
         UNION ALL
@@ -549,7 +549,7 @@ CREATE OR REPLACE FUNCTION "__mj_BizAppsTasks"."fnTaskCategoryParentID_GetRootID
             c."ParentID",
             c."ID" AS root_parent_id,
             p.depth + 1 AS depth
-        FROM "__mj_BizAppsTasks"."TaskCategory" c
+        FROM __mj_bizappstasks."TaskCategory" c
         INNER JOIN cte_root_parent p ON c."ID" = p."ParentID"
         WHERE p.depth < 100
     )
@@ -560,7 +560,7 @@ CREATE OR REPLACE FUNCTION "__mj_BizAppsTasks"."fnTaskCategoryParentID_GetRootID
     LIMIT 1;
 $fn$ LANGUAGE sql STABLE;
 
-CREATE OR REPLACE FUNCTION "__mj_BizAppsTasks"."fnTaskCommentParentID_GetRootID"(
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."fnTaskCommentParentID_GetRootID"(
     p_RecordID UUID,
     p_ParentID UUID
 ) RETURNS TABLE("RootID" UUID) AS $fn$
@@ -570,7 +570,7 @@ CREATE OR REPLACE FUNCTION "__mj_BizAppsTasks"."fnTaskCommentParentID_GetRootID"
             "ParentID",
             "ID" AS root_parent_id,
             0 AS depth
-        FROM "__mj_BizAppsTasks"."TaskComment"
+        FROM __mj_bizappstasks."TaskComment"
         WHERE "ID" = COALESCE(p_ParentID, p_RecordID)
 
         UNION ALL
@@ -580,7 +580,7 @@ CREATE OR REPLACE FUNCTION "__mj_BizAppsTasks"."fnTaskCommentParentID_GetRootID"
             c."ParentID",
             c."ID" AS root_parent_id,
             p.depth + 1 AS depth
-        FROM "__mj_BizAppsTasks"."TaskComment" c
+        FROM __mj_bizappstasks."TaskComment" c
         INNER JOIN cte_root_parent p ON c."ID" = p."ParentID"
         WHERE p.depth < 100
     )
@@ -591,7 +591,7 @@ CREATE OR REPLACE FUNCTION "__mj_BizAppsTasks"."fnTaskCommentParentID_GetRootID"
     LIMIT 1;
 $fn$ LANGUAGE sql STABLE;
 
-CREATE OR REPLACE FUNCTION "__mj_BizAppsTasks"."fnTaskTemplateItemParentItemID_GetRootID"(
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."fnTaskTemplateItemParentItemID_GetRootID"(
     p_RecordID UUID,
     p_ParentID UUID
 ) RETURNS TABLE("RootID" UUID) AS $fn$
@@ -601,7 +601,7 @@ CREATE OR REPLACE FUNCTION "__mj_BizAppsTasks"."fnTaskTemplateItemParentItemID_G
             "ParentItemID",
             "ID" AS root_parent_id,
             0 AS depth
-        FROM "__mj_BizAppsTasks"."TaskTemplateItem"
+        FROM __mj_bizappstasks."TaskTemplateItem"
         WHERE "ID" = COALESCE(p_ParentID, p_RecordID)
 
         UNION ALL
@@ -611,7 +611,7 @@ CREATE OR REPLACE FUNCTION "__mj_BizAppsTasks"."fnTaskTemplateItemParentItemID_G
             c."ParentItemID",
             c."ID" AS root_parent_id,
             p.depth + 1 AS depth
-        FROM "__mj_BizAppsTasks"."TaskTemplateItem" c
+        FROM __mj_bizappstasks."TaskTemplateItem" c
         INNER JOIN cte_root_parent p ON c."ID" = p."ParentItemID"
         WHERE p.depth < 100
     )
@@ -622,7 +622,7 @@ CREATE OR REPLACE FUNCTION "__mj_BizAppsTasks"."fnTaskTemplateItemParentItemID_G
     LIMIT 1;
 $fn$ LANGUAGE sql STABLE;
 
-CREATE OR REPLACE FUNCTION "__mj_BizAppsTasks"."fnTaskParentID_GetRootID"(
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."fnTaskParentID_GetRootID"(
     p_RecordID UUID,
     p_ParentID UUID
 ) RETURNS TABLE("RootID" UUID) AS $fn$
@@ -632,7 +632,7 @@ CREATE OR REPLACE FUNCTION "__mj_BizAppsTasks"."fnTaskParentID_GetRootID"(
             "ParentID",
             "ID" AS root_parent_id,
             0 AS depth
-        FROM "__mj_BizAppsTasks"."Task"
+        FROM __mj_bizappstasks."Task"
         WHERE "ID" = COALESCE(p_ParentID, p_RecordID)
 
         UNION ALL
@@ -642,7 +642,7 @@ CREATE OR REPLACE FUNCTION "__mj_BizAppsTasks"."fnTaskParentID_GetRootID"(
             c."ParentID",
             c."ID" AS root_parent_id,
             p.depth + 1 AS depth
-        FROM "__mj_BizAppsTasks"."Task" c
+        FROM __mj_bizappstasks."Task" c
         INNER JOIN cte_root_parent p ON c."ID" = p."ParentID"
         WHERE p.depth < 100
     )
@@ -656,23 +656,23 @@ $fn$ LANGUAGE sql STABLE;
 
 -- ===================== Views =====================
 
-DROP VIEW IF EXISTS "__mj_BizAppsTasks"."vwTaskCategories" CASCADE;
+DROP VIEW IF EXISTS __mj_bizappstasks."vwTaskCategories" CASCADE;
 DO $do$
 DECLARE
-  v_target_schema CONSTANT TEXT := '__mj_BizAppsTasks';
+  v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskCategories';
-  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW "__mj_BizAppsTasks"."vwTaskCategories"
+  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskCategories"
 AS SELECT
     t.*,
     "mjBizAppsTasksTaskCategory_ParentID"."Name" AS "Parent",
     "root_ParentID"."RootID" AS "RootParentID"
 FROM
-    "__mj_BizAppsTasks"."TaskCategory" AS t
+    __mj_bizappstasks."TaskCategory" AS t
 LEFT OUTER JOIN
-    "__mj_BizAppsTasks"."TaskCategory" AS "mjBizAppsTasksTaskCategory_ParentID"
+    __mj_bizappstasks."TaskCategory" AS "mjBizAppsTasksTaskCategory_ParentID"
   ON
     t."ParentID" = "mjBizAppsTasksTaskCategory_ParentID"."ID"
-LEFT JOIN LATERAL (SELECT * FROM "__mj_BizAppsTasks"."fnTaskCategoryParentID_GetRootID"(t."ID", t."ParentID")) AS "root_ParentID"
+LEFT JOIN LATERAL (SELECT * FROM __mj_bizappstasks."fnTaskCategoryParentID_GetRootID"(t."ID", t."ParentID")) AS "root_ParentID"
     ON TRUE$vsql$;
   v_target_oid OID;
   v_dep RECORD;
@@ -729,24 +729,24 @@ EXCEPTION WHEN invalid_table_definition THEN
 END;
 $do$;
 
-DROP VIEW IF EXISTS "__mj_BizAppsTasks"."vwTaskActivities" CASCADE;
+DROP VIEW IF EXISTS __mj_bizappstasks."vwTaskActivities" CASCADE;
 DO $do$
 DECLARE
-  v_target_schema CONSTANT TEXT := '__mj_BizAppsTasks';
+  v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskActivities';
-  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW "__mj_BizAppsTasks"."vwTaskActivities"
+  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskActivities"
 AS SELECT
     t.*,
     "mjBizAppsTasksTask_TaskID"."Name" AS "Task",
     "mjBizAppsCommonPerson_PersonID"."DisplayName" AS "Person"
 FROM
-    "__mj_BizAppsTasks"."TaskActivity" AS t
+    __mj_bizappstasks."TaskActivity" AS t
 INNER JOIN
-    "__mj_BizAppsTasks"."Task" AS "mjBizAppsTasksTask_TaskID"
+    __mj_bizappstasks."Task" AS "mjBizAppsTasksTask_TaskID"
   ON
     t."TaskID" = "mjBizAppsTasksTask_TaskID"."ID"
 LEFT OUTER JOIN
-    "${mjSchema}_BizAppsCommon"."Person" AS "mjBizAppsCommonPerson_PersonID"
+    __mj_bizappscommon."Person" AS "mjBizAppsCommonPerson_PersonID"
   ON
     t."PersonID" = "mjBizAppsCommonPerson_PersonID"."ID"$vsql$;
   v_target_oid OID;
@@ -804,28 +804,28 @@ EXCEPTION WHEN invalid_table_definition THEN
 END;
 $do$;
 
-DROP VIEW IF EXISTS "__mj_BizAppsTasks"."vwTaskComments" CASCADE;
+DROP VIEW IF EXISTS __mj_bizappstasks."vwTaskComments" CASCADE;
 DO $do$
 DECLARE
-  v_target_schema CONSTANT TEXT := '__mj_BizAppsTasks';
+  v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskComments';
-  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW "__mj_BizAppsTasks"."vwTaskComments"
+  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskComments"
 AS SELECT
     t.*,
     "mjBizAppsTasksTask_TaskID"."Name" AS "Task",
     "mjBizAppsCommonPerson_PersonID"."DisplayName" AS "Person",
     "root_ParentID"."RootID" AS "RootParentID"
 FROM
-    "__mj_BizAppsTasks"."TaskComment" AS t
+    __mj_bizappstasks."TaskComment" AS t
 INNER JOIN
-    "__mj_BizAppsTasks"."Task" AS "mjBizAppsTasksTask_TaskID"
+    __mj_bizappstasks."Task" AS "mjBizAppsTasksTask_TaskID"
   ON
     t."TaskID" = "mjBizAppsTasksTask_TaskID"."ID"
 INNER JOIN
-    "${mjSchema}_BizAppsCommon"."Person" AS "mjBizAppsCommonPerson_PersonID"
+    __mj_bizappscommon."Person" AS "mjBizAppsCommonPerson_PersonID"
   ON
     t."PersonID" = "mjBizAppsCommonPerson_PersonID"."ID"
-LEFT JOIN LATERAL (SELECT * FROM "__mj_BizAppsTasks"."fnTaskCommentParentID_GetRootID"(t."ID", t."ParentID")) AS "root_ParentID"
+LEFT JOIN LATERAL (SELECT * FROM __mj_bizappstasks."fnTaskCommentParentID_GetRootID"(t."ID", t."ParentID")) AS "root_ParentID"
     ON TRUE$vsql$;
   v_target_oid OID;
   v_dep RECORD;
@@ -882,24 +882,24 @@ EXCEPTION WHEN invalid_table_definition THEN
 END;
 $do$;
 
-DROP VIEW IF EXISTS "__mj_BizAppsTasks"."vwTaskDependencies" CASCADE;
+DROP VIEW IF EXISTS __mj_bizappstasks."vwTaskDependencies" CASCADE;
 DO $do$
 DECLARE
-  v_target_schema CONSTANT TEXT := '__mj_BizAppsTasks';
+  v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskDependencies';
-  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW "__mj_BizAppsTasks"."vwTaskDependencies"
+  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskDependencies"
 AS SELECT
     t.*,
     "mjBizAppsTasksTask_TaskID"."Name" AS "Task",
     "mjBizAppsTasksTask_DependsOnTaskID"."Name" AS "DependsOnTask"
 FROM
-    "__mj_BizAppsTasks"."TaskDependency" AS t
+    __mj_bizappstasks."TaskDependency" AS t
 INNER JOIN
-    "__mj_BizAppsTasks"."Task" AS "mjBizAppsTasksTask_TaskID"
+    __mj_bizappstasks."Task" AS "mjBizAppsTasksTask_TaskID"
   ON
     t."TaskID" = "mjBizAppsTasksTask_TaskID"."ID"
 INNER JOIN
-    "__mj_BizAppsTasks"."Task" AS "mjBizAppsTasksTask_DependsOnTaskID"
+    __mj_bizappstasks."Task" AS "mjBizAppsTasksTask_DependsOnTaskID"
   ON
     t."DependsOnTaskID" = "mjBizAppsTasksTask_DependsOnTaskID"."ID"$vsql$;
   v_target_oid OID;
@@ -957,12 +957,12 @@ EXCEPTION WHEN invalid_table_definition THEN
 END;
 $do$;
 
-DROP VIEW IF EXISTS "__mj_BizAppsTasks"."vwTaskAssignments" CASCADE;
+DROP VIEW IF EXISTS __mj_bizappstasks."vwTaskAssignments" CASCADE;
 DO $do$
 DECLARE
-  v_target_schema CONSTANT TEXT := '__mj_BizAppsTasks';
+  v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskAssignments';
-  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW "__mj_BizAppsTasks"."vwTaskAssignments"
+  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskAssignments"
 AS SELECT
     t.*,
     "mjBizAppsTasksTask_TaskID"."Name" AS "Task",
@@ -970,9 +970,9 @@ AS SELECT
     "mjBizAppsTasksTaskRole_RoleID"."Name" AS "Role",
     "mjBizAppsCommonPerson_AssignedByPersonID"."DisplayName" AS "AssignedByPerson"
 FROM
-    "__mj_BizAppsTasks"."TaskAssignment" AS t
+    __mj_bizappstasks."TaskAssignment" AS t
 INNER JOIN
-    "__mj_BizAppsTasks"."Task" AS "mjBizAppsTasksTask_TaskID"
+    __mj_bizappstasks."Task" AS "mjBizAppsTasksTask_TaskID"
   ON
     t."TaskID" = "mjBizAppsTasksTask_TaskID"."ID"
 INNER JOIN
@@ -980,11 +980,11 @@ INNER JOIN
   ON
     t."AssigneeEntityID" = "MJEntity_AssigneeEntityID"."ID"
 LEFT OUTER JOIN
-    "__mj_BizAppsTasks"."TaskRole" AS "mjBizAppsTasksTaskRole_RoleID"
+    __mj_bizappstasks."TaskRole" AS "mjBizAppsTasksTaskRole_RoleID"
   ON
     t."RoleID" = "mjBizAppsTasksTaskRole_RoleID"."ID"
 LEFT OUTER JOIN
-    "${mjSchema}_BizAppsCommon"."Person" AS "mjBizAppsCommonPerson_AssignedByPersonID"
+    __mj_bizappscommon."Person" AS "mjBizAppsCommonPerson_AssignedByPersonID"
   ON
     t."AssignedByPersonID" = "mjBizAppsCommonPerson_AssignedByPersonID"."ID"$vsql$;
   v_target_oid OID;
@@ -1042,16 +1042,16 @@ EXCEPTION WHEN invalid_table_definition THEN
 END;
 $do$;
 
-DROP VIEW IF EXISTS "__mj_BizAppsTasks"."vwTaskRoles" CASCADE;
+DROP VIEW IF EXISTS __mj_bizappstasks."vwTaskRoles" CASCADE;
 DO $do$
 DECLARE
-  v_target_schema CONSTANT TEXT := '__mj_BizAppsTasks';
+  v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskRoles';
-  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW "__mj_BizAppsTasks"."vwTaskRoles"
+  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskRoles"
 AS SELECT
     t.*
 FROM
-    "__mj_BizAppsTasks"."TaskRole" AS t$vsql$;
+    __mj_bizappstasks."TaskRole" AS t$vsql$;
   v_target_oid OID;
   v_dep RECORD;
   v_captured JSONB[] := ARRAY[]::JSONB[];
@@ -1107,20 +1107,20 @@ EXCEPTION WHEN invalid_table_definition THEN
 END;
 $do$;
 
-DROP VIEW IF EXISTS "__mj_BizAppsTasks"."vwTaskNotificationConfigs" CASCADE;
+DROP VIEW IF EXISTS __mj_bizappstasks."vwTaskNotificationConfigs" CASCADE;
 DO $do$
 DECLARE
-  v_target_schema CONSTANT TEXT := '__mj_BizAppsTasks';
+  v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskNotificationConfigs';
-  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW "__mj_BizAppsTasks"."vwTaskNotificationConfigs"
+  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskNotificationConfigs"
 AS SELECT
     t.*,
     "mjBizAppsTasksTaskType_TaskTypeID"."Name" AS "TaskType",
     "MJAction_OverdueActionID"."Name" AS "OverdueAction"
 FROM
-    "__mj_BizAppsTasks"."TaskNotificationConfig" AS t
+    __mj_bizappstasks."TaskNotificationConfig" AS t
 LEFT OUTER JOIN
-    "__mj_BizAppsTasks"."TaskType" AS "mjBizAppsTasksTaskType_TaskTypeID"
+    __mj_bizappstasks."TaskType" AS "mjBizAppsTasksTaskType_TaskTypeID"
   ON
     t."TaskTypeID" = "mjBizAppsTasksTaskType_TaskTypeID"."ID"
 LEFT OUTER JOIN
@@ -1182,20 +1182,20 @@ EXCEPTION WHEN invalid_table_definition THEN
 END;
 $do$;
 
-DROP VIEW IF EXISTS "__mj_BizAppsTasks"."vwTaskNotificationLogs" CASCADE;
+DROP VIEW IF EXISTS __mj_bizappstasks."vwTaskNotificationLogs" CASCADE;
 DO $do$
 DECLARE
-  v_target_schema CONSTANT TEXT := '__mj_BizAppsTasks';
+  v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskNotificationLogs';
-  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW "__mj_BizAppsTasks"."vwTaskNotificationLogs"
+  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskNotificationLogs"
 AS SELECT
     t.*,
     "mjBizAppsTasksTask_TaskID"."Name" AS "Task",
     "MJUser_NotifiedUserID"."Name" AS "NotifiedUser"
 FROM
-    "__mj_BizAppsTasks"."TaskNotificationLog" AS t
+    __mj_bizappstasks."TaskNotificationLog" AS t
 INNER JOIN
-    "__mj_BizAppsTasks"."Task" AS "mjBizAppsTasksTask_TaskID"
+    __mj_bizappstasks."Task" AS "mjBizAppsTasksTask_TaskID"
   ON
     t."TaskID" = "mjBizAppsTasksTask_TaskID"."ID"
 INNER JOIN
@@ -1257,24 +1257,24 @@ EXCEPTION WHEN invalid_table_definition THEN
 END;
 $do$;
 
-DROP VIEW IF EXISTS "__mj_BizAppsTasks"."vwTaskTagLinks" CASCADE;
+DROP VIEW IF EXISTS __mj_bizappstasks."vwTaskTagLinks" CASCADE;
 DO $do$
 DECLARE
-  v_target_schema CONSTANT TEXT := '__mj_BizAppsTasks';
+  v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskTagLinks';
-  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW "__mj_BizAppsTasks"."vwTaskTagLinks"
+  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskTagLinks"
 AS SELECT
     t.*,
     "mjBizAppsTasksTask_TaskID"."Name" AS "Task",
     "mjBizAppsTasksTaskTag_TagID"."Name" AS "Tag"
 FROM
-    "__mj_BizAppsTasks"."TaskTagLink" AS t
+    __mj_bizappstasks."TaskTagLink" AS t
 INNER JOIN
-    "__mj_BizAppsTasks"."Task" AS "mjBizAppsTasksTask_TaskID"
+    __mj_bizappstasks."Task" AS "mjBizAppsTasksTask_TaskID"
   ON
     t."TaskID" = "mjBizAppsTasksTask_TaskID"."ID"
 INNER JOIN
-    "__mj_BizAppsTasks"."TaskTag" AS "mjBizAppsTasksTaskTag_TagID"
+    __mj_bizappstasks."TaskTag" AS "mjBizAppsTasksTaskTag_TagID"
   ON
     t."TagID" = "mjBizAppsTasksTaskTag_TagID"."ID"$vsql$;
   v_target_oid OID;
@@ -1332,20 +1332,20 @@ EXCEPTION WHEN invalid_table_definition THEN
 END;
 $do$;
 
-DROP VIEW IF EXISTS "__mj_BizAppsTasks"."vwTaskLinks" CASCADE;
+DROP VIEW IF EXISTS __mj_bizappstasks."vwTaskLinks" CASCADE;
 DO $do$
 DECLARE
-  v_target_schema CONSTANT TEXT := '__mj_BizAppsTasks';
+  v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskLinks';
-  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW "__mj_BizAppsTasks"."vwTaskLinks"
+  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskLinks"
 AS SELECT
     t.*,
     "mjBizAppsTasksTask_TaskID"."Name" AS "Task",
     "MJEntity_EntityID"."Name" AS "Entity"
 FROM
-    "__mj_BizAppsTasks"."TaskLink" AS t
+    __mj_bizappstasks."TaskLink" AS t
 INNER JOIN
-    "__mj_BizAppsTasks"."Task" AS "mjBizAppsTasksTask_TaskID"
+    __mj_bizappstasks."Task" AS "mjBizAppsTasksTask_TaskID"
   ON
     t."TaskID" = "mjBizAppsTasksTask_TaskID"."ID"
 INNER JOIN
@@ -1407,16 +1407,16 @@ EXCEPTION WHEN invalid_table_definition THEN
 END;
 $do$;
 
-DROP VIEW IF EXISTS "__mj_BizAppsTasks"."vwTaskTags" CASCADE;
+DROP VIEW IF EXISTS __mj_bizappstasks."vwTaskTags" CASCADE;
 DO $do$
 DECLARE
-  v_target_schema CONSTANT TEXT := '__mj_BizAppsTasks';
+  v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskTags';
-  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW "__mj_BizAppsTasks"."vwTaskTags"
+  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskTags"
 AS SELECT
     t.*
 FROM
-    "__mj_BizAppsTasks"."TaskTag" AS t$vsql$;
+    __mj_bizappstasks."TaskTag" AS t$vsql$;
   v_target_oid OID;
   v_dep RECORD;
   v_captured JSONB[] := ARRAY[]::JSONB[];
@@ -1472,28 +1472,28 @@ EXCEPTION WHEN invalid_table_definition THEN
 END;
 $do$;
 
-DROP VIEW IF EXISTS "__mj_BizAppsTasks"."vwTaskTemplateItems" CASCADE;
+DROP VIEW IF EXISTS __mj_bizappstasks."vwTaskTemplateItems" CASCADE;
 DO $do$
 DECLARE
-  v_target_schema CONSTANT TEXT := '__mj_BizAppsTasks';
+  v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskTemplateItems';
-  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW "__mj_BizAppsTasks"."vwTaskTemplateItems"
+  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskTemplateItems"
 AS SELECT
     t.*,
     "mjBizAppsTasksTaskTemplate_TemplateID"."Name" AS "Template",
     "mjBizAppsTasksTaskTemplateItem_ParentItemID"."Name" AS "ParentItem",
     "root_ParentItemID"."RootID" AS "RootParentItemID"
 FROM
-    "__mj_BizAppsTasks"."TaskTemplateItem" AS t
+    __mj_bizappstasks."TaskTemplateItem" AS t
 INNER JOIN
-    "__mj_BizAppsTasks"."TaskTemplate" AS "mjBizAppsTasksTaskTemplate_TemplateID"
+    __mj_bizappstasks."TaskTemplate" AS "mjBizAppsTasksTaskTemplate_TemplateID"
   ON
     t."TemplateID" = "mjBizAppsTasksTaskTemplate_TemplateID"."ID"
 LEFT OUTER JOIN
-    "__mj_BizAppsTasks"."TaskTemplateItem" AS "mjBizAppsTasksTaskTemplateItem_ParentItemID"
+    __mj_bizappstasks."TaskTemplateItem" AS "mjBizAppsTasksTaskTemplateItem_ParentItemID"
   ON
     t."ParentItemID" = "mjBizAppsTasksTaskTemplateItem_ParentItemID"."ID"
-LEFT JOIN LATERAL (SELECT * FROM "__mj_BizAppsTasks"."fnTaskTemplateItemParentItemID_GetRootID"(t."ID", t."ParentItemID")) AS "root_ParentItemID"
+LEFT JOIN LATERAL (SELECT * FROM __mj_bizappstasks."fnTaskTemplateItemParentItemID_GetRootID"(t."ID", t."ParentItemID")) AS "root_ParentItemID"
     ON TRUE$vsql$;
   v_target_oid OID;
   v_dep RECORD;
@@ -1550,24 +1550,24 @@ EXCEPTION WHEN invalid_table_definition THEN
 END;
 $do$;
 
-DROP VIEW IF EXISTS "__mj_BizAppsTasks"."vwTaskTemplateItemDependencies" CASCADE;
+DROP VIEW IF EXISTS __mj_bizappstasks."vwTaskTemplateItemDependencies" CASCADE;
 DO $do$
 DECLARE
-  v_target_schema CONSTANT TEXT := '__mj_BizAppsTasks';
+  v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskTemplateItemDependencies';
-  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW "__mj_BizAppsTasks"."vwTaskTemplateItemDependencies"
+  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskTemplateItemDependencies"
 AS SELECT
     t.*,
     "mjBizAppsTasksTaskTemplateItem_ItemID"."Name" AS "Item",
     "mjBizAppsTasksTaskTemplateItem_DependsOnItemID"."Name" AS "DependsOnItem"
 FROM
-    "__mj_BizAppsTasks"."TaskTemplateItemDependency" AS t
+    __mj_bizappstasks."TaskTemplateItemDependency" AS t
 INNER JOIN
-    "__mj_BizAppsTasks"."TaskTemplateItem" AS "mjBizAppsTasksTaskTemplateItem_ItemID"
+    __mj_bizappstasks."TaskTemplateItem" AS "mjBizAppsTasksTaskTemplateItem_ItemID"
   ON
     t."ItemID" = "mjBizAppsTasksTaskTemplateItem_ItemID"."ID"
 INNER JOIN
-    "__mj_BizAppsTasks"."TaskTemplateItem" AS "mjBizAppsTasksTaskTemplateItem_DependsOnItemID"
+    __mj_bizappstasks."TaskTemplateItem" AS "mjBizAppsTasksTaskTemplateItem_DependsOnItemID"
   ON
     t."DependsOnItemID" = "mjBizAppsTasksTaskTemplateItem_DependsOnItemID"."ID"$vsql$;
   v_target_oid OID;
@@ -1625,24 +1625,24 @@ EXCEPTION WHEN invalid_table_definition THEN
 END;
 $do$;
 
-DROP VIEW IF EXISTS "__mj_BizAppsTasks"."vwTaskTemplates" CASCADE;
+DROP VIEW IF EXISTS __mj_bizappstasks."vwTaskTemplates" CASCADE;
 DO $do$
 DECLARE
-  v_target_schema CONSTANT TEXT := '__mj_BizAppsTasks';
+  v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskTemplates';
-  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW "__mj_BizAppsTasks"."vwTaskTemplates"
+  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskTemplates"
 AS SELECT
     t.*,
     "mjBizAppsTasksTaskCategory_CategoryID"."Name" AS "Category",
     "mjBizAppsTasksTaskType_TypeID"."Name" AS "Type"
 FROM
-    "__mj_BizAppsTasks"."TaskTemplate" AS t
+    __mj_bizappstasks."TaskTemplate" AS t
 LEFT OUTER JOIN
-    "__mj_BizAppsTasks"."TaskCategory" AS "mjBizAppsTasksTaskCategory_CategoryID"
+    __mj_bizappstasks."TaskCategory" AS "mjBizAppsTasksTaskCategory_CategoryID"
   ON
     t."CategoryID" = "mjBizAppsTasksTaskCategory_CategoryID"."ID"
 LEFT OUTER JOIN
-    "__mj_BizAppsTasks"."TaskType" AS "mjBizAppsTasksTaskType_TypeID"
+    __mj_bizappstasks."TaskType" AS "mjBizAppsTasksTaskType_TypeID"
   ON
     t."TypeID" = "mjBizAppsTasksTaskType_TypeID"."ID"$vsql$;
   v_target_oid OID;
@@ -1700,24 +1700,24 @@ EXCEPTION WHEN invalid_table_definition THEN
 END;
 $do$;
 
-DROP VIEW IF EXISTS "__mj_BizAppsTasks"."vwTaskTemplateItemRoles" CASCADE;
+DROP VIEW IF EXISTS __mj_bizappstasks."vwTaskTemplateItemRoles" CASCADE;
 DO $do$
 DECLARE
-  v_target_schema CONSTANT TEXT := '__mj_BizAppsTasks';
+  v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskTemplateItemRoles';
-  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW "__mj_BizAppsTasks"."vwTaskTemplateItemRoles"
+  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskTemplateItemRoles"
 AS SELECT
     t.*,
     "mjBizAppsTasksTaskTemplateItem_ItemID"."Name" AS "Item",
     "mjBizAppsTasksTaskRole_RoleID"."Name" AS "Role"
 FROM
-    "__mj_BizAppsTasks"."TaskTemplateItemRole" AS t
+    __mj_bizappstasks."TaskTemplateItemRole" AS t
 INNER JOIN
-    "__mj_BizAppsTasks"."TaskTemplateItem" AS "mjBizAppsTasksTaskTemplateItem_ItemID"
+    __mj_bizappstasks."TaskTemplateItem" AS "mjBizAppsTasksTaskTemplateItem_ItemID"
   ON
     t."ItemID" = "mjBizAppsTasksTaskTemplateItem_ItemID"."ID"
 INNER JOIN
-    "__mj_BizAppsTasks"."TaskRole" AS "mjBizAppsTasksTaskRole_RoleID"
+    __mj_bizappstasks."TaskRole" AS "mjBizAppsTasksTaskRole_RoleID"
   ON
     t."RoleID" = "mjBizAppsTasksTaskRole_RoleID"."ID"$vsql$;
   v_target_oid OID;
@@ -1775,12 +1775,12 @@ EXCEPTION WHEN invalid_table_definition THEN
 END;
 $do$;
 
-DROP VIEW IF EXISTS "__mj_BizAppsTasks"."vwTasks" CASCADE;
+DROP VIEW IF EXISTS __mj_bizappstasks."vwTasks" CASCADE;
 DO $do$
 DECLARE
-  v_target_schema CONSTANT TEXT := '__mj_BizAppsTasks';
+  v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTasks';
-  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW "__mj_BizAppsTasks"."vwTasks"
+  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTasks"
 AS SELECT
     t.*,
     "mjBizAppsTasksTaskType_TypeID"."Name" AS "Type",
@@ -1789,24 +1789,24 @@ AS SELECT
     "mjBizAppsCommonPerson_CreatedByPersonID"."DisplayName" AS "CreatedByPerson",
     "root_ParentID"."RootID" AS "RootParentID"
 FROM
-    "__mj_BizAppsTasks"."Task" AS t
+    __mj_bizappstasks."Task" AS t
 INNER JOIN
-    "__mj_BizAppsTasks"."TaskType" AS "mjBizAppsTasksTaskType_TypeID"
+    __mj_bizappstasks."TaskType" AS "mjBizAppsTasksTaskType_TypeID"
   ON
     t."TypeID" = "mjBizAppsTasksTaskType_TypeID"."ID"
 LEFT OUTER JOIN
-    "__mj_BizAppsTasks"."TaskCategory" AS "mjBizAppsTasksTaskCategory_CategoryID"
+    __mj_bizappstasks."TaskCategory" AS "mjBizAppsTasksTaskCategory_CategoryID"
   ON
     t."CategoryID" = "mjBizAppsTasksTaskCategory_CategoryID"."ID"
 LEFT OUTER JOIN
-    "__mj_BizAppsTasks"."Task" AS "mjBizAppsTasksTask_ParentID"
+    __mj_bizappstasks."Task" AS "mjBizAppsTasksTask_ParentID"
   ON
     t."ParentID" = "mjBizAppsTasksTask_ParentID"."ID"
 LEFT OUTER JOIN
-    "${mjSchema}_BizAppsCommon"."Person" AS "mjBizAppsCommonPerson_CreatedByPersonID"
+    __mj_bizappscommon."Person" AS "mjBizAppsCommonPerson_CreatedByPersonID"
   ON
     t."CreatedByPersonID" = "mjBizAppsCommonPerson_CreatedByPersonID"."ID"
-LEFT JOIN LATERAL (SELECT * FROM "__mj_BizAppsTasks"."fnTaskParentID_GetRootID"(t."ID", t."ParentID")) AS "root_ParentID"
+LEFT JOIN LATERAL (SELECT * FROM __mj_bizappstasks."fnTaskParentID_GetRootID"(t."ID", t."ParentID")) AS "root_ParentID"
     ON TRUE$vsql$;
   v_target_oid OID;
   v_dep RECORD;
@@ -1863,12 +1863,12 @@ EXCEPTION WHEN invalid_table_definition THEN
 END;
 $do$;
 
-DROP VIEW IF EXISTS "__mj_BizAppsTasks"."vwTaskTypes" CASCADE;
+DROP VIEW IF EXISTS __mj_bizappstasks."vwTaskTypes" CASCADE;
 DO $do$
 DECLARE
-  v_target_schema CONSTANT TEXT := '__mj_BizAppsTasks';
+  v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskTypes';
-  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW "__mj_BizAppsTasks"."vwTaskTypes"
+  vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskTypes"
 AS SELECT
     t.*,
     "MJAction_OnAssignActionID"."Name" AS "OnAssignAction",
@@ -1876,7 +1876,7 @@ AS SELECT
     "MJAction_OnOverdueActionID"."Name" AS "OnOverdueAction",
     "MJAction_OnPercentChangeActionID"."Name" AS "OnPercentChangeAction"
 FROM
-    "__mj_BizAppsTasks"."TaskType" AS t
+    __mj_bizappstasks."TaskType" AS t
 LEFT OUTER JOIN
     "${mjSchema}"."Action" AS "MJAction_OnAssignActionID"
   ON
@@ -1952,7 +1952,7 @@ $do$;
 -- ===================== Stored Procedures (sp*) =====================
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spCreateTaskCategory"
+-- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskCategory"
 --     @ID UUID = NULL,
 --     @Name VARCHAR(255),
 --     @Description_Clear bit = 0,
@@ -1960,7 +1960,7 @@ $do$;
 --     @Parent...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spUpdateTaskCategory"
+-- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskCategory"
 --     @ID UUID,
 --     @Name VARCHAR(255) = NULL,
 --     @Description_Clear bit = 0,
@@ -1968,19 +1968,19 @@ $do$;
 --     @Parent...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spDeleteTaskCategory"
+-- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskCategory"
 --     @ID UUID
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 -- 
 --     DELETE FROM
---         "__mj_BizAppsTasks"."TaskCategory"
+--         __mj_bizappstasks."TaskCategory"
 --     WHERE
 --         "ID" = @...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spCreateTaskActivity"
+-- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskActivity"
 --     @ID UUID = NULL,
 --     @TaskID UUID,
 --     @PersonID_Clear bit = 0,
@@ -1988,7 +1988,7 @@ $do$;
 --     @Acti...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spUpdateTaskActivity"
+-- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskActivity"
 --     @ID UUID,
 --     @TaskID UUID = NULL,
 --     @PersonID_Clear bit = 0,
@@ -1996,19 +1996,19 @@ $do$;
 --     @Acti...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spDeleteTaskActivity"
+-- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskActivity"
 --     @ID UUID
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 -- 
 --     DELETE FROM
---         "__mj_BizAppsTasks"."TaskActivity"
+--         __mj_bizappstasks."TaskActivity"
 --     WHERE
 --         "ID" = @...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spCreateTaskComment"
+-- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskComment"
 --     @ID UUID = NULL,
 --     @TaskID UUID,
 --     @ParentID_Clear bit = 0,
@@ -2016,7 +2016,7 @@ $do$;
 --     @Perso...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spUpdateTaskComment"
+-- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskComment"
 --     @ID UUID,
 --     @TaskID UUID = NULL,
 --     @ParentID_Clear bit = 0,
@@ -2024,71 +2024,71 @@ $do$;
 --     @Perso...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spDeleteTaskComment"
+-- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskComment"
 --     @ID UUID
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 -- 
 --     DELETE FROM
---         "__mj_BizAppsTasks"."TaskComment"
+--         __mj_bizappstasks."TaskComment"
 --     WHERE
 --         "ID" = @ID...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spCreateTaskDependency"
+-- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskDependency"
 --     @ID UUID = NULL,
 --     @TaskID UUID,
 --     @DependsOnTaskID UUID,
 --     @DependencyType VARCHAR(50) = N...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spUpdateTaskDependency"
+-- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskDependency"
 --     @ID UUID,
 --     @TaskID UUID = NULL,
 --     @DependsOnTaskID UUID = NULL,
 --     @DependencyType TEXT(...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spDeleteTaskDependency"
+-- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskDependency"
 --     @ID UUID
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 -- 
 --     DELETE FROM
---         "__mj_BizAppsTasks"."TaskDependency"
+--         __mj_bizappstasks."TaskDependency"
 --     WHERE
 --         "ID"...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spCreateTaskAssignment"
+-- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskAssignment"
 --     @ID UUID = NULL,
 --     @TaskID UUID,
 --     @AssigneeEntityID UUID,
 --     @AssigneeRecordID VARCHAR(450)...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spUpdateTaskAssignment"
+-- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskAssignment"
 --     @ID UUID,
 --     @TaskID UUID = NULL,
 --     @AssigneeEntityID UUID = NULL,
 --     @AssigneeRecordID nvarch...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spDeleteTaskAssignment"
+-- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskAssignment"
 --     @ID UUID
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 -- 
 --     DELETE FROM
---         "__mj_BizAppsTasks"."TaskAssignment"
+--         __mj_bizappstasks."TaskAssignment"
 --     WHERE
 --         "ID"...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spCreateTaskRole"
+-- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskRole"
 --     @ID UUID = NULL,
 --     @Name VARCHAR(100),
 --     @Description_Clear bit = 0,
@@ -2096,7 +2096,7 @@ $do$;
 --     @Sequence i...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spUpdateTaskRole"
+-- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskRole"
 --     @ID UUID,
 --     @Name VARCHAR(100) = NULL,
 --     @Description_Clear bit = 0,
@@ -2104,14 +2104,14 @@ $do$;
 --     @Sequence i...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spDeleteTaskRole"
+-- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskRole"
 --     @ID UUID
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 -- 
 --     DELETE FROM
---         "__mj_BizAppsTasks"."TaskRole"
+--         __mj_bizappstasks."TaskRole"
 --     WHERE
 --         "ID" = @ID
 -- 
@@ -2119,58 +2119,58 @@ $do$;
 --    ...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spCreateTaskNotificationConfig"
+-- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskNotificationConfig"
 --     @ID UUID = NULL,
 --     @TaskTypeID_Clear bit = 0,
 --     @TaskTypeID UUID = NULL,
 --     @OverdueNotifications...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spUpdateTaskNotificationConfig"
+-- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskNotificationConfig"
 --     @ID UUID,
 --     @TaskTypeID_Clear bit = 0,
 --     @TaskTypeID UUID = NULL,
 --     @OverdueNotificationsEnabled...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spDeleteTaskNotificationConfig"
+-- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskNotificationConfig"
 --     @ID UUID
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 -- 
 --     DELETE FROM
---         "__mj_BizAppsTasks"."TaskNotificationConfig"
+--         __mj_bizappstasks."TaskNotificationConfig"
 --     WH...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spCreateTaskNotificationLog"
+-- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskNotificationLog"
 --     @ID UUID = NULL,
 --     @TaskID UUID,
 --     @NotificationType VARCHAR(50),
 --     @NotifiedUserID uniqueidentifi...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spUpdateTaskNotificationLog"
+-- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskNotificationLog"
 --     @ID UUID,
 --     @TaskID UUID = NULL,
 --     @NotificationType VARCHAR(50) = NULL,
 --     @NotifiedUserID uniquei...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spDeleteTaskNotificationLog"
+-- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskNotificationLog"
 --     @ID UUID
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 -- 
 --     DELETE FROM
---         "__mj_BizAppsTasks"."TaskNotificationLog"
+--         __mj_bizappstasks."TaskNotificationLog"
 --     WHERE
 --   ...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spCreateTaskTagLink"
+-- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskTagLink"
 --     @ID UUID = NULL,
 --     @TaskID UUID,
 --     @TagID UUID
@@ -2180,7 +2180,7 @@ $do$;
 --     DECLARE @Inserted...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spUpdateTaskTagLink"
+-- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskTagLink"
 --     @ID UUID,
 --     @TaskID UUID = NULL,
 --     @TagID UUID = NULL
@@ -2191,19 +2191,19 @@ $do$;
 --    ...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spDeleteTaskTagLink"
+-- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskTagLink"
 --     @ID UUID
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 -- 
 --     DELETE FROM
---         "__mj_BizAppsTasks"."TaskTagLink"
+--         __mj_bizappstasks."TaskTagLink"
 --     WHERE
 --         "ID" = @ID...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spCreateTaskLink"
+-- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskLink"
 --     @ID UUID = NULL,
 --     @TaskID UUID,
 --     @EntityID UUID,
@@ -2211,7 +2211,7 @@ $do$;
 --     @Description_Cle...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spUpdateTaskLink"
+-- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskLink"
 --     @ID UUID,
 --     @TaskID UUID = NULL,
 --     @EntityID UUID = NULL,
@@ -2219,14 +2219,14 @@ $do$;
 --     @D...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spDeleteTaskLink"
+-- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskLink"
 --     @ID UUID
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 -- 
 --     DELETE FROM
---         "__mj_BizAppsTasks"."TaskLink"
+--         __mj_bizappstasks."TaskLink"
 --     WHERE
 --         "ID" = @ID
 -- 
@@ -2234,7 +2234,7 @@ $do$;
 --    ...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spCreateTaskTag"
+-- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskTag"
 --     @ID UUID = NULL,
 --     @Name VARCHAR(100),
 --     @ColorCode_Clear bit = 0,
@@ -2242,7 +2242,7 @@ $do$;
 --     @Description_Clea...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spUpdateTaskTag"
+-- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskTag"
 --     @ID UUID,
 --     @Name VARCHAR(100) = NULL,
 --     @ColorCode_Clear bit = 0,
@@ -2250,14 +2250,14 @@ $do$;
 --     @Description_Clea...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spDeleteTaskTag"
+-- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskTag"
 --     @ID UUID
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 -- 
 --     DELETE FROM
---         "__mj_BizAppsTasks"."TaskTag"
+--         __mj_bizappstasks."TaskTag"
 --     WHERE
 --         "ID" = @ID
 -- 
@@ -2265,7 +2265,7 @@ $do$;
 --     -...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spCreateTaskTemplateItem"
+-- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskTemplateItem"
 --     @ID UUID = NULL,
 --     @TemplateID UUID,
 --     @Name VARCHAR(255),
@@ -2273,7 +2273,7 @@ $do$;
 --     @Descrip...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spUpdateTaskTemplateItem"
+-- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskTemplateItem"
 --     @ID UUID,
 --     @TemplateID UUID = NULL,
 --     @Name VARCHAR(255) = NULL,
@@ -2281,43 +2281,43 @@ $do$;
 --     @...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spDeleteTaskTemplateItem"
+-- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskTemplateItem"
 --     @ID UUID
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 -- 
 --     DELETE FROM
---         "__mj_BizAppsTasks"."TaskTemplateItem"
+--         __mj_bizappstasks."TaskTemplateItem"
 --     WHERE
 --         ...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spCreateTaskTemplateItemDependency"
+-- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskTemplateItemDependency"
 --     @ID UUID = NULL,
 --     @ItemID UUID,
 --     @DependsOnItemID UUID,
 --     @DependencyType nvar...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spUpdateTaskTemplateItemDependency"
+-- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskTemplateItemDependency"
 --     @ID UUID,
 --     @ItemID UUID = NULL,
 --     @DependsOnItemID UUID = NULL,
 --     @DependencyTy...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spDeleteTaskTemplateItemDependency"
+-- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskTemplateItemDependency"
 --     @ID UUID
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 -- 
 --     DELETE FROM
---         "__mj_BizAppsTasks"."TaskTemplateItemDependency...
+--         __mj_bizappstasks."TaskTemplateItemDependency...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE [__mj_BizAppsTasks"."spCreateTaskTemplate"
+-- CREATE PROCEDURE [__mj_bizappstasks"."spCreateTaskTemplate"
 --     @ID UUID = NULL,
 --     @Name VARCHAR(255),
 --     @Description_Clear bit = 0,
@@ -2325,7 +2325,7 @@ $do$;
 --     @Catego...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spUpdateTaskTemplate"
+-- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskTemplate"
 --     @ID UUID,
 --     @Name VARCHAR(255) = NULL,
 --     @Description_Clear bit = 0,
@@ -2333,19 +2333,19 @@ $do$;
 --     @Catego...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spDeleteTaskTemplate"
+-- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskTemplate"
 --     @ID UUID
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 -- 
 --     DELETE FROM
---         "__mj_BizAppsTasks"."TaskTemplate"
+--         __mj_bizappstasks."TaskTemplate"
 --     WHERE
 --         "ID" = @...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spCreateTaskTemplateItemRole"
+-- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskTemplateItemRole"
 --     @ID UUID = NULL,
 --     @ItemID UUID,
 --     @RoleID UUID
@@ -2355,7 +2355,7 @@ $do$;
 --     DECLARE...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spUpdateTaskTemplateItemRole"
+-- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskTemplateItemRole"
 --     @ID UUID,
 --     @ItemID UUID = NULL,
 --     @RoleID UUID = NULL
@@ -2365,19 +2365,19 @@ $do$;
 --     ...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spDeleteTaskTemplateItemRole"
+-- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskTemplateItemRole"
 --     @ID UUID
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 -- 
 --     DELETE FROM
---         "__mj_BizAppsTasks"."TaskTemplateItemRole"
+--         __mj_bizappstasks."TaskTemplateItemRole"
 --     WHERE
 -- ...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spCreateTask"
+-- CREATE PROCEDURE __mj_bizappstasks."spCreateTask"
 --     @ID UUID = NULL,
 --     @Name VARCHAR(255),
 --     @Description_Clear bit = 0,
@@ -2385,7 +2385,7 @@ $do$;
 --     @TypeID uniquei...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spUpdateTask"
+-- CREATE PROCEDURE __mj_bizappstasks."spUpdateTask"
 --     @ID UUID,
 --     @Name VARCHAR(255) = NULL,
 --     @Description_Clear bit = 0,
@@ -2393,14 +2393,14 @@ $do$;
 --     @TypeID uniquei...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spDeleteTask"
+-- CREATE PROCEDURE __mj_bizappstasks."spDeleteTask"
 --     @ID UUID
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 -- 
 --     DELETE FROM
---         "__mj_BizAppsTasks"."Task"
+--         __mj_bizappstasks."Task"
 --     WHERE
 --         "ID" = @ID
 -- 
@@ -2408,7 +2408,7 @@ $do$;
 --     -- Chec...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spCreateTaskType"
+-- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskType"
 --     @ID UUID = NULL,
 --     @Name VARCHAR(100),
 --     @Description_Clear bit = 0,
@@ -2416,7 +2416,7 @@ $do$;
 --     @IconClass_...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spUpdateTaskType"
+-- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskType"
 --     @ID UUID,
 --     @Name VARCHAR(100) = NULL,
 --     @Description_Clear bit = 0,
@@ -2424,14 +2424,14 @@ $do$;
 --     @IconClass_...
 
 -- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE "__mj_BizAppsTasks"."spDeleteTaskType"
+-- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskType"
 --     @ID UUID
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 -- 
 --     DELETE FROM
---         "__mj_BizAppsTasks"."TaskType"
+--         __mj_bizappstasks."TaskType"
 --     WHERE
 --         "ID" = @ID
 -- 
@@ -2442,144 +2442,144 @@ $do$;
 -- ===================== Triggers =====================
 
 -- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER __mj_BizAppsTasks.trgUpdateTaskCategory
--- ON "__mj_BizAppsTasks"."TaskCategory"
+-- CREATE TRIGGER __mj_bizappstasks.trgUpdateTaskCategory
+-- ON __mj_bizappstasks."TaskCategory"
 -- AFTER UPDATE
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 --     UPDATE
---         "__mj_BizAppsTasks"."TaskCategory"
+--         __mj_bizappstasks."TaskCategory"
 --     SET
  
 
 -- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER __mj_BizAppsTasks.trgUpdateTaskActivity
--- ON "__mj_BizAppsTasks"."TaskActivity"
+-- CREATE TRIGGER __mj_bizappstasks.trgUpdateTaskActivity
+-- ON __mj_bizappstasks."TaskActivity"
 -- AFTER UPDATE
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 --     UPDATE
---         "__mj_BizAppsTasks"."TaskActivity"
+--         __mj_bizappstasks."TaskActivity"
 --     SET
  
 
 -- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER __mj_BizAppsTasks.trgUpdateTaskComment
--- ON "__mj_BizAppsTasks"."TaskComment"
+-- CREATE TRIGGER __mj_bizappstasks.trgUpdateTaskComment
+-- ON __mj_bizappstasks."TaskComment"
 -- AFTER UPDATE
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 --     UPDATE
---         "__mj_BizAppsTasks"."TaskComment"
+--         __mj_bizappstasks."TaskComment"
 --     SET
     
 
 -- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER __mj_BizAppsTasks.trgUpdateTaskDependency
--- ON "__mj_BizAppsTasks"."TaskDependency"
+-- CREATE TRIGGER __mj_bizappstasks.trgUpdateTaskDependency
+-- ON __mj_bizappstasks."TaskDependency"
 -- AFTER UPDATE
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 --     UPDATE
---         "__mj_BizAppsTasks"."TaskDependency"
+--         __mj_bizappstasks."TaskDependency"
    
 
 -- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER __mj_BizAppsTasks.trgUpdateTaskAssignment
--- ON "__mj_BizAppsTasks"."TaskAssignment"
+-- CREATE TRIGGER __mj_bizappstasks.trgUpdateTaskAssignment
+-- ON __mj_bizappstasks."TaskAssignment"
 -- AFTER UPDATE
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 --     UPDATE
---         "__mj_BizAppsTasks"."TaskAssignment"
+--         __mj_bizappstasks."TaskAssignment"
    
 
 -- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER __mj_BizAppsTasks.trgUpdateTaskRole
--- ON "__mj_BizAppsTasks"."TaskRole"
+-- CREATE TRIGGER __mj_bizappstasks.trgUpdateTaskRole
+-- ON __mj_bizappstasks."TaskRole"
 -- AFTER UPDATE
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 --     UPDATE
---         "__mj_BizAppsTasks"."TaskRole"
+--         __mj_bizappstasks."TaskRole"
 --     SET
 --         __mj_
 
 -- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER __mj_BizAppsTasks.trgUpdateTaskNotificationConfig
--- ON "__mj_BizAppsTasks"."TaskNotificationConfig"
+-- CREATE TRIGGER __mj_bizappstasks.trgUpdateTaskNotificationConfig
+-- ON __mj_bizappstasks."TaskNotificationConfig"
 -- AFTER UPDATE
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 --     UPDATE
---         "__mj_BizAppsTasks"."Tas
+--         __mj_bizappstasks."Tas
 
 -- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER [__mj_BizAppsTasks".trgUpdateTaskNotificationLog
--- ON "__mj_BizAppsTasks"."TaskNotificationLog"
+-- CREATE TRIGGER [__mj_bizappstasks".trgUpdateTaskNotificationLog
+-- ON __mj_bizappstasks."TaskNotificationLog"
 -- AFTER UPDATE
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 --     UPDATE
---         "__mj_BizAppsTasks"."TaskNotif
+--         __mj_bizappstasks."TaskNotif
 
 -- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER [__mj_BizAppsTasks".trgUpdateTaskTagLink
--- ON "__mj_BizAppsTasks"."TaskTagLink"
+-- CREATE TRIGGER [__mj_bizappstasks".trgUpdateTaskTagLink
+-- ON __mj_bizappstasks."TaskTagLink"
 -- AFTER UPDATE
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 --     UPDATE
---         "__mj_BizAppsTasks"."TaskTagLink"
+--         __mj_bizappstasks."TaskTagLink"
 --     SET
     
 
 -- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER __mj_BizAppsTasks.trgUpdateTaskLink
--- ON "__mj_BizAppsTasks"."TaskLink"
+-- CREATE TRIGGER __mj_bizappstasks.trgUpdateTaskLink
+-- ON __mj_bizappstasks."TaskLink"
 -- AFTER UPDATE
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 --     UPDATE
---         "__mj_BizAppsTasks"."TaskLink"
+--         __mj_bizappstasks."TaskLink"
 --     SET
 --         __mj_
 
 -- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER __mj_BizAppsTasks.trgUpdateTaskTag
--- ON "__mj_BizAppsTasks"."TaskTag"
+-- CREATE TRIGGER __mj_bizappstasks.trgUpdateTaskTag
+-- ON __mj_bizappstasks."TaskTag"
 -- AFTER UPDATE
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 --     UPDATE
---         "__mj_BizAppsTasks"."TaskTag"
+--         __mj_bizappstasks."TaskTag"
 --     SET
 --         __mj_Upd
 
 -- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER __mj_BizAppsTasks.trgUpdateTaskTemplateItem
--- ON "__mj_BizAppsTasks"."TaskTemplateItem"
+-- CREATE TRIGGER __mj_bizappstasks.trgUpdateTaskTemplateItem
+-- ON __mj_bizappstasks."TaskTemplateItem"
 -- AFTER UPDATE
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 --     UPDATE
---         "__mj_BizAppsTasks"."TaskTemplateIte
+--         __mj_bizappstasks."TaskTemplateIte
 
 -- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER [__mj_BizAppsTasks".trgUpdateTaskTemplateItemDependency
--- ON "__mj_BizAppsTasks"."TaskTemplateItemDependency"
+-- CREATE TRIGGER [__mj_bizappstasks".trgUpdateTaskTemplateItemDependency
+-- ON __mj_bizappstasks."TaskTemplateItemDependency"
 -- AFTER UPDATE
 -- AS
 -- BEGIN
@@ -2588,48 +2588,48 @@ $do$;
 --         "__mj_BizAppsTas
 
 -- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER [__mj_BizAppsTasks".trgUpdateTaskTemplate
--- ON "__mj_BizAppsTasks"."TaskTemplate"
+-- CREATE TRIGGER [__mj_bizappstasks".trgUpdateTaskTemplate
+-- ON __mj_bizappstasks."TaskTemplate"
 -- AFTER UPDATE
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 --     UPDATE
---         "__mj_BizAppsTasks"."TaskTemplate"
+--         __mj_bizappstasks."TaskTemplate"
 --     SET
  
 
 -- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER __mj_BizAppsTasks.trgUpdateTaskTemplateItemRole
--- ON "__mj_BizAppsTasks"."TaskTemplateItemRole"
+-- CREATE TRIGGER __mj_bizappstasks.trgUpdateTaskTemplateItemRole
+-- ON __mj_bizappstasks."TaskTemplateItemRole"
 -- AFTER UPDATE
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 --     UPDATE
---         "__mj_BizAppsTasks"."TaskTem
+--         __mj_bizappstasks."TaskTem
 
 -- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER [__mj_BizAppsTasks".trgUpdateTask
--- ON "__mj_BizAppsTasks"."Task"
+-- CREATE TRIGGER [__mj_bizappstasks".trgUpdateTask
+-- ON __mj_bizappstasks."Task"
 -- AFTER UPDATE
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 --     UPDATE
---         "__mj_BizAppsTasks"."Task"
+--         __mj_bizappstasks."Task"
 --     SET
 --         __mj_UpdatedAt = 
 
 -- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER __mj_BizAppsTasks.trgUpdateTaskType
--- ON "__mj_BizAppsTasks"."TaskType"
+-- CREATE TRIGGER __mj_bizappstasks.trgUpdateTaskType
+-- ON __mj_bizappstasks."TaskType"
 -- AFTER UPDATE
 -- AS
 -- BEGIN
 --     SET NOCOUNT ON;
 --     UPDATE
---         "__mj_BizAppsTasks"."TaskType"
+--         __mj_bizappstasks."TaskType"
 --     SET
 --         __mj_
 
@@ -2667,7 +2667,7 @@ INSERT INTO "${mjSchema}"."Entity" (
          NULL,
          'TaskRole',
          'vwTaskRoles',
-         '__mj_BizAppsTasks',
+         '__mj_bizappstasks',
          TRUE,
          TRUE,
          FALSE
@@ -2683,24 +2683,24 @@ INSERT INTO "${mjSchema}"."Entity" (
          , NOW()
       );
 
-/* SQL generated to create new application __mj_BizAppsTasks */
+/* SQL generated to create new application __mj_bizappstasks */
 
 INSERT INTO "${mjSchema}"."Application" ("ID", "Name", "Description", "SchemaAutoAddNewEntities", "Path", "AutoUpdatePath")
-                       VALUES ('22541055-8ed4-4850-8acd-e5ee1887b15b', '__mj_BizAppsTasks', 'Generated for schema', '__mj_BizAppsTasks', 'mjbizappstasks', TRUE);
+                       VALUES ('22541055-8ed4-4850-8acd-e5ee1887b15b', '__mj_bizappstasks', 'Generated for schema', '__mj_bizappstasks', 'mjbizappstasks', TRUE);
 
-/* Adding role UI to application __mj_BizAppsTasks */
+/* Adding role UI to application __mj_bizappstasks */
 
 INSERT INTO "${mjSchema}"."ApplicationRole"
                                  ("ApplicationID", "RoleID", "CanAccess", "CanAdmin") VALUES
                                  ('22541055-8ed4-4850-8acd-e5ee1887b15b', 'E0AFCCEC-6A37-EF11-86D4-000D3A4E707E', TRUE, FALSE);
 
-/* Adding role Developer to application __mj_BizAppsTasks */
+/* Adding role Developer to application __mj_bizappstasks */
 
 INSERT INTO "${mjSchema}"."ApplicationRole"
                                  ("ApplicationID", "RoleID", "CanAccess", "CanAdmin") VALUES
                                  ('22541055-8ed4-4850-8acd-e5ee1887b15b', 'DEAFCCEC-6A37-EF11-86D4-000D3A4E707E', TRUE, TRUE);
 
-/* Adding role Integration to application __mj_BizAppsTasks */
+/* Adding role Integration to application __mj_bizappstasks */
 
 INSERT INTO "${mjSchema}"."ApplicationRole"
                                  ("ApplicationID", "RoleID", "CanAccess", "CanAdmin") VALUES
@@ -2763,7 +2763,7 @@ INSERT INTO "${mjSchema}"."Entity" (
          NULL,
          'TaskAssignment',
          'vwTaskAssignments',
-         '__mj_BizAppsTasks',
+         '__mj_bizappstasks',
          TRUE,
          TRUE,
          FALSE
@@ -2836,7 +2836,7 @@ INSERT INTO "${mjSchema}"."Entity" (
          NULL,
          'TaskLink',
          'vwTaskLinks',
-         '__mj_BizAppsTasks',
+         '__mj_bizappstasks',
          TRUE,
          TRUE,
          FALSE
@@ -2909,7 +2909,7 @@ INSERT INTO "${mjSchema}"."Entity" (
          NULL,
          'TaskDependency',
          'vwTaskDependencies',
-         '__mj_BizAppsTasks',
+         '__mj_bizappstasks',
          TRUE,
          TRUE,
          FALSE
@@ -2982,7 +2982,7 @@ INSERT INTO "${mjSchema}"."Entity" (
          NULL,
          'TaskTag',
          'vwTaskTags',
-         '__mj_BizAppsTasks',
+         '__mj_bizappstasks',
          TRUE,
          TRUE,
          FALSE
@@ -3055,7 +3055,7 @@ INSERT INTO "${mjSchema}"."Entity" (
          NULL,
          'TaskTagLink',
          'vwTaskTagLinks',
-         '__mj_BizAppsTasks',
+         '__mj_bizappstasks',
          TRUE,
          TRUE,
          FALSE
@@ -3128,7 +3128,7 @@ INSERT INTO "${mjSchema}"."Entity" (
          NULL,
          'TaskComment',
          'vwTaskComments',
-         '__mj_BizAppsTasks',
+         '__mj_bizappstasks',
          TRUE,
          TRUE,
          FALSE
@@ -3201,7 +3201,7 @@ INSERT INTO "${mjSchema}"."Entity" (
          NULL,
          'TaskTemplate',
          'vwTaskTemplates',
-         '__mj_BizAppsTasks',
+         '__mj_bizappstasks',
          TRUE,
          TRUE,
          FALSE
@@ -3274,7 +3274,7 @@ INSERT INTO "${mjSchema}"."Entity" (
          NULL,
          'TaskTemplateItem',
          'vwTaskTemplateItems',
-         '__mj_BizAppsTasks',
+         '__mj_bizappstasks',
          TRUE,
          TRUE,
          FALSE
@@ -3347,7 +3347,7 @@ INSERT INTO "${mjSchema}"."Entity" (
          NULL,
          'TaskTemplateItemDependency',
          'vwTaskTemplateItemDependencies',
-         '__mj_BizAppsTasks',
+         '__mj_bizappstasks',
          TRUE,
          TRUE,
          FALSE
@@ -3420,7 +3420,7 @@ INSERT INTO "${mjSchema}"."Entity" (
          NULL,
          'TaskTemplateItemRole',
          'vwTaskTemplateItemRoles',
-         '__mj_BizAppsTasks',
+         '__mj_bizappstasks',
          TRUE,
          TRUE,
          FALSE
@@ -3493,7 +3493,7 @@ INSERT INTO "${mjSchema}"."Entity" (
          NULL,
          'TaskActivity',
          'vwTaskActivities',
-         '__mj_BizAppsTasks',
+         '__mj_bizappstasks',
          TRUE,
          TRUE,
          FALSE
@@ -3566,7 +3566,7 @@ INSERT INTO "${mjSchema}"."Entity" (
          NULL,
          'TaskNotificationConfig',
          'vwTaskNotificationConfigs',
-         '__mj_BizAppsTasks',
+         '__mj_bizappstasks',
          TRUE,
          TRUE,
          FALSE
@@ -3639,7 +3639,7 @@ INSERT INTO "${mjSchema}"."Entity" (
          NULL,
          'TaskNotificationLog',
          'vwTaskNotificationLogs',
-         '__mj_BizAppsTasks',
+         '__mj_bizappstasks',
          TRUE,
          TRUE,
          FALSE
@@ -3712,7 +3712,7 @@ INSERT INTO "${mjSchema}"."Entity" (
          NULL,
          'TaskType',
          'vwTaskTypes',
-         '__mj_BizAppsTasks',
+         '__mj_bizappstasks',
          TRUE,
          TRUE,
          FALSE
@@ -3785,7 +3785,7 @@ INSERT INTO "${mjSchema}"."Entity" (
          NULL,
          'TaskCategory',
          'vwTaskCategories',
-         '__mj_BizAppsTasks',
+         '__mj_bizappstasks',
          TRUE,
          TRUE,
          FALSE
@@ -3858,7 +3858,7 @@ INSERT INTO "${mjSchema}"."Entity" (
          NULL,
          'Task',
          'vwTasks',
-         '__mj_BizAppsTasks',
+         '__mj_bizappstasks',
          TRUE,
          TRUE,
          FALSE
@@ -3900,310 +3900,310 @@ INSERT INTO "${mjSchema}"."EntityPermission"
 
 /* SQL text to update existing entities from schema */
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskLink" */
-UPDATE "__mj_BizAppsTasks"."TaskLink" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskLink" */
+UPDATE __mj_bizappstasks."TaskLink" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskLink" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskLink" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskLink" */
+ALTER TABLE __mj_bizappstasks."TaskLink" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskLink"
+ALTER TABLE __mj_bizappstasks."TaskLink"
   ALTER COLUMN "__mj_CreatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskLink" */
-UPDATE "__mj_BizAppsTasks"."TaskLink" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskLink" */
+UPDATE __mj_bizappstasks."TaskLink" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskLink" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskLink" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskLink" */
+ALTER TABLE __mj_bizappstasks."TaskLink" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskLink"
+ALTER TABLE __mj_bizappstasks."TaskLink"
   ALTER COLUMN "__mj_UpdatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskTemplateItemRole" */
-UPDATE "__mj_BizAppsTasks"."TaskTemplateItemRole" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskTemplateItemRole" */
+UPDATE __mj_bizappstasks."TaskTemplateItemRole" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskTemplateItemRole" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskTemplateItemRole" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskTemplateItemRole" */
+ALTER TABLE __mj_bizappstasks."TaskTemplateItemRole" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskTemplateItemRole"
+ALTER TABLE __mj_bizappstasks."TaskTemplateItemRole"
   ALTER COLUMN "__mj_CreatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskTemplateItemRole" */
-UPDATE "__mj_BizAppsTasks"."TaskTemplateItemRole" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskTemplateItemRole" */
+UPDATE __mj_bizappstasks."TaskTemplateItemRole" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskTemplateItemRole" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskTemplateItemRole" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskTemplateItemRole" */
+ALTER TABLE __mj_bizappstasks."TaskTemplateItemRole" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskTemplateItemRole"
+ALTER TABLE __mj_bizappstasks."TaskTemplateItemRole"
   ALTER COLUMN "__mj_UpdatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskNotificationConfig" */
-UPDATE "__mj_BizAppsTasks"."TaskNotificationConfig" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskNotificationConfig" */
+UPDATE __mj_bizappstasks."TaskNotificationConfig" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskNotificationConfig" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskNotificationConfig" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskNotificationConfig" */
+ALTER TABLE __mj_bizappstasks."TaskNotificationConfig" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskNotificationConfig"
+ALTER TABLE __mj_bizappstasks."TaskNotificationConfig"
   ALTER COLUMN "__mj_CreatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskNotificationConfig" */
-UPDATE "__mj_BizAppsTasks"."TaskNotificationConfig" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskNotificationConfig" */
+UPDATE __mj_bizappstasks."TaskNotificationConfig" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskNotificationConfig" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskNotificationConfig" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskNotificationConfig" */
+ALTER TABLE __mj_bizappstasks."TaskNotificationConfig" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskNotificationConfig"
+ALTER TABLE __mj_bizappstasks."TaskNotificationConfig"
   ALTER COLUMN "__mj_UpdatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskDependency" */
-UPDATE "__mj_BizAppsTasks"."TaskDependency" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskDependency" */
+UPDATE __mj_bizappstasks."TaskDependency" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskDependency" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskDependency" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskDependency" */
+ALTER TABLE __mj_bizappstasks."TaskDependency" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskDependency"
+ALTER TABLE __mj_bizappstasks."TaskDependency"
   ALTER COLUMN "__mj_CreatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskDependency" */
-UPDATE "__mj_BizAppsTasks"."TaskDependency" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskDependency" */
+UPDATE __mj_bizappstasks."TaskDependency" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskDependency" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskDependency" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskDependency" */
+ALTER TABLE __mj_bizappstasks."TaskDependency" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskDependency"
+ALTER TABLE __mj_bizappstasks."TaskDependency"
   ALTER COLUMN "__mj_UpdatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskTemplate" */
-UPDATE "__mj_BizAppsTasks"."TaskTemplate" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskTemplate" */
+UPDATE __mj_bizappstasks."TaskTemplate" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskTemplate" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskTemplate" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskTemplate" */
+ALTER TABLE __mj_bizappstasks."TaskTemplate" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskTemplate"
+ALTER TABLE __mj_bizappstasks."TaskTemplate"
   ALTER COLUMN "__mj_CreatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskTemplate" */
-UPDATE "__mj_BizAppsTasks"."TaskTemplate" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskTemplate" */
+UPDATE __mj_bizappstasks."TaskTemplate" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskTemplate" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskTemplate" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskTemplate" */
+ALTER TABLE __mj_bizappstasks."TaskTemplate" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskTemplate"
+ALTER TABLE __mj_bizappstasks."TaskTemplate"
   ALTER COLUMN "__mj_UpdatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskRole" */
-UPDATE "__mj_BizAppsTasks"."TaskRole" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskRole" */
+UPDATE __mj_bizappstasks."TaskRole" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskRole" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskRole" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskRole" */
+ALTER TABLE __mj_bizappstasks."TaskRole" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskRole"
+ALTER TABLE __mj_bizappstasks."TaskRole"
   ALTER COLUMN "__mj_CreatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskRole" */
-UPDATE "__mj_BizAppsTasks"."TaskRole" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskRole" */
+UPDATE __mj_bizappstasks."TaskRole" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskRole" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskRole" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskRole" */
+ALTER TABLE __mj_bizappstasks."TaskRole" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskRole"
+ALTER TABLE __mj_bizappstasks."TaskRole"
   ALTER COLUMN "__mj_UpdatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskActivity" */
-UPDATE "__mj_BizAppsTasks"."TaskActivity" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskActivity" */
+UPDATE __mj_bizappstasks."TaskActivity" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskActivity" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskActivity" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskActivity" */
+ALTER TABLE __mj_bizappstasks."TaskActivity" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskActivity"
+ALTER TABLE __mj_bizappstasks."TaskActivity"
   ALTER COLUMN "__mj_CreatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskActivity" */
-UPDATE "__mj_BizAppsTasks"."TaskActivity" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskActivity" */
+UPDATE __mj_bizappstasks."TaskActivity" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskActivity" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskActivity" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskActivity" */
+ALTER TABLE __mj_bizappstasks."TaskActivity" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskActivity"
+ALTER TABLE __mj_bizappstasks."TaskActivity"
   ALTER COLUMN "__mj_UpdatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskTagLink" */
-UPDATE "__mj_BizAppsTasks"."TaskTagLink" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskTagLink" */
+UPDATE __mj_bizappstasks."TaskTagLink" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskTagLink" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskTagLink" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskTagLink" */
+ALTER TABLE __mj_bizappstasks."TaskTagLink" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskTagLink"
+ALTER TABLE __mj_bizappstasks."TaskTagLink"
   ALTER COLUMN "__mj_CreatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskTagLink" */
-UPDATE "__mj_BizAppsTasks"."TaskTagLink" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskTagLink" */
+UPDATE __mj_bizappstasks."TaskTagLink" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskTagLink" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskTagLink" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskTagLink" */
+ALTER TABLE __mj_bizappstasks."TaskTagLink" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskTagLink"
+ALTER TABLE __mj_bizappstasks."TaskTagLink"
   ALTER COLUMN "__mj_UpdatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskTemplateItemDependency" */
-UPDATE "__mj_BizAppsTasks"."TaskTemplateItemDependency" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskTemplateItemDependency" */
+UPDATE __mj_bizappstasks."TaskTemplateItemDependency" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskTemplateItemDependency" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskTemplateItemDependency" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskTemplateItemDependency" */
+ALTER TABLE __mj_bizappstasks."TaskTemplateItemDependency" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskTemplateItemDependency"
+ALTER TABLE __mj_bizappstasks."TaskTemplateItemDependency"
   ALTER COLUMN "__mj_CreatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskTemplateItemDependency" */
-UPDATE "__mj_BizAppsTasks"."TaskTemplateItemDependency" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskTemplateItemDependency" */
+UPDATE __mj_bizappstasks."TaskTemplateItemDependency" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskTemplateItemDependency" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskTemplateItemDependency" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskTemplateItemDependency" */
+ALTER TABLE __mj_bizappstasks."TaskTemplateItemDependency" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskTemplateItemDependency"
+ALTER TABLE __mj_bizappstasks."TaskTemplateItemDependency"
   ALTER COLUMN "__mj_UpdatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskType" */
-UPDATE "__mj_BizAppsTasks"."TaskType" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskType" */
+UPDATE __mj_bizappstasks."TaskType" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskType" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskType" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskType" */
+ALTER TABLE __mj_bizappstasks."TaskType" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskType"
+ALTER TABLE __mj_bizappstasks."TaskType"
   ALTER COLUMN "__mj_CreatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskType" */
-UPDATE "__mj_BizAppsTasks"."TaskType" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskType" */
+UPDATE __mj_bizappstasks."TaskType" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskType" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskType" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskType" */
+ALTER TABLE __mj_bizappstasks."TaskType" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskType"
+ALTER TABLE __mj_bizappstasks."TaskType"
   ALTER COLUMN "__mj_UpdatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskTemplateItem" */
-UPDATE "__mj_BizAppsTasks"."TaskTemplateItem" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskTemplateItem" */
+UPDATE __mj_bizappstasks."TaskTemplateItem" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskTemplateItem" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskTemplateItem" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskTemplateItem" */
+ALTER TABLE __mj_bizappstasks."TaskTemplateItem" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskTemplateItem"
+ALTER TABLE __mj_bizappstasks."TaskTemplateItem"
   ALTER COLUMN "__mj_CreatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskTemplateItem" */
-UPDATE "__mj_BizAppsTasks"."TaskTemplateItem" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskTemplateItem" */
+UPDATE __mj_bizappstasks."TaskTemplateItem" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskTemplateItem" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskTemplateItem" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskTemplateItem" */
+ALTER TABLE __mj_bizappstasks."TaskTemplateItem" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskTemplateItem"
+ALTER TABLE __mj_bizappstasks."TaskTemplateItem"
   ALTER COLUMN "__mj_UpdatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskNotificationLog" */
-UPDATE "__mj_BizAppsTasks"."TaskNotificationLog" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskNotificationLog" */
+UPDATE __mj_bizappstasks."TaskNotificationLog" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskNotificationLog" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskNotificationLog" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskNotificationLog" */
+ALTER TABLE __mj_bizappstasks."TaskNotificationLog" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskNotificationLog"
+ALTER TABLE __mj_bizappstasks."TaskNotificationLog"
   ALTER COLUMN "__mj_CreatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskNotificationLog" */
-UPDATE "__mj_BizAppsTasks"."TaskNotificationLog" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskNotificationLog" */
+UPDATE __mj_bizappstasks."TaskNotificationLog" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskNotificationLog" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskNotificationLog" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskNotificationLog" */
+ALTER TABLE __mj_bizappstasks."TaskNotificationLog" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskNotificationLog"
+ALTER TABLE __mj_bizappstasks."TaskNotificationLog"
   ALTER COLUMN "__mj_UpdatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskComment" */
-UPDATE "__mj_BizAppsTasks"."TaskComment" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskComment" */
+UPDATE __mj_bizappstasks."TaskComment" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskComment" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskComment" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskComment" */
+ALTER TABLE __mj_bizappstasks."TaskComment" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskComment"
+ALTER TABLE __mj_bizappstasks."TaskComment"
   ALTER COLUMN "__mj_CreatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskComment" */
-UPDATE "__mj_BizAppsTasks"."TaskComment" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskComment" */
+UPDATE __mj_bizappstasks."TaskComment" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskComment" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskComment" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskComment" */
+ALTER TABLE __mj_bizappstasks."TaskComment" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskComment"
+ALTER TABLE __mj_bizappstasks."TaskComment"
   ALTER COLUMN "__mj_UpdatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskTag" */
-UPDATE "__mj_BizAppsTasks"."TaskTag" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskTag" */
+UPDATE __mj_bizappstasks."TaskTag" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskTag" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskTag" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskTag" */
+ALTER TABLE __mj_bizappstasks."TaskTag" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskTag"
+ALTER TABLE __mj_bizappstasks."TaskTag"
   ALTER COLUMN "__mj_CreatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskTag" */
-UPDATE "__mj_BizAppsTasks"."TaskTag" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskTag" */
+UPDATE __mj_bizappstasks."TaskTag" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskTag" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskTag" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskTag" */
+ALTER TABLE __mj_bizappstasks."TaskTag" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskTag"
+ALTER TABLE __mj_bizappstasks."TaskTag"
   ALTER COLUMN "__mj_UpdatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskAssignment" */
-UPDATE "__mj_BizAppsTasks"."TaskAssignment" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskAssignment" */
+UPDATE __mj_bizappstasks."TaskAssignment" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskAssignment" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskAssignment" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskAssignment" */
+ALTER TABLE __mj_bizappstasks."TaskAssignment" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskAssignment"
+ALTER TABLE __mj_bizappstasks."TaskAssignment"
   ALTER COLUMN "__mj_CreatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskAssignment" */
-UPDATE "__mj_BizAppsTasks"."TaskAssignment" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskAssignment" */
+UPDATE __mj_bizappstasks."TaskAssignment" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskAssignment" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskAssignment" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskAssignment" */
+ALTER TABLE __mj_bizappstasks."TaskAssignment" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskAssignment"
+ALTER TABLE __mj_bizappstasks."TaskAssignment"
   ALTER COLUMN "__mj_UpdatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskCategory" */
-UPDATE "__mj_BizAppsTasks"."TaskCategory" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskCategory" */
+UPDATE __mj_bizappstasks."TaskCategory" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."TaskCategory" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskCategory" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."TaskCategory" */
+ALTER TABLE __mj_bizappstasks."TaskCategory" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskCategory"
+ALTER TABLE __mj_bizappstasks."TaskCategory"
   ALTER COLUMN "__mj_CreatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskCategory" */
-UPDATE "__mj_BizAppsTasks"."TaskCategory" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskCategory" */
+UPDATE __mj_bizappstasks."TaskCategory" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."TaskCategory" */
-ALTER TABLE "__mj_BizAppsTasks"."TaskCategory" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."TaskCategory" */
+ALTER TABLE __mj_bizappstasks."TaskCategory" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."TaskCategory"
+ALTER TABLE __mj_bizappstasks."TaskCategory"
   ALTER COLUMN "__mj_UpdatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."Task" */
-UPDATE "__mj_BizAppsTasks"."Task" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."Task" */
+UPDATE __mj_bizappstasks."Task" SET "__mj_CreatedAt" = NOW() WHERE "__mj_CreatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_CreatedAt to entity "__mj_BizAppsTasks"."Task" */
-ALTER TABLE "__mj_BizAppsTasks"."Task" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_CreatedAt to entity __mj_bizappstasks."Task" */
+ALTER TABLE __mj_bizappstasks."Task" ALTER COLUMN "__mj_CreatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."Task"
+ALTER TABLE __mj_bizappstasks."Task"
   ALTER COLUMN "__mj_CreatedAt" SET DEFAULT NOW();
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."Task" */
-UPDATE "__mj_BizAppsTasks"."Task" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."Task" */
+UPDATE __mj_bizappstasks."Task" SET "__mj_UpdatedAt" = NOW() WHERE "__mj_UpdatedAt" IS NULL;
 
-/* SQL text to add special date field __mj_UpdatedAt to entity "__mj_BizAppsTasks"."Task" */
-ALTER TABLE "__mj_BizAppsTasks"."Task" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
+/* SQL text to add special date field __mj_UpdatedAt to entity __mj_bizappstasks."Task" */
+ALTER TABLE __mj_bizappstasks."Task" ALTER COLUMN "__mj_UpdatedAt" SET NOT NULL;
 
-ALTER TABLE "__mj_BizAppsTasks"."Task"
+ALTER TABLE __mj_bizappstasks."Task"
   ALTER COLUMN "__mj_UpdatedAt" SET DEFAULT NOW();
 
 DO $$
@@ -17534,7 +17534,7 @@ END $$;
 
 -- ===================== Grants =====================
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskCategories" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskCategories" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Base View Permissions SQL for MJ_BizApps_Tasks: Task Categories */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17545,7 +17545,7 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskCategories" TO "cdp_UI", 
 -- This file should NOT be edited by hand.
 -----------------------------------------------------------------;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskCategories" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskCategories" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate SQL for MJ_BizApps_Tasks: Task Categories */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17560,10 +17560,10 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskCategories" TO "cdp_UI", 
 ----- CREATE PROCEDURE FOR TaskCategory
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskCategory" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskCategory" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate Permissions for MJ_BizApps_Tasks: Task Categories */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskCategory" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskCategory" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spUpdate SQL for MJ_BizApps_Tasks: Task Categories */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17578,8 +17578,8 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskCategory"
 ----- UPDATE PROCEDURE FOR TaskCategory
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskCategory" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskCategory" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskCategory" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskCategory" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete SQL for MJ_BizApps_Tasks: Task Categories */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17594,13 +17594,13 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskCategory"
 ----- DELETE PROCEDURE FOR TaskCategory
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskCategory" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskCategory" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete Permissions for MJ_BizApps_Tasks: Task Categories */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskCategory" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskCategory" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* SQL text to update entity field related entity name field map for entity field ID C885176B-BCCD-4D0A-BDFC-B624394404B4 */
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskActivities" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskActivities" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Base View Permissions SQL for MJ_BizApps_Tasks: Task Activities */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17611,7 +17611,7 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskActivities" TO "cdp_UI", 
 -- This file should NOT be edited by hand.
 -----------------------------------------------------------------;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskActivities" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskActivities" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate SQL for MJ_BizApps_Tasks: Task Activities */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17626,10 +17626,10 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskActivities" TO "cdp_UI", 
 ----- CREATE PROCEDURE FOR TaskActivity
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskActivity" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskActivity" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate Permissions for MJ_BizApps_Tasks: Task Activities */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskActivity" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskActivity" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spUpdate SQL for MJ_BizApps_Tasks: Task Activities */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17644,8 +17644,8 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskActivity"
 ----- UPDATE PROCEDURE FOR TaskActivity
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskActivity" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskActivity" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskActivity" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskActivity" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete SQL for MJ_BizApps_Tasks: Task Activities */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17660,13 +17660,13 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskActivity"
 ----- DELETE PROCEDURE FOR TaskActivity
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskActivity" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskActivity" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete Permissions for MJ_BizApps_Tasks: Task Activities */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskActivity" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskActivity" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* SQL text to update entity field related entity name field map for entity field ID BFF49CE0-1E51-4F11-9D1D-CB1C1D014AD5 */
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskComments" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskComments" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Base View Permissions SQL for MJ_BizApps_Tasks: Task Comments */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17677,7 +17677,7 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskComments" TO "cdp_UI", "c
 -- This file should NOT be edited by hand.
 -----------------------------------------------------------------;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskComments" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskComments" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate SQL for MJ_BizApps_Tasks: Task Comments */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17692,10 +17692,10 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskComments" TO "cdp_UI", "c
 ----- CREATE PROCEDURE FOR TaskComment
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskComment" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskComment" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate Permissions for MJ_BizApps_Tasks: Task Comments */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskComment" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskComment" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spUpdate SQL for MJ_BizApps_Tasks: Task Comments */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17710,8 +17710,8 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskComment" 
 ----- UPDATE PROCEDURE FOR TaskComment
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskComment" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskComment" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskComment" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskComment" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete SQL for MJ_BizApps_Tasks: Task Comments */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17726,10 +17726,10 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskComment" 
 ----- DELETE PROCEDURE FOR TaskComment
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskComment" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskComment" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete Permissions for MJ_BizApps_Tasks: Task Comments */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskComment" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskComment" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Base View SQL for MJ_BizApps_Tasks: Task Dependencies */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17742,12 +17742,12 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskComment" 
 
 ------------------------------------------------------------
 ----- BASE VIEW FOR ENTITY:      MJ_BizApps_Tasks: Task Dependencies
------               SCHEMA:      __mj_BizAppsTasks
+-----               SCHEMA:      __mj_bizappstasks
 -----               BASE TABLE:  TaskDependency
 -----               PRIMARY KEY: ID
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskDependencies" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskDependencies" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Base View Permissions SQL for MJ_BizApps_Tasks: Task Dependencies */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17758,7 +17758,7 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskDependencies" TO "cdp_UI"
 -- This file should NOT be edited by hand.
 -----------------------------------------------------------------;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskDependencies" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskDependencies" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate SQL for MJ_BizApps_Tasks: Task Dependencies */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17773,10 +17773,10 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskDependencies" TO "cdp_UI"
 ----- CREATE PROCEDURE FOR TaskDependency
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskDependency" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskDependency" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate Permissions for MJ_BizApps_Tasks: Task Dependencies */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskDependency" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskDependency" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spUpdate SQL for MJ_BizApps_Tasks: Task Dependencies */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17791,8 +17791,8 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskDependenc
 ----- UPDATE PROCEDURE FOR TaskDependency
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskDependency" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskDependency" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskDependency" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskDependency" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete SQL for MJ_BizApps_Tasks: Task Dependencies */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17807,13 +17807,13 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskDependenc
 ----- DELETE PROCEDURE FOR TaskDependency
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskDependency" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskDependency" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete Permissions for MJ_BizApps_Tasks: Task Dependencies */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskDependency" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskDependency" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* SQL text to update entity field related entity name field map for entity field ID D472964E-4AAF-44E6-A01A-E2A92AAA44DA */
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskAssignments" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskAssignments" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Base View Permissions SQL for MJ_BizApps_Tasks: Task Assignments */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17824,7 +17824,7 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskAssignments" TO "cdp_UI",
 -- This file should NOT be edited by hand.
 -----------------------------------------------------------------;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskAssignments" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskAssignments" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate SQL for MJ_BizApps_Tasks: Task Assignments */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17839,10 +17839,10 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskAssignments" TO "cdp_UI",
 ----- CREATE PROCEDURE FOR TaskAssignment
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskAssignment" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskAssignment" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate Permissions for MJ_BizApps_Tasks: Task Assignments */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskAssignment" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskAssignment" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spUpdate SQL for MJ_BizApps_Tasks: Task Assignments */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17857,8 +17857,8 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskAssignmen
 ----- UPDATE PROCEDURE FOR TaskAssignment
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskAssignment" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskAssignment" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskAssignment" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskAssignment" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete SQL for MJ_BizApps_Tasks: Task Assignments */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17873,10 +17873,10 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskAssignmen
 ----- DELETE PROCEDURE FOR TaskAssignment
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskAssignment" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskAssignment" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete Permissions for MJ_BizApps_Tasks: Task Assignments */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskAssignment" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskAssignment" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Index for Foreign Keys for TaskLink */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17888,7 +17888,7 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskAssignmen
 -----------------------------------------------------------------
 -- Index for foreign key TaskID in table TaskLink;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskRoles" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskRoles" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Base View Permissions SQL for MJ_BizApps_Tasks: Task Roles */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17899,7 +17899,7 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskRoles" TO "cdp_UI", "cdp_
 -- This file should NOT be edited by hand.
 -----------------------------------------------------------------;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskRoles" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskRoles" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate SQL for MJ_BizApps_Tasks: Task Roles */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17914,10 +17914,10 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskRoles" TO "cdp_UI", "cdp_
 ----- CREATE PROCEDURE FOR TaskRole
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskRole" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskRole" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate Permissions for MJ_BizApps_Tasks: Task Roles */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskRole" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskRole" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spUpdate SQL for MJ_BizApps_Tasks: Task Roles */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17932,8 +17932,8 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskRole" TO 
 ----- UPDATE PROCEDURE FOR TaskRole
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskRole" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskRole" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskRole" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskRole" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete SQL for MJ_BizApps_Tasks: Task Roles */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17948,13 +17948,13 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskRole" TO 
 ----- DELETE PROCEDURE FOR TaskRole
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskRole" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskRole" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete Permissions for MJ_BizApps_Tasks: Task Roles */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskRole" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskRole" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* SQL text to update entity field related entity name field map for entity field ID 66BD853F-28CA-4592-8409-C114EFB477A2 */
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskNotificationConfigs" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskNotificationConfigs" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Base View Permissions SQL for MJ_BizApps_Tasks: Task Notification Configs */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17965,7 +17965,7 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskNotificationConfigs" TO "
 -- This file should NOT be edited by hand.
 -----------------------------------------------------------------;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskNotificationConfigs" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskNotificationConfigs" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate SQL for MJ_BizApps_Tasks: Task Notification Configs */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17980,10 +17980,10 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskNotificationConfigs" TO "
 ----- CREATE PROCEDURE FOR TaskNotificationConfig
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskNotificationConfig" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskNotificationConfig" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate Permissions for MJ_BizApps_Tasks: Task Notification Configs */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskNotificationConfig" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskNotificationConfig" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spUpdate SQL for MJ_BizApps_Tasks: Task Notification Configs */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -17998,8 +17998,8 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskNotificat
 ----- UPDATE PROCEDURE FOR TaskNotificationConfig
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskNotificationConfig" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskNotificationConfig" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskNotificationConfig" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskNotificationConfig" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete SQL for MJ_BizApps_Tasks: Task Notification Configs */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18014,10 +18014,10 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskNotificat
 ----- DELETE PROCEDURE FOR TaskNotificationConfig
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskNotificationConfig" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskNotificationConfig" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete Permissions for MJ_BizApps_Tasks: Task Notification Configs */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskNotificationConfig" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskNotificationConfig" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Base View SQL for MJ_BizApps_Tasks: Task Notification Logs */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18030,12 +18030,12 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskNotificat
 
 ------------------------------------------------------------
 ----- BASE VIEW FOR ENTITY:      MJ_BizApps_Tasks: Task Notification Logs
------               SCHEMA:      __mj_BizAppsTasks
+-----               SCHEMA:      __mj_bizappstasks
 -----               BASE TABLE:  TaskNotificationLog
 -----               PRIMARY KEY: ID
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskNotificationLogs" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskNotificationLogs" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Base View Permissions SQL for MJ_BizApps_Tasks: Task Notification Logs */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18046,7 +18046,7 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskNotificationLogs" TO "cdp
 -- This file should NOT be edited by hand.
 -----------------------------------------------------------------;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskNotificationLogs" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskNotificationLogs" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate SQL for MJ_BizApps_Tasks: Task Notification Logs */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18061,10 +18061,10 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskNotificationLogs" TO "cdp
 ----- CREATE PROCEDURE FOR TaskNotificationLog
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskNotificationLog" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskNotificationLog" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate Permissions for MJ_BizApps_Tasks: Task Notification Logs */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskNotificationLog" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskNotificationLog" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spUpdate SQL for MJ_BizApps_Tasks: Task Notification Logs */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18079,8 +18079,8 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskNotificat
 ----- UPDATE PROCEDURE FOR TaskNotificationLog
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskNotificationLog" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskNotificationLog" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskNotificationLog" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskNotificationLog" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete SQL for MJ_BizApps_Tasks: Task Notification Logs */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18095,10 +18095,10 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskNotificat
 ----- DELETE PROCEDURE FOR TaskNotificationLog
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskNotificationLog" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskNotificationLog" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete Permissions for MJ_BizApps_Tasks: Task Notification Logs */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskNotificationLog" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskNotificationLog" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Base View SQL for MJ_BizApps_Tasks: Task Tag Links */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18111,12 +18111,12 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskNotificat
 
 ------------------------------------------------------------
 ----- BASE VIEW FOR ENTITY:      MJ_BizApps_Tasks: Task Tag Links
------               SCHEMA:      __mj_BizAppsTasks
+-----               SCHEMA:      __mj_bizappstasks
 -----               BASE TABLE:  TaskTagLink
 -----               PRIMARY KEY: ID
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTagLinks" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskTagLinks" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Base View Permissions SQL for MJ_BizApps_Tasks: Task Tag Links */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18127,7 +18127,7 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTagLinks" TO "cdp_UI", "c
 -- This file should NOT be edited by hand.
 -----------------------------------------------------------------;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTagLinks" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskTagLinks" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate SQL for MJ_BizApps_Tasks: Task Tag Links */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18142,10 +18142,10 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTagLinks" TO "cdp_UI", "c
 ----- CREATE PROCEDURE FOR TaskTagLink
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskTagLink" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskTagLink" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate Permissions for MJ_BizApps_Tasks: Task Tag Links */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskTagLink" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskTagLink" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spUpdate SQL for MJ_BizApps_Tasks: Task Tag Links */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18160,8 +18160,8 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskTagLink" 
 ----- UPDATE PROCEDURE FOR TaskTagLink
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskTagLink" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskTagLink" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskTagLink" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskTagLink" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete SQL for MJ_BizApps_Tasks: Task Tag Links */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18176,10 +18176,10 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskTagLink" 
 ----- DELETE PROCEDURE FOR TaskTagLink
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskTagLink" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskTagLink" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete Permissions for MJ_BizApps_Tasks: Task Tag Links */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskTagLink" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskTagLink" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Base View SQL for MJ_BizApps_Tasks: Task Links */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18192,12 +18192,12 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskTagLink" 
 
 ------------------------------------------------------------
 ----- BASE VIEW FOR ENTITY:      MJ_BizApps_Tasks: Task Links
------               SCHEMA:      __mj_BizAppsTasks
+-----               SCHEMA:      __mj_bizappstasks
 -----               BASE TABLE:  TaskLink
 -----               PRIMARY KEY: ID
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskLinks" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskLinks" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Base View Permissions SQL for MJ_BizApps_Tasks: Task Links */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18208,7 +18208,7 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskLinks" TO "cdp_UI", "cdp_
 -- This file should NOT be edited by hand.
 -----------------------------------------------------------------;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskLinks" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskLinks" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate SQL for MJ_BizApps_Tasks: Task Links */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18223,10 +18223,10 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskLinks" TO "cdp_UI", "cdp_
 ----- CREATE PROCEDURE FOR TaskLink
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskLink" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskLink" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate Permissions for MJ_BizApps_Tasks: Task Links */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskLink" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskLink" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spUpdate SQL for MJ_BizApps_Tasks: Task Links */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18241,8 +18241,8 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskLink" TO 
 ----- UPDATE PROCEDURE FOR TaskLink
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskLink" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskLink" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskLink" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskLink" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete SQL for MJ_BizApps_Tasks: Task Links */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18257,10 +18257,10 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskLink" TO 
 ----- DELETE PROCEDURE FOR TaskLink
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskLink" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskLink" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete Permissions for MJ_BizApps_Tasks: Task Links */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskLink" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskLink" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Index for Foreign Keys for TaskTag */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18282,7 +18282,7 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskLink" TO 
 -----------------------------------------------------------------
 -- Index for foreign key ItemID in table TaskTemplateItemDependency;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTags" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskTags" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Base View Permissions SQL for MJ_BizApps_Tasks: Task Tags */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18293,7 +18293,7 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTags" TO "cdp_UI", "cdp_D
 -- This file should NOT be edited by hand.
 -----------------------------------------------------------------;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTags" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskTags" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate SQL for MJ_BizApps_Tasks: Task Tags */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18308,10 +18308,10 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTags" TO "cdp_UI", "cdp_D
 ----- CREATE PROCEDURE FOR TaskTag
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskTag" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskTag" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate Permissions for MJ_BizApps_Tasks: Task Tags */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskTag" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskTag" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spUpdate SQL for MJ_BizApps_Tasks: Task Tags */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18326,8 +18326,8 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskTag" TO "
 ----- UPDATE PROCEDURE FOR TaskTag
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskTag" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskTag" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskTag" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskTag" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete SQL for MJ_BizApps_Tasks: Task Tags */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18342,13 +18342,13 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskTag" TO "
 ----- DELETE PROCEDURE FOR TaskTag
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskTag" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskTag" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete Permissions for MJ_BizApps_Tasks: Task Tags */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskTag" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskTag" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* SQL text to update entity field related entity name field map for entity field ID 97D8E900-6AF3-4A75-92DA-1EAA66984AAE */
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTemplateItems" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskTemplateItems" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Base View Permissions SQL for MJ_BizApps_Tasks: Task Template Items */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18359,7 +18359,7 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTemplateItems" TO "cdp_UI
 -- This file should NOT be edited by hand.
 -----------------------------------------------------------------;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTemplateItems" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskTemplateItems" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate SQL for MJ_BizApps_Tasks: Task Template Items */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18374,10 +18374,10 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTemplateItems" TO "cdp_UI
 ----- CREATE PROCEDURE FOR TaskTemplateItem
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskTemplateItem" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskTemplateItem" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate Permissions for MJ_BizApps_Tasks: Task Template Items */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskTemplateItem" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskTemplateItem" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spUpdate SQL for MJ_BizApps_Tasks: Task Template Items */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18392,8 +18392,8 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskTemplateI
 ----- UPDATE PROCEDURE FOR TaskTemplateItem
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskTemplateItem" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskTemplateItem" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskTemplateItem" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskTemplateItem" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete SQL for MJ_BizApps_Tasks: Task Template Items */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18408,10 +18408,10 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskTemplateI
 ----- DELETE PROCEDURE FOR TaskTemplateItem
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskTemplateItem" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskTemplateItem" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete Permissions for MJ_BizApps_Tasks: Task Template Items */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskTemplateItem" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskTemplateItem" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Base View SQL for MJ_BizApps_Tasks: Task Template Item Dependencies */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18424,12 +18424,12 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskTemplateI
 
 ------------------------------------------------------------
 ----- BASE VIEW FOR ENTITY:      MJ_BizApps_Tasks: Task Template Item Dependencies
------               SCHEMA:      __mj_BizAppsTasks
+-----               SCHEMA:      __mj_bizappstasks
 -----               BASE TABLE:  TaskTemplateItemDependency
 -----               PRIMARY KEY: ID
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTemplateItemDependencies" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskTemplateItemDependencies" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Base View Permissions SQL for MJ_BizApps_Tasks: Task Template Item Dependencies */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18440,7 +18440,7 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTemplateItemDependencies"
 -- This file should NOT be edited by hand.
 -----------------------------------------------------------------;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTemplateItemDependencies" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskTemplateItemDependencies" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate SQL for MJ_BizApps_Tasks: Task Template Item Dependencies */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18455,10 +18455,10 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTemplateItemDependencies"
 ----- CREATE PROCEDURE FOR TaskTemplateItemDependency
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskTemplateItemDependency" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskTemplateItemDependency" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate Permissions for MJ_BizApps_Tasks: Task Template Item Dependencies */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskTemplateItemDependency" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskTemplateItemDependency" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spUpdate SQL for MJ_BizApps_Tasks: Task Template Item Dependencies */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18473,8 +18473,8 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskTemplateI
 ----- UPDATE PROCEDURE FOR TaskTemplateItemDependency
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskTemplateItemDependency" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskTemplateItemDependency" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskTemplateItemDependency" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskTemplateItemDependency" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete SQL for MJ_BizApps_Tasks: Task Template Item Dependencies */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18489,10 +18489,10 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskTemplateI
 ----- DELETE PROCEDURE FOR TaskTemplateItemDependency
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskTemplateItemDependency" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskTemplateItemDependency" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete Permissions for MJ_BizApps_Tasks: Task Template Item Dependencies */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskTemplateItemDependency" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskTemplateItemDependency" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Base View SQL for MJ_BizApps_Tasks: Task Templates */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18505,12 +18505,12 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskTemplateI
 
 ------------------------------------------------------------
 ----- BASE VIEW FOR ENTITY:      MJ_BizApps_Tasks: Task Templates
------               SCHEMA:      __mj_BizAppsTasks
+-----               SCHEMA:      __mj_bizappstasks
 -----               BASE TABLE:  TaskTemplate
 -----               PRIMARY KEY: ID
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTemplates" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskTemplates" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Base View Permissions SQL for MJ_BizApps_Tasks: Task Templates */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18521,7 +18521,7 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTemplates" TO "cdp_UI", "
 -- This file should NOT be edited by hand.
 -----------------------------------------------------------------;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTemplates" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskTemplates" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate SQL for MJ_BizApps_Tasks: Task Templates */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18536,10 +18536,10 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTemplates" TO "cdp_UI", "
 ----- CREATE PROCEDURE FOR TaskTemplate
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskTemplate" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskTemplate" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate Permissions for MJ_BizApps_Tasks: Task Templates */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskTemplate" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskTemplate" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spUpdate SQL for MJ_BizApps_Tasks: Task Templates */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18554,8 +18554,8 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskTemplate"
 ----- UPDATE PROCEDURE FOR TaskTemplate
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskTemplate" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskTemplate" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskTemplate" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskTemplate" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete SQL for MJ_BizApps_Tasks: Task Templates */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18570,10 +18570,10 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskTemplate"
 ----- DELETE PROCEDURE FOR TaskTemplate
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskTemplate" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskTemplate" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete Permissions for MJ_BizApps_Tasks: Task Templates */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskTemplate" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskTemplate" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Base View SQL for MJ_BizApps_Tasks: Task Template Item Roles */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18586,12 +18586,12 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskTemplate"
 
 ------------------------------------------------------------
 ----- BASE VIEW FOR ENTITY:      MJ_BizApps_Tasks: Task Template Item Roles
------               SCHEMA:      __mj_BizAppsTasks
+-----               SCHEMA:      __mj_bizappstasks
 -----               BASE TABLE:  TaskTemplateItemRole
 -----               PRIMARY KEY: ID
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTemplateItemRoles" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskTemplateItemRoles" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Base View Permissions SQL for MJ_BizApps_Tasks: Task Template Item Roles */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18602,7 +18602,7 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTemplateItemRoles" TO "cd
 -- This file should NOT be edited by hand.
 -----------------------------------------------------------------;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTemplateItemRoles" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskTemplateItemRoles" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate SQL for MJ_BizApps_Tasks: Task Template Item Roles */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18617,10 +18617,10 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTemplateItemRoles" TO "cd
 ----- CREATE PROCEDURE FOR TaskTemplateItemRole
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskTemplateItemRole" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskTemplateItemRole" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate Permissions for MJ_BizApps_Tasks: Task Template Item Roles */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskTemplateItemRole" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskTemplateItemRole" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spUpdate SQL for MJ_BizApps_Tasks: Task Template Item Roles */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18635,8 +18635,8 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskTemplateI
 ----- UPDATE PROCEDURE FOR TaskTemplateItemRole
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskTemplateItemRole" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskTemplateItemRole" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskTemplateItemRole" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskTemplateItemRole" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete SQL for MJ_BizApps_Tasks: Task Template Item Roles */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18651,10 +18651,10 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskTemplateI
 ----- DELETE PROCEDURE FOR TaskTemplateItemRole
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskTemplateItemRole" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskTemplateItemRole" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete Permissions for MJ_BizApps_Tasks: Task Template Item Roles */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskTemplateItemRole" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskTemplateItemRole" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Index for Foreign Keys for TaskType */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18666,7 +18666,7 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskTemplateI
 -----------------------------------------------------------------
 -- Index for foreign key OnAssignActionID in table TaskType;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTasks" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTasks" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Base View Permissions SQL for MJ_BizApps_Tasks: Tasks */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18677,7 +18677,7 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTasks" TO "cdp_UI", "cdp_Deve
 -- This file should NOT be edited by hand.
 -----------------------------------------------------------------;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTasks" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTasks" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate SQL for MJ_BizApps_Tasks: Tasks */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18692,10 +18692,10 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTasks" TO "cdp_UI", "cdp_Deve
 ----- CREATE PROCEDURE FOR Task
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTask" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTask" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate Permissions for MJ_BizApps_Tasks: Tasks */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTask" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTask" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spUpdate SQL for MJ_BizApps_Tasks: Tasks */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18710,8 +18710,8 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTask" TO "cdp
 ----- UPDATE PROCEDURE FOR Task
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTask" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTask" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTask" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTask" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete SQL for MJ_BizApps_Tasks: Tasks */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18726,10 +18726,10 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTask" TO "cdp
 ----- DELETE PROCEDURE FOR Task
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTask" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTask" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete Permissions for MJ_BizApps_Tasks: Tasks */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTask" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTask" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Base View SQL for MJ_BizApps_Tasks: Task Types */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18742,12 +18742,12 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTask" TO "cdp
 
 ------------------------------------------------------------
 ----- BASE VIEW FOR ENTITY:      MJ_BizApps_Tasks: Task Types
------               SCHEMA:      __mj_BizAppsTasks
+-----               SCHEMA:      __mj_bizappstasks
 -----               BASE TABLE:  TaskType
 -----               PRIMARY KEY: ID
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTypes" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskTypes" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* Base View Permissions SQL for MJ_BizApps_Tasks: Task Types */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18758,7 +18758,7 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTypes" TO "cdp_UI", "cdp_
 -- This file should NOT be edited by hand.
 -----------------------------------------------------------------;
 
-DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTypes" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT SELECT ON __mj_bizappstasks."vwTaskTypes" TO "cdp_UI", "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate SQL for MJ_BizApps_Tasks: Task Types */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18773,10 +18773,10 @@ DO $$ BEGIN GRANT SELECT ON "__mj_BizAppsTasks"."vwTaskTypes" TO "cdp_UI", "cdp_
 ----- CREATE PROCEDURE FOR TaskType
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskType" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskType" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spCreate Permissions for MJ_BizApps_Tasks: Task Types */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskType" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spCreateTaskType" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spUpdate SQL for MJ_BizApps_Tasks: Task Types */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18791,8 +18791,8 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spCreateTaskType" TO 
 ----- UPDATE PROCEDURE FOR TaskType
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskType" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskType" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskType" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spUpdateTaskType" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete SQL for MJ_BizApps_Tasks: Task Types */
 -----------------------------------------------------------------
 -- SQL Code Generation
@@ -18807,10 +18807,10 @@ DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spUpdateTaskType" TO 
 ----- DELETE PROCEDURE FOR TaskType
 ------------------------------------------------------------;
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskType" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskType" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* spDelete Permissions for MJ_BizApps_Tasks: Task Types */
 
-DO $$ BEGIN GRANT EXECUTE ON FUNCTION "__mj_BizAppsTasks"."spDeleteTaskType" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN GRANT EXECUTE ON FUNCTION __mj_bizappstasks."spDeleteTaskType" TO "cdp_Developer", "cdp_Integration"; EXCEPTION WHEN others THEN NULL; END $$;
 /* SQL text to delete unneeded entity fields (17 scoped entities) */
 
 

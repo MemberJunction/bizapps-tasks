@@ -8,8 +8,8 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Schema
-CREATE SCHEMA IF NOT EXISTS "__mj_BizAppsTasks";
-SET search_path TO "__mj_BizAppsTasks", public;
+CREATE SCHEMA IF NOT EXISTS __mj_bizappstasks;
+SET search_path TO __mj_bizappstasks, public;
 
 -- Ensure backslashes in string literals are treated literally (not as escape sequences)
 SET standard_conforming_strings = on;
@@ -52,7 +52,7 @@ SET standard_conforming_strings = on;
 --   p_IconClass_7c1991f8 := 'fa-solid fa-circle-check';
 --   p_DefaultPriority_7c1991f8 := 'Medium';
 --   p_IsActive_7c1991f8 := TRUE;
---   PERFORM "__mj_BizAppsTasks"."spCreateTaskType"(p_ID := p_ID_7c1991f8, p_Name := p_Name_7c1991f8, p_Description := p_Description_7c1991f8, p_IconClass := p_IconClass_7c1991f8, p_DefaultPriority := p_DefaultPriority_7c1991f8, p_OnAssignActionID := p_OnAssignActionID_7c1991f8, p_OnAssignActionID_Clear := TRUE, p_OnCompleteActionID := p_OnCompleteActionID_7c1991f8, p_OnCompleteActionID_Clear := TRUE, p_OnOverdueActionID := p_OnOverdueActionID_7c1991f8, p_OnOverdueActionID_Clear := TRUE, p_OnPercentChangeActionID := p_OnPercentChangeActionID_7c1991f8, p_OnPercentChangeActionID_Clear := TRUE, p_IsActive := p_IsActive_7c1991f8);
+--   PERFORM __mj_bizappstasks."spCreateTaskType"(p_ID := p_ID_7c1991f8, p_Name := p_Name_7c1991f8, p_Description := p_Description_7c1991f8, p_IconClass := p_IconClass_7c1991f8, p_DefaultPriority := p_DefaultPriority_7c1991f8, p_OnAssignActionID := p_OnAssignActionID_7c1991f8, p_OnAssignActionID_Clear := TRUE, p_OnCompleteActionID := p_OnCompleteActionID_7c1991f8, p_OnCompleteActionID_Clear := TRUE, p_OnOverdueActionID := p_OnOverdueActionID_7c1991f8, p_OnOverdueActionID_Clear := TRUE, p_OnPercentChangeActionID := p_OnPercentChangeActionID_7c1991f8, p_OnPercentChangeActionID_Clear := TRUE, p_IsActive := p_IsActive_7c1991f8);
 -- END $mj$;
 
 -- Save MJ_BizApps_Tasks: Task Types (core SP call only)
@@ -75,7 +75,7 @@ SET standard_conforming_strings = on;
 --   p_IconClass_9beba79b := 'fa-solid fa-bolt';
 --   p_DefaultPriority_9beba79b := 'Medium';
 --   p_IsActive_9beba79b := TRUE;
---   PERFORM "__mj_BizAppsTasks"."spCreateTaskType"(p_ID := p_ID_9beba79b, p_Name := p_Name_9beba79b, p_Description := p_Description_9beba79b, p_IconClass := p_IconClass_9beba79b, p_DefaultPriority := p_DefaultPriority_9beba79b, p_OnAssignActionID := p_OnAssignActionID_9beba79b, p_OnAssignActionID_Clear := TRUE, p_OnCompleteActionID := p_OnCompleteActionID_9beba79b, p_OnCompleteActionID_Clear := TRUE, p_OnOverdueActionID := p_OnOverdueActionID_9beba79b, p_OnOverdueActionID_Clear := TRUE, p_OnPercentChangeActionID := p_OnPercentChangeActionID_9beba79b, p_OnPercentChangeActionID_Clear := TRUE, p_IsActive := p_IsActive_9beba79b);
+--   PERFORM __mj_bizappstasks."spCreateTaskType"(p_ID := p_ID_9beba79b, p_Name := p_Name_9beba79b, p_Description := p_Description_9beba79b, p_IconClass := p_IconClass_9beba79b, p_DefaultPriority := p_DefaultPriority_9beba79b, p_OnAssignActionID := p_OnAssignActionID_9beba79b, p_OnAssignActionID_Clear := TRUE, p_OnCompleteActionID := p_OnCompleteActionID_9beba79b, p_OnCompleteActionID_Clear := TRUE, p_OnOverdueActionID := p_OnOverdueActionID_9beba79b, p_OnOverdueActionID_Clear := TRUE, p_OnPercentChangeActionID := p_OnPercentChangeActionID_9beba79b, p_OnPercentChangeActionID_Clear := TRUE, p_IsActive := p_IsActive_9beba79b);
 -- END $mj$;
 
 -- Save MJ_BizApps_Tasks: Task Types (core SP call only)
@@ -98,7 +98,7 @@ SET standard_conforming_strings = on;
 --   p_IconClass_28979e8d := 'fa-solid fa-arrow-rotate-right';
 --   p_DefaultPriority_28979e8d := 'Medium';
 --   p_IsActive_28979e8d := TRUE;
---   PERFORM "__mj_BizAppsTasks"."spCreateTaskType"(p_ID := p_ID_28979e8d, p_Name := p_Name_28979e8d, p_Description := p_Description_28979e8d, p_IconClass := p_IconClass_28979e8d, p_DefaultPriority := p_DefaultPriority_28979e8d, p_OnAssignActionID := p_OnAssignActionID_28979e8d, p_OnAssignActionID_Clear := TRUE, p_OnCompleteActionID := p_OnCompleteActionID_28979e8d, p_OnCompleteActionID_Clear := TRUE, p_OnOverdueActionID := p_OnOverdueActionID_28979e8d, p_OnOverdueActionID_Clear := TRUE, p_OnPercentChangeActionID := p_OnPercentChangeActionID_28979e8d, p_OnPercentChangeActionID_Clear := TRUE, p_IsActive := p_IsActive_28979e8d);
+--   PERFORM __mj_bizappstasks."spCreateTaskType"(p_ID := p_ID_28979e8d, p_Name := p_Name_28979e8d, p_Description := p_Description_28979e8d, p_IconClass := p_IconClass_28979e8d, p_DefaultPriority := p_DefaultPriority_28979e8d, p_OnAssignActionID := p_OnAssignActionID_28979e8d, p_OnAssignActionID_Clear := TRUE, p_OnCompleteActionID := p_OnCompleteActionID_28979e8d, p_OnCompleteActionID_Clear := TRUE, p_OnOverdueActionID := p_OnOverdueActionID_28979e8d, p_OnOverdueActionID_Clear := TRUE, p_OnPercentChangeActionID := p_OnPercentChangeActionID_28979e8d, p_OnPercentChangeActionID_Clear := TRUE, p_IsActive := p_IsActive_28979e8d);
 -- END $mj$;
 
 -- Save MJ_BizApps_Tasks: Task Types (core SP call only)
@@ -121,7 +121,7 @@ SET standard_conforming_strings = on;
 --   p_IconClass_557c3859 := 'fa-solid fa-file-export';
 --   p_DefaultPriority_557c3859 := 'High';
 --   p_IsActive_557c3859 := TRUE;
---   PERFORM "__mj_BizAppsTasks"."spCreateTaskType"(p_ID := p_ID_557c3859, p_Name := p_Name_557c3859, p_Description := p_Description_557c3859, p_IconClass := p_IconClass_557c3859, p_DefaultPriority := p_DefaultPriority_557c3859, p_OnAssignActionID := p_OnAssignActionID_557c3859, p_OnAssignActionID_Clear := TRUE, p_OnCompleteActionID := p_OnCompleteActionID_557c3859, p_OnCompleteActionID_Clear := TRUE, p_OnOverdueActionID := p_OnOverdueActionID_557c3859, p_OnOverdueActionID_Clear := TRUE, p_OnPercentChangeActionID := p_OnPercentChangeActionID_557c3859, p_OnPercentChangeActionID_Clear := TRUE, p_IsActive := p_IsActive_557c3859);
+--   PERFORM __mj_bizappstasks."spCreateTaskType"(p_ID := p_ID_557c3859, p_Name := p_Name_557c3859, p_Description := p_Description_557c3859, p_IconClass := p_IconClass_557c3859, p_DefaultPriority := p_DefaultPriority_557c3859, p_OnAssignActionID := p_OnAssignActionID_557c3859, p_OnAssignActionID_Clear := TRUE, p_OnCompleteActionID := p_OnCompleteActionID_557c3859, p_OnCompleteActionID_Clear := TRUE, p_OnOverdueActionID := p_OnOverdueActionID_557c3859, p_OnOverdueActionID_Clear := TRUE, p_OnPercentChangeActionID := p_OnPercentChangeActionID_557c3859, p_OnPercentChangeActionID_Clear := TRUE, p_IsActive := p_IsActive_557c3859);
 -- END $mj$;
 
 -- Save MJ_BizApps_Tasks: Task Roles (core SP call only)
@@ -136,7 +136,7 @@ SET standard_conforming_strings = on;
 --   p_Name_50df5d1f := 'Primary';
 --   p_Description_50df5d1f := 'Primary person responsible for completing the task';
 --   p_Sequence_50df5d1f := 10;
---   PERFORM "__mj_BizAppsTasks"."spCreateTaskRole"(p_ID := p_ID_50df5d1f, p_Name := p_Name_50df5d1f, p_Description := p_Description_50df5d1f, p_Sequence := p_Sequence_50df5d1f);
+--   PERFORM __mj_bizappstasks."spCreateTaskRole"(p_ID := p_ID_50df5d1f, p_Name := p_Name_50df5d1f, p_Description := p_Description_50df5d1f, p_Sequence := p_Sequence_50df5d1f);
 -- END $mj$;
 
 -- Save MJ_BizApps_Tasks: Task Roles (core SP call only)
@@ -151,7 +151,7 @@ SET standard_conforming_strings = on;
 --   p_Name_a6a42771 := 'Reviewer';
 --   p_Description_a6a42771 := 'Reviews and approves the completed work';
 --   p_Sequence_a6a42771 := 20;
---   PERFORM "__mj_BizAppsTasks"."spCreateTaskRole"(p_ID := p_ID_a6a42771, p_Name := p_Name_a6a42771, p_Description := p_Description_a6a42771, p_Sequence := p_Sequence_a6a42771);
+--   PERFORM __mj_bizappstasks."spCreateTaskRole"(p_ID := p_ID_a6a42771, p_Name := p_Name_a6a42771, p_Description := p_Description_a6a42771, p_Sequence := p_Sequence_a6a42771);
 -- END $mj$;
 
 -- Save MJ_BizApps_Tasks: Task Roles (core SP call only)
@@ -166,7 +166,7 @@ SET standard_conforming_strings = on;
 --   p_Name_f3005d55 := 'Observer';
 --   p_Description_f3005d55 := 'Kept informed of progress but not actively working on the task';
 --   p_Sequence_f3005d55 := 30;
---   PERFORM "__mj_BizAppsTasks"."spCreateTaskRole"(p_ID := p_ID_f3005d55, p_Name := p_Name_f3005d55, p_Description := p_Description_f3005d55, p_Sequence := p_Sequence_f3005d55);
+--   PERFORM __mj_bizappstasks."spCreateTaskRole"(p_ID := p_ID_f3005d55, p_Name := p_Name_f3005d55, p_Description := p_Description_f3005d55, p_Sequence := p_Sequence_f3005d55);
 -- END $mj$;
 
 -- Save MJ_BizApps_Tasks: Task Notification Configs (core SP call only)
@@ -187,7 +187,7 @@ SET standard_conforming_strings = on;
 --   p_OverdueRepeatIntervalHours_76cf7535 := 24;
 --   p_NotifyAssignees_76cf7535 := TRUE;
 --   p_NotifyCreator_76cf7535 := TRUE;
---   PERFORM "__mj_BizAppsTasks"."spCreateTaskNotificationConfig"(p_ID := p_ID_76cf7535, p_TaskTypeID := p_TaskTypeID_76cf7535, p_TaskTypeID_Clear := TRUE, p_OverdueNotificationsEnabled := p_OverdueNotificationsEnabled_76cf7535, p_OverdueGracePeriodHours := p_OverdueGracePeriodHours_76cf7535, p_OverdueRepeatIntervalHours := p_OverdueRepeatIntervalHours_76cf7535, p_NotifyAssignees := p_NotifyAssignees_76cf7535, p_NotifyCreator := p_NotifyCreator_76cf7535, p_OverdueActionID := p_OverdueActionID_76cf7535, p_OverdueActionID_Clear := TRUE);
+--   PERFORM __mj_bizappstasks."spCreateTaskNotificationConfig"(p_ID := p_ID_76cf7535, p_TaskTypeID := p_TaskTypeID_76cf7535, p_TaskTypeID_Clear := TRUE, p_OverdueNotificationsEnabled := p_OverdueNotificationsEnabled_76cf7535, p_OverdueGracePeriodHours := p_OverdueGracePeriodHours_76cf7535, p_OverdueRepeatIntervalHours := p_OverdueRepeatIntervalHours_76cf7535, p_NotifyAssignees := p_NotifyAssignees_76cf7535, p_NotifyCreator := p_NotifyCreator_76cf7535, p_OverdueActionID := p_OverdueActionID_76cf7535, p_OverdueActionID_Clear := TRUE);
 -- END $mj$;
 
 
