@@ -2239,6 +2239,38 @@ export class mjBizAppsTasksTaskDependencyEntity extends BaseEntity<mjBizAppsTask
     }
 
     /**
+    * Validate() method override for MJ_BizApps_Tasks: Task Dependencies entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
+    * * Table-Level: A task cannot depend on itself. The task ID and the dependent task ID must be different to prevent self-referencing dependencies.
+    * @public
+    * @method
+    * @override
+    */
+    public override Validate(): ValidationResult {
+        const result = super.Validate();
+        this.ValidateTaskNotDependentOnSelf(result);
+        result.Success = result.Success && (result.Errors.length === 0);
+
+        return result;
+    }
+
+    /**
+    * A task cannot depend on itself. The task ID and the dependent task ID must be different to prevent self-referencing dependencies.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateTaskNotDependentOnSelf(result: ValidationResult) {
+    	if (this.TaskID != null && this.DependsOnTaskID != null && this.TaskID === this.DependsOnTaskID) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"DependsOnTaskID",
+    			"A task cannot depend on itself. The Task ID and Depends On Task ID must be different.",
+    			this.DependsOnTaskID,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    }
+
+    /**
     * * Field Name: ID
     * * Display Name: ID
     * * SQL Data Type: uniqueidentifier
@@ -3956,6 +3988,38 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
         const compositeKey: CompositeKey = new CompositeKey();
         compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
         return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * Validate() method override for MJ_BizApps_Tasks: Tasks entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
+    * * PercentComplete: Percent complete must be a value between 0 and 100 to ensure accurate progress tracking.
+    * @public
+    * @method
+    * @override
+    */
+    public override Validate(): ValidationResult {
+        const result = super.Validate();
+        this.ValidatePercentCompleteRange(result);
+        result.Success = result.Success && (result.Errors.length === 0);
+
+        return result;
+    }
+
+    /**
+    * Percent complete must be a value between 0 and 100 to ensure accurate progress tracking.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidatePercentCompleteRange(result: ValidationResult) {
+    	if (this.PercentComplete != null && (this.PercentComplete < 0 || this.PercentComplete > 100)) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"PercentComplete",
+    			"Percent complete must be between 0 and 100.",
+    			this.PercentComplete,
+    			ValidationErrorType.Failure
+    		));
+    	}
     }
 
     /**
