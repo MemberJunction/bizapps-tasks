@@ -114,9 +114,16 @@ SELECT "ID", "Name" FROM __mj_bizappstasks."spCreateTaskRole"(
 DELETE FROM __mj_bizappstasks."TaskRole" WHERE "Name" = 'RunbookProbe';
 ```
 
-Then the live proof — MJAPI against it (same shell, exports still set):
+Then the two live proofs:
 
 ```bash
+# Functional suite — CRUD functions, FK-join views, root-parent TVFs, CHECK
+# enforcement, cross-schema Person joins, polymorphic assignment, approval
+# model, row-touch triggers. Self-cleaning. Connection via PGHOST/PGPORT/
+# PGDATABASE/PGUSER/PGPASSWORD (defaults match this runbook's container).
+node scripts/pg-objectmodel-test.mjs      # expect: RESULT: 19 passed, 0 failed
+
+# MJAPI against it (same shell, exports still set)
 cd apps/MJAPI && GRAPHQL_PORT=4111 npm start   # expect: Server ready at http://localhost:4111/
 ```
 
