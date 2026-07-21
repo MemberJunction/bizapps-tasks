@@ -529,130 +529,169 @@ CREATE INDEX IF NOT EXISTS "IDX_AUTO_MJ_FKEY_Task_CreatedByPersonID" ON __mj_biz
 
 -- ===================== Helper Functions (fn*) =====================
 
-CREATE OR REPLACE FUNCTION __mj_bizappstasks."fnTaskCategoryParentID_GetRootID"(
-    p_RecordID UUID,
-    p_ParentID UUID
-) RETURNS TABLE("RootID" UUID) AS $fn$
+-- fn_task_category_parent_id_get_root_id: CodeGen's canonical recursive root lookup (scalar form).
+-- The views below reference these, matching what CodeGen maintains.
+CREATE OR REPLACE FUNCTION __mj_bizappstasks.fn_task_category_parent_id_get_root_id(p_record_id uuid, p_parent_id uuid)
+ RETURNS uuid
+ LANGUAGE sql
+ STABLE
+AS $function$
     WITH RECURSIVE cte_root_parent AS (
+        -- Anchor: Start from p_parent_id if not null, otherwise start from p_record_id
         SELECT
             "ID",
             "ParentID",
             "ID" AS root_parent_id,
             0 AS depth
-        FROM __mj_bizappstasks."TaskCategory"
-        WHERE "ID" = COALESCE(p_ParentID, p_RecordID)
+        FROM
+            __mj_bizappstasks."TaskCategory"
+        WHERE
+            "ID" = COALESCE(p_parent_id, p_record_id)
 
         UNION ALL
 
+        -- Recursive: Keep going up the hierarchy
         SELECT
             c."ID",
             c."ParentID",
             c."ID" AS root_parent_id,
             p.depth + 1 AS depth
-        FROM __mj_bizappstasks."TaskCategory" c
-        INNER JOIN cte_root_parent p ON c."ID" = p."ParentID"
-        WHERE p.depth < 100
+        FROM
+            __mj_bizappstasks."TaskCategory" c
+        INNER JOIN
+            cte_root_parent p ON c."ID" = p."ParentID"
+        WHERE
+            p.depth < 100  -- Prevent infinite loops
     )
-    SELECT root_parent_id AS "RootID"
+    SELECT root_parent_id
     FROM cte_root_parent
     WHERE "ParentID" IS NULL
     ORDER BY root_parent_id
     LIMIT 1;
-$fn$ LANGUAGE sql STABLE;
+$function$;
 
-CREATE OR REPLACE FUNCTION __mj_bizappstasks."fnTaskCommentParentID_GetRootID"(
-    p_RecordID UUID,
-    p_ParentID UUID
-) RETURNS TABLE("RootID" UUID) AS $fn$
+-- fn_task_comment_parent_id_get_root_id: CodeGen's canonical recursive root lookup (scalar form).
+-- The views below reference these, matching what CodeGen maintains.
+CREATE OR REPLACE FUNCTION __mj_bizappstasks.fn_task_comment_parent_id_get_root_id(p_record_id uuid, p_parent_id uuid)
+ RETURNS uuid
+ LANGUAGE sql
+ STABLE
+AS $function$
     WITH RECURSIVE cte_root_parent AS (
+        -- Anchor: Start from p_parent_id if not null, otherwise start from p_record_id
         SELECT
             "ID",
             "ParentID",
             "ID" AS root_parent_id,
             0 AS depth
-        FROM __mj_bizappstasks."TaskComment"
-        WHERE "ID" = COALESCE(p_ParentID, p_RecordID)
+        FROM
+            __mj_bizappstasks."TaskComment"
+        WHERE
+            "ID" = COALESCE(p_parent_id, p_record_id)
 
         UNION ALL
 
+        -- Recursive: Keep going up the hierarchy
         SELECT
             c."ID",
             c."ParentID",
             c."ID" AS root_parent_id,
             p.depth + 1 AS depth
-        FROM __mj_bizappstasks."TaskComment" c
-        INNER JOIN cte_root_parent p ON c."ID" = p."ParentID"
-        WHERE p.depth < 100
+        FROM
+            __mj_bizappstasks."TaskComment" c
+        INNER JOIN
+            cte_root_parent p ON c."ID" = p."ParentID"
+        WHERE
+            p.depth < 100  -- Prevent infinite loops
     )
-    SELECT root_parent_id AS "RootID"
+    SELECT root_parent_id
     FROM cte_root_parent
     WHERE "ParentID" IS NULL
     ORDER BY root_parent_id
     LIMIT 1;
-$fn$ LANGUAGE sql STABLE;
+$function$;
 
-CREATE OR REPLACE FUNCTION __mj_bizappstasks."fnTaskTemplateItemParentItemID_GetRootID"(
-    p_RecordID UUID,
-    p_ParentID UUID
-) RETURNS TABLE("RootID" UUID) AS $fn$
+-- fn_task_template_item_parent_item_id_get_root_id: CodeGen's canonical recursive root lookup (scalar form).
+-- The views below reference these, matching what CodeGen maintains.
+CREATE OR REPLACE FUNCTION __mj_bizappstasks.fn_task_template_item_parent_item_id_get_root_id(p_record_id uuid, p_parent_id uuid)
+ RETURNS uuid
+ LANGUAGE sql
+ STABLE
+AS $function$
     WITH RECURSIVE cte_root_parent AS (
+        -- Anchor: Start from p_parent_id if not null, otherwise start from p_record_id
         SELECT
             "ID",
             "ParentItemID",
             "ID" AS root_parent_id,
             0 AS depth
-        FROM __mj_bizappstasks."TaskTemplateItem"
-        WHERE "ID" = COALESCE(p_ParentID, p_RecordID)
+        FROM
+            __mj_bizappstasks."TaskTemplateItem"
+        WHERE
+            "ID" = COALESCE(p_parent_id, p_record_id)
 
         UNION ALL
 
+        -- Recursive: Keep going up the hierarchy
         SELECT
             c."ID",
             c."ParentItemID",
             c."ID" AS root_parent_id,
             p.depth + 1 AS depth
-        FROM __mj_bizappstasks."TaskTemplateItem" c
-        INNER JOIN cte_root_parent p ON c."ID" = p."ParentItemID"
-        WHERE p.depth < 100
+        FROM
+            __mj_bizappstasks."TaskTemplateItem" c
+        INNER JOIN
+            cte_root_parent p ON c."ID" = p."ParentItemID"
+        WHERE
+            p.depth < 100  -- Prevent infinite loops
     )
-    SELECT root_parent_id AS "RootID"
+    SELECT root_parent_id
     FROM cte_root_parent
     WHERE "ParentItemID" IS NULL
     ORDER BY root_parent_id
     LIMIT 1;
-$fn$ LANGUAGE sql STABLE;
+$function$;
 
-CREATE OR REPLACE FUNCTION __mj_bizappstasks."fnTaskParentID_GetRootID"(
-    p_RecordID UUID,
-    p_ParentID UUID
-) RETURNS TABLE("RootID" UUID) AS $fn$
+-- fn_task_parent_id_get_root_id: CodeGen's canonical recursive root lookup (scalar form).
+-- The views below reference these, matching what CodeGen maintains.
+CREATE OR REPLACE FUNCTION __mj_bizappstasks.fn_task_parent_id_get_root_id(p_record_id uuid, p_parent_id uuid)
+ RETURNS uuid
+ LANGUAGE sql
+ STABLE
+AS $function$
     WITH RECURSIVE cte_root_parent AS (
+        -- Anchor: Start from p_parent_id if not null, otherwise start from p_record_id
         SELECT
             "ID",
             "ParentID",
             "ID" AS root_parent_id,
             0 AS depth
-        FROM __mj_bizappstasks."Task"
-        WHERE "ID" = COALESCE(p_ParentID, p_RecordID)
+        FROM
+            __mj_bizappstasks."Task"
+        WHERE
+            "ID" = COALESCE(p_parent_id, p_record_id)
 
         UNION ALL
 
+        -- Recursive: Keep going up the hierarchy
         SELECT
             c."ID",
             c."ParentID",
             c."ID" AS root_parent_id,
             p.depth + 1 AS depth
-        FROM __mj_bizappstasks."Task" c
-        INNER JOIN cte_root_parent p ON c."ID" = p."ParentID"
-        WHERE p.depth < 100
+        FROM
+            __mj_bizappstasks."Task" c
+        INNER JOIN
+            cte_root_parent p ON c."ID" = p."ParentID"
+        WHERE
+            p.depth < 100  -- Prevent infinite loops
     )
-    SELECT root_parent_id AS "RootID"
+    SELECT root_parent_id
     FROM cte_root_parent
     WHERE "ParentID" IS NULL
     ORDER BY root_parent_id
     LIMIT 1;
-$fn$ LANGUAGE sql STABLE;
-
+$function$;
 
 -- ===================== Views =====================
 
@@ -662,18 +701,20 @@ DECLARE
   v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskCategories';
   vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskCategories"
-AS SELECT
-    t.*,
-    "mjBizAppsTasksTaskCategory_ParentID"."Name" AS "Parent",
-    "root_ParentID"."RootID" AS "RootParentID"
-FROM
-    __mj_bizappstasks."TaskCategory" AS t
-LEFT OUTER JOIN
-    __mj_bizappstasks."TaskCategory" AS "mjBizAppsTasksTaskCategory_ParentID"
-  ON
-    t."ParentID" = "mjBizAppsTasksTaskCategory_ParentID"."ID"
-LEFT JOIN LATERAL (SELECT * FROM __mj_bizappstasks."fnTaskCategoryParentID_GetRootID"(t."ID", t."ParentID")) AS "root_ParentID"
-    ON TRUE$vsql$;
+AS SELECT t."ID",
+    t."Name",
+    t."Description",
+    t."ParentID",
+    t."ColorCode",
+    t."Sequence",
+    t."IsActive",
+    t."__mj_CreatedAt",
+    t."__mj_UpdatedAt",
+    mjbizappstaskstaskcategory_parentid."Name" AS "Parent",
+    root_parentid.root_id AS "RootParentID"
+   FROM __mj_bizappstasks."TaskCategory" t
+     LEFT JOIN __mj_bizappstasks."TaskCategory" mjbizappstaskstaskcategory_parentid ON t."ParentID" = mjbizappstaskstaskcategory_parentid."ID"
+     LEFT JOIN LATERAL ( SELECT __mj_bizappstasks.fn_task_category_parent_id_get_root_id(t."ID", t."ParentID") AS root_id) root_parentid ON true;$vsql$;
   v_target_oid OID;
   v_dep RECORD;
   v_captured JSONB[] := ARRAY[]::JSONB[];
@@ -735,20 +776,20 @@ DECLARE
   v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskActivities';
   vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskActivities"
-AS SELECT
-    t.*,
-    "mjBizAppsTasksTask_TaskID"."Name" AS "Task",
-    "mjBizAppsCommonPerson_PersonID"."DisplayName" AS "Person"
-FROM
-    __mj_bizappstasks."TaskActivity" AS t
-INNER JOIN
-    __mj_bizappstasks."Task" AS "mjBizAppsTasksTask_TaskID"
-  ON
-    t."TaskID" = "mjBizAppsTasksTask_TaskID"."ID"
-LEFT OUTER JOIN
-    __mj_bizappscommon."Person" AS "mjBizAppsCommonPerson_PersonID"
-  ON
-    t."PersonID" = "mjBizAppsCommonPerson_PersonID"."ID"$vsql$;
+AS SELECT t."ID",
+    t."TaskID",
+    t."PersonID",
+    t."ActivityType",
+    t."PreviousValue",
+    t."NewValue",
+    t."Description",
+    t."__mj_CreatedAt",
+    t."__mj_UpdatedAt",
+    mjbizappstaskstask_taskid."Name" AS "Task",
+    mjbizappscommonperson_personid."DisplayName" AS "Person"
+   FROM __mj_bizappstasks."TaskActivity" t
+     JOIN __mj_bizappstasks."Task" mjbizappstaskstask_taskid ON t."TaskID" = mjbizappstaskstask_taskid."ID"
+     LEFT JOIN __mj_bizappscommon."Person" mjbizappscommonperson_personid ON t."PersonID" = mjbizappscommonperson_personid."ID";$vsql$;
   v_target_oid OID;
   v_dep RECORD;
   v_captured JSONB[] := ARRAY[]::JSONB[];
@@ -810,23 +851,21 @@ DECLARE
   v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskComments';
   vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskComments"
-AS SELECT
-    t.*,
-    "mjBizAppsTasksTask_TaskID"."Name" AS "Task",
-    "mjBizAppsCommonPerson_PersonID"."DisplayName" AS "Person",
-    "root_ParentID"."RootID" AS "RootParentID"
-FROM
-    __mj_bizappstasks."TaskComment" AS t
-INNER JOIN
-    __mj_bizappstasks."Task" AS "mjBizAppsTasksTask_TaskID"
-  ON
-    t."TaskID" = "mjBizAppsTasksTask_TaskID"."ID"
-INNER JOIN
-    __mj_bizappscommon."Person" AS "mjBizAppsCommonPerson_PersonID"
-  ON
-    t."PersonID" = "mjBizAppsCommonPerson_PersonID"."ID"
-LEFT JOIN LATERAL (SELECT * FROM __mj_bizappstasks."fnTaskCommentParentID_GetRootID"(t."ID", t."ParentID")) AS "root_ParentID"
-    ON TRUE$vsql$;
+AS SELECT t."ID",
+    t."TaskID",
+    t."ParentID",
+    t."PersonID",
+    t."Content",
+    t."IsEdited",
+    t."__mj_CreatedAt",
+    t."__mj_UpdatedAt",
+    mjbizappstaskstask_taskid."Name" AS "Task",
+    mjbizappscommonperson_personid."DisplayName" AS "Person",
+    root_parentid.root_id AS "RootParentID"
+   FROM __mj_bizappstasks."TaskComment" t
+     JOIN __mj_bizappstasks."Task" mjbizappstaskstask_taskid ON t."TaskID" = mjbizappstaskstask_taskid."ID"
+     JOIN __mj_bizappscommon."Person" mjbizappscommonperson_personid ON t."PersonID" = mjbizappscommonperson_personid."ID"
+     LEFT JOIN LATERAL ( SELECT __mj_bizappstasks.fn_task_comment_parent_id_get_root_id(t."ID", t."ParentID") AS root_id) root_parentid ON true;$vsql$;
   v_target_oid OID;
   v_dep RECORD;
   v_captured JSONB[] := ARRAY[]::JSONB[];
@@ -888,20 +927,17 @@ DECLARE
   v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskDependencies';
   vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskDependencies"
-AS SELECT
-    t.*,
-    "mjBizAppsTasksTask_TaskID"."Name" AS "Task",
-    "mjBizAppsTasksTask_DependsOnTaskID"."Name" AS "DependsOnTask"
-FROM
-    __mj_bizappstasks."TaskDependency" AS t
-INNER JOIN
-    __mj_bizappstasks."Task" AS "mjBizAppsTasksTask_TaskID"
-  ON
-    t."TaskID" = "mjBizAppsTasksTask_TaskID"."ID"
-INNER JOIN
-    __mj_bizappstasks."Task" AS "mjBizAppsTasksTask_DependsOnTaskID"
-  ON
-    t."DependsOnTaskID" = "mjBizAppsTasksTask_DependsOnTaskID"."ID"$vsql$;
+AS SELECT t."ID",
+    t."TaskID",
+    t."DependsOnTaskID",
+    t."DependencyType",
+    t."__mj_CreatedAt",
+    t."__mj_UpdatedAt",
+    mjbizappstaskstask_taskid."Name" AS "Task",
+    mjbizappstaskstask_dependsontaskid."Name" AS "DependsOnTask"
+   FROM __mj_bizappstasks."TaskDependency" t
+     JOIN __mj_bizappstasks."Task" mjbizappstaskstask_taskid ON t."TaskID" = mjbizappstaskstask_taskid."ID"
+     JOIN __mj_bizappstasks."Task" mjbizappstaskstask_dependsontaskid ON t."DependsOnTaskID" = mjbizappstaskstask_dependsontaskid."ID";$vsql$;
   v_target_oid OID;
   v_dep RECORD;
   v_captured JSONB[] := ARRAY[]::JSONB[];
@@ -963,30 +999,26 @@ DECLARE
   v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskAssignments';
   vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskAssignments"
-AS SELECT
-    t.*,
-    "mjBizAppsTasksTask_TaskID"."Name" AS "Task",
-    "MJEntity_AssigneeEntityID"."Name" AS "AssigneeEntity",
-    "mjBizAppsTasksTaskRole_RoleID"."Name" AS "Role",
-    "mjBizAppsCommonPerson_AssignedByPersonID"."DisplayName" AS "AssignedByPerson"
-FROM
-    __mj_bizappstasks."TaskAssignment" AS t
-INNER JOIN
-    __mj_bizappstasks."Task" AS "mjBizAppsTasksTask_TaskID"
-  ON
-    t."TaskID" = "mjBizAppsTasksTask_TaskID"."ID"
-INNER JOIN
-    "${mjSchema}"."Entity" AS "MJEntity_AssigneeEntityID"
-  ON
-    t."AssigneeEntityID" = "MJEntity_AssigneeEntityID"."ID"
-LEFT OUTER JOIN
-    __mj_bizappstasks."TaskRole" AS "mjBizAppsTasksTaskRole_RoleID"
-  ON
-    t."RoleID" = "mjBizAppsTasksTaskRole_RoleID"."ID"
-LEFT OUTER JOIN
-    __mj_bizappscommon."Person" AS "mjBizAppsCommonPerson_AssignedByPersonID"
-  ON
-    t."AssignedByPersonID" = "mjBizAppsCommonPerson_AssignedByPersonID"."ID"$vsql$;
+AS SELECT t."ID",
+    t."TaskID",
+    t."AssigneeEntityID",
+    t."AssigneeRecordID",
+    t."RoleID",
+    t."RoleNotes",
+    t."Status",
+    t."AssignedByPersonID",
+    t."AssignedAt",
+    t."__mj_CreatedAt",
+    t."__mj_UpdatedAt",
+    mjbizappstaskstask_taskid."Name" AS "Task",
+    mjentity_assigneeentityid."Name" AS "AssigneeEntity",
+    mjbizappstaskstaskrole_roleid."Name" AS "Role",
+    mjbizappscommonperson_assignedbypersonid."DisplayName" AS "AssignedByPerson"
+   FROM __mj_bizappstasks."TaskAssignment" t
+     JOIN __mj_bizappstasks."Task" mjbizappstaskstask_taskid ON t."TaskID" = mjbizappstaskstask_taskid."ID"
+     JOIN ${mjSchema}."Entity" mjentity_assigneeentityid ON t."AssigneeEntityID" = mjentity_assigneeentityid."ID"
+     LEFT JOIN __mj_bizappstasks."TaskRole" mjbizappstaskstaskrole_roleid ON t."RoleID" = mjbizappstaskstaskrole_roleid."ID"
+     LEFT JOIN __mj_bizappscommon."Person" mjbizappscommonperson_assignedbypersonid ON t."AssignedByPersonID" = mjbizappscommonperson_assignedbypersonid."ID";$vsql$;
   v_target_oid OID;
   v_dep RECORD;
   v_captured JSONB[] := ARRAY[]::JSONB[];
@@ -1113,20 +1145,21 @@ DECLARE
   v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskNotificationConfigs';
   vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskNotificationConfigs"
-AS SELECT
-    t.*,
-    "mjBizAppsTasksTaskType_TaskTypeID"."Name" AS "TaskType",
-    "MJAction_OverdueActionID"."Name" AS "OverdueAction"
-FROM
-    __mj_bizappstasks."TaskNotificationConfig" AS t
-LEFT OUTER JOIN
-    __mj_bizappstasks."TaskType" AS "mjBizAppsTasksTaskType_TaskTypeID"
-  ON
-    t."TaskTypeID" = "mjBizAppsTasksTaskType_TaskTypeID"."ID"
-LEFT OUTER JOIN
-    "${mjSchema}"."Action" AS "MJAction_OverdueActionID"
-  ON
-    t."OverdueActionID" = "MJAction_OverdueActionID"."ID"$vsql$;
+AS SELECT t."ID",
+    t."TaskTypeID",
+    t."OverdueNotificationsEnabled",
+    t."OverdueGracePeriodHours",
+    t."OverdueRepeatIntervalHours",
+    t."NotifyAssignees",
+    t."NotifyCreator",
+    t."OverdueActionID",
+    t."__mj_CreatedAt",
+    t."__mj_UpdatedAt",
+    mjbizappstaskstasktype_tasktypeid."Name" AS "TaskType",
+    mjaction_overdueactionid."Name" AS "OverdueAction"
+   FROM __mj_bizappstasks."TaskNotificationConfig" t
+     LEFT JOIN __mj_bizappstasks."TaskType" mjbizappstaskstasktype_tasktypeid ON t."TaskTypeID" = mjbizappstaskstasktype_tasktypeid."ID"
+     LEFT JOIN ${mjSchema}."Action" mjaction_overdueactionid ON t."OverdueActionID" = mjaction_overdueactionid."ID";$vsql$;
   v_target_oid OID;
   v_dep RECORD;
   v_captured JSONB[] := ARRAY[]::JSONB[];
@@ -1188,20 +1221,18 @@ DECLARE
   v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskNotificationLogs';
   vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskNotificationLogs"
-AS SELECT
-    t.*,
-    "mjBizAppsTasksTask_TaskID"."Name" AS "Task",
-    "MJUser_NotifiedUserID"."Name" AS "NotifiedUser"
-FROM
-    __mj_bizappstasks."TaskNotificationLog" AS t
-INNER JOIN
-    __mj_bizappstasks."Task" AS "mjBizAppsTasksTask_TaskID"
-  ON
-    t."TaskID" = "mjBizAppsTasksTask_TaskID"."ID"
-INNER JOIN
-    "${mjSchema}"."User" AS "MJUser_NotifiedUserID"
-  ON
-    t."NotifiedUserID" = "MJUser_NotifiedUserID"."ID"$vsql$;
+AS SELECT t."ID",
+    t."TaskID",
+    t."NotificationType",
+    t."NotifiedUserID",
+    t."NotifiedAt",
+    t."__mj_CreatedAt",
+    t."__mj_UpdatedAt",
+    mjbizappstaskstask_taskid."Name" AS "Task",
+    mjuser_notifieduserid."Name" AS "NotifiedUser"
+   FROM __mj_bizappstasks."TaskNotificationLog" t
+     JOIN __mj_bizappstasks."Task" mjbizappstaskstask_taskid ON t."TaskID" = mjbizappstaskstask_taskid."ID"
+     JOIN ${mjSchema}."User" mjuser_notifieduserid ON t."NotifiedUserID" = mjuser_notifieduserid."ID";$vsql$;
   v_target_oid OID;
   v_dep RECORD;
   v_captured JSONB[] := ARRAY[]::JSONB[];
@@ -1263,20 +1294,16 @@ DECLARE
   v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskTagLinks';
   vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskTagLinks"
-AS SELECT
-    t.*,
-    "mjBizAppsTasksTask_TaskID"."Name" AS "Task",
-    "mjBizAppsTasksTaskTag_TagID"."Name" AS "Tag"
-FROM
-    __mj_bizappstasks."TaskTagLink" AS t
-INNER JOIN
-    __mj_bizappstasks."Task" AS "mjBizAppsTasksTask_TaskID"
-  ON
-    t."TaskID" = "mjBizAppsTasksTask_TaskID"."ID"
-INNER JOIN
-    __mj_bizappstasks."TaskTag" AS "mjBizAppsTasksTaskTag_TagID"
-  ON
-    t."TagID" = "mjBizAppsTasksTaskTag_TagID"."ID"$vsql$;
+AS SELECT t."ID",
+    t."TaskID",
+    t."TagID",
+    t."__mj_CreatedAt",
+    t."__mj_UpdatedAt",
+    mjbizappstaskstask_taskid."Name" AS "Task",
+    mjbizappstaskstasktag_tagid."Name" AS "Tag"
+   FROM __mj_bizappstasks."TaskTagLink" t
+     JOIN __mj_bizappstasks."Task" mjbizappstaskstask_taskid ON t."TaskID" = mjbizappstaskstask_taskid."ID"
+     JOIN __mj_bizappstasks."TaskTag" mjbizappstaskstasktag_tagid ON t."TagID" = mjbizappstaskstasktag_tagid."ID";$vsql$;
   v_target_oid OID;
   v_dep RECORD;
   v_captured JSONB[] := ARRAY[]::JSONB[];
@@ -1338,20 +1365,18 @@ DECLARE
   v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskLinks';
   vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskLinks"
-AS SELECT
-    t.*,
-    "mjBizAppsTasksTask_TaskID"."Name" AS "Task",
-    "MJEntity_EntityID"."Name" AS "Entity"
-FROM
-    __mj_bizappstasks."TaskLink" AS t
-INNER JOIN
-    __mj_bizappstasks."Task" AS "mjBizAppsTasksTask_TaskID"
-  ON
-    t."TaskID" = "mjBizAppsTasksTask_TaskID"."ID"
-INNER JOIN
-    "${mjSchema}"."Entity" AS "MJEntity_EntityID"
-  ON
-    t."EntityID" = "MJEntity_EntityID"."ID"$vsql$;
+AS SELECT t."ID",
+    t."TaskID",
+    t."EntityID",
+    t."RecordID",
+    t."Description",
+    t."__mj_CreatedAt",
+    t."__mj_UpdatedAt",
+    mjbizappstaskstask_taskid."Name" AS "Task",
+    mjentity_entityid."Name" AS "Entity"
+   FROM __mj_bizappstasks."TaskLink" t
+     JOIN __mj_bizappstasks."Task" mjbizappstaskstask_taskid ON t."TaskID" = mjbizappstaskstask_taskid."ID"
+     JOIN ${mjSchema}."Entity" mjentity_entityid ON t."EntityID" = mjentity_entityid."ID";$vsql$;
   v_target_oid OID;
   v_dep RECORD;
   v_captured JSONB[] := ARRAY[]::JSONB[];
@@ -1478,23 +1503,24 @@ DECLARE
   v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskTemplateItems';
   vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskTemplateItems"
-AS SELECT
-    t.*,
-    "mjBizAppsTasksTaskTemplate_TemplateID"."Name" AS "Template",
-    "mjBizAppsTasksTaskTemplateItem_ParentItemID"."Name" AS "ParentItem",
-    "root_ParentItemID"."RootID" AS "RootParentItemID"
-FROM
-    __mj_bizappstasks."TaskTemplateItem" AS t
-INNER JOIN
-    __mj_bizappstasks."TaskTemplate" AS "mjBizAppsTasksTaskTemplate_TemplateID"
-  ON
-    t."TemplateID" = "mjBizAppsTasksTaskTemplate_TemplateID"."ID"
-LEFT OUTER JOIN
-    __mj_bizappstasks."TaskTemplateItem" AS "mjBizAppsTasksTaskTemplateItem_ParentItemID"
-  ON
-    t."ParentItemID" = "mjBizAppsTasksTaskTemplateItem_ParentItemID"."ID"
-LEFT JOIN LATERAL (SELECT * FROM __mj_bizappstasks."fnTaskTemplateItemParentItemID_GetRootID"(t."ID", t."ParentItemID")) AS "root_ParentItemID"
-    ON TRUE$vsql$;
+AS SELECT t."ID",
+    t."TemplateID",
+    t."Name",
+    t."Description",
+    t."ParentItemID",
+    t."Priority",
+    t."DaysFromStart",
+    t."HoursEstimated",
+    t."Sequence",
+    t."__mj_CreatedAt",
+    t."__mj_UpdatedAt",
+    mjbizappstaskstasktemplate_templateid."Name" AS "Template",
+    mjbizappstaskstasktemplateitem_parentitemid."Name" AS "ParentItem",
+    root_parentitemid.root_id AS "RootParentItemID"
+   FROM __mj_bizappstasks."TaskTemplateItem" t
+     JOIN __mj_bizappstasks."TaskTemplate" mjbizappstaskstasktemplate_templateid ON t."TemplateID" = mjbizappstaskstasktemplate_templateid."ID"
+     LEFT JOIN __mj_bizappstasks."TaskTemplateItem" mjbizappstaskstasktemplateitem_parentitemid ON t."ParentItemID" = mjbizappstaskstasktemplateitem_parentitemid."ID"
+     LEFT JOIN LATERAL ( SELECT __mj_bizappstasks.fn_task_template_item_parent_item_id_get_root_id(t."ID", t."ParentItemID") AS root_id) root_parentitemid ON true;$vsql$;
   v_target_oid OID;
   v_dep RECORD;
   v_captured JSONB[] := ARRAY[]::JSONB[];
@@ -1556,20 +1582,17 @@ DECLARE
   v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskTemplateItemDependencies';
   vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskTemplateItemDependencies"
-AS SELECT
-    t.*,
-    "mjBizAppsTasksTaskTemplateItem_ItemID"."Name" AS "Item",
-    "mjBizAppsTasksTaskTemplateItem_DependsOnItemID"."Name" AS "DependsOnItem"
-FROM
-    __mj_bizappstasks."TaskTemplateItemDependency" AS t
-INNER JOIN
-    __mj_bizappstasks."TaskTemplateItem" AS "mjBizAppsTasksTaskTemplateItem_ItemID"
-  ON
-    t."ItemID" = "mjBizAppsTasksTaskTemplateItem_ItemID"."ID"
-INNER JOIN
-    __mj_bizappstasks."TaskTemplateItem" AS "mjBizAppsTasksTaskTemplateItem_DependsOnItemID"
-  ON
-    t."DependsOnItemID" = "mjBizAppsTasksTaskTemplateItem_DependsOnItemID"."ID"$vsql$;
+AS SELECT t."ID",
+    t."ItemID",
+    t."DependsOnItemID",
+    t."DependencyType",
+    t."__mj_CreatedAt",
+    t."__mj_UpdatedAt",
+    mjbizappstaskstasktemplateitem_itemid."Name" AS "Item",
+    mjbizappstaskstasktemplateitem_dependsonitemid."Name" AS "DependsOnItem"
+   FROM __mj_bizappstasks."TaskTemplateItemDependency" t
+     JOIN __mj_bizappstasks."TaskTemplateItem" mjbizappstaskstasktemplateitem_itemid ON t."ItemID" = mjbizappstaskstasktemplateitem_itemid."ID"
+     JOIN __mj_bizappstasks."TaskTemplateItem" mjbizappstaskstasktemplateitem_dependsonitemid ON t."DependsOnItemID" = mjbizappstaskstasktemplateitem_dependsonitemid."ID";$vsql$;
   v_target_oid OID;
   v_dep RECORD;
   v_captured JSONB[] := ARRAY[]::JSONB[];
@@ -1631,20 +1654,19 @@ DECLARE
   v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskTemplates';
   vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskTemplates"
-AS SELECT
-    t.*,
-    "mjBizAppsTasksTaskCategory_CategoryID"."Name" AS "Category",
-    "mjBizAppsTasksTaskType_TypeID"."Name" AS "Type"
-FROM
-    __mj_bizappstasks."TaskTemplate" AS t
-LEFT OUTER JOIN
-    __mj_bizappstasks."TaskCategory" AS "mjBizAppsTasksTaskCategory_CategoryID"
-  ON
-    t."CategoryID" = "mjBizAppsTasksTaskCategory_CategoryID"."ID"
-LEFT OUTER JOIN
-    __mj_bizappstasks."TaskType" AS "mjBizAppsTasksTaskType_TypeID"
-  ON
-    t."TypeID" = "mjBizAppsTasksTaskType_TypeID"."ID"$vsql$;
+AS SELECT t."ID",
+    t."Name",
+    t."Description",
+    t."CategoryID",
+    t."TypeID",
+    t."IsActive",
+    t."__mj_CreatedAt",
+    t."__mj_UpdatedAt",
+    mjbizappstaskstaskcategory_categoryid."Name" AS "Category",
+    mjbizappstaskstasktype_typeid."Name" AS "Type"
+   FROM __mj_bizappstasks."TaskTemplate" t
+     LEFT JOIN __mj_bizappstasks."TaskCategory" mjbizappstaskstaskcategory_categoryid ON t."CategoryID" = mjbizappstaskstaskcategory_categoryid."ID"
+     LEFT JOIN __mj_bizappstasks."TaskType" mjbizappstaskstasktype_typeid ON t."TypeID" = mjbizappstaskstasktype_typeid."ID";$vsql$;
   v_target_oid OID;
   v_dep RECORD;
   v_captured JSONB[] := ARRAY[]::JSONB[];
@@ -1706,20 +1728,16 @@ DECLARE
   v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTaskTemplateItemRoles';
   vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTaskTemplateItemRoles"
-AS SELECT
-    t.*,
-    "mjBizAppsTasksTaskTemplateItem_ItemID"."Name" AS "Item",
-    "mjBizAppsTasksTaskRole_RoleID"."Name" AS "Role"
-FROM
-    __mj_bizappstasks."TaskTemplateItemRole" AS t
-INNER JOIN
-    __mj_bizappstasks."TaskTemplateItem" AS "mjBizAppsTasksTaskTemplateItem_ItemID"
-  ON
-    t."ItemID" = "mjBizAppsTasksTaskTemplateItem_ItemID"."ID"
-INNER JOIN
-    __mj_bizappstasks."TaskRole" AS "mjBizAppsTasksTaskRole_RoleID"
-  ON
-    t."RoleID" = "mjBizAppsTasksTaskRole_RoleID"."ID"$vsql$;
+AS SELECT t."ID",
+    t."ItemID",
+    t."RoleID",
+    t."__mj_CreatedAt",
+    t."__mj_UpdatedAt",
+    mjbizappstaskstasktemplateitem_itemid."Name" AS "Item",
+    mjbizappstaskstaskrole_roleid."Name" AS "Role"
+   FROM __mj_bizappstasks."TaskTemplateItemRole" t
+     JOIN __mj_bizappstasks."TaskTemplateItem" mjbizappstaskstasktemplateitem_itemid ON t."ItemID" = mjbizappstaskstasktemplateitem_itemid."ID"
+     JOIN __mj_bizappstasks."TaskRole" mjbizappstaskstaskrole_roleid ON t."RoleID" = mjbizappstaskstaskrole_roleid."ID";$vsql$;
   v_target_oid OID;
   v_dep RECORD;
   v_captured JSONB[] := ARRAY[]::JSONB[];
@@ -1781,33 +1799,38 @@ DECLARE
   v_target_schema CONSTANT TEXT := '__mj_bizappstasks';
   v_target_name CONSTANT TEXT := 'vwTasks';
   vsql CONSTANT TEXT := $vsql$CREATE OR REPLACE VIEW __mj_bizappstasks."vwTasks"
-AS SELECT
-    t.*,
-    "mjBizAppsTasksTaskType_TypeID"."Name" AS "Type",
-    "mjBizAppsTasksTaskCategory_CategoryID"."Name" AS "Category",
-    "mjBizAppsTasksTask_ParentID"."Name" AS "Parent",
-    "mjBizAppsCommonPerson_CreatedByPersonID"."DisplayName" AS "CreatedByPerson",
-    "root_ParentID"."RootID" AS "RootParentID"
-FROM
-    __mj_bizappstasks."Task" AS t
-INNER JOIN
-    __mj_bizappstasks."TaskType" AS "mjBizAppsTasksTaskType_TypeID"
-  ON
-    t."TypeID" = "mjBizAppsTasksTaskType_TypeID"."ID"
-LEFT OUTER JOIN
-    __mj_bizappstasks."TaskCategory" AS "mjBizAppsTasksTaskCategory_CategoryID"
-  ON
-    t."CategoryID" = "mjBizAppsTasksTaskCategory_CategoryID"."ID"
-LEFT OUTER JOIN
-    __mj_bizappstasks."Task" AS "mjBizAppsTasksTask_ParentID"
-  ON
-    t."ParentID" = "mjBizAppsTasksTask_ParentID"."ID"
-LEFT OUTER JOIN
-    __mj_bizappscommon."Person" AS "mjBizAppsCommonPerson_CreatedByPersonID"
-  ON
-    t."CreatedByPersonID" = "mjBizAppsCommonPerson_CreatedByPersonID"."ID"
-LEFT JOIN LATERAL (SELECT * FROM __mj_bizappstasks."fnTaskParentID_GetRootID"(t."ID", t."ParentID")) AS "root_ParentID"
-    ON TRUE$vsql$;
+AS SELECT t."ID",
+    t."Name",
+    t."Description",
+    t."TypeID",
+    t."CategoryID",
+    t."ParentID",
+    t."Status",
+    t."Priority",
+    t."StartedAt",
+    t."DueAt",
+    t."CompletedAt",
+    t."HoursEstimated",
+    t."HoursActual",
+    t."PercentComplete",
+    t."Sequence",
+    t."BlockedReason",
+    t."CompletionNotes",
+    t."CreatedByPersonID",
+    t."OverdueNotifiedAt",
+    t."__mj_CreatedAt",
+    t."__mj_UpdatedAt",
+    mjbizappstaskstasktype_typeid."Name" AS "Type",
+    mjbizappstaskstaskcategory_categoryid."Name" AS "Category",
+    mjbizappstaskstask_parentid."Name" AS "Parent",
+    mjbizappscommonperson_createdbypersonid."DisplayName" AS "CreatedByPerson",
+    root_parentid.root_id AS "RootParentID"
+   FROM __mj_bizappstasks."Task" t
+     JOIN __mj_bizappstasks."TaskType" mjbizappstaskstasktype_typeid ON t."TypeID" = mjbizappstaskstasktype_typeid."ID"
+     LEFT JOIN __mj_bizappstasks."TaskCategory" mjbizappstaskstaskcategory_categoryid ON t."CategoryID" = mjbizappstaskstaskcategory_categoryid."ID"
+     LEFT JOIN __mj_bizappstasks."Task" mjbizappstaskstask_parentid ON t."ParentID" = mjbizappstaskstask_parentid."ID"
+     LEFT JOIN __mj_bizappscommon."Person" mjbizappscommonperson_createdbypersonid ON t."CreatedByPersonID" = mjbizappscommonperson_createdbypersonid."ID"
+     LEFT JOIN LATERAL ( SELECT __mj_bizappstasks.fn_task_parent_id_get_root_id(t."ID", t."ParentID") AS root_id) root_parentid ON true;$vsql$;
   v_target_oid OID;
   v_dep RECORD;
   v_captured JSONB[] := ARRAY[]::JSONB[];
@@ -1951,687 +1974,1788 @@ $do$;
 
 -- ===================== Stored Procedures (sp*) =====================
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskCategory"
---     @ID UUID = NULL,
---     @Name VARCHAR(255),
---     @Description_Clear bit = 0,
---     @Description TEXT = NULL,
---     @Parent...
+-- spCreateTaskCategory: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spCreateTaskCategory"(p_id uuid DEFAULT NULL::uuid, p_name character varying DEFAULT NULL::character varying, p_description_clear boolean DEFAULT false, p_description text DEFAULT NULL::text, p_parentid_clear boolean DEFAULT false, p_parentid uuid DEFAULT NULL::uuid, p_colorcode_clear boolean DEFAULT false, p_colorcode character varying DEFAULT NULL::character varying, p_sequence integer DEFAULT NULL::integer, p_isactive boolean DEFAULT NULL::boolean)
+ RETURNS SETOF __mj_bizappstasks."vwTaskCategories"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_new_id UUID;
+BEGIN
+    v_new_id := COALESCE(p_id, gen_random_uuid());
+    INSERT INTO __mj_bizappstasks."TaskCategory"
+        (
+            "ID",
+            "Name",
+                "Description",
+                "ParentID",
+                "ColorCode",
+                "Sequence",
+                "IsActive"
+        )
+    VALUES
+        (
+            v_new_id,
+            p_name,
+                CASE WHEN p_description_clear = true THEN NULL ELSE COALESCE(p_description, NULL) END,
+                CASE WHEN p_parentid_clear = true THEN NULL ELSE COALESCE(p_parentid, NULL) END,
+                CASE WHEN p_colorcode_clear = true THEN NULL ELSE COALESCE(p_colorcode, NULL) END,
+                COALESCE(p_sequence, 100),
+                COALESCE(p_isactive, TRUE)
+        )
+    ;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskCategory"
---     @ID UUID,
---     @Name VARCHAR(255) = NULL,
---     @Description_Clear bit = 0,
---     @Description TEXT = NULL,
---     @Parent...
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskCategories"
+    WHERE "ID" = v_new_id;
+END;
+$function$;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskCategory"
---     @ID UUID
--- AS
--- BEGIN
---     SET NOCOUNT ON;
--- 
---     DELETE FROM
---         __mj_bizappstasks."TaskCategory"
---     WHERE
---         "ID" = @...
+-- spUpdateTaskCategory: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spUpdateTaskCategory"(p_id uuid, p_name character varying DEFAULT NULL::character varying, p_description_clear boolean DEFAULT false, p_description text DEFAULT NULL::text, p_parentid_clear boolean DEFAULT false, p_parentid uuid DEFAULT NULL::uuid, p_colorcode_clear boolean DEFAULT false, p_colorcode character varying DEFAULT NULL::character varying, p_sequence integer DEFAULT NULL::integer, p_isactive boolean DEFAULT NULL::boolean)
+ RETURNS SETOF __mj_bizappstasks."vwTaskCategories"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_updated_count INTEGER;
+BEGIN
+    UPDATE __mj_bizappstasks."TaskCategory"
+    SET
+        "Name" = COALESCE(p_name, "Name"),
+        "Description" = CASE WHEN p_description_clear = true THEN NULL ELSE COALESCE(p_description, "Description") END,
+        "ParentID" = CASE WHEN p_parentid_clear = true THEN NULL ELSE COALESCE(p_parentid, "ParentID") END,
+        "ColorCode" = CASE WHEN p_colorcode_clear = true THEN NULL ELSE COALESCE(p_colorcode, "ColorCode") END,
+        "Sequence" = COALESCE(p_sequence, "Sequence"),
+        "IsActive" = COALESCE(p_isactive, "IsActive")
+    WHERE
+        "ID" = p_id;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskActivity"
---     @ID UUID = NULL,
---     @TaskID UUID,
---     @PersonID_Clear bit = 0,
---     @PersonID UUID = NULL,
---     @Acti...
+    GET DIAGNOSTICS v_updated_count = ROW_COUNT;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskActivity"
---     @ID UUID,
---     @TaskID UUID = NULL,
---     @PersonID_Clear bit = 0,
---     @PersonID UUID = NULL,
---     @Acti...
+    IF v_updated_count = 0 THEN
+        -- Nothing was updated, return empty result set
+        RETURN;
+    END IF;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskActivity"
---     @ID UUID
--- AS
--- BEGIN
---     SET NOCOUNT ON;
--- 
---     DELETE FROM
---         __mj_bizappstasks."TaskActivity"
---     WHERE
---         "ID" = @...
+    -- Return the updated record from the base view
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskCategories"
+    WHERE "ID" = p_id;
+END;
+$function$;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskComment"
---     @ID UUID = NULL,
---     @TaskID UUID,
---     @ParentID_Clear bit = 0,
---     @ParentID UUID = NULL,
---     @Perso...
+-- spDeleteTaskCategory: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spDeleteTaskCategory"(p_id uuid)
+ RETURNS TABLE("ID" uuid)
+ LANGUAGE plpgsql
+AS $function$
+#variable_conflict use_column
+DECLARE
+    v_affected_count INTEGER;
+BEGIN
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskComment"
---     @ID UUID,
---     @TaskID UUID = NULL,
---     @ParentID_Clear bit = 0,
---     @ParentID UUID = NULL,
---     @Perso...
+    DELETE FROM __mj_bizappstasks."TaskCategory"
+    WHERE "ID" = p_id;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskComment"
---     @ID UUID
--- AS
--- BEGIN
---     SET NOCOUNT ON;
--- 
---     DELETE FROM
---         __mj_bizappstasks."TaskComment"
---     WHERE
---         "ID" = @ID...
+    GET DIAGNOSTICS v_affected_count = ROW_COUNT;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskDependency"
---     @ID UUID = NULL,
---     @TaskID UUID,
---     @DependsOnTaskID UUID,
---     @DependencyType VARCHAR(50) = N...
+    IF v_affected_count = 0 THEN
+        RETURN QUERY SELECT NULL::UUID AS "ID";
+    ELSE
+        RETURN QUERY SELECT p_id AS "ID";
+    END IF;
+END;
+$function$;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskDependency"
---     @ID UUID,
---     @TaskID UUID = NULL,
---     @DependsOnTaskID UUID = NULL,
---     @DependencyType TEXT(...
+-- spCreateTaskActivity: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spCreateTaskActivity"(p_id uuid DEFAULT NULL::uuid, p_taskid uuid DEFAULT NULL::uuid, p_personid_clear boolean DEFAULT false, p_personid uuid DEFAULT NULL::uuid, p_activitytype character varying DEFAULT NULL::character varying, p_previousvalue_clear boolean DEFAULT false, p_previousvalue character varying DEFAULT NULL::character varying, p_newvalue_clear boolean DEFAULT false, p_newvalue character varying DEFAULT NULL::character varying, p_description_clear boolean DEFAULT false, p_description text DEFAULT NULL::text)
+ RETURNS SETOF __mj_bizappstasks."vwTaskActivities"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_new_id UUID;
+BEGIN
+    v_new_id := COALESCE(p_id, gen_random_uuid());
+    INSERT INTO __mj_bizappstasks."TaskActivity"
+        (
+            "ID",
+            "TaskID",
+                "PersonID",
+                "ActivityType",
+                "PreviousValue",
+                "NewValue",
+                "Description"
+        )
+    VALUES
+        (
+            v_new_id,
+            p_taskid,
+                CASE WHEN p_personid_clear = true THEN NULL ELSE COALESCE(p_personid, NULL) END,
+                p_activitytype,
+                CASE WHEN p_previousvalue_clear = true THEN NULL ELSE COALESCE(p_previousvalue, NULL) END,
+                CASE WHEN p_newvalue_clear = true THEN NULL ELSE COALESCE(p_newvalue, NULL) END,
+                CASE WHEN p_description_clear = true THEN NULL ELSE COALESCE(p_description, NULL) END
+        )
+    ;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskDependency"
---     @ID UUID
--- AS
--- BEGIN
---     SET NOCOUNT ON;
--- 
---     DELETE FROM
---         __mj_bizappstasks."TaskDependency"
---     WHERE
---         "ID"...
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskActivities"
+    WHERE "ID" = v_new_id;
+END;
+$function$;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskAssignment"
---     @ID UUID = NULL,
---     @TaskID UUID,
---     @AssigneeEntityID UUID,
---     @AssigneeRecordID VARCHAR(450)...
+-- spUpdateTaskActivity: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spUpdateTaskActivity"(p_id uuid, p_taskid uuid DEFAULT NULL::uuid, p_personid_clear boolean DEFAULT false, p_personid uuid DEFAULT NULL::uuid, p_activitytype character varying DEFAULT NULL::character varying, p_previousvalue_clear boolean DEFAULT false, p_previousvalue character varying DEFAULT NULL::character varying, p_newvalue_clear boolean DEFAULT false, p_newvalue character varying DEFAULT NULL::character varying, p_description_clear boolean DEFAULT false, p_description text DEFAULT NULL::text)
+ RETURNS SETOF __mj_bizappstasks."vwTaskActivities"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_updated_count INTEGER;
+BEGIN
+    UPDATE __mj_bizappstasks."TaskActivity"
+    SET
+        "TaskID" = COALESCE(p_taskid, "TaskID"),
+        "PersonID" = CASE WHEN p_personid_clear = true THEN NULL ELSE COALESCE(p_personid, "PersonID") END,
+        "ActivityType" = COALESCE(p_activitytype, "ActivityType"),
+        "PreviousValue" = CASE WHEN p_previousvalue_clear = true THEN NULL ELSE COALESCE(p_previousvalue, "PreviousValue") END,
+        "NewValue" = CASE WHEN p_newvalue_clear = true THEN NULL ELSE COALESCE(p_newvalue, "NewValue") END,
+        "Description" = CASE WHEN p_description_clear = true THEN NULL ELSE COALESCE(p_description, "Description") END
+    WHERE
+        "ID" = p_id;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskAssignment"
---     @ID UUID,
---     @TaskID UUID = NULL,
---     @AssigneeEntityID UUID = NULL,
---     @AssigneeRecordID nvarch...
+    GET DIAGNOSTICS v_updated_count = ROW_COUNT;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskAssignment"
---     @ID UUID
--- AS
--- BEGIN
---     SET NOCOUNT ON;
--- 
---     DELETE FROM
---         __mj_bizappstasks."TaskAssignment"
---     WHERE
---         "ID"...
+    IF v_updated_count = 0 THEN
+        -- Nothing was updated, return empty result set
+        RETURN;
+    END IF;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskRole"
---     @ID UUID = NULL,
---     @Name VARCHAR(100),
---     @Description_Clear bit = 0,
---     @Description TEXT = NULL,
---     @Sequence i...
+    -- Return the updated record from the base view
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskActivities"
+    WHERE "ID" = p_id;
+END;
+$function$;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskRole"
---     @ID UUID,
---     @Name VARCHAR(100) = NULL,
---     @Description_Clear bit = 0,
---     @Description TEXT = NULL,
---     @Sequence i...
+-- spDeleteTaskActivity: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spDeleteTaskActivity"(p_id uuid)
+ RETURNS TABLE("ID" uuid)
+ LANGUAGE plpgsql
+AS $function$
+#variable_conflict use_column
+DECLARE
+    v_affected_count INTEGER;
+BEGIN
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskRole"
---     @ID UUID
--- AS
--- BEGIN
---     SET NOCOUNT ON;
--- 
---     DELETE FROM
---         __mj_bizappstasks."TaskRole"
---     WHERE
---         "ID" = @ID
--- 
--- 
---    ...
+    DELETE FROM __mj_bizappstasks."TaskActivity"
+    WHERE "ID" = p_id;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskNotificationConfig"
---     @ID UUID = NULL,
---     @TaskTypeID_Clear bit = 0,
---     @TaskTypeID UUID = NULL,
---     @OverdueNotifications...
+    GET DIAGNOSTICS v_affected_count = ROW_COUNT;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskNotificationConfig"
---     @ID UUID,
---     @TaskTypeID_Clear bit = 0,
---     @TaskTypeID UUID = NULL,
---     @OverdueNotificationsEnabled...
+    IF v_affected_count = 0 THEN
+        RETURN QUERY SELECT NULL::UUID AS "ID";
+    ELSE
+        RETURN QUERY SELECT p_id AS "ID";
+    END IF;
+END;
+$function$;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskNotificationConfig"
---     @ID UUID
--- AS
--- BEGIN
---     SET NOCOUNT ON;
--- 
---     DELETE FROM
---         __mj_bizappstasks."TaskNotificationConfig"
---     WH...
+-- spCreateTaskComment: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spCreateTaskComment"(p_id uuid DEFAULT NULL::uuid, p_taskid uuid DEFAULT NULL::uuid, p_parentid_clear boolean DEFAULT false, p_parentid uuid DEFAULT NULL::uuid, p_personid uuid DEFAULT NULL::uuid, p_content text DEFAULT NULL::text, p_isedited boolean DEFAULT NULL::boolean)
+ RETURNS SETOF __mj_bizappstasks."vwTaskComments"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_new_id UUID;
+BEGIN
+    v_new_id := COALESCE(p_id, gen_random_uuid());
+    INSERT INTO __mj_bizappstasks."TaskComment"
+        (
+            "ID",
+            "TaskID",
+                "ParentID",
+                "PersonID",
+                "Content",
+                "IsEdited"
+        )
+    VALUES
+        (
+            v_new_id,
+            p_taskid,
+                CASE WHEN p_parentid_clear = true THEN NULL ELSE COALESCE(p_parentid, NULL) END,
+                p_personid,
+                p_content,
+                COALESCE(p_isedited, FALSE)
+        )
+    ;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskNotificationLog"
---     @ID UUID = NULL,
---     @TaskID UUID,
---     @NotificationType VARCHAR(50),
---     @NotifiedUserID uniqueidentifi...
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskComments"
+    WHERE "ID" = v_new_id;
+END;
+$function$;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskNotificationLog"
---     @ID UUID,
---     @TaskID UUID = NULL,
---     @NotificationType VARCHAR(50) = NULL,
---     @NotifiedUserID uniquei...
+-- spUpdateTaskComment: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spUpdateTaskComment"(p_id uuid, p_taskid uuid DEFAULT NULL::uuid, p_parentid_clear boolean DEFAULT false, p_parentid uuid DEFAULT NULL::uuid, p_personid uuid DEFAULT NULL::uuid, p_content text DEFAULT NULL::text, p_isedited boolean DEFAULT NULL::boolean)
+ RETURNS SETOF __mj_bizappstasks."vwTaskComments"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_updated_count INTEGER;
+BEGIN
+    UPDATE __mj_bizappstasks."TaskComment"
+    SET
+        "TaskID" = COALESCE(p_taskid, "TaskID"),
+        "ParentID" = CASE WHEN p_parentid_clear = true THEN NULL ELSE COALESCE(p_parentid, "ParentID") END,
+        "PersonID" = COALESCE(p_personid, "PersonID"),
+        "Content" = COALESCE(p_content, "Content"),
+        "IsEdited" = COALESCE(p_isedited, "IsEdited")
+    WHERE
+        "ID" = p_id;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskNotificationLog"
---     @ID UUID
--- AS
--- BEGIN
---     SET NOCOUNT ON;
--- 
---     DELETE FROM
---         __mj_bizappstasks."TaskNotificationLog"
---     WHERE
---   ...
+    GET DIAGNOSTICS v_updated_count = ROW_COUNT;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskTagLink"
---     @ID UUID = NULL,
---     @TaskID UUID,
---     @TagID UUID
--- AS
--- BEGIN
---     SET NOCOUNT ON;
---     DECLARE @Inserted...
+    IF v_updated_count = 0 THEN
+        -- Nothing was updated, return empty result set
+        RETURN;
+    END IF;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskTagLink"
---     @ID UUID,
---     @TaskID UUID = NULL,
---     @TagID UUID = NULL
--- AS
--- BEGIN
---     SET NOCOUNT ON;
---     UPDATE
---    ...
+    -- Return the updated record from the base view
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskComments"
+    WHERE "ID" = p_id;
+END;
+$function$;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskTagLink"
---     @ID UUID
--- AS
--- BEGIN
---     SET NOCOUNT ON;
--- 
---     DELETE FROM
---         __mj_bizappstasks."TaskTagLink"
---     WHERE
---         "ID" = @ID...
+-- spDeleteTaskComment: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spDeleteTaskComment"(p_id uuid)
+ RETURNS TABLE("ID" uuid)
+ LANGUAGE plpgsql
+AS $function$
+#variable_conflict use_column
+DECLARE
+    v_affected_count INTEGER;
+BEGIN
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskLink"
---     @ID UUID = NULL,
---     @TaskID UUID,
---     @EntityID UUID,
---     @RecordID VARCHAR(450),
---     @Description_Cle...
+    DELETE FROM __mj_bizappstasks."TaskComment"
+    WHERE "ID" = p_id;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskLink"
---     @ID UUID,
---     @TaskID UUID = NULL,
---     @EntityID UUID = NULL,
---     @RecordID VARCHAR(450) = NULL,
---     @D...
+    GET DIAGNOSTICS v_affected_count = ROW_COUNT;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskLink"
---     @ID UUID
--- AS
--- BEGIN
---     SET NOCOUNT ON;
--- 
---     DELETE FROM
---         __mj_bizappstasks."TaskLink"
---     WHERE
---         "ID" = @ID
--- 
--- 
---    ...
+    IF v_affected_count = 0 THEN
+        RETURN QUERY SELECT NULL::UUID AS "ID";
+    ELSE
+        RETURN QUERY SELECT p_id AS "ID";
+    END IF;
+END;
+$function$;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskTag"
---     @ID UUID = NULL,
---     @Name VARCHAR(100),
---     @ColorCode_Clear bit = 0,
---     @ColorCode VARCHAR(20) = NULL,
---     @Description_Clea...
+-- spCreateTaskDependency: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spCreateTaskDependency"(p_id uuid DEFAULT NULL::uuid, p_taskid uuid DEFAULT NULL::uuid, p_dependsontaskid uuid DEFAULT NULL::uuid, p_dependencytype character varying DEFAULT NULL::character varying)
+ RETURNS SETOF __mj_bizappstasks."vwTaskDependencies"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_new_id UUID;
+BEGIN
+    v_new_id := COALESCE(p_id, gen_random_uuid());
+    INSERT INTO __mj_bizappstasks."TaskDependency"
+        (
+            "ID",
+            "TaskID",
+                "DependsOnTaskID",
+                "DependencyType"
+        )
+    VALUES
+        (
+            v_new_id,
+            p_taskid,
+                p_dependsontaskid,
+                COALESCE(p_dependencytype, 'FinishToStart')
+        )
+    ;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskTag"
---     @ID UUID,
---     @Name VARCHAR(100) = NULL,
---     @ColorCode_Clear bit = 0,
---     @ColorCode VARCHAR(20) = NULL,
---     @Description_Clea...
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskDependencies"
+    WHERE "ID" = v_new_id;
+END;
+$function$;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskTag"
---     @ID UUID
--- AS
--- BEGIN
---     SET NOCOUNT ON;
--- 
---     DELETE FROM
---         __mj_bizappstasks."TaskTag"
---     WHERE
---         "ID" = @ID
--- 
--- 
---     -...
+-- spUpdateTaskDependency: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spUpdateTaskDependency"(p_id uuid, p_taskid uuid DEFAULT NULL::uuid, p_dependsontaskid uuid DEFAULT NULL::uuid, p_dependencytype character varying DEFAULT NULL::character varying)
+ RETURNS SETOF __mj_bizappstasks."vwTaskDependencies"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_updated_count INTEGER;
+BEGIN
+    UPDATE __mj_bizappstasks."TaskDependency"
+    SET
+        "TaskID" = COALESCE(p_taskid, "TaskID"),
+        "DependsOnTaskID" = COALESCE(p_dependsontaskid, "DependsOnTaskID"),
+        "DependencyType" = COALESCE(p_dependencytype, "DependencyType")
+    WHERE
+        "ID" = p_id;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskTemplateItem"
---     @ID UUID = NULL,
---     @TemplateID UUID,
---     @Name VARCHAR(255),
---     @Description_Clear bit = 0,
---     @Descrip...
+    GET DIAGNOSTICS v_updated_count = ROW_COUNT;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskTemplateItem"
---     @ID UUID,
---     @TemplateID UUID = NULL,
---     @Name VARCHAR(255) = NULL,
---     @Description_Clear bit = 0,
---     @...
+    IF v_updated_count = 0 THEN
+        -- Nothing was updated, return empty result set
+        RETURN;
+    END IF;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskTemplateItem"
---     @ID UUID
--- AS
--- BEGIN
---     SET NOCOUNT ON;
--- 
---     DELETE FROM
---         __mj_bizappstasks."TaskTemplateItem"
---     WHERE
---         ...
+    -- Return the updated record from the base view
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskDependencies"
+    WHERE "ID" = p_id;
+END;
+$function$;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskTemplateItemDependency"
---     @ID UUID = NULL,
---     @ItemID UUID,
---     @DependsOnItemID UUID,
---     @DependencyType nvar...
+-- spDeleteTaskDependency: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spDeleteTaskDependency"(p_id uuid)
+ RETURNS TABLE("ID" uuid)
+ LANGUAGE plpgsql
+AS $function$
+#variable_conflict use_column
+DECLARE
+    v_affected_count INTEGER;
+BEGIN
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskTemplateItemDependency"
---     @ID UUID,
---     @ItemID UUID = NULL,
---     @DependsOnItemID UUID = NULL,
---     @DependencyTy...
+    DELETE FROM __mj_bizappstasks."TaskDependency"
+    WHERE "ID" = p_id;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskTemplateItemDependency"
---     @ID UUID
--- AS
--- BEGIN
---     SET NOCOUNT ON;
--- 
---     DELETE FROM
---         __mj_bizappstasks."TaskTemplateItemDependency...
+    GET DIAGNOSTICS v_affected_count = ROW_COUNT;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE [__mj_bizappstasks"."spCreateTaskTemplate"
---     @ID UUID = NULL,
---     @Name VARCHAR(255),
---     @Description_Clear bit = 0,
---     @Description TEXT = NULL,
---     @Catego...
+    IF v_affected_count = 0 THEN
+        RETURN QUERY SELECT NULL::UUID AS "ID";
+    ELSE
+        RETURN QUERY SELECT p_id AS "ID";
+    END IF;
+END;
+$function$;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskTemplate"
---     @ID UUID,
---     @Name VARCHAR(255) = NULL,
---     @Description_Clear bit = 0,
---     @Description TEXT = NULL,
---     @Catego...
+-- spCreateTaskAssignment: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spCreateTaskAssignment"(p_id uuid DEFAULT NULL::uuid, p_taskid uuid DEFAULT NULL::uuid, p_assigneeentityid uuid DEFAULT NULL::uuid, p_assigneerecordid character varying DEFAULT NULL::character varying, p_roleid_clear boolean DEFAULT false, p_roleid uuid DEFAULT NULL::uuid, p_rolenotes_clear boolean DEFAULT false, p_rolenotes character varying DEFAULT NULL::character varying, p_status character varying DEFAULT NULL::character varying, p_assignedbypersonid_clear boolean DEFAULT false, p_assignedbypersonid uuid DEFAULT NULL::uuid, p_assignedat timestamp with time zone DEFAULT NULL::timestamp with time zone)
+ RETURNS SETOF __mj_bizappstasks."vwTaskAssignments"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_new_id UUID;
+BEGIN
+    v_new_id := COALESCE(p_id, gen_random_uuid());
+    INSERT INTO __mj_bizappstasks."TaskAssignment"
+        (
+            "ID",
+            "TaskID",
+                "AssigneeEntityID",
+                "AssigneeRecordID",
+                "RoleID",
+                "RoleNotes",
+                "Status",
+                "AssignedByPersonID",
+                "AssignedAt"
+        )
+    VALUES
+        (
+            v_new_id,
+            p_taskid,
+                p_assigneeentityid,
+                p_assigneerecordid,
+                CASE WHEN p_roleid_clear = true THEN NULL ELSE COALESCE(p_roleid, NULL) END,
+                CASE WHEN p_rolenotes_clear = true THEN NULL ELSE COALESCE(p_rolenotes, NULL) END,
+                COALESCE(p_status, 'Pending'),
+                CASE WHEN p_assignedbypersonid_clear = true THEN NULL ELSE COALESCE(p_assignedbypersonid, NULL) END,
+                COALESCE(p_assignedat, NOW())
+        )
+    ;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskTemplate"
---     @ID UUID
--- AS
--- BEGIN
---     SET NOCOUNT ON;
--- 
---     DELETE FROM
---         __mj_bizappstasks."TaskTemplate"
---     WHERE
---         "ID" = @...
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskAssignments"
+    WHERE "ID" = v_new_id;
+END;
+$function$;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskTemplateItemRole"
---     @ID UUID = NULL,
---     @ItemID UUID,
---     @RoleID UUID
--- AS
--- BEGIN
---     SET NOCOUNT ON;
---     DECLARE...
+-- spUpdateTaskAssignment: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spUpdateTaskAssignment"(p_id uuid, p_taskid uuid DEFAULT NULL::uuid, p_assigneeentityid uuid DEFAULT NULL::uuid, p_assigneerecordid character varying DEFAULT NULL::character varying, p_roleid_clear boolean DEFAULT false, p_roleid uuid DEFAULT NULL::uuid, p_rolenotes_clear boolean DEFAULT false, p_rolenotes character varying DEFAULT NULL::character varying, p_status character varying DEFAULT NULL::character varying, p_assignedbypersonid_clear boolean DEFAULT false, p_assignedbypersonid uuid DEFAULT NULL::uuid, p_assignedat timestamp with time zone DEFAULT NULL::timestamp with time zone)
+ RETURNS SETOF __mj_bizappstasks."vwTaskAssignments"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_updated_count INTEGER;
+BEGIN
+    UPDATE __mj_bizappstasks."TaskAssignment"
+    SET
+        "TaskID" = COALESCE(p_taskid, "TaskID"),
+        "AssigneeEntityID" = COALESCE(p_assigneeentityid, "AssigneeEntityID"),
+        "AssigneeRecordID" = COALESCE(p_assigneerecordid, "AssigneeRecordID"),
+        "RoleID" = CASE WHEN p_roleid_clear = true THEN NULL ELSE COALESCE(p_roleid, "RoleID") END,
+        "RoleNotes" = CASE WHEN p_rolenotes_clear = true THEN NULL ELSE COALESCE(p_rolenotes, "RoleNotes") END,
+        "Status" = COALESCE(p_status, "Status"),
+        "AssignedByPersonID" = CASE WHEN p_assignedbypersonid_clear = true THEN NULL ELSE COALESCE(p_assignedbypersonid, "AssignedByPersonID") END,
+        "AssignedAt" = COALESCE(p_assignedat, "AssignedAt")
+    WHERE
+        "ID" = p_id;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskTemplateItemRole"
---     @ID UUID,
---     @ItemID UUID = NULL,
---     @RoleID UUID = NULL
--- AS
--- BEGIN
---     SET NOCOUNT ON;
---     ...
+    GET DIAGNOSTICS v_updated_count = ROW_COUNT;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskTemplateItemRole"
---     @ID UUID
--- AS
--- BEGIN
---     SET NOCOUNT ON;
--- 
---     DELETE FROM
---         __mj_bizappstasks."TaskTemplateItemRole"
---     WHERE
--- ...
+    IF v_updated_count = 0 THEN
+        -- Nothing was updated, return empty result set
+        RETURN;
+    END IF;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spCreateTask"
---     @ID UUID = NULL,
---     @Name VARCHAR(255),
---     @Description_Clear bit = 0,
---     @Description TEXT = NULL,
---     @TypeID uniquei...
+    -- Return the updated record from the base view
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskAssignments"
+    WHERE "ID" = p_id;
+END;
+$function$;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spUpdateTask"
---     @ID UUID,
---     @Name VARCHAR(255) = NULL,
---     @Description_Clear bit = 0,
---     @Description TEXT = NULL,
---     @TypeID uniquei...
+-- spDeleteTaskAssignment: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spDeleteTaskAssignment"(p_id uuid)
+ RETURNS TABLE("ID" uuid)
+ LANGUAGE plpgsql
+AS $function$
+#variable_conflict use_column
+DECLARE
+    v_affected_count INTEGER;
+BEGIN
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spDeleteTask"
---     @ID UUID
--- AS
--- BEGIN
---     SET NOCOUNT ON;
--- 
---     DELETE FROM
---         __mj_bizappstasks."Task"
---     WHERE
---         "ID" = @ID
--- 
--- 
---     -- Chec...
+    DELETE FROM __mj_bizappstasks."TaskAssignment"
+    WHERE "ID" = p_id;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spCreateTaskType"
---     @ID UUID = NULL,
---     @Name VARCHAR(100),
---     @Description_Clear bit = 0,
---     @Description TEXT = NULL,
---     @IconClass_...
+    GET DIAGNOSTICS v_affected_count = ROW_COUNT;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spUpdateTaskType"
---     @ID UUID,
---     @Name VARCHAR(100) = NULL,
---     @Description_Clear bit = 0,
---     @Description TEXT = NULL,
---     @IconClass_...
+    IF v_affected_count = 0 THEN
+        RETURN QUERY SELECT NULL::UUID AS "ID";
+    ELSE
+        RETURN QUERY SELECT p_id AS "ID";
+    END IF;
+END;
+$function$;
 
--- SKIPPED: procedure (auto-conversion not supported)
--- CREATE PROCEDURE __mj_bizappstasks."spDeleteTaskType"
---     @ID UUID
--- AS
--- BEGIN
---     SET NOCOUNT ON;
--- 
---     DELETE FROM
---         __mj_bizappstasks."TaskType"
---     WHERE
---         "ID" = @ID
--- 
--- 
---    ...
+-- spCreateTaskRole: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spCreateTaskRole"(p_id uuid DEFAULT NULL::uuid, p_name character varying DEFAULT NULL::character varying, p_description_clear boolean DEFAULT false, p_description text DEFAULT NULL::text, p_sequence integer DEFAULT NULL::integer)
+ RETURNS SETOF __mj_bizappstasks."vwTaskRoles"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_new_id UUID;
+BEGIN
+    v_new_id := COALESCE(p_id, gen_random_uuid());
+    INSERT INTO __mj_bizappstasks."TaskRole"
+        (
+            "ID",
+            "Name",
+                "Description",
+                "Sequence"
+        )
+    VALUES
+        (
+            v_new_id,
+            p_name,
+                CASE WHEN p_description_clear = true THEN NULL ELSE COALESCE(p_description, NULL) END,
+                COALESCE(p_sequence, 100)
+        )
+    ;
+
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskRoles"
+    WHERE "ID" = v_new_id;
+END;
+$function$;
+
+-- spUpdateTaskRole: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spUpdateTaskRole"(p_id uuid, p_name character varying DEFAULT NULL::character varying, p_description_clear boolean DEFAULT false, p_description text DEFAULT NULL::text, p_sequence integer DEFAULT NULL::integer)
+ RETURNS SETOF __mj_bizappstasks."vwTaskRoles"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_updated_count INTEGER;
+BEGIN
+    UPDATE __mj_bizappstasks."TaskRole"
+    SET
+        "Name" = COALESCE(p_name, "Name"),
+        "Description" = CASE WHEN p_description_clear = true THEN NULL ELSE COALESCE(p_description, "Description") END,
+        "Sequence" = COALESCE(p_sequence, "Sequence")
+    WHERE
+        "ID" = p_id;
+
+    GET DIAGNOSTICS v_updated_count = ROW_COUNT;
+
+    IF v_updated_count = 0 THEN
+        -- Nothing was updated, return empty result set
+        RETURN;
+    END IF;
+
+    -- Return the updated record from the base view
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskRoles"
+    WHERE "ID" = p_id;
+END;
+$function$;
+
+-- spDeleteTaskRole: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spDeleteTaskRole"(p_id uuid)
+ RETURNS TABLE("ID" uuid)
+ LANGUAGE plpgsql
+AS $function$
+#variable_conflict use_column
+DECLARE
+    v_affected_count INTEGER;
+BEGIN
+
+    DELETE FROM __mj_bizappstasks."TaskRole"
+    WHERE "ID" = p_id;
+
+    GET DIAGNOSTICS v_affected_count = ROW_COUNT;
+
+    IF v_affected_count = 0 THEN
+        RETURN QUERY SELECT NULL::UUID AS "ID";
+    ELSE
+        RETURN QUERY SELECT p_id AS "ID";
+    END IF;
+END;
+$function$;
+
+-- spCreateTaskNotificationConfig: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spCreateTaskNotificationConfig"(p_id uuid DEFAULT NULL::uuid, p_tasktypeid_clear boolean DEFAULT false, p_tasktypeid uuid DEFAULT NULL::uuid, p_overduenotificationsenabled boolean DEFAULT NULL::boolean, p_overduegraceperiodhours integer DEFAULT NULL::integer, p_overduerepeatintervalhours_clear boolean DEFAULT false, p_overduerepeatintervalhours integer DEFAULT NULL::integer, p_notifyassignees boolean DEFAULT NULL::boolean, p_notifycreator boolean DEFAULT NULL::boolean, p_overdueactionid_clear boolean DEFAULT false, p_overdueactionid uuid DEFAULT NULL::uuid)
+ RETURNS SETOF __mj_bizappstasks."vwTaskNotificationConfigs"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_new_id UUID;
+BEGIN
+    v_new_id := COALESCE(p_id, gen_random_uuid());
+    INSERT INTO __mj_bizappstasks."TaskNotificationConfig"
+        (
+            "ID",
+            "TaskTypeID",
+                "OverdueNotificationsEnabled",
+                "OverdueGracePeriodHours",
+                "OverdueRepeatIntervalHours",
+                "NotifyAssignees",
+                "NotifyCreator",
+                "OverdueActionID"
+        )
+    VALUES
+        (
+            v_new_id,
+            CASE WHEN p_tasktypeid_clear = true THEN NULL ELSE COALESCE(p_tasktypeid, NULL) END,
+                COALESCE(p_overduenotificationsenabled, TRUE),
+                COALESCE(p_overduegraceperiodhours, 0),
+                CASE WHEN p_overduerepeatintervalhours_clear = true THEN NULL ELSE COALESCE(p_overduerepeatintervalhours, NULL) END,
+                COALESCE(p_notifyassignees, TRUE),
+                COALESCE(p_notifycreator, TRUE),
+                CASE WHEN p_overdueactionid_clear = true THEN NULL ELSE COALESCE(p_overdueactionid, NULL) END
+        )
+    ;
+
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskNotificationConfigs"
+    WHERE "ID" = v_new_id;
+END;
+$function$;
+
+-- spUpdateTaskNotificationConfig: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spUpdateTaskNotificationConfig"(p_id uuid, p_tasktypeid_clear boolean DEFAULT false, p_tasktypeid uuid DEFAULT NULL::uuid, p_overduenotificationsenabled boolean DEFAULT NULL::boolean, p_overduegraceperiodhours integer DEFAULT NULL::integer, p_overduerepeatintervalhours_clear boolean DEFAULT false, p_overduerepeatintervalhours integer DEFAULT NULL::integer, p_notifyassignees boolean DEFAULT NULL::boolean, p_notifycreator boolean DEFAULT NULL::boolean, p_overdueactionid_clear boolean DEFAULT false, p_overdueactionid uuid DEFAULT NULL::uuid)
+ RETURNS SETOF __mj_bizappstasks."vwTaskNotificationConfigs"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_updated_count INTEGER;
+BEGIN
+    UPDATE __mj_bizappstasks."TaskNotificationConfig"
+    SET
+        "TaskTypeID" = CASE WHEN p_tasktypeid_clear = true THEN NULL ELSE COALESCE(p_tasktypeid, "TaskTypeID") END,
+        "OverdueNotificationsEnabled" = COALESCE(p_overduenotificationsenabled, "OverdueNotificationsEnabled"),
+        "OverdueGracePeriodHours" = COALESCE(p_overduegraceperiodhours, "OverdueGracePeriodHours"),
+        "OverdueRepeatIntervalHours" = CASE WHEN p_overduerepeatintervalhours_clear = true THEN NULL ELSE COALESCE(p_overduerepeatintervalhours, "OverdueRepeatIntervalHours") END,
+        "NotifyAssignees" = COALESCE(p_notifyassignees, "NotifyAssignees"),
+        "NotifyCreator" = COALESCE(p_notifycreator, "NotifyCreator"),
+        "OverdueActionID" = CASE WHEN p_overdueactionid_clear = true THEN NULL ELSE COALESCE(p_overdueactionid, "OverdueActionID") END
+    WHERE
+        "ID" = p_id;
+
+    GET DIAGNOSTICS v_updated_count = ROW_COUNT;
+
+    IF v_updated_count = 0 THEN
+        -- Nothing was updated, return empty result set
+        RETURN;
+    END IF;
+
+    -- Return the updated record from the base view
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskNotificationConfigs"
+    WHERE "ID" = p_id;
+END;
+$function$;
+
+-- spDeleteTaskNotificationConfig: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spDeleteTaskNotificationConfig"(p_id uuid)
+ RETURNS TABLE("ID" uuid)
+ LANGUAGE plpgsql
+AS $function$
+#variable_conflict use_column
+DECLARE
+    v_affected_count INTEGER;
+BEGIN
+
+    DELETE FROM __mj_bizappstasks."TaskNotificationConfig"
+    WHERE "ID" = p_id;
+
+    GET DIAGNOSTICS v_affected_count = ROW_COUNT;
+
+    IF v_affected_count = 0 THEN
+        RETURN QUERY SELECT NULL::UUID AS "ID";
+    ELSE
+        RETURN QUERY SELECT p_id AS "ID";
+    END IF;
+END;
+$function$;
+
+-- spCreateTaskNotificationLog: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spCreateTaskNotificationLog"(p_id uuid DEFAULT NULL::uuid, p_taskid uuid DEFAULT NULL::uuid, p_notificationtype character varying DEFAULT NULL::character varying, p_notifieduserid uuid DEFAULT NULL::uuid, p_notifiedat timestamp with time zone DEFAULT NULL::timestamp with time zone)
+ RETURNS SETOF __mj_bizappstasks."vwTaskNotificationLogs"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_new_id UUID;
+BEGIN
+    v_new_id := COALESCE(p_id, gen_random_uuid());
+    INSERT INTO __mj_bizappstasks."TaskNotificationLog"
+        (
+            "ID",
+            "TaskID",
+                "NotificationType",
+                "NotifiedUserID",
+                "NotifiedAt"
+        )
+    VALUES
+        (
+            v_new_id,
+            p_taskid,
+                p_notificationtype,
+                p_notifieduserid,
+                COALESCE(p_notifiedat, NOW())
+        )
+    ;
+
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskNotificationLogs"
+    WHERE "ID" = v_new_id;
+END;
+$function$;
+
+-- spUpdateTaskNotificationLog: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spUpdateTaskNotificationLog"(p_id uuid, p_taskid uuid DEFAULT NULL::uuid, p_notificationtype character varying DEFAULT NULL::character varying, p_notifieduserid uuid DEFAULT NULL::uuid, p_notifiedat timestamp with time zone DEFAULT NULL::timestamp with time zone)
+ RETURNS SETOF __mj_bizappstasks."vwTaskNotificationLogs"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_updated_count INTEGER;
+BEGIN
+    UPDATE __mj_bizappstasks."TaskNotificationLog"
+    SET
+        "TaskID" = COALESCE(p_taskid, "TaskID"),
+        "NotificationType" = COALESCE(p_notificationtype, "NotificationType"),
+        "NotifiedUserID" = COALESCE(p_notifieduserid, "NotifiedUserID"),
+        "NotifiedAt" = COALESCE(p_notifiedat, "NotifiedAt")
+    WHERE
+        "ID" = p_id;
+
+    GET DIAGNOSTICS v_updated_count = ROW_COUNT;
+
+    IF v_updated_count = 0 THEN
+        -- Nothing was updated, return empty result set
+        RETURN;
+    END IF;
+
+    -- Return the updated record from the base view
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskNotificationLogs"
+    WHERE "ID" = p_id;
+END;
+$function$;
+
+-- spDeleteTaskNotificationLog: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spDeleteTaskNotificationLog"(p_id uuid)
+ RETURNS TABLE("ID" uuid)
+ LANGUAGE plpgsql
+AS $function$
+#variable_conflict use_column
+DECLARE
+    v_affected_count INTEGER;
+BEGIN
+
+    DELETE FROM __mj_bizappstasks."TaskNotificationLog"
+    WHERE "ID" = p_id;
+
+    GET DIAGNOSTICS v_affected_count = ROW_COUNT;
+
+    IF v_affected_count = 0 THEN
+        RETURN QUERY SELECT NULL::UUID AS "ID";
+    ELSE
+        RETURN QUERY SELECT p_id AS "ID";
+    END IF;
+END;
+$function$;
+
+-- spCreateTaskTagLink: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spCreateTaskTagLink"(p_id uuid DEFAULT NULL::uuid, p_taskid uuid DEFAULT NULL::uuid, p_tagid uuid DEFAULT NULL::uuid)
+ RETURNS SETOF __mj_bizappstasks."vwTaskTagLinks"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_new_id UUID;
+BEGIN
+    v_new_id := COALESCE(p_id, gen_random_uuid());
+    INSERT INTO __mj_bizappstasks."TaskTagLink"
+        (
+            "ID",
+            "TaskID",
+                "TagID"
+        )
+    VALUES
+        (
+            v_new_id,
+            p_taskid,
+                p_tagid
+        )
+    ;
+
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskTagLinks"
+    WHERE "ID" = v_new_id;
+END;
+$function$;
+
+-- spUpdateTaskTagLink: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spUpdateTaskTagLink"(p_id uuid, p_taskid uuid DEFAULT NULL::uuid, p_tagid uuid DEFAULT NULL::uuid)
+ RETURNS SETOF __mj_bizappstasks."vwTaskTagLinks"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_updated_count INTEGER;
+BEGIN
+    UPDATE __mj_bizappstasks."TaskTagLink"
+    SET
+        "TaskID" = COALESCE(p_taskid, "TaskID"),
+        "TagID" = COALESCE(p_tagid, "TagID")
+    WHERE
+        "ID" = p_id;
+
+    GET DIAGNOSTICS v_updated_count = ROW_COUNT;
+
+    IF v_updated_count = 0 THEN
+        -- Nothing was updated, return empty result set
+        RETURN;
+    END IF;
+
+    -- Return the updated record from the base view
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskTagLinks"
+    WHERE "ID" = p_id;
+END;
+$function$;
+
+-- spDeleteTaskTagLink: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spDeleteTaskTagLink"(p_id uuid)
+ RETURNS TABLE("ID" uuid)
+ LANGUAGE plpgsql
+AS $function$
+#variable_conflict use_column
+DECLARE
+    v_affected_count INTEGER;
+BEGIN
+
+    DELETE FROM __mj_bizappstasks."TaskTagLink"
+    WHERE "ID" = p_id;
+
+    GET DIAGNOSTICS v_affected_count = ROW_COUNT;
+
+    IF v_affected_count = 0 THEN
+        RETURN QUERY SELECT NULL::UUID AS "ID";
+    ELSE
+        RETURN QUERY SELECT p_id AS "ID";
+    END IF;
+END;
+$function$;
+
+-- spCreateTaskLink: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spCreateTaskLink"(p_id uuid DEFAULT NULL::uuid, p_taskid uuid DEFAULT NULL::uuid, p_entityid uuid DEFAULT NULL::uuid, p_recordid character varying DEFAULT NULL::character varying, p_description_clear boolean DEFAULT false, p_description character varying DEFAULT NULL::character varying)
+ RETURNS SETOF __mj_bizappstasks."vwTaskLinks"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_new_id UUID;
+BEGIN
+    v_new_id := COALESCE(p_id, gen_random_uuid());
+    INSERT INTO __mj_bizappstasks."TaskLink"
+        (
+            "ID",
+            "TaskID",
+                "EntityID",
+                "RecordID",
+                "Description"
+        )
+    VALUES
+        (
+            v_new_id,
+            p_taskid,
+                p_entityid,
+                p_recordid,
+                CASE WHEN p_description_clear = true THEN NULL ELSE COALESCE(p_description, NULL) END
+        )
+    ;
+
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskLinks"
+    WHERE "ID" = v_new_id;
+END;
+$function$;
+
+-- spUpdateTaskLink: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spUpdateTaskLink"(p_id uuid, p_taskid uuid DEFAULT NULL::uuid, p_entityid uuid DEFAULT NULL::uuid, p_recordid character varying DEFAULT NULL::character varying, p_description_clear boolean DEFAULT false, p_description character varying DEFAULT NULL::character varying)
+ RETURNS SETOF __mj_bizappstasks."vwTaskLinks"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_updated_count INTEGER;
+BEGIN
+    UPDATE __mj_bizappstasks."TaskLink"
+    SET
+        "TaskID" = COALESCE(p_taskid, "TaskID"),
+        "EntityID" = COALESCE(p_entityid, "EntityID"),
+        "RecordID" = COALESCE(p_recordid, "RecordID"),
+        "Description" = CASE WHEN p_description_clear = true THEN NULL ELSE COALESCE(p_description, "Description") END
+    WHERE
+        "ID" = p_id;
+
+    GET DIAGNOSTICS v_updated_count = ROW_COUNT;
+
+    IF v_updated_count = 0 THEN
+        -- Nothing was updated, return empty result set
+        RETURN;
+    END IF;
+
+    -- Return the updated record from the base view
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskLinks"
+    WHERE "ID" = p_id;
+END;
+$function$;
+
+-- spDeleteTaskLink: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spDeleteTaskLink"(p_id uuid)
+ RETURNS TABLE("ID" uuid)
+ LANGUAGE plpgsql
+AS $function$
+#variable_conflict use_column
+DECLARE
+    v_affected_count INTEGER;
+BEGIN
+
+    DELETE FROM __mj_bizappstasks."TaskLink"
+    WHERE "ID" = p_id;
+
+    GET DIAGNOSTICS v_affected_count = ROW_COUNT;
+
+    IF v_affected_count = 0 THEN
+        RETURN QUERY SELECT NULL::UUID AS "ID";
+    ELSE
+        RETURN QUERY SELECT p_id AS "ID";
+    END IF;
+END;
+$function$;
+
+-- spCreateTaskTag: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spCreateTaskTag"(p_id uuid DEFAULT NULL::uuid, p_name character varying DEFAULT NULL::character varying, p_colorcode_clear boolean DEFAULT false, p_colorcode character varying DEFAULT NULL::character varying, p_description_clear boolean DEFAULT false, p_description text DEFAULT NULL::text)
+ RETURNS SETOF __mj_bizappstasks."vwTaskTags"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_new_id UUID;
+BEGIN
+    v_new_id := COALESCE(p_id, gen_random_uuid());
+    INSERT INTO __mj_bizappstasks."TaskTag"
+        (
+            "ID",
+            "Name",
+                "ColorCode",
+                "Description"
+        )
+    VALUES
+        (
+            v_new_id,
+            p_name,
+                CASE WHEN p_colorcode_clear = true THEN NULL ELSE COALESCE(p_colorcode, NULL) END,
+                CASE WHEN p_description_clear = true THEN NULL ELSE COALESCE(p_description, NULL) END
+        )
+    ;
+
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskTags"
+    WHERE "ID" = v_new_id;
+END;
+$function$;
+
+-- spUpdateTaskTag: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spUpdateTaskTag"(p_id uuid, p_name character varying DEFAULT NULL::character varying, p_colorcode_clear boolean DEFAULT false, p_colorcode character varying DEFAULT NULL::character varying, p_description_clear boolean DEFAULT false, p_description text DEFAULT NULL::text)
+ RETURNS SETOF __mj_bizappstasks."vwTaskTags"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_updated_count INTEGER;
+BEGIN
+    UPDATE __mj_bizappstasks."TaskTag"
+    SET
+        "Name" = COALESCE(p_name, "Name"),
+        "ColorCode" = CASE WHEN p_colorcode_clear = true THEN NULL ELSE COALESCE(p_colorcode, "ColorCode") END,
+        "Description" = CASE WHEN p_description_clear = true THEN NULL ELSE COALESCE(p_description, "Description") END
+    WHERE
+        "ID" = p_id;
+
+    GET DIAGNOSTICS v_updated_count = ROW_COUNT;
+
+    IF v_updated_count = 0 THEN
+        -- Nothing was updated, return empty result set
+        RETURN;
+    END IF;
+
+    -- Return the updated record from the base view
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskTags"
+    WHERE "ID" = p_id;
+END;
+$function$;
+
+-- spDeleteTaskTag: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spDeleteTaskTag"(p_id uuid)
+ RETURNS TABLE("ID" uuid)
+ LANGUAGE plpgsql
+AS $function$
+#variable_conflict use_column
+DECLARE
+    v_affected_count INTEGER;
+BEGIN
+
+    DELETE FROM __mj_bizappstasks."TaskTag"
+    WHERE "ID" = p_id;
+
+    GET DIAGNOSTICS v_affected_count = ROW_COUNT;
+
+    IF v_affected_count = 0 THEN
+        RETURN QUERY SELECT NULL::UUID AS "ID";
+    ELSE
+        RETURN QUERY SELECT p_id AS "ID";
+    END IF;
+END;
+$function$;
+
+-- spCreateTaskTemplateItem: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spCreateTaskTemplateItem"(p_id uuid DEFAULT NULL::uuid, p_templateid uuid DEFAULT NULL::uuid, p_name character varying DEFAULT NULL::character varying, p_description_clear boolean DEFAULT false, p_description text DEFAULT NULL::text, p_parentitemid_clear boolean DEFAULT false, p_parentitemid uuid DEFAULT NULL::uuid, p_priority character varying DEFAULT NULL::character varying, p_daysfromstart_clear boolean DEFAULT false, p_daysfromstart integer DEFAULT NULL::integer, p_hoursestimated_clear boolean DEFAULT false, p_hoursestimated numeric DEFAULT NULL::numeric, p_sequence integer DEFAULT NULL::integer)
+ RETURNS SETOF __mj_bizappstasks."vwTaskTemplateItems"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_new_id UUID;
+BEGIN
+    v_new_id := COALESCE(p_id, gen_random_uuid());
+    INSERT INTO __mj_bizappstasks."TaskTemplateItem"
+        (
+            "ID",
+            "TemplateID",
+                "Name",
+                "Description",
+                "ParentItemID",
+                "Priority",
+                "DaysFromStart",
+                "HoursEstimated",
+                "Sequence"
+        )
+    VALUES
+        (
+            v_new_id,
+            p_templateid,
+                p_name,
+                CASE WHEN p_description_clear = true THEN NULL ELSE COALESCE(p_description, NULL) END,
+                CASE WHEN p_parentitemid_clear = true THEN NULL ELSE COALESCE(p_parentitemid, NULL) END,
+                COALESCE(p_priority, 'Medium'),
+                CASE WHEN p_daysfromstart_clear = true THEN NULL ELSE COALESCE(p_daysfromstart, NULL) END,
+                CASE WHEN p_hoursestimated_clear = true THEN NULL ELSE COALESCE(p_hoursestimated, NULL) END,
+                COALESCE(p_sequence, 100)
+        )
+    ;
+
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskTemplateItems"
+    WHERE "ID" = v_new_id;
+END;
+$function$;
+
+-- spUpdateTaskTemplateItem: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spUpdateTaskTemplateItem"(p_id uuid, p_templateid uuid DEFAULT NULL::uuid, p_name character varying DEFAULT NULL::character varying, p_description_clear boolean DEFAULT false, p_description text DEFAULT NULL::text, p_parentitemid_clear boolean DEFAULT false, p_parentitemid uuid DEFAULT NULL::uuid, p_priority character varying DEFAULT NULL::character varying, p_daysfromstart_clear boolean DEFAULT false, p_daysfromstart integer DEFAULT NULL::integer, p_hoursestimated_clear boolean DEFAULT false, p_hoursestimated numeric DEFAULT NULL::numeric, p_sequence integer DEFAULT NULL::integer)
+ RETURNS SETOF __mj_bizappstasks."vwTaskTemplateItems"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_updated_count INTEGER;
+BEGIN
+    UPDATE __mj_bizappstasks."TaskTemplateItem"
+    SET
+        "TemplateID" = COALESCE(p_templateid, "TemplateID"),
+        "Name" = COALESCE(p_name, "Name"),
+        "Description" = CASE WHEN p_description_clear = true THEN NULL ELSE COALESCE(p_description, "Description") END,
+        "ParentItemID" = CASE WHEN p_parentitemid_clear = true THEN NULL ELSE COALESCE(p_parentitemid, "ParentItemID") END,
+        "Priority" = COALESCE(p_priority, "Priority"),
+        "DaysFromStart" = CASE WHEN p_daysfromstart_clear = true THEN NULL ELSE COALESCE(p_daysfromstart, "DaysFromStart") END,
+        "HoursEstimated" = CASE WHEN p_hoursestimated_clear = true THEN NULL ELSE COALESCE(p_hoursestimated, "HoursEstimated") END,
+        "Sequence" = COALESCE(p_sequence, "Sequence")
+    WHERE
+        "ID" = p_id;
+
+    GET DIAGNOSTICS v_updated_count = ROW_COUNT;
+
+    IF v_updated_count = 0 THEN
+        -- Nothing was updated, return empty result set
+        RETURN;
+    END IF;
+
+    -- Return the updated record from the base view
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskTemplateItems"
+    WHERE "ID" = p_id;
+END;
+$function$;
+
+-- spDeleteTaskTemplateItem: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spDeleteTaskTemplateItem"(p_id uuid)
+ RETURNS TABLE("ID" uuid)
+ LANGUAGE plpgsql
+AS $function$
+#variable_conflict use_column
+DECLARE
+    v_affected_count INTEGER;
+BEGIN
+
+    DELETE FROM __mj_bizappstasks."TaskTemplateItem"
+    WHERE "ID" = p_id;
+
+    GET DIAGNOSTICS v_affected_count = ROW_COUNT;
+
+    IF v_affected_count = 0 THEN
+        RETURN QUERY SELECT NULL::UUID AS "ID";
+    ELSE
+        RETURN QUERY SELECT p_id AS "ID";
+    END IF;
+END;
+$function$;
+
+-- spCreateTaskTemplateItemDependency: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spCreateTaskTemplateItemDependency"(p_id uuid DEFAULT NULL::uuid, p_itemid uuid DEFAULT NULL::uuid, p_dependsonitemid uuid DEFAULT NULL::uuid, p_dependencytype character varying DEFAULT NULL::character varying)
+ RETURNS SETOF __mj_bizappstasks."vwTaskTemplateItemDependencies"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_new_id UUID;
+BEGIN
+    v_new_id := COALESCE(p_id, gen_random_uuid());
+    INSERT INTO __mj_bizappstasks."TaskTemplateItemDependency"
+        (
+            "ID",
+            "ItemID",
+                "DependsOnItemID",
+                "DependencyType"
+        )
+    VALUES
+        (
+            v_new_id,
+            p_itemid,
+                p_dependsonitemid,
+                COALESCE(p_dependencytype, 'FinishToStart')
+        )
+    ;
+
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskTemplateItemDependencies"
+    WHERE "ID" = v_new_id;
+END;
+$function$;
+
+-- spUpdateTaskTemplateItemDependency: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spUpdateTaskTemplateItemDependency"(p_id uuid, p_itemid uuid DEFAULT NULL::uuid, p_dependsonitemid uuid DEFAULT NULL::uuid, p_dependencytype character varying DEFAULT NULL::character varying)
+ RETURNS SETOF __mj_bizappstasks."vwTaskTemplateItemDependencies"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_updated_count INTEGER;
+BEGIN
+    UPDATE __mj_bizappstasks."TaskTemplateItemDependency"
+    SET
+        "ItemID" = COALESCE(p_itemid, "ItemID"),
+        "DependsOnItemID" = COALESCE(p_dependsonitemid, "DependsOnItemID"),
+        "DependencyType" = COALESCE(p_dependencytype, "DependencyType")
+    WHERE
+        "ID" = p_id;
+
+    GET DIAGNOSTICS v_updated_count = ROW_COUNT;
+
+    IF v_updated_count = 0 THEN
+        -- Nothing was updated, return empty result set
+        RETURN;
+    END IF;
+
+    -- Return the updated record from the base view
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskTemplateItemDependencies"
+    WHERE "ID" = p_id;
+END;
+$function$;
+
+-- spDeleteTaskTemplateItemDependency: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spDeleteTaskTemplateItemDependency"(p_id uuid)
+ RETURNS TABLE("ID" uuid)
+ LANGUAGE plpgsql
+AS $function$
+#variable_conflict use_column
+DECLARE
+    v_affected_count INTEGER;
+BEGIN
+
+    DELETE FROM __mj_bizappstasks."TaskTemplateItemDependency"
+    WHERE "ID" = p_id;
+
+    GET DIAGNOSTICS v_affected_count = ROW_COUNT;
+
+    IF v_affected_count = 0 THEN
+        RETURN QUERY SELECT NULL::UUID AS "ID";
+    ELSE
+        RETURN QUERY SELECT p_id AS "ID";
+    END IF;
+END;
+$function$;
+
+-- spCreateTaskTemplate: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spCreateTaskTemplate"(p_id uuid DEFAULT NULL::uuid, p_name character varying DEFAULT NULL::character varying, p_description_clear boolean DEFAULT false, p_description text DEFAULT NULL::text, p_categoryid_clear boolean DEFAULT false, p_categoryid uuid DEFAULT NULL::uuid, p_typeid_clear boolean DEFAULT false, p_typeid uuid DEFAULT NULL::uuid, p_isactive boolean DEFAULT NULL::boolean)
+ RETURNS SETOF __mj_bizappstasks."vwTaskTemplates"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_new_id UUID;
+BEGIN
+    v_new_id := COALESCE(p_id, gen_random_uuid());
+    INSERT INTO __mj_bizappstasks."TaskTemplate"
+        (
+            "ID",
+            "Name",
+                "Description",
+                "CategoryID",
+                "TypeID",
+                "IsActive"
+        )
+    VALUES
+        (
+            v_new_id,
+            p_name,
+                CASE WHEN p_description_clear = true THEN NULL ELSE COALESCE(p_description, NULL) END,
+                CASE WHEN p_categoryid_clear = true THEN NULL ELSE COALESCE(p_categoryid, NULL) END,
+                CASE WHEN p_typeid_clear = true THEN NULL ELSE COALESCE(p_typeid, NULL) END,
+                COALESCE(p_isactive, TRUE)
+        )
+    ;
+
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskTemplates"
+    WHERE "ID" = v_new_id;
+END;
+$function$;
+
+-- spUpdateTaskTemplate: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spUpdateTaskTemplate"(p_id uuid, p_name character varying DEFAULT NULL::character varying, p_description_clear boolean DEFAULT false, p_description text DEFAULT NULL::text, p_categoryid_clear boolean DEFAULT false, p_categoryid uuid DEFAULT NULL::uuid, p_typeid_clear boolean DEFAULT false, p_typeid uuid DEFAULT NULL::uuid, p_isactive boolean DEFAULT NULL::boolean)
+ RETURNS SETOF __mj_bizappstasks."vwTaskTemplates"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_updated_count INTEGER;
+BEGIN
+    UPDATE __mj_bizappstasks."TaskTemplate"
+    SET
+        "Name" = COALESCE(p_name, "Name"),
+        "Description" = CASE WHEN p_description_clear = true THEN NULL ELSE COALESCE(p_description, "Description") END,
+        "CategoryID" = CASE WHEN p_categoryid_clear = true THEN NULL ELSE COALESCE(p_categoryid, "CategoryID") END,
+        "TypeID" = CASE WHEN p_typeid_clear = true THEN NULL ELSE COALESCE(p_typeid, "TypeID") END,
+        "IsActive" = COALESCE(p_isactive, "IsActive")
+    WHERE
+        "ID" = p_id;
+
+    GET DIAGNOSTICS v_updated_count = ROW_COUNT;
+
+    IF v_updated_count = 0 THEN
+        -- Nothing was updated, return empty result set
+        RETURN;
+    END IF;
+
+    -- Return the updated record from the base view
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskTemplates"
+    WHERE "ID" = p_id;
+END;
+$function$;
+
+-- spDeleteTaskTemplate: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spDeleteTaskTemplate"(p_id uuid)
+ RETURNS TABLE("ID" uuid)
+ LANGUAGE plpgsql
+AS $function$
+#variable_conflict use_column
+DECLARE
+    v_affected_count INTEGER;
+BEGIN
+
+    DELETE FROM __mj_bizappstasks."TaskTemplate"
+    WHERE "ID" = p_id;
+
+    GET DIAGNOSTICS v_affected_count = ROW_COUNT;
+
+    IF v_affected_count = 0 THEN
+        RETURN QUERY SELECT NULL::UUID AS "ID";
+    ELSE
+        RETURN QUERY SELECT p_id AS "ID";
+    END IF;
+END;
+$function$;
+
+-- spCreateTaskTemplateItemRole: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spCreateTaskTemplateItemRole"(p_id uuid DEFAULT NULL::uuid, p_itemid uuid DEFAULT NULL::uuid, p_roleid uuid DEFAULT NULL::uuid)
+ RETURNS SETOF __mj_bizappstasks."vwTaskTemplateItemRoles"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_new_id UUID;
+BEGIN
+    v_new_id := COALESCE(p_id, gen_random_uuid());
+    INSERT INTO __mj_bizappstasks."TaskTemplateItemRole"
+        (
+            "ID",
+            "ItemID",
+                "RoleID"
+        )
+    VALUES
+        (
+            v_new_id,
+            p_itemid,
+                p_roleid
+        )
+    ;
+
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskTemplateItemRoles"
+    WHERE "ID" = v_new_id;
+END;
+$function$;
+
+-- spUpdateTaskTemplateItemRole: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spUpdateTaskTemplateItemRole"(p_id uuid, p_itemid uuid DEFAULT NULL::uuid, p_roleid uuid DEFAULT NULL::uuid)
+ RETURNS SETOF __mj_bizappstasks."vwTaskTemplateItemRoles"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_updated_count INTEGER;
+BEGIN
+    UPDATE __mj_bizappstasks."TaskTemplateItemRole"
+    SET
+        "ItemID" = COALESCE(p_itemid, "ItemID"),
+        "RoleID" = COALESCE(p_roleid, "RoleID")
+    WHERE
+        "ID" = p_id;
+
+    GET DIAGNOSTICS v_updated_count = ROW_COUNT;
+
+    IF v_updated_count = 0 THEN
+        -- Nothing was updated, return empty result set
+        RETURN;
+    END IF;
+
+    -- Return the updated record from the base view
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskTemplateItemRoles"
+    WHERE "ID" = p_id;
+END;
+$function$;
+
+-- spDeleteTaskTemplateItemRole: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spDeleteTaskTemplateItemRole"(p_id uuid)
+ RETURNS TABLE("ID" uuid)
+ LANGUAGE plpgsql
+AS $function$
+#variable_conflict use_column
+DECLARE
+    v_affected_count INTEGER;
+BEGIN
+
+    DELETE FROM __mj_bizappstasks."TaskTemplateItemRole"
+    WHERE "ID" = p_id;
+
+    GET DIAGNOSTICS v_affected_count = ROW_COUNT;
+
+    IF v_affected_count = 0 THEN
+        RETURN QUERY SELECT NULL::UUID AS "ID";
+    ELSE
+        RETURN QUERY SELECT p_id AS "ID";
+    END IF;
+END;
+$function$;
+
+-- spCreateTask: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spCreateTask"(p_id uuid DEFAULT NULL::uuid, p_name character varying DEFAULT NULL::character varying, p_description_clear boolean DEFAULT false, p_description text DEFAULT NULL::text, p_typeid uuid DEFAULT NULL::uuid, p_categoryid_clear boolean DEFAULT false, p_categoryid uuid DEFAULT NULL::uuid, p_parentid_clear boolean DEFAULT false, p_parentid uuid DEFAULT NULL::uuid, p_status character varying DEFAULT NULL::character varying, p_priority character varying DEFAULT NULL::character varying, p_startedat_clear boolean DEFAULT false, p_startedat timestamp with time zone DEFAULT NULL::timestamp with time zone, p_dueat_clear boolean DEFAULT false, p_dueat timestamp with time zone DEFAULT NULL::timestamp with time zone, p_completedat_clear boolean DEFAULT false, p_completedat timestamp with time zone DEFAULT NULL::timestamp with time zone, p_hoursestimated_clear boolean DEFAULT false, p_hoursestimated numeric DEFAULT NULL::numeric, p_hoursactual_clear boolean DEFAULT false, p_hoursactual numeric DEFAULT NULL::numeric, p_percentcomplete integer DEFAULT NULL::integer, p_sequence integer DEFAULT NULL::integer, p_blockedreason_clear boolean DEFAULT false, p_blockedreason text DEFAULT NULL::text, p_completionnotes_clear boolean DEFAULT false, p_completionnotes text DEFAULT NULL::text, p_createdbypersonid_clear boolean DEFAULT false, p_createdbypersonid uuid DEFAULT NULL::uuid, p_overduenotifiedat_clear boolean DEFAULT false, p_overduenotifiedat timestamp with time zone DEFAULT NULL::timestamp with time zone)
+ RETURNS SETOF __mj_bizappstasks."vwTasks"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_new_id UUID;
+BEGIN
+    v_new_id := COALESCE(p_id, gen_random_uuid());
+    INSERT INTO __mj_bizappstasks."Task"
+        (
+            "ID",
+            "Name",
+                "Description",
+                "TypeID",
+                "CategoryID",
+                "ParentID",
+                "Status",
+                "Priority",
+                "StartedAt",
+                "DueAt",
+                "CompletedAt",
+                "HoursEstimated",
+                "HoursActual",
+                "PercentComplete",
+                "Sequence",
+                "BlockedReason",
+                "CompletionNotes",
+                "CreatedByPersonID",
+                "OverdueNotifiedAt"
+        )
+    VALUES
+        (
+            v_new_id,
+            p_name,
+                CASE WHEN p_description_clear = true THEN NULL ELSE COALESCE(p_description, NULL) END,
+                p_typeid,
+                CASE WHEN p_categoryid_clear = true THEN NULL ELSE COALESCE(p_categoryid, NULL) END,
+                CASE WHEN p_parentid_clear = true THEN NULL ELSE COALESCE(p_parentid, NULL) END,
+                COALESCE(p_status, 'Open'),
+                COALESCE(p_priority, 'Medium'),
+                CASE WHEN p_startedat_clear = true THEN NULL ELSE COALESCE(p_startedat, NULL) END,
+                CASE WHEN p_dueat_clear = true THEN NULL ELSE COALESCE(p_dueat, NULL) END,
+                CASE WHEN p_completedat_clear = true THEN NULL ELSE COALESCE(p_completedat, NULL) END,
+                CASE WHEN p_hoursestimated_clear = true THEN NULL ELSE COALESCE(p_hoursestimated, NULL) END,
+                CASE WHEN p_hoursactual_clear = true THEN NULL ELSE COALESCE(p_hoursactual, NULL) END,
+                COALESCE(p_percentcomplete, 0),
+                COALESCE(p_sequence, 100),
+                CASE WHEN p_blockedreason_clear = true THEN NULL ELSE COALESCE(p_blockedreason, NULL) END,
+                CASE WHEN p_completionnotes_clear = true THEN NULL ELSE COALESCE(p_completionnotes, NULL) END,
+                CASE WHEN p_createdbypersonid_clear = true THEN NULL ELSE COALESCE(p_createdbypersonid, NULL) END,
+                CASE WHEN p_overduenotifiedat_clear = true THEN NULL ELSE COALESCE(p_overduenotifiedat, NULL) END
+        )
+    ;
+
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTasks"
+    WHERE "ID" = v_new_id;
+END;
+$function$;
+
+-- spUpdateTask: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spUpdateTask"(p_id uuid, p_name character varying DEFAULT NULL::character varying, p_description_clear boolean DEFAULT false, p_description text DEFAULT NULL::text, p_typeid uuid DEFAULT NULL::uuid, p_categoryid_clear boolean DEFAULT false, p_categoryid uuid DEFAULT NULL::uuid, p_parentid_clear boolean DEFAULT false, p_parentid uuid DEFAULT NULL::uuid, p_status character varying DEFAULT NULL::character varying, p_priority character varying DEFAULT NULL::character varying, p_startedat_clear boolean DEFAULT false, p_startedat timestamp with time zone DEFAULT NULL::timestamp with time zone, p_dueat_clear boolean DEFAULT false, p_dueat timestamp with time zone DEFAULT NULL::timestamp with time zone, p_completedat_clear boolean DEFAULT false, p_completedat timestamp with time zone DEFAULT NULL::timestamp with time zone, p_hoursestimated_clear boolean DEFAULT false, p_hoursestimated numeric DEFAULT NULL::numeric, p_hoursactual_clear boolean DEFAULT false, p_hoursactual numeric DEFAULT NULL::numeric, p_percentcomplete integer DEFAULT NULL::integer, p_sequence integer DEFAULT NULL::integer, p_blockedreason_clear boolean DEFAULT false, p_blockedreason text DEFAULT NULL::text, p_completionnotes_clear boolean DEFAULT false, p_completionnotes text DEFAULT NULL::text, p_createdbypersonid_clear boolean DEFAULT false, p_createdbypersonid uuid DEFAULT NULL::uuid, p_overduenotifiedat_clear boolean DEFAULT false, p_overduenotifiedat timestamp with time zone DEFAULT NULL::timestamp with time zone)
+ RETURNS SETOF __mj_bizappstasks."vwTasks"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_updated_count INTEGER;
+BEGIN
+    UPDATE __mj_bizappstasks."Task"
+    SET
+        "Name" = COALESCE(p_name, "Name"),
+        "Description" = CASE WHEN p_description_clear = true THEN NULL ELSE COALESCE(p_description, "Description") END,
+        "TypeID" = COALESCE(p_typeid, "TypeID"),
+        "CategoryID" = CASE WHEN p_categoryid_clear = true THEN NULL ELSE COALESCE(p_categoryid, "CategoryID") END,
+        "ParentID" = CASE WHEN p_parentid_clear = true THEN NULL ELSE COALESCE(p_parentid, "ParentID") END,
+        "Status" = COALESCE(p_status, "Status"),
+        "Priority" = COALESCE(p_priority, "Priority"),
+        "StartedAt" = CASE WHEN p_startedat_clear = true THEN NULL ELSE COALESCE(p_startedat, "StartedAt") END,
+        "DueAt" = CASE WHEN p_dueat_clear = true THEN NULL ELSE COALESCE(p_dueat, "DueAt") END,
+        "CompletedAt" = CASE WHEN p_completedat_clear = true THEN NULL ELSE COALESCE(p_completedat, "CompletedAt") END,
+        "HoursEstimated" = CASE WHEN p_hoursestimated_clear = true THEN NULL ELSE COALESCE(p_hoursestimated, "HoursEstimated") END,
+        "HoursActual" = CASE WHEN p_hoursactual_clear = true THEN NULL ELSE COALESCE(p_hoursactual, "HoursActual") END,
+        "PercentComplete" = COALESCE(p_percentcomplete, "PercentComplete"),
+        "Sequence" = COALESCE(p_sequence, "Sequence"),
+        "BlockedReason" = CASE WHEN p_blockedreason_clear = true THEN NULL ELSE COALESCE(p_blockedreason, "BlockedReason") END,
+        "CompletionNotes" = CASE WHEN p_completionnotes_clear = true THEN NULL ELSE COALESCE(p_completionnotes, "CompletionNotes") END,
+        "CreatedByPersonID" = CASE WHEN p_createdbypersonid_clear = true THEN NULL ELSE COALESCE(p_createdbypersonid, "CreatedByPersonID") END,
+        "OverdueNotifiedAt" = CASE WHEN p_overduenotifiedat_clear = true THEN NULL ELSE COALESCE(p_overduenotifiedat, "OverdueNotifiedAt") END
+    WHERE
+        "ID" = p_id;
+
+    GET DIAGNOSTICS v_updated_count = ROW_COUNT;
+
+    IF v_updated_count = 0 THEN
+        -- Nothing was updated, return empty result set
+        RETURN;
+    END IF;
+
+    -- Return the updated record from the base view
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTasks"
+    WHERE "ID" = p_id;
+END;
+$function$;
+
+-- spDeleteTask: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spDeleteTask"(p_id uuid)
+ RETURNS TABLE("ID" uuid)
+ LANGUAGE plpgsql
+AS $function$
+#variable_conflict use_column
+DECLARE
+    v_affected_count INTEGER;
+BEGIN
+
+    DELETE FROM __mj_bizappstasks."Task"
+    WHERE "ID" = p_id;
+
+    GET DIAGNOSTICS v_affected_count = ROW_COUNT;
+
+    IF v_affected_count = 0 THEN
+        RETURN QUERY SELECT NULL::UUID AS "ID";
+    ELSE
+        RETURN QUERY SELECT p_id AS "ID";
+    END IF;
+END;
+$function$;
+
+-- spCreateTaskType: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spCreateTaskType"(p_id uuid DEFAULT NULL::uuid, p_name character varying DEFAULT NULL::character varying, p_description_clear boolean DEFAULT false, p_description text DEFAULT NULL::text, p_iconclass_clear boolean DEFAULT false, p_iconclass character varying DEFAULT NULL::character varying, p_defaultpriority character varying DEFAULT NULL::character varying, p_onassignactionid_clear boolean DEFAULT false, p_onassignactionid uuid DEFAULT NULL::uuid, p_oncompleteactionid_clear boolean DEFAULT false, p_oncompleteactionid uuid DEFAULT NULL::uuid, p_onoverdueactionid_clear boolean DEFAULT false, p_onoverdueactionid uuid DEFAULT NULL::uuid, p_onpercentchangeactionid_clear boolean DEFAULT false, p_onpercentchangeactionid uuid DEFAULT NULL::uuid, p_isactive boolean DEFAULT NULL::boolean, p_onrejectactionid_clear boolean DEFAULT false, p_onrejectactionid uuid DEFAULT NULL::uuid, p_oncancelactionid_clear boolean DEFAULT false, p_oncancelactionid uuid DEFAULT NULL::uuid)
+ RETURNS SETOF __mj_bizappstasks."vwTaskTypes"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_new_id UUID;
+BEGIN
+    v_new_id := COALESCE(p_id, gen_random_uuid());
+    INSERT INTO __mj_bizappstasks."TaskType"
+        (
+            "ID",
+            "Name",
+                "Description",
+                "IconClass",
+                "DefaultPriority",
+                "OnAssignActionID",
+                "OnCompleteActionID",
+                "OnOverdueActionID",
+                "OnPercentChangeActionID",
+                "IsActive",
+                "OnRejectActionID",
+                "OnCancelActionID"
+        )
+    VALUES
+        (
+            v_new_id,
+            p_name,
+                CASE WHEN p_description_clear = true THEN NULL ELSE COALESCE(p_description, NULL) END,
+                CASE WHEN p_iconclass_clear = true THEN NULL ELSE COALESCE(p_iconclass, NULL) END,
+                COALESCE(p_defaultpriority, 'Medium'),
+                CASE WHEN p_onassignactionid_clear = true THEN NULL ELSE COALESCE(p_onassignactionid, NULL) END,
+                CASE WHEN p_oncompleteactionid_clear = true THEN NULL ELSE COALESCE(p_oncompleteactionid, NULL) END,
+                CASE WHEN p_onoverdueactionid_clear = true THEN NULL ELSE COALESCE(p_onoverdueactionid, NULL) END,
+                CASE WHEN p_onpercentchangeactionid_clear = true THEN NULL ELSE COALESCE(p_onpercentchangeactionid, NULL) END,
+                COALESCE(p_isactive, TRUE),
+                CASE WHEN p_onrejectactionid_clear = true THEN NULL ELSE COALESCE(p_onrejectactionid, NULL) END,
+                CASE WHEN p_oncancelactionid_clear = true THEN NULL ELSE COALESCE(p_oncancelactionid, NULL) END
+        )
+    ;
+
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskTypes"
+    WHERE "ID" = v_new_id;
+END;
+$function$;
+
+-- spUpdateTaskType: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spUpdateTaskType"(p_id uuid, p_name character varying DEFAULT NULL::character varying, p_description_clear boolean DEFAULT false, p_description text DEFAULT NULL::text, p_iconclass_clear boolean DEFAULT false, p_iconclass character varying DEFAULT NULL::character varying, p_defaultpriority character varying DEFAULT NULL::character varying, p_onassignactionid_clear boolean DEFAULT false, p_onassignactionid uuid DEFAULT NULL::uuid, p_oncompleteactionid_clear boolean DEFAULT false, p_oncompleteactionid uuid DEFAULT NULL::uuid, p_onoverdueactionid_clear boolean DEFAULT false, p_onoverdueactionid uuid DEFAULT NULL::uuid, p_onpercentchangeactionid_clear boolean DEFAULT false, p_onpercentchangeactionid uuid DEFAULT NULL::uuid, p_isactive boolean DEFAULT NULL::boolean, p_onrejectactionid_clear boolean DEFAULT false, p_onrejectactionid uuid DEFAULT NULL::uuid, p_oncancelactionid_clear boolean DEFAULT false, p_oncancelactionid uuid DEFAULT NULL::uuid)
+ RETURNS SETOF __mj_bizappstasks."vwTaskTypes"
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_updated_count INTEGER;
+BEGIN
+    UPDATE __mj_bizappstasks."TaskType"
+    SET
+        "Name" = COALESCE(p_name, "Name"),
+        "Description" = CASE WHEN p_description_clear = true THEN NULL ELSE COALESCE(p_description, "Description") END,
+        "IconClass" = CASE WHEN p_iconclass_clear = true THEN NULL ELSE COALESCE(p_iconclass, "IconClass") END,
+        "DefaultPriority" = COALESCE(p_defaultpriority, "DefaultPriority"),
+        "OnAssignActionID" = CASE WHEN p_onassignactionid_clear = true THEN NULL ELSE COALESCE(p_onassignactionid, "OnAssignActionID") END,
+        "OnCompleteActionID" = CASE WHEN p_oncompleteactionid_clear = true THEN NULL ELSE COALESCE(p_oncompleteactionid, "OnCompleteActionID") END,
+        "OnOverdueActionID" = CASE WHEN p_onoverdueactionid_clear = true THEN NULL ELSE COALESCE(p_onoverdueactionid, "OnOverdueActionID") END,
+        "OnPercentChangeActionID" = CASE WHEN p_onpercentchangeactionid_clear = true THEN NULL ELSE COALESCE(p_onpercentchangeactionid, "OnPercentChangeActionID") END,
+        "IsActive" = COALESCE(p_isactive, "IsActive"),
+        "OnRejectActionID" = CASE WHEN p_onrejectactionid_clear = true THEN NULL ELSE COALESCE(p_onrejectactionid, "OnRejectActionID") END,
+        "OnCancelActionID" = CASE WHEN p_oncancelactionid_clear = true THEN NULL ELSE COALESCE(p_oncancelactionid, "OnCancelActionID") END
+    WHERE
+        "ID" = p_id;
+
+    GET DIAGNOSTICS v_updated_count = ROW_COUNT;
+
+    IF v_updated_count = 0 THEN
+        -- Nothing was updated, return empty result set
+        RETURN;
+    END IF;
+
+    -- Return the updated record from the base view
+    RETURN QUERY
+    SELECT * FROM __mj_bizappstasks."vwTaskTypes"
+    WHERE "ID" = p_id;
+END;
+$function$;
+
+-- spDeleteTaskType: native plpgsql as emitted by MJ CodeGen (replaces the skipped T-SQL procedure)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks."spDeleteTaskType"(p_id uuid)
+ RETURNS TABLE("ID" uuid)
+ LANGUAGE plpgsql
+AS $function$
+#variable_conflict use_column
+DECLARE
+    v_affected_count INTEGER;
+BEGIN
+
+    DELETE FROM __mj_bizappstasks."TaskType"
+    WHERE "ID" = p_id;
+
+    GET DIAGNOSTICS v_affected_count = ROW_COUNT;
+
+    IF v_affected_count = 0 THEN
+        RETURN QUERY SELECT NULL::UUID AS "ID";
+    ELSE
+        RETURN QUERY SELECT p_id AS "ID";
+    END IF;
+END;
+$function$;
 
 
 -- ===================== Triggers =====================
 
--- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER __mj_bizappstasks.trgUpdateTaskCategory
--- ON __mj_bizappstasks."TaskCategory"
--- AFTER UPDATE
--- AS
--- BEGIN
---     SET NOCOUNT ON;
---     UPDATE
---         __mj_bizappstasks."TaskCategory"
---     SET
+-- trg_update_task_category: native row-touch trigger as emitted by MJ CodeGen (replaces the skipped T-SQL trigger)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks.fn_trg_update_task_category()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    NEW."__mj_UpdatedAt" := NOW() AT TIME ZONE 'UTC';
+    RETURN NEW;
+END;
+$function$;
+CREATE TRIGGER trg_update_task_category BEFORE UPDATE ON __mj_bizappstasks."TaskCategory" FOR EACH ROW EXECUTE FUNCTION __mj_bizappstasks.fn_trg_update_task_category();
  
 
--- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER __mj_bizappstasks.trgUpdateTaskActivity
--- ON __mj_bizappstasks."TaskActivity"
--- AFTER UPDATE
--- AS
--- BEGIN
---     SET NOCOUNT ON;
---     UPDATE
---         __mj_bizappstasks."TaskActivity"
---     SET
+-- trg_update_task_activity: native row-touch trigger as emitted by MJ CodeGen (replaces the skipped T-SQL trigger)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks.fn_trg_update_task_activity()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    NEW."__mj_UpdatedAt" := NOW() AT TIME ZONE 'UTC';
+    RETURN NEW;
+END;
+$function$;
+CREATE TRIGGER trg_update_task_activity BEFORE UPDATE ON __mj_bizappstasks."TaskActivity" FOR EACH ROW EXECUTE FUNCTION __mj_bizappstasks.fn_trg_update_task_activity();
  
 
--- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER __mj_bizappstasks.trgUpdateTaskComment
--- ON __mj_bizappstasks."TaskComment"
--- AFTER UPDATE
--- AS
--- BEGIN
---     SET NOCOUNT ON;
---     UPDATE
---         __mj_bizappstasks."TaskComment"
---     SET
+-- trg_update_task_comment: native row-touch trigger as emitted by MJ CodeGen (replaces the skipped T-SQL trigger)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks.fn_trg_update_task_comment()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    NEW."__mj_UpdatedAt" := NOW() AT TIME ZONE 'UTC';
+    RETURN NEW;
+END;
+$function$;
+CREATE TRIGGER trg_update_task_comment BEFORE UPDATE ON __mj_bizappstasks."TaskComment" FOR EACH ROW EXECUTE FUNCTION __mj_bizappstasks.fn_trg_update_task_comment();
     
 
--- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER __mj_bizappstasks.trgUpdateTaskDependency
--- ON __mj_bizappstasks."TaskDependency"
--- AFTER UPDATE
--- AS
--- BEGIN
---     SET NOCOUNT ON;
---     UPDATE
---         __mj_bizappstasks."TaskDependency"
+-- trg_update_task_dependency: native row-touch trigger as emitted by MJ CodeGen (replaces the skipped T-SQL trigger)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks.fn_trg_update_task_dependency()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    NEW."__mj_UpdatedAt" := NOW() AT TIME ZONE 'UTC';
+    RETURN NEW;
+END;
+$function$;
+CREATE TRIGGER trg_update_task_dependency BEFORE UPDATE ON __mj_bizappstasks."TaskDependency" FOR EACH ROW EXECUTE FUNCTION __mj_bizappstasks.fn_trg_update_task_dependency();
    
 
--- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER __mj_bizappstasks.trgUpdateTaskAssignment
--- ON __mj_bizappstasks."TaskAssignment"
--- AFTER UPDATE
--- AS
--- BEGIN
---     SET NOCOUNT ON;
---     UPDATE
---         __mj_bizappstasks."TaskAssignment"
+-- trg_update_task_assignment: native row-touch trigger as emitted by MJ CodeGen (replaces the skipped T-SQL trigger)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks.fn_trg_update_task_assignment()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    NEW."__mj_UpdatedAt" := NOW() AT TIME ZONE 'UTC';
+    RETURN NEW;
+END;
+$function$;
+CREATE TRIGGER trg_update_task_assignment BEFORE UPDATE ON __mj_bizappstasks."TaskAssignment" FOR EACH ROW EXECUTE FUNCTION __mj_bizappstasks.fn_trg_update_task_assignment();
    
 
--- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER __mj_bizappstasks.trgUpdateTaskRole
--- ON __mj_bizappstasks."TaskRole"
--- AFTER UPDATE
--- AS
--- BEGIN
---     SET NOCOUNT ON;
---     UPDATE
---         __mj_bizappstasks."TaskRole"
---     SET
---         __mj_
+-- trg_update_task_role: native row-touch trigger as emitted by MJ CodeGen (replaces the skipped T-SQL trigger)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks.fn_trg_update_task_role()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    NEW."__mj_UpdatedAt" := NOW() AT TIME ZONE 'UTC';
+    RETURN NEW;
+END;
+$function$;
+CREATE TRIGGER trg_update_task_role BEFORE UPDATE ON __mj_bizappstasks."TaskRole" FOR EACH ROW EXECUTE FUNCTION __mj_bizappstasks.fn_trg_update_task_role();
 
--- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER __mj_bizappstasks.trgUpdateTaskNotificationConfig
--- ON __mj_bizappstasks."TaskNotificationConfig"
--- AFTER UPDATE
--- AS
--- BEGIN
---     SET NOCOUNT ON;
---     UPDATE
---         __mj_bizappstasks."Tas
+-- trg_update_task_notification_config: native row-touch trigger as emitted by MJ CodeGen (replaces the skipped T-SQL trigger)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks.fn_trg_update_task_notification_config()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    NEW."__mj_UpdatedAt" := NOW() AT TIME ZONE 'UTC';
+    RETURN NEW;
+END;
+$function$;
+CREATE TRIGGER trg_update_task_notification_config BEFORE UPDATE ON __mj_bizappstasks."TaskNotificationConfig" FOR EACH ROW EXECUTE FUNCTION __mj_bizappstasks.fn_trg_update_task_notification_config();
 
--- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER [__mj_bizappstasks".trgUpdateTaskNotificationLog
--- ON __mj_bizappstasks."TaskNotificationLog"
--- AFTER UPDATE
--- AS
--- BEGIN
---     SET NOCOUNT ON;
---     UPDATE
---         __mj_bizappstasks."TaskNotif
+-- trg_update_task_notification_log: native row-touch trigger as emitted by MJ CodeGen (replaces the skipped T-SQL trigger)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks.fn_trg_update_task_notification_log()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    NEW."__mj_UpdatedAt" := NOW() AT TIME ZONE 'UTC';
+    RETURN NEW;
+END;
+$function$;
+CREATE TRIGGER trg_update_task_notification_log BEFORE UPDATE ON __mj_bizappstasks."TaskNotificationLog" FOR EACH ROW EXECUTE FUNCTION __mj_bizappstasks.fn_trg_update_task_notification_log();
 
--- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER [__mj_bizappstasks".trgUpdateTaskTagLink
--- ON __mj_bizappstasks."TaskTagLink"
--- AFTER UPDATE
--- AS
--- BEGIN
---     SET NOCOUNT ON;
---     UPDATE
---         __mj_bizappstasks."TaskTagLink"
---     SET
+-- trg_update_task_tag_link: native row-touch trigger as emitted by MJ CodeGen (replaces the skipped T-SQL trigger)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks.fn_trg_update_task_tag_link()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    NEW."__mj_UpdatedAt" := NOW() AT TIME ZONE 'UTC';
+    RETURN NEW;
+END;
+$function$;
+CREATE TRIGGER trg_update_task_tag_link BEFORE UPDATE ON __mj_bizappstasks."TaskTagLink" FOR EACH ROW EXECUTE FUNCTION __mj_bizappstasks.fn_trg_update_task_tag_link();
     
 
--- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER __mj_bizappstasks.trgUpdateTaskLink
--- ON __mj_bizappstasks."TaskLink"
--- AFTER UPDATE
--- AS
--- BEGIN
---     SET NOCOUNT ON;
---     UPDATE
---         __mj_bizappstasks."TaskLink"
---     SET
---         __mj_
+-- trg_update_task_link: native row-touch trigger as emitted by MJ CodeGen (replaces the skipped T-SQL trigger)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks.fn_trg_update_task_link()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    NEW."__mj_UpdatedAt" := NOW() AT TIME ZONE 'UTC';
+    RETURN NEW;
+END;
+$function$;
+CREATE TRIGGER trg_update_task_link BEFORE UPDATE ON __mj_bizappstasks."TaskLink" FOR EACH ROW EXECUTE FUNCTION __mj_bizappstasks.fn_trg_update_task_link();
 
--- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER __mj_bizappstasks.trgUpdateTaskTag
--- ON __mj_bizappstasks."TaskTag"
--- AFTER UPDATE
--- AS
--- BEGIN
---     SET NOCOUNT ON;
---     UPDATE
---         __mj_bizappstasks."TaskTag"
---     SET
---         __mj_Upd
+-- trg_update_task_tag: native row-touch trigger as emitted by MJ CodeGen (replaces the skipped T-SQL trigger)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks.fn_trg_update_task_tag()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    NEW."__mj_UpdatedAt" := NOW() AT TIME ZONE 'UTC';
+    RETURN NEW;
+END;
+$function$;
+CREATE TRIGGER trg_update_task_tag BEFORE UPDATE ON __mj_bizappstasks."TaskTag" FOR EACH ROW EXECUTE FUNCTION __mj_bizappstasks.fn_trg_update_task_tag();
 
--- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER __mj_bizappstasks.trgUpdateTaskTemplateItem
--- ON __mj_bizappstasks."TaskTemplateItem"
--- AFTER UPDATE
--- AS
--- BEGIN
---     SET NOCOUNT ON;
---     UPDATE
---         __mj_bizappstasks."TaskTemplateIte
+-- trg_update_task_template_item: native row-touch trigger as emitted by MJ CodeGen (replaces the skipped T-SQL trigger)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks.fn_trg_update_task_template_item()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    NEW."__mj_UpdatedAt" := NOW() AT TIME ZONE 'UTC';
+    RETURN NEW;
+END;
+$function$;
+CREATE TRIGGER trg_update_task_template_item BEFORE UPDATE ON __mj_bizappstasks."TaskTemplateItem" FOR EACH ROW EXECUTE FUNCTION __mj_bizappstasks.fn_trg_update_task_template_item();
 
--- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER [__mj_bizappstasks".trgUpdateTaskTemplateItemDependency
--- ON __mj_bizappstasks."TaskTemplateItemDependency"
--- AFTER UPDATE
--- AS
--- BEGIN
---     SET NOCOUNT ON;
---     UPDATE
---         "__mj_BizAppsTas
+-- trg_update_task_template_item_dependency: native row-touch trigger as emitted by MJ CodeGen (replaces the skipped T-SQL trigger)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks.fn_trg_update_task_template_item_dependency()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    NEW."__mj_UpdatedAt" := NOW() AT TIME ZONE 'UTC';
+    RETURN NEW;
+END;
+$function$;
+CREATE TRIGGER trg_update_task_template_item_dependency BEFORE UPDATE ON __mj_bizappstasks."TaskTemplateItemDependency" FOR EACH ROW EXECUTE FUNCTION __mj_bizappstasks.fn_trg_update_task_template_item_dependency();
 
--- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER [__mj_bizappstasks".trgUpdateTaskTemplate
--- ON __mj_bizappstasks."TaskTemplate"
--- AFTER UPDATE
--- AS
--- BEGIN
---     SET NOCOUNT ON;
---     UPDATE
---         __mj_bizappstasks."TaskTemplate"
---     SET
+-- trg_update_task_template: native row-touch trigger as emitted by MJ CodeGen (replaces the skipped T-SQL trigger)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks.fn_trg_update_task_template()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    NEW."__mj_UpdatedAt" := NOW() AT TIME ZONE 'UTC';
+    RETURN NEW;
+END;
+$function$;
+CREATE TRIGGER trg_update_task_template BEFORE UPDATE ON __mj_bizappstasks."TaskTemplate" FOR EACH ROW EXECUTE FUNCTION __mj_bizappstasks.fn_trg_update_task_template();
  
 
--- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER __mj_bizappstasks.trgUpdateTaskTemplateItemRole
--- ON __mj_bizappstasks."TaskTemplateItemRole"
--- AFTER UPDATE
--- AS
--- BEGIN
---     SET NOCOUNT ON;
---     UPDATE
---         __mj_bizappstasks."TaskTem
+-- trg_update_task_template_item_role: native row-touch trigger as emitted by MJ CodeGen (replaces the skipped T-SQL trigger)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks.fn_trg_update_task_template_item_role()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    NEW."__mj_UpdatedAt" := NOW() AT TIME ZONE 'UTC';
+    RETURN NEW;
+END;
+$function$;
+CREATE TRIGGER trg_update_task_template_item_role BEFORE UPDATE ON __mj_bizappstasks."TaskTemplateItemRole" FOR EACH ROW EXECUTE FUNCTION __mj_bizappstasks.fn_trg_update_task_template_item_role();
 
--- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER [__mj_bizappstasks".trgUpdateTask
--- ON __mj_bizappstasks."Task"
--- AFTER UPDATE
--- AS
--- BEGIN
---     SET NOCOUNT ON;
---     UPDATE
---         __mj_bizappstasks."Task"
---     SET
---         __mj_UpdatedAt = 
+-- trg_update_task: native row-touch trigger as emitted by MJ CodeGen (replaces the skipped T-SQL trigger)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks.fn_trg_update_task()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    NEW."__mj_UpdatedAt" := NOW() AT TIME ZONE 'UTC';
+    RETURN NEW;
+END;
+$function$;
+CREATE TRIGGER trg_update_task BEFORE UPDATE ON __mj_bizappstasks."Task" FOR EACH ROW EXECUTE FUNCTION __mj_bizappstasks.fn_trg_update_task();
 
--- SKIPPED: trigger (auto-conversion not supported)
--- CREATE TRIGGER __mj_bizappstasks.trgUpdateTaskType
--- ON __mj_bizappstasks."TaskType"
--- AFTER UPDATE
--- AS
--- BEGIN
---     SET NOCOUNT ON;
---     UPDATE
---         __mj_bizappstasks."TaskType"
---     SET
---         __mj_
+-- trg_update_task_type: native row-touch trigger as emitted by MJ CodeGen (replaces the skipped T-SQL trigger)
+CREATE OR REPLACE FUNCTION __mj_bizappstasks.fn_trg_update_task_type()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    NEW."__mj_UpdatedAt" := NOW() AT TIME ZONE 'UTC';
+    RETURN NEW;
+END;
+$function$;
+CREATE TRIGGER trg_update_task_type BEFORE UPDATE ON __mj_bizappstasks."TaskType" FOR EACH ROW EXECUTE FUNCTION __mj_bizappstasks.fn_trg_update_task_type();
 
 
 -- ===================== Data (INSERT/UPDATE/DELETE) =====================
