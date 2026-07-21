@@ -1,5 +1,11 @@
 # @mj-biz-apps/tasks-actions
 
+## 1.2.0
+
+### Minor Changes
+
+- d540e69: "PG Canonical Backfill"
+
 ## 1.1.2
 
 ## 1.1.1

@@ -1,5 +1,17 @@
 # @mj-biz-apps/tasks-ng
 
+## 1.2.0
+
+### Minor Changes
+
+- d540e69: "PG Canonical Backfill"
+
+### Patch Changes
+
+- Updated dependencies [d540e69]
+  - @mj-biz-apps/tasks-entities@1.2.0
+  - @mj-biz-apps/tasks-core@1.2.0
+
 ## 1.1.2
 
 ### Patch Changes

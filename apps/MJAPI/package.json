@@ -24,7 +24,7 @@
     "@memberjunction/ai": "5.44.0",
     "@memberjunction/templates": "5.44.0",
     "@mj-biz-apps/common-server": "^5.32.0",
-    "@mj-biz-apps/tasks-server": "1.1.2",
+    "@mj-biz-apps/tasks-server": "1.2.0",
     "class-validator": "^0.14.3"
   }
 }
