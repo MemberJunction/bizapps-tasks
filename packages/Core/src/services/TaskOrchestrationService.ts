@@ -16,8 +16,40 @@ const TASK_LINKS_ENTITY = 'MJ_BizApps_Tasks: Task Links';
 /** The closed set of task statuses (mirrors the generated Task.Status union). */
 export type TaskStatus = 'Open' | 'InProgress' | 'Blocked' | 'Completed' | 'Cancelled';
 
+/**
+ * The seeded TaskDecisionOutcome rows, and what each one MEANS.
+ *
+ * A runtime table rather than a bare union, because every consuming application has to answer two
+ * questions a type cannot answer at runtime: "is this a code I accept?" and "does it mean approved?"
+ * Accounting answered both by hand-copying these literals into its own sets. That copy compiled
+ * perfectly against a widened union — TypeScript sees a narrower set as a legal subset — so adding
+ * an approving outcome here would have left the accounting gate classifying it as NOT approved, on
+ * the path that posts a journal entry batch to the ERP. Silent, and in the money.
+ *
+ * Add an outcome HERE and consumers follow: the union widens, `TaskDecisionOutcomeCodes` grows, and
+ * `IsApprovalOutcome` classifies it. Nothing downstream needs editing.
+ */
+export const TaskDecisionOutcomes = {
+    Approved:               { IsApproval: true,  Status: 'Completed' },
+    ApprovedWithConditions: { IsApproval: true,  Status: 'Completed' },
+    Rejected:               { IsApproval: false, Status: 'Cancelled' },
+} as const satisfies Record<string, { IsApproval: boolean; Status: TaskStatus }>;
+
 /** Stable codes for the seeded TaskDecisionOutcome rows. */
-export type TaskDecisionOutcomeCode = 'Approved' | 'Rejected' | 'ApprovedWithConditions';
+export type TaskDecisionOutcomeCode = keyof typeof TaskDecisionOutcomes;
+
+/** Every outcome code, in declaration order — for validating caller input and building messages. */
+export const TaskDecisionOutcomeCodes = Object.keys(TaskDecisionOutcomes) as readonly TaskDecisionOutcomeCode[];
+
+/** Whether `code` is a seeded outcome code. Narrows unvalidated caller input. */
+export function IsTaskDecisionOutcomeCode(code: string | null | undefined): code is TaskDecisionOutcomeCode {
+    return !!code && Object.prototype.hasOwnProperty.call(TaskDecisionOutcomes, code);
+}
+
+/** Whether an outcome means "approved" — the question every approval gate downstream actually asks. */
+export function IsApprovalOutcome(code: TaskDecisionOutcomeCode): boolean {
+    return TaskDecisionOutcomes[code].IsApproval;
+}
 
 export type CreateTaskParams = {
     Name: string;
@@ -229,13 +261,10 @@ export class TaskOrchestrationService {
 
     /** Maps a terminal outcome code to the task status it drives. */
     private statusForOutcome(code: TaskDecisionOutcomeCode): TaskStatus {
-        switch (code) {
-            case 'Approved':
-            case 'ApprovedWithConditions':
-                return 'Completed';
-            case 'Rejected':
-                return 'Cancelled';
-        }
+        // Read from the outcome table rather than re-deciding here. As a switch this silently
+        // returned undefined for any outcome added later — the union widened, no case matched, and
+        // the task was saved with no status at all.
+        return TaskDecisionOutcomes[code].Status;
     }
 
     private async resolveOutcome(code: TaskDecisionOutcomeCode, contextUser?: UserInfo): Promise<mjBizAppsTasksTaskDecisionOutcomeEntity> {
