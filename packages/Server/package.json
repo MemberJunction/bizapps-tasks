@@ -35,7 +35,8 @@
     "@memberjunction/sqlserver-dataprovider": "^5.44.0",
     "@memberjunction/scheduling-engine": "^5.44.0",
     "@memberjunction/scheduling-base-types": "^5.44.0",
-    "@memberjunction/actions": "^5.44.0"
+    "@memberjunction/actions": "^5.44.0",
+    "rxjs": "^7.8.2"
   },
   "repository": {
     "type": "git",
