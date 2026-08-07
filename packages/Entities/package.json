@@ -18,7 +18,8 @@
   "author": "MemberJunction.com",
   "license": "ISC",
   "devDependencies": {
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "1.6.1"
   },
   "dependencies": {
     "zod": "^3.25.28"
