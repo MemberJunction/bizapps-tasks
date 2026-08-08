@@ -1,7 +1,7 @@
 {
   "name": "@mj-biz-apps/tasks-core",
   "type": "module",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "BizApps Tasks Core Services - TaskService, TaskAssignmentService, TaskTemplateService",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -22,7 +22,7 @@
     "vitest": "1.6.1"
   },
   "dependencies": {
-    "@mj-biz-apps/tasks-entities": "1.2.0"
+    "@mj-biz-apps/tasks-entities": "1.2.1"
   },
   "peerDependencies": {
     "@memberjunction/core": "6.1.0-edge.1",
