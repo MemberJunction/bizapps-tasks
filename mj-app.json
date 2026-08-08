@@ -12,10 +12,10 @@
     "url": "https://memberjunction.com"
   },
   "repository": "https://github.com/MemberJunction/bizapps-tasks",
-  "mjVersionRange": ">=5.44.0 <6.0.0",
+  "mjVersionRange": ">=6.1.0-edge.1 <7.0.0",
   "dependencies": {
     "mj-bizapps-common": {
-      "version": ">=5.32.0 <6.0.0",
+      "version": ">=5.33.1 <6.0.0",
       "repository": "https://github.com/MemberJunction/bizapps-common"
     }
   },

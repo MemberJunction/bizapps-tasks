@@ -22,9 +22,14 @@ files in this repo now carry CodeGen's native plpgsql directly (extracted
 verbatim from a post-codegen v5.44 database — CodeGen's fixed point), which is
 what makes the one-shot install work and makes a subsequent codegen run a no-op.
 
+> **Not yet re-verified on MJ 6.x.** The committed plpgsql is still the v5.44
+> emission. The MJ 6.1.0-edge upgrade was a dependency-only change made without
+> database access, so the step-5 no-op check below has not been re-run against
+> 6.x CodeGen. Run this whole runbook before trusting a PG install on MJ 6.
+
 Tasks depends on bizapps-common, so the install is **four** layers:
-MJ core → bizapps-common (≥ v5.32.0, the release whose PG migrations are
-themselves one-shot) → bizapps-tasks.
+MJ core → bizapps-common (≥ v5.33.1, the first release that peers on MJ 6.x and
+whose PG migrations are themselves one-shot) → bizapps-tasks.
 
 ## 0. Fresh PostgreSQL (throwaway container)
 
@@ -50,8 +55,12 @@ connection with those credentials.
 ## 2. Platform install (the consumer's `mj migrate`)
 
 ```bash
-npx mj migrate --tag v5.44.0        # expect: 61 applied on a virgin DB
+npx mj migrate --tag v6.1.0-edge.1   # MJ core's own migrations on a virgin DB
 ```
+
+The tag must satisfy `mj-app.json`'s `mjVersionRange` (`>=6.1.0-edge.1 <7.0.0`).
+The applied count was 61 at MJ core v5.44.0 and has not been re-measured on the
+6.x line — treat whatever 6.x reports as the new baseline.
 
 Do **not** run plain `npx mj migrate` — without `--tag` it uses this repo's
 local migrations directory (the app's own), not MJ core's.
@@ -64,7 +73,7 @@ fresh installs) canonical-name persist → migrations → record the app.
 ```bash
 PSQL="psql -h localhost -p 5438 -U mj_admin -d Tasks_Test"
 
-# --- bizapps-common (from its repo checkout at >= v5.32.0) ---
+# --- bizapps-common (from its repo checkout at >= v5.33.1) ---
 $PSQL -c 'CREATE SCHEMA IF NOT EXISTS __mj_bizappscommon;'
 npx mj migrate --schema __mj_bizappscommon --dir <bizapps-common>/migrations-pg   # expect: 7 applied
 
@@ -167,7 +176,10 @@ rm -rf temp_sql_scripts migrations/codegen/CodeGen_Run_<today>*.sql
 
 ## Maintenance contract
 
-The plpgsql in `migrations-pg/` is CodeGen's own emission, frozen at v5.44.
+The plpgsql in `migrations-pg/` is CodeGen's own emission, frozen at v5.44 —
+still, after the move to MJ 6.1.0-edge.1, because that upgrade regenerated
+nothing. The first person with a database should re-run step 5 on 6.x CodeGen
+and re-freeze here if it is no longer a no-op.
 When a future schema change regenerates any CRUD function, view, or trigger,
 the new definition must be captured into the corresponding PG migration (the
 manual PG analog of what `appendOutputCode` does automatically for T-SQL).
