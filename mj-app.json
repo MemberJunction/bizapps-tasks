@@ -36,6 +36,10 @@
         "name": "@mj-biz-apps/tasks-server",
         "role": "bootstrap",
         "startupExport": "LoadBizAppsTasksServer"
+      },
+      {
+        "name": "@mj-biz-apps/tasks-entities-server",
+        "role": "library"
       }
     ],
     "client": [
