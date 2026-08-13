@@ -1,5 +1,36 @@
 # @mj-biz-apps/tasks-core
 
+## 1.2.2
+
+### Patch Changes
+
+- 3f6aa3d: Make the task decision outcomes a runtime table, so consuming apps stop hand-copying them.
+
+  `TaskDecisionOutcomeCode` was a bare union. Consumers need two runtime answers a type cannot give —
+  "do I accept this code?" and "does it mean approved?" — so bizapps-accounting answered both by
+  copying the literals into its own `Set`s. A `Set` holding a subset of a union is a legal value, so
+  widening the union here produced no error there: `tsc` returned 0 while the accounting approval gate
+  would have stopped counting a new approving outcome as approved, on the path that sends a journal
+  entry batch to the ERP.
+
+  Adds `TaskDecisionOutcomes` (the table), `TaskDecisionOutcomeCodes`, `IsTaskDecisionOutcomeCode`
+  (a narrowing guard for unvalidated input) and `IsApprovalOutcome`. `TaskDecisionOutcomeCode` is now
+  derived from the table, so it stays exactly what it was. `statusForOutcome` reads the table instead
+  of a `switch` that silently returned `undefined` for any outcome added later.
+
+  Additive — no existing caller changes. Adding an outcome now requires a seeded `TaskDecisionOutcome`
+  row alongside it, since `resolveOutcome` looks the code up in the database.
+
+- 4a0fba5: Upgrade MemberJunction from 5.x to 6.1.0-edge.1.
+
+  The whole workspace moves together because `BaseEntity` became generic in 6.x (`BaseEntity<unknown>`),
+  so a package on 5.x consuming an entity class built against 6.x fails to compile. Leaving any one
+  repo behind produced exactly that error.
+
+- Updated dependencies [4a0fba5]
+- Updated dependencies [835d116]
+  - @mj-biz-apps/tasks-entities@1.2.2
+
 ## 1.2.1
 
 ### Patch Changes
