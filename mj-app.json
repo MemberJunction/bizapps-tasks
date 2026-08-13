@@ -57,6 +57,10 @@
       {
         "name": "@mj-biz-apps/tasks-core",
         "role": "library"
+      },
+      {
+        "name": "@mj-biz-apps/tasks-actions",
+        "role": "library"
       }
     ]
   },
