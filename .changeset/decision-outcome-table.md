@@ -1,5 +1,5 @@
 ---
-"@mj-biz-apps/tasks-core": minor
+"@mj-biz-apps/tasks-core": patch
 ---
 
 Make the task decision outcomes a runtime table, so consuming apps stop hand-copying them.

@@ -1,10 +1,10 @@
 ---
-"@mj-biz-apps/tasks-entities": minor
-"@mj-biz-apps/tasks-core": minor
-"@mj-biz-apps/tasks-entities-server": minor
-"@mj-biz-apps/tasks-server": minor
-"@mj-biz-apps/tasks-actions": minor
-"@mj-biz-apps/tasks-ng": minor
+"@mj-biz-apps/tasks-entities": patch
+"@mj-biz-apps/tasks-core": patch
+"@mj-biz-apps/tasks-entities-server": patch
+"@mj-biz-apps/tasks-server": patch
+"@mj-biz-apps/tasks-actions": patch
+"@mj-biz-apps/tasks-ng": patch
 ---
 
 Upgrade MemberJunction from 5.x to 6.1.0-edge.1.
