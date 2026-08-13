@@ -4,20 +4,19 @@
   "license": "ISC",
   "description": "BizApps Tasks - Reusable task management app for MemberJunction business applications",
   "workspaces": [
-    "apps/*",
     "packages/*"
   ],
   "scripts": {
-    "prebuild": "node -e \"try { require.resolve('turbo') } catch (e) { console.error('\\n\\u274c Dependencies not installed. Run: npm install\\n'); process.exit(1); }\"",
-    "build": "npm run build:stream",
-    "build:stream": "turbo --log-order=stream build",
+    "prebuild": "node -e \"try { require.resolve('turbo') } catch (e) { console.error('\\n\\u274c Dependencies not installed. Run: pnpm install\\n'); process.exit(1); }\"",
+    "build": "pnpm run build:stream",
+    "build:stream": "turbo --log-order=stream build --filter=\"@mj-biz-apps/*\"",
     "build:generated": "turbo --log-order=stream build --filter=\"@mj-biz-apps/tasks-entities\" --filter=\"@mj-biz-apps/tasks-actions\"",
     "build:packages": "turbo --log-order=stream build --filter=\"@mj-biz-apps/tasks-*\"",
     "test": "turbo test",
-    "mj": "npx @memberjunction/cli",
-    "mj:migrate": "npx @memberjunction/cli migrate",
-    "mj:migrate:convert": "npx @memberjunction/cli migrate convert --source-dir ./migrations --output-dir ./migrations-pg --schema __mj_BizAppsTasks && node scripts/pg-finalize.mjs",
-    "mj:codegen": "npx @memberjunction/cli codegen",
+    "mj": "mj",
+    "mj:migrate": "mj migrate --schema __mj_BizAppsTasks --dir ./migrations",
+    "mj:migrate:convert": "mj migrate convert --source-dir ./migrations --output-dir ./migrations-pg --schema __mj_BizAppsTasks && node scripts/pg-finalize.mjs",
+    "mj:codegen": "mj codegen",
     "change": "changeset",
     "version": "changeset version",
     "commitpush": "node ci/commit_push.mjs",
@@ -28,9 +27,10 @@
     "type": "git",
     "url": "https://github.com/MemberJunction/bizapps-tasks"
   },
-  "packageManager": "npm@10.5.0",
+  "packageManager": "pnpm@10.33.0",
   "devDependencies": {
     "@changesets/cli": "^2.29.8",
+    "@memberjunction/cli": "^6.1.0-edge.1",
     "@vitest/coverage-v8": "1.6.1",
     "simple-git": "^3.31.1",
     "tsc-alias": "^1.8.16",
@@ -41,6 +41,6 @@
   },
   "engines": {
     "node": ">=18.0.0",
-    "npm": ">=10.0.0"
+    "pnpm": ">=10.0.0"
   }
 }
