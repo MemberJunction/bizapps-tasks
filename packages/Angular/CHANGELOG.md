@@ -1,5 +1,13 @@
 # @mj-biz-apps/tasks-ng
 
+## 1.2.3
+
+### Patch Changes
+
+- Updated dependencies [256fea5]
+  - @mj-biz-apps/tasks-entities@1.2.3
+  - @mj-biz-apps/tasks-core@1.2.3
+
 ## 1.2.2
 
 ### Patch Changes

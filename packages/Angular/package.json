@@ -1,7 +1,7 @@
 {
   "name": "@mj-biz-apps/tasks-ng",
   "type": "module",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "BizApps Tasks Angular components - task list, kanban, gantt, detail/edit panels",
   "main": "dist/public-api.js",
   "types": "dist/public-api.d.ts",
@@ -18,8 +18,8 @@
   "author": "MemberJunction.com",
   "license": "ISC",
   "dependencies": {
-    "@mj-biz-apps/tasks-entities": "1.2.2",
-    "@mj-biz-apps/tasks-core": "1.2.2",
+    "@mj-biz-apps/tasks-entities": "1.2.3",
+    "@mj-biz-apps/tasks-core": "1.2.3",
     "dhtmlx-gantt": "^9.1.2",
     "rxjs": "^7.8.2"
   },
