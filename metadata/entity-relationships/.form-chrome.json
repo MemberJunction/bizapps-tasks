@@ -1,0 +1,23 @@
+[
+  {
+    "_comments": [
+      "Form chrome: Tasks this Person created stay first-class on the Person form.",
+      "Assignee is polymorphic (AssigneeEntityID), so there is no People→Task Assignments",
+      "PersonID relationship to punch. Comments / activities / assigned-by stay Auto."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "FormRole": "Primary"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Common: People&RelatedEntity=MJ_BizApps_Tasks: Tasks&RelatedEntityJoinField=CreatedByPersonID"
+    },
+    "sync": {
+      "lastModified": "2026-08-14T20:02:30.430Z",
+      "checksum": "dfbee5e4d99c8f863047c61ab997e4357345b819e6934792df571d5ef7183eb9"
+    }
+  }
+]
