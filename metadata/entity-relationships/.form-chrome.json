@@ -1,0 +1,21 @@
+[
+  {
+    "_comments": [
+      "Created-By Tasks on a Person belong in More — they are an audit hang-on, not the person's work surface."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "FormRole": "Detail"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Common: People&RelatedEntity=MJ_BizApps_Tasks: Tasks&RelatedEntityJoinField=CreatedByPersonID"
+    },
+    "sync": {
+      "lastModified": "2026-08-14T22:04:41.990Z",
+      "checksum": "1ba7421a659abf12e1ece17b66330d4213c5206bb6f39709b80bbdd1ccbe8cab"
+    }
+  }
+]

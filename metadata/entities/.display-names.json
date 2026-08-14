@@ -1,0 +1,211 @@
+[
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Task Activities"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Activities"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Task Assignments"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Assignments"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Task Categories"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Categories"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Task Comments"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Comments"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Task Decision Outcomes"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Decision Outcomes"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Task Decisions"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Decisions"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Task Dependencies"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Dependencies"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Task Links"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Links"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Task Notification Configs"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Notification Configs"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Task Notification Logs"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Notification Logs"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Task Roles"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Roles"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Task Tag Links"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Tag Links"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Task Tags"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Tags"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Task Template Item Dependencies"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Template Item Dependencies"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Task Template Item Roles"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Template Item Roles"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Task Template Items"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Template Items"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Task Templates"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Templates"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Task Types"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Types"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Tasks"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Tasks"
+    }
+  }
+]
