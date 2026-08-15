@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { RunView } from '@memberjunction/core';
 import { UserInfoEngine } from '@memberjunction/core-entities';
 import {
+    AfterColumnResizeEventArgs,
+    AfterGridResizeEventArgs,
     AfterZoomChangeEventArgs,
     BeforeZoomChangeEventArgs,
     GanttColumnDef,
@@ -14,10 +16,13 @@ import {
     MjGanttChartComponent,
 } from '@memberjunction/ng-gantt';
 import {
-    ParseTasksGanttZoomPref,
-    SerializeTasksGanttZoomPref,
+    DefaultTasksGanttPref,
+    ParseTasksGanttPref,
+    SerializeTasksGanttPref,
     TASKS_GANTT_DEFAULT_ZOOM,
+    TASKS_GANTT_PREF_SETTING,
     TASKS_GANTT_ZOOM_SETTING,
+    type TasksGanttPref,
 } from './gantt-zoom-pref';
 
 /**
@@ -85,11 +90,18 @@ import {
                     [ReadOnly]="ReadOnly"
                     [ShowProgress]="true"
                     [EnableZoom]="true"
+                    [EnableGridScroll]="true"
+                    [EnableGridResize]="true"
+                    [EnableColumnResize]="true"
                     [ZoomLevel]="ZoomLevel"
+                    [GridWidth]="Pref.gridWidth"
+                    [ColumnWidths]="Pref.columnWidths"
                     (ItemClicked)="onItemClicked($event)"
                     (ItemDoubleClicked)="onItemDoubleClicked($event)"
                     (BeforeZoomChange)="OnBeforeZoomChange($event)"
-                    (AfterZoomChange)="OnAfterZoomChange($event)">
+                    (AfterZoomChange)="OnAfterZoomChange($event)"
+                    (AfterGridResize)="OnAfterGridResize($event)"
+                    (AfterColumnResize)="OnAfterColumnResize($event)">
                 </mj-gantt-chart>
             }
         </div>
@@ -152,6 +164,7 @@ export class TaskGanttComponent implements OnInit, OnChanges {
     public links: GanttLinkData[] = [];
     public loading = false;
     public ZoomLevel: GanttZoomLevelName = TASKS_GANTT_DEFAULT_ZOOM;
+    public Pref: TasksGanttPref = DefaultTasksGanttPref();
 
     private cdr = inject(ChangeDetectorRef);
 
@@ -181,19 +194,34 @@ export class TaskGanttComponent implements OnInit, OnChanges {
 
     public OnAfterZoomChange(event: AfterZoomChangeEventArgs): void {
         this.ZoomLevel = event.Level;
-        UserInfoEngine.Instance.SetSettingDebounced(
-            TASKS_GANTT_ZOOM_SETTING,
-            SerializeTasksGanttZoomPref(event.Level),
-        );
+        this.persistPref({ zoomLevel: event.Level, zoomPercent: event.Percent });
         this.AfterZoomChange.emit(event);
         this.cdr.markForCheck();
     }
 
+    public OnAfterGridResize(event: AfterGridResizeEventArgs): void {
+        this.persistPref({ gridWidth: event.Width });
+    }
+
+    public OnAfterColumnResize(event: AfterColumnResizeEventArgs): void {
+        this.persistPref({ columnWidths: event.ColumnWidths });
+    }
+
     ngOnInit(): void {
-        this.ZoomLevel = ParseTasksGanttZoomPref(
+        this.Pref = ParseTasksGanttPref(
+            UserInfoEngine.Instance.GetSetting(TASKS_GANTT_PREF_SETTING),
             UserInfoEngine.Instance.GetSetting(TASKS_GANTT_ZOOM_SETTING),
         );
+        this.ZoomLevel = this.Pref.zoomLevel;
         this.LoadData();
+    }
+
+    private persistPref(partial: Partial<TasksGanttPref>): void {
+        this.Pref = { ...this.Pref, ...partial };
+        UserInfoEngine.Instance.SetSettingDebounced(
+            TASKS_GANTT_PREF_SETTING,
+            SerializeTasksGanttPref(this.Pref),
+        );
     }
 
     ngOnChanges(changes: SimpleChanges): void {
