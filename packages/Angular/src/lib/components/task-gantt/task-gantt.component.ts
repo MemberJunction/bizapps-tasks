@@ -1,7 +1,24 @@
-import { Component, EventEmitter, Input, Output, OnInit, OnChanges, SimpleChanges, ChangeDetectionStrategy, ChangeDetectorRef, inject } from '@angular/core';
+import { Component, EventEmitter, Input, Output, OnInit, OnChanges, SimpleChanges, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RunView } from '@memberjunction/core';
-import { MjGanttChartComponent, GanttItemData, GanttLinkData, GanttItemClickedEvent, GanttColumnDef } from '@memberjunction/ng-gantt';
+import { UserInfoEngine } from '@memberjunction/core-entities';
+import {
+    AfterZoomChangeEventArgs,
+    BeforeZoomChangeEventArgs,
+    GanttColumnDef,
+    GanttItemClickedEvent,
+    GanttItemData,
+    GanttLinkData,
+    GanttZoomLevelName,
+    GanttZoomPercent,
+    MjGanttChartComponent,
+} from '@memberjunction/ng-gantt';
+import {
+    ParseTasksGanttZoomPref,
+    SerializeTasksGanttZoomPref,
+    TASKS_GANTT_DEFAULT_ZOOM,
+    TASKS_GANTT_ZOOM_SETTING,
+} from './gantt-zoom-pref';
 
 /**
  * Task-specific Gantt chart that wraps the generic `<mj-gantt-chart>`.
@@ -43,6 +60,13 @@ import { MjGanttChartComponent, GanttItemData, GanttLinkData, GanttItemClickedEv
                         <span class="mjt-legend-item"><span class="mjt-dot mjt-dot--done"></span> Completed</span>
                         <span class="mjt-legend-item"><span class="mjt-dot mjt-dot--blocked"></span> Blocked</span>
                     </div>
+                    <div class="mjt-gantt-zoom" role="group" aria-label="Gantt zoom">
+                        <button type="button" class="mjt-gantt-zoom__btn" (click)="ZoomOut()"
+                                [disabled]="!CanZoomOut" title="Zoom out (Ctrl + scroll)">−</button>
+                        <span class="mjt-gantt-zoom__label">{{ ZoomPercent }}%</span>
+                        <button type="button" class="mjt-gantt-zoom__btn" (click)="ZoomIn()"
+                                [disabled]="!CanZoomIn" title="Zoom in (Ctrl + scroll)">+</button>
+                    </div>
                 </div>
             }
 
@@ -53,14 +77,19 @@ import { MjGanttChartComponent, GanttItemData, GanttLinkData, GanttItemClickedEv
                 </div>
             } @else {
                 <mj-gantt-chart
+                    #chart
                     [Items]="items"
                     [Links]="links"
                     [Columns]="Columns"
                     [Height]="Height"
                     [ReadOnly]="ReadOnly"
                     [ShowProgress]="true"
+                    [EnableZoom]="true"
+                    [ZoomLevel]="ZoomLevel"
                     (ItemClicked)="onItemClicked($event)"
-                    (ItemDoubleClicked)="onItemDoubleClicked($event)">
+                    (ItemDoubleClicked)="onItemDoubleClicked($event)"
+                    (BeforeZoomChange)="OnBeforeZoomChange($event)"
+                    (AfterZoomChange)="OnAfterZoomChange($event)">
                 </mj-gantt-chart>
             }
         </div>
@@ -75,6 +104,18 @@ import { MjGanttChartComponent, GanttItemData, GanttLinkData, GanttItemClickedEv
             font-size: 11.5px;
         }
         .mjt-gantt-legend { display: flex; align-items: center; gap: 12px; }
+        .mjt-gantt-zoom { display: inline-flex; align-items: center; gap: 4px; }
+        .mjt-gantt-zoom__btn {
+            width: 26px; height: 26px; border: 1px solid var(--mj-border-default);
+            border-radius: var(--mj-radius-sm); background: var(--mj-bg-surface);
+            color: var(--mj-text-primary); cursor: pointer; font-size: 16px; line-height: 1;
+        }
+        .mjt-gantt-zoom__btn:hover:not(:disabled) { background: var(--mj-bg-surface-hover); }
+        .mjt-gantt-zoom__btn:disabled { color: var(--mj-text-disabled); cursor: default; }
+        .mjt-gantt-zoom__label {
+            min-width: 2.75rem; text-align: center; font-weight: 600;
+            color: var(--mj-text-secondary); font-size: 11px;
+        }
         .mjt-legend-item { display: inline-flex; align-items: center; gap: 5px; color: var(--mj-text-secondary, #475569); font-weight: 500; }
         .mjt-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
         .mjt-dot--open { background: #0284c7; }
@@ -102,14 +143,56 @@ export class TaskGanttComponent implements OnInit, OnChanges {
 
     @Output() TaskClicked = new EventEmitter<string>();
     @Output() TaskDoubleClicked = new EventEmitter<string>();
+    @Output() BeforeZoomChange = new EventEmitter<BeforeZoomChangeEventArgs>();
+    @Output() AfterZoomChange = new EventEmitter<AfterZoomChangeEventArgs>();
+
+    @ViewChild('chart') private chart?: MjGanttChartComponent;
 
     public items: GanttItemData[] = [];
     public links: GanttLinkData[] = [];
     public loading = false;
+    public ZoomLevel: GanttZoomLevelName = TASKS_GANTT_DEFAULT_ZOOM;
 
     private cdr = inject(ChangeDetectorRef);
 
+    public get ZoomPercent(): number {
+        return this.chart?.CurrentZoomPercent ?? GanttZoomPercent(this.ZoomLevel);
+    }
+
+    public get CanZoomIn(): boolean {
+        return this.chart?.CanZoomIn ?? true;
+    }
+
+    public get CanZoomOut(): boolean {
+        return this.chart?.CanZoomOut ?? true;
+    }
+
+    public ZoomIn(): void {
+        this.chart?.ZoomIn();
+    }
+
+    public ZoomOut(): void {
+        this.chart?.ZoomOut();
+    }
+
+    public OnBeforeZoomChange(event: BeforeZoomChangeEventArgs): void {
+        this.BeforeZoomChange.emit(event);
+    }
+
+    public OnAfterZoomChange(event: AfterZoomChangeEventArgs): void {
+        this.ZoomLevel = event.Level;
+        UserInfoEngine.Instance.SetSettingDebounced(
+            TASKS_GANTT_ZOOM_SETTING,
+            SerializeTasksGanttZoomPref(event.Level),
+        );
+        this.AfterZoomChange.emit(event);
+        this.cdr.markForCheck();
+    }
+
     ngOnInit(): void {
+        this.ZoomLevel = ParseTasksGanttZoomPref(
+            UserInfoEngine.Instance.GetSetting(TASKS_GANTT_ZOOM_SETTING),
+        );
         this.LoadData();
     }
 
