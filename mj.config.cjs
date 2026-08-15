@@ -2,6 +2,10 @@
 module.exports = {
   entityPackageName: '@mj-biz-apps/tasks-entities',
 
+  testing: {
+    checkModules: ['@mj-biz-apps/tasks-integration-tests'],
+  },
+
   output: [
     { type: 'SQL', directory: './SQL Scripts/generated', appendOutputCode: true },
     { type: 'EntitySubclasses', directory: './packages/Entities/src/generated' },
