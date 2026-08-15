@@ -14,6 +14,13 @@ import '@mj-biz-apps/tasks-entities';
 // Import generated form components (triggers @RegisterClass for form components).
 import './lib/generated/generated-forms.module.js';
 
+// Import section resources
+import './lib/sections/tasks-sections.component.js';
+import { LoadTasksSectionResources } from './lib/sections/tasks-sections.component.js';
+
+// Form contributions (header + sub-task gantt/kanban)
+import './lib/form-panels/task-forms.module.js';
+
 // Import the class registrations manifest (static code path the bundler can't
 // tree-shake — anchors every @RegisterClass class from tasks-entities).
 import { CLASS_REGISTRATIONS } from './lib/generated/class-registrations-manifest.js';
@@ -42,3 +49,10 @@ export * from './lib/components/task-dashboard/task-dashboard.component.js';
 export * from './lib/components/task-panel/task-panel.component.js';
 export * from './lib/components/approval-decision-panel/approval-decision-panel.component.js';
 export * from './lib/components/approval-inbox/approval-inbox.component.js';
+
+// Pages & Section Resources
+export * from './lib/pages/tasks-dashboard.page.js';
+export * from './lib/pages/my-tasks.page.js';
+export * from './lib/pages/approvals.page.js';
+export * from './lib/pages/templates.page.js';
+export * from './lib/sections/tasks-sections.component.js';

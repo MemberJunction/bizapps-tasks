@@ -15,6 +15,23 @@ import { TaskGanttComponent } from './components/task-gantt/task-gantt.component
 import { TaskTemplateWizardComponent } from './components/task-template-wizard/task-template-wizard.component';
 import { TaskPanelComponent } from './components/task-panel/task-panel.component';
 import { TaskDashboardComponent } from './components/task-dashboard/task-dashboard.component';
+import { ApprovalInboxComponent } from './components/approval-inbox/approval-inbox.component';
+import { ApprovalDecisionPanelComponent } from './components/approval-decision-panel/approval-decision-panel.component';
+
+// Dashboard Pages
+import { TasksDashboardPageComponent } from './pages/tasks-dashboard.page';
+import { MyTasksPageComponent } from './pages/my-tasks.page';
+import { ApprovalsPageComponent } from './pages/approvals.page';
+import { TemplatesPageComponent } from './pages/templates.page';
+
+// Section Resources (DriverClasses)
+import {
+    TasksSectionResource,
+    MyTasksSectionResource,
+    ApprovalsSectionResource,
+    TemplatesSectionResource,
+    LoadTasksSectionResources,
+} from './sections/tasks-sections.component';
 
 @NgModule({
     imports: [
@@ -33,6 +50,16 @@ import { TaskDashboardComponent } from './components/task-dashboard/task-dashboa
         TaskTemplateWizardComponent,
         TaskDashboardComponent,
         TaskPanelComponent,
+        ApprovalInboxComponent,
+        ApprovalDecisionPanelComponent,
+        TasksDashboardPageComponent,
+        MyTasksPageComponent,
+        ApprovalsPageComponent,
+        TemplatesPageComponent,
+        TasksSectionResource,
+        MyTasksSectionResource,
+        ApprovalsSectionResource,
+        TemplatesSectionResource,
     ],
     exports: [
         TaskPriorityBadgeComponent,
@@ -47,11 +74,21 @@ import { TaskDashboardComponent } from './components/task-dashboard/task-dashboa
         TaskTemplateWizardComponent,
         TaskDashboardComponent,
         TaskPanelComponent,
+        ApprovalInboxComponent,
+        ApprovalDecisionPanelComponent,
+        TasksDashboardPageComponent,
+        MyTasksPageComponent,
+        ApprovalsPageComponent,
+        TemplatesPageComponent,
+        TasksSectionResource,
+        MyTasksSectionResource,
+        ApprovalsSectionResource,
+        TemplatesSectionResource,
     ]
 })
 export class BizAppsTasksModule { }
 
 /** Tree-shaking prevention — call from consuming app bootstrap */
 export function LoadBizAppsTasksClient() {
-    // Static imports above ensure all components are registered.
+    LoadTasksSectionResources();
 }

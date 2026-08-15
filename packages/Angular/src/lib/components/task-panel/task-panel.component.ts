@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, inject, Input, Output, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { OpenTaskRecord } from '../../open-task-record';
 import { TaskListComponent, TaskRow, BeforeTaskSelectedEvent, BeforeStatusChangeEvent } from '../task-list/task-list.component';
 import { TaskDetailPanelComponent, BeforeCommentPostedEvent } from '../task-detail-panel/task-detail-panel.component';
 import { TaskEditPanelComponent, BeforeTaskSaveEvent } from '../task-edit-panel/task-edit-panel.component';
@@ -116,6 +117,7 @@ export class BeforePanelCloseEvent {
                     (BeforeStatusChange)="BeforeStatusChange.emit($event)"
                     (AfterStatusChange)="AfterStatusChange.emit($event)"
                     (AfterTaskCreated)="AfterTaskCreated.emit($event)"
+                    (TaskDoubleClicked)="onOpenFullRecord($event.ID)"
                     (CreateTask)="onCreateTask()">
                 </bizapps-task-list>
             </div>
@@ -130,6 +132,7 @@ export class BeforePanelCloseEvent {
                             [PersonID]="PersonID"
                             [ShowDelete]="ShowDelete"
                             (EditRequested)="onEditRequested($event)"
+                            (OpenRecordRequested)="onOpenFullRecord($event)"
                             (DeleteRequested)="onDeleteRequested($event)"
                             (BeforeCommentPosted)="BeforeCommentPosted.emit($event)"
                             (AfterCommentPosted)="AfterCommentPosted.emit()"
@@ -308,6 +311,18 @@ export class TaskPanelComponent {
      */
     @Output() AfterPanelClosed = new EventEmitter<void>();
 
+    /**
+     * Emitted when a task is double clicked. Payload is the task ID.
+     */
+    @Output() TaskDoubleClicked = new EventEmitter<string>();
+
+    /**
+     * Emitted when open full record is requested from detail panel or double-click.
+     */
+    @Output() OpenRecordRequested = new EventEmitter<string>();
+
+
+
     // ── View References ─────────────────────────────────────
 
     /** @internal */
@@ -425,5 +440,13 @@ export class TaskPanelComponent {
         this.panelMode = mode;
         this.selectedTaskID = taskID;
         this.cdr.markForCheck();
+    }
+
+    /** @internal */
+    onOpenFullRecord(taskID: string | null): void {
+        if (!taskID) return;
+        this.TaskDoubleClicked.emit(taskID);
+        this.OpenRecordRequested.emit(taskID);
+        OpenTaskRecord(taskID);
     }
 }

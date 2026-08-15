@@ -1,0 +1,31 @@
+<div class="mjt-hero">
+    <div class="mjt-hero__identity">
+        <div class="mjt-hero__avatar">
+            <i class="fa-solid fa-list-check" aria-hidden="true"></i>
+        </div>
+        <div class="mjt-hero__copy">
+            <div class="mjt-hero__title-row">
+                <h1 class="mjt-hero__title">{{ Title }}</h1>
+                <span [class]="StatusClass">{{ Record.Status || 'Open' }}</span>
+                <span [class]="PriorityClass">{{ Record.Priority || 'Medium' }}</span>
+                @if (Record.Type) {
+                    <span class="mjt-chip">{{ TypeName }}</span>
+                }
+            </div>
+            <div class="mjt-hero__meta">
+                <span>Category: <strong>{{ CategoryName }}</strong></span>
+                <span>Schedule: <strong>{{ Schedule }}</strong></span>
+            </div>
+        </div>
+    </div>
+    <div class="mjt-hero__stats">
+        <div class="mjt-stat">
+            <span class="mjt-stat__label">Complete</span>
+            <span class="mjt-stat__value">{{ Progress }}</span>
+        </div>
+        <div class="mjt-stat">
+            <span class="mjt-stat__label">Due</span>
+            <span class="mjt-stat__value">{{ DueLabel }}</span>
+        </div>
+    </div>
+</div>

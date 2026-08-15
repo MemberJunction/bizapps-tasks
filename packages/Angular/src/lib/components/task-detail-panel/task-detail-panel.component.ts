@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, in
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Metadata, RunView, CompositeKey } from '@memberjunction/core';
+import { OpenTaskRecord } from '../../open-task-record';
 import { TaskAssigneeInfo } from '../task-assignee-list/task-assignee-list.component';
 
 /**
@@ -73,6 +74,9 @@ export class BeforeCommentPostedEvent {
                     <div class="panel-header">
                         <h2 class="task-title">{{ task.Name }}</h2>
                         <div class="header-actions">
+                            <button class="btn-open-record" (click)="onOpenFullRecord()" title="Open Full Record in Explorer">
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Record
+                            </button>
                             <button class="btn-edit" (click)="EditRequested.emit(TaskID!)">
                                 <i class="fa-solid fa-pen"></i> Edit
                             </button>
@@ -249,7 +253,17 @@ export class BeforeCommentPostedEvent {
             font-size: 22px; font-weight: var(--mj-font-bold); color: var(--mj-text-primary); margin: 0;
             letter-spacing: -0.5px; line-height: 1.3;
         }
-        .header-actions { display: flex; gap: 8px; flex-shrink: 0; }
+        .header-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
+        .btn-open-record {
+            padding: 6px 12px; border: 1px solid var(--mj-border-default); border-radius: var(--mj-radius-md);
+            background: var(--mj-bg-surface); color: var(--mj-text-secondary); font-size: 12px; font-weight: var(--mj-font-semibold);
+            cursor: pointer; font-family: inherit;
+            display: inline-flex; align-items: center; gap: 5px;
+            transition: all 0.15s;
+        }
+        .btn-open-record:hover {
+            background: var(--mj-bg-surface-hover); color: var(--mj-brand-primary); border-color: var(--mj-brand-primary);
+        }
         .btn-edit {
             padding: 7px 14px; border: none; border-radius: var(--mj-radius-md);
             background: var(--mj-brand-primary); color: var(--mj-text-inverse); font-size: 13px; font-weight: var(--mj-font-semibold);
@@ -438,6 +452,11 @@ export class TaskDetailPanelComponent implements OnChanges {
     @Input() ShowDelete = false;
 
     // ── Outputs ─────────────────────────────────────────────
+
+    /**
+     * Emitted when the user clicks the "Open Record" button to view the full entity form.
+     */
+    @Output() OpenRecordRequested = new EventEmitter<string>();
 
     /**
      * Emitted when the user clicks the "Edit" button. Payload is the TaskID.
@@ -717,6 +736,13 @@ export class TaskDetailPanelComponent implements OnChanges {
             }
         } catch (e) {
             console.error('Delete failed:', e);
+        }
+    }
+
+    public onOpenFullRecord(): void {
+        if (this.TaskID) {
+            this.OpenRecordRequested.emit(this.TaskID);
+            OpenTaskRecord(this.TaskID);
         }
     }
 }

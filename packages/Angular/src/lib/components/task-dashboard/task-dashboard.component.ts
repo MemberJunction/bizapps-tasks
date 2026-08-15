@@ -1,5 +1,6 @@
 import { Component, EventEmitter, Input, Output, ViewChild, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { OpenTaskRecord } from '../../open-task-record';
 import { TaskListComponent, TaskRow } from '../task-list/task-list.component';
 import { TaskKanbanComponent } from '../task-kanban/task-kanban.component';
 import { TaskGanttComponent } from '../task-gantt/task-gantt.component';
@@ -70,6 +71,7 @@ type PanelMode = 'none' | 'detail' | 'edit' | 'template';
                         [ExtraFilter]="ExtraFilter"
                         [ShowCreateButton]="false"
                         (AfterTaskSelected)="onTaskSelected($event)"
+                        (TaskDoubleClicked)="onOpenFullRecord($event.ID)"
                         (CreateTask)="openPanel('edit', null)">
                     </bizapps-task-list>
                 }
@@ -78,7 +80,8 @@ type PanelMode = 'none' | 'detail' | 'edit' | 'template';
                         #taskKanban
                         [CategoryID]="CategoryID"
                         [ExtraFilter]="ExtraFilter"
-                        (TaskClicked)="openPanel('detail', $event)">
+                        (TaskClicked)="openPanel('detail', $event)"
+                        (TaskDoubleClicked)="onOpenFullRecord($event)">
                     </bizapps-task-kanban>
                 }
                 @if (viewMode === 'gantt') {
@@ -87,7 +90,8 @@ type PanelMode = 'none' | 'detail' | 'edit' | 'template';
                         [CategoryID]="CategoryID"
                         [ExtraFilter]="ExtraFilter"
                         [Height]="'calc(100vh - 140px)'"
-                        (TaskClicked)="openPanel('detail', $event)">
+                        (TaskClicked)="openPanel('detail', $event)"
+                        (TaskDoubleClicked)="onOpenFullRecord($event)">
                     </bizapps-task-gantt>
                 }
             </div>
@@ -102,6 +106,7 @@ type PanelMode = 'none' | 'detail' | 'edit' | 'template';
                             [PersonID]="PersonID"
                             [ShowDelete]="ShowDelete"
                             (EditRequested)="openPanel('edit', $event)"
+                            (OpenRecordRequested)="onOpenFullRecord($event)"
                             (DeleteRequested)="onTaskDeleted()"
                             (Close)="closePanel()">
                         </bizapps-task-detail-panel>
@@ -238,6 +243,18 @@ export class TaskDashboardComponent implements OnInit {
      */
     @Output() TaskSelected = new EventEmitter<string>();
 
+    /**
+     * Emitted when a task is double clicked. Payload is the task ID.
+     */
+    @Output() TaskDoubleClicked = new EventEmitter<string>();
+
+    /**
+     * Emitted when open full record is requested from detail panel or double-click.
+     */
+    @Output() OpenRecordRequested = new EventEmitter<string>();
+
+
+
     // ── View References ─────────────────────────────────────
 
     /** @internal */
@@ -334,5 +351,13 @@ export class TaskDashboardComponent implements OnInit {
     onTemplateCreated(_tasks: any[]): void {
         this.closePanel();
         this.RefreshCurrentView();
+    }
+
+    /** @internal */
+    onOpenFullRecord(taskID: string | null): void {
+        if (!taskID) return;
+        this.TaskDoubleClicked.emit(taskID);
+        this.OpenRecordRequested.emit(taskID);
+        OpenTaskRecord(taskID);
     }
 }

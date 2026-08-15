@@ -1,0 +1,33 @@
+<mj-collapsible-panel
+    SectionKey="subtasks"
+    SectionName="Sub-tasks"
+    Icon="fa-solid fa-sitemap"
+    [Form]="FormComponent"
+    [FormContext]="FormContext"
+    [DefaultExpanded]="true">
+    @if (!Record.IsSaved) {
+        <p class="mjt-empty">Save this task to schedule and board its children.</p>
+    } @else {
+        <div class="mjt-subtask-toolbar">
+            <button type="button" class="mjt-view-btn" [class.mjt-view-btn--on]="View === 'gantt'" (click)="SetView('gantt')">
+                <i class="fa-solid fa-chart-gantt" aria-hidden="true"></i> Gantt
+            </button>
+            <button type="button" class="mjt-view-btn" [class.mjt-view-btn--on]="View === 'kanban'" (click)="SetView('kanban')">
+                <i class="fa-solid fa-columns" aria-hidden="true"></i> Board
+            </button>
+        </div>
+        @if (View === 'gantt') {
+            <bizapps-task-gantt
+                [ParentTaskID]="Record.ID"
+                [IncludeParentSummary]="true"
+                [Height]="'420px'"
+                (TaskDoubleClicked)="OpenChild($event)">
+            </bizapps-task-gantt>
+        } @else if (ParentFilter) {
+            <bizapps-task-kanban
+                [ExtraFilter]="ParentFilter"
+                (TaskDoubleClicked)="OpenChild($event)">
+            </bizapps-task-kanban>
+        }
+    }
+</mj-collapsible-panel>

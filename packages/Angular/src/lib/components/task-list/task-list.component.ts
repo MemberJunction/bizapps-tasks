@@ -179,7 +179,8 @@ export class BeforeStatusChangeEvent {
                                      [class.completed]="task.Status === 'Completed'"
                                      [class.selected]="selectedIDs.includes(task.ID)"
                                      [class.sub-task]="task.Depth > 0"
-                                     (click)="onTaskClick(task)">
+                                     (click)="onTaskClick(task)"
+                                     (dblclick)="onTaskDblClick(task)">
 
                                     <!-- Checkbox -->
                                     <input type="checkbox" class="task-checkbox"
@@ -646,6 +647,11 @@ export class TaskListComponent implements OnInit {
      * data for the selected task. Use this to open a detail or edit panel.
      */
     @Output() AfterTaskSelected = new EventEmitter<TaskRow>();
+
+    /**
+     * Emitted when a task is double clicked. Use this to open the full entity record.
+     */
+    @Output() TaskDoubleClicked = new EventEmitter<TaskRow>();
 
     /**
      * Emitted **before** a bulk status change is applied to each task.
@@ -1131,5 +1137,9 @@ export class TaskListComponent implements OnInit {
         this.BeforeTaskSelected.emit(before);
         if (before.Cancel) return;
         this.AfterTaskSelected.emit(task);
+    }
+
+    onTaskDblClick(task: TaskRow): void {
+        this.TaskDoubleClicked.emit(task);
     }
 }
