@@ -4,6 +4,7 @@
     "autoCreateMissingRecords": true
   },
   "directoryOrder": [
+    "applications",
     "task-types",
     "task-roles",
     "task-decision-outcomes",
