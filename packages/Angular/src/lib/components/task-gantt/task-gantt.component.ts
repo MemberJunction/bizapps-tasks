@@ -34,7 +34,7 @@ import {
  * <bizapps-task-gantt
  *     [CategoryID]="categoryId"
  *     [Height]="'600px'"
- *     (TaskClicked)="openDetailPanel($event)">
+ *     (TaskDoubleClicked)="openDetailPanel($event)">
  * </bizapps-task-gantt>
  *
  * <!-- Single Task Sub-Tasks Breakdown -->

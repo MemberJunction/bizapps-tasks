@@ -90,8 +90,7 @@ type PanelMode = 'none' | 'detail' | 'edit' | 'template';
                         [CategoryID]="CategoryID"
                         [ExtraFilter]="ExtraFilter"
                         [Height]="'calc(100vh - 140px)'"
-                        (TaskClicked)="openPanel('detail', $event)"
-                        (TaskDoubleClicked)="onOpenFullRecord($event)">
+                        (TaskDoubleClicked)="openPanel('detail', $event)">
                     </bizapps-task-gantt>
                 }
             </div>
