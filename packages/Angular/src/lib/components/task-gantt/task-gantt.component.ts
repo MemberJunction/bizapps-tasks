@@ -130,10 +130,10 @@ import {
         }
         .mjt-legend-item { display: inline-flex; align-items: center; gap: 5px; color: var(--mj-text-secondary, #475569); font-weight: 500; }
         .mjt-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-        .mjt-dot--open { background: #0284c7; }
-        .mjt-dot--prog { background: #3b82f6; }
-        .mjt-dot--done { background: #16a34a; }
-        .mjt-dot--blocked { background: #ef4444; }
+        .mjt-dot--open { background: var(--mj-status-info); }
+        .mjt-dot--prog { background: var(--mj-brand-primary); }
+        .mjt-dot--done { background: var(--mj-status-success); }
+        .mjt-dot--blocked { background: var(--mj-status-error); }
         .mjt-gantt-empty {
             padding: 36px 16px; text-align: center; color: var(--mj-text-muted, #64748b);
             display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 13px;
