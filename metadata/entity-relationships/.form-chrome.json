@@ -1,12 +1,12 @@
 [
   {
     "_comments": [
-      "Created-By Tasks on a Person belong in More — they are an audit hang-on, not the person's work surface."
+      "Created-By Tasks on a Person belong in More \u2014 they are an audit hang-on, not the person's work surface."
     ],
     "fields": {
       "Configuration": {
         "UI": {
-          "FormRole": "Detail"
+          "inclusion": "Primary"
         }
       }
     },
@@ -26,7 +26,7 @@
       "DisplayName": "Sub-tasks",
       "Configuration": {
         "UI": {
-          "FormRole": "Primary"
+          "inclusion": "Primary"
         }
       }
     },
@@ -45,7 +45,7 @@
     "fields": {
       "Configuration": {
         "UI": {
-          "FormRole": "Primary"
+          "inclusion": "Primary"
         }
       }
     },
@@ -64,7 +64,7 @@
     "fields": {
       "Configuration": {
         "UI": {
-          "FormRole": "Primary"
+          "inclusion": "Primary"
         }
       }
     },
@@ -83,7 +83,7 @@
     "fields": {
       "Configuration": {
         "UI": {
-          "FormRole": "Detail"
+          "inclusion": "More"
         }
       }
     },
@@ -102,7 +102,7 @@
     "fields": {
       "Configuration": {
         "UI": {
-          "FormRole": "Detail"
+          "inclusion": "More"
         }
       }
     },
@@ -121,7 +121,7 @@
     "fields": {
       "Configuration": {
         "UI": {
-          "FormRole": "Detail"
+          "inclusion": "More"
         }
       }
     },
@@ -140,7 +140,7 @@
     "fields": {
       "Configuration": {
         "UI": {
-          "FormRole": "Detail"
+          "inclusion": "More"
         }
       }
     },
@@ -159,7 +159,7 @@
     "fields": {
       "Configuration": {
         "UI": {
-          "FormRole": "Detail"
+          "inclusion": "More"
         }
       }
     },
@@ -178,7 +178,7 @@
     "fields": {
       "Configuration": {
         "UI": {
-          "FormRole": "Detail"
+          "inclusion": "More"
         }
       }
     },
@@ -197,7 +197,7 @@
     "fields": {
       "Configuration": {
         "UI": {
-          "FormRole": "Detail"
+          "inclusion": "More"
         }
       }
     },
@@ -207,6 +207,186 @@
     "sync": {
       "lastModified": "2026-08-15T01:32:31.893Z",
       "checksum": "1ba7421a659abf12e1ece17b66330d4213c5206bb6f39709b80bbdd1ccbe8cab"
+    }
+  },
+  {
+    "_comments": [
+      "Person form: MJ_BizApps_Tasks: Task Comments is not a Person-form surface."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "inclusion": "None"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Common: People&RelatedEntity=MJ_BizApps_Tasks: Task Comments&RelatedEntityJoinField=PersonID"
+    }
+  },
+  {
+    "_comments": [
+      "Person form: MJ_BizApps_Tasks: Task Assignments is not a Person-form surface."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "inclusion": "None"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Common: People&RelatedEntity=MJ_BizApps_Tasks: Task Assignments&RelatedEntityJoinField=AssignedByPersonID"
+    }
+  },
+  {
+    "_comments": [
+      "Person form: MJ_BizApps_Tasks: Task Decisions is not a Person-form surface."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "inclusion": "None"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Common: People&RelatedEntity=MJ_BizApps_Tasks: Task Decisions&RelatedEntityJoinField=DecidedByPersonID"
+    }
+  },
+  {
+    "_comments": [
+      "Person form: MJ_BizApps_Tasks: Task Activities is not a Person-form surface."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "inclusion": "None"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Common: People&RelatedEntity=MJ_BizApps_Tasks: Task Activities&RelatedEntityJoinField=PersonID"
+    }
+  },
+  {
+    "_comments": [
+      "Task form: JE batches this task approved sit in More."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "inclusion": "More"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Accounting: Journal Entry Batches&RelatedEntityJoinField=ApprovalTaskID"
+    }
+  },
+  {
+    "_comments": [
+      "Task Type form: templates stay first-class."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "inclusion": "Primary"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Task Types&RelatedEntity=MJ_BizApps_Tasks: Task Templates&RelatedEntityJoinField=TypeID"
+    }
+  },
+  {
+    "_comments": [
+      "Task Type form: live tasks overflow to More."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "inclusion": "More"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Task Types&RelatedEntity=MJ_BizApps_Tasks: Tasks&RelatedEntityJoinField=TypeID"
+    }
+  },
+  {
+    "_comments": [
+      "Task Type form: notification configs sit in More."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "inclusion": "More"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Task Types&RelatedEntity=MJ_BizApps_Tasks: Task Notification Configs&RelatedEntityJoinField=TaskTypeID"
+    }
+  },
+  {
+    "_comments": [
+      "Template form: items are the document body."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "inclusion": "Primary"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Task Templates&RelatedEntity=MJ_BizApps_Tasks: Task Template Items&RelatedEntityJoinField=TemplateID"
+    }
+  },
+  {
+    "_comments": [
+      "Category form: child categories stay first-class."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "inclusion": "Primary"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Task Categories&RelatedEntity=MJ_BizApps_Tasks: Task Categories&RelatedEntityJoinField=ParentID"
+    }
+  },
+  {
+    "_comments": [
+      "Category form: templates stay first-class."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "inclusion": "Primary"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Task Categories&RelatedEntity=MJ_BizApps_Tasks: Task Templates&RelatedEntityJoinField=CategoryID"
+    }
+  },
+  {
+    "_comments": [
+      "Category form: live tasks overflow to More."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "inclusion": "More"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Task Categories&RelatedEntity=MJ_BizApps_Tasks: Tasks&RelatedEntityJoinField=CategoryID"
     }
   }
 ]
