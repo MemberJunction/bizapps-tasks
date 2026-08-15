@@ -202,7 +202,16 @@
       "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
     ],
     "fields": {
-      "DisplayName": "Tasks"
+      "DisplayName": "Tasks",
+      "Configuration": {
+        "UI": {
+          "Form": {
+            "Layout": "left-nav",
+            "RelatedRolePolicy": "smart",
+            "PrimaryRelatedBudget": 6
+          }
+        }
+      }
     },
     "primaryKey": {
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Tasks"

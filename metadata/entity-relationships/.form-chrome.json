@@ -17,5 +17,156 @@
       "lastModified": "2026-08-14T22:04:41.990Z",
       "checksum": "1ba7421a659abf12e1ece17b66330d4213c5206bb6f39709b80bbdd1ccbe8cab"
     }
+  },
+  {
+    "_comments": [
+      "Task form: child tasks stay first-class (gantt/kanban contribution claims this relationship)."
+    ],
+    "fields": {
+      "DisplayName": "Sub-tasks",
+      "Configuration": {
+        "UI": {
+          "FormRole": "Primary"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Tasks&RelatedEntityJoinField=ParentID"
+    }
+  },
+  {
+    "_comments": [
+      "Task form: assignments stay first-class."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "FormRole": "Primary"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Assignments&RelatedEntityJoinField=TaskID"
+    }
+  },
+  {
+    "_comments": [
+      "Task form: outgoing dependencies stay first-class."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "FormRole": "Primary"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Dependencies&RelatedEntityJoinField=TaskID"
+    }
+  },
+  {
+    "_comments": [
+      "Task form: incoming depends-on edges belong in More."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "FormRole": "Detail"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Dependencies&RelatedEntityJoinField=DependsOnTaskID"
+    }
+  },
+  {
+    "_comments": [
+      "Task form: comments belong in More."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "FormRole": "Detail"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Comments&RelatedEntityJoinField=TaskID"
+    }
+  },
+  {
+    "_comments": [
+      "Task form: activity log belongs in More."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "FormRole": "Detail"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Activities&RelatedEntityJoinField=TaskID"
+    }
+  },
+  {
+    "_comments": [
+      "Task form: links belong in More."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "FormRole": "Detail"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Links&RelatedEntityJoinField=TaskID"
+    }
+  },
+  {
+    "_comments": [
+      "Task form: tag links belong in More."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "FormRole": "Detail"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Tag Links&RelatedEntityJoinField=TaskID"
+    }
+  },
+  {
+    "_comments": [
+      "Task form: notification logs belong in More."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "FormRole": "Detail"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Notification Logs&RelatedEntityJoinField=TaskID"
+    }
+  },
+  {
+    "_comments": [
+      "Task form: decisions belong in More."
+    ],
+    "fields": {
+      "Configuration": {
+        "UI": {
+          "FormRole": "Detail"
+        }
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Decisions&RelatedEntityJoinField=TaskID"
+    }
   }
 ]

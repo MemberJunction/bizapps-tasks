@@ -1,0 +1,56 @@
+[
+  {
+    "_comments": [
+      "The BizApps Tasks Application — what makes Tasks a first-class citizen of MemberJunction Explorer",
+      "rather than a set of loose components.",
+      "",
+      "DefaultNavItems is the top tab bar representing the four core views:",
+      "1. Tasks Dashboard (Gantt, Kanban, List switcher with status KPIs and filters)",
+      "2. My Tasks (User-focused pending deliverables & due dates)",
+      "3. Approvals (Decision outcomes and review workflows)",
+      "4. Templates (Reusable workflow definition and instantiation)",
+      "",
+      "Each item is ResourceType 'Custom' pointing at a DriverClass registered with",
+      "@RegisterClass(BaseResourceComponent, '<DriverClass>') in @mj-biz-apps/tasks-ng."
+    ],
+    "fields": {
+      "Name": "Tasks",
+      "Description": "Comprehensive task management, sub-task breakdowns, Kanban workflows, Gantt scheduling, multi-person assignments, and template automation across MemberJunction.",
+      "Icon": "fa-solid fa-list-check",
+      "DefaultForNewUser": true,
+      "DefaultNavItems": [
+        {
+          "Label": "Tasks",
+          "Icon": "fa-solid fa-list-check",
+          "ResourceType": "Custom",
+          "DriverClass": "TasksSectionResource",
+          "isDefault": true
+        },
+        {
+          "Label": "My Tasks",
+          "Icon": "fa-solid fa-user-check",
+          "ResourceType": "Custom",
+          "DriverClass": "MyTasksSectionResource",
+          "isDefault": false
+        },
+        {
+          "Label": "Approvals",
+          "Icon": "fa-solid fa-stamp",
+          "ResourceType": "Custom",
+          "DriverClass": "ApprovalsSectionResource",
+          "isDefault": false
+        },
+        {
+          "Label": "Templates",
+          "Icon": "fa-solid fa-copy",
+          "ResourceType": "Custom",
+          "DriverClass": "TemplatesSectionResource",
+          "isDefault": false
+        }
+      ]
+    },
+    "primaryKey": {
+      "ID": "22541055-8ED4-4850-8ACD-E5EE1887B15B"
+    }
+  }
+]

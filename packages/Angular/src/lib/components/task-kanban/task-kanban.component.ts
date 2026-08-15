@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, in
 import { CommonModule } from '@angular/common';
 import { CompositeKey, Metadata, RunView } from '@memberjunction/core';
 import { MjKanbanBoardComponent, KanbanCardData, KanbanColumnDef, KanbanCardMovedEvent } from '@memberjunction/ng-kanban';
+import type { mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
 
 /**
  * Cancellable event emitted before a drag-and-drop status change on the Kanban board.
@@ -65,7 +66,8 @@ const PRIORITY_BADGE_COLORS: Record<string, string> = {
             [Cards]="cards"
             [ReadOnly]="ReadOnly"
             (CardMoved)="onCardMoved($event)"
-            (CardClicked)="onCardClicked($event)">
+            (CardClicked)="onCardClicked($event)"
+            (CardDoubleClicked)="onCardDoubleClicked($event)">
         </mj-kanban-board>
     `
 })
@@ -77,6 +79,7 @@ export class TaskKanbanComponent implements OnInit {
     @Output() BeforeStatusChange = new EventEmitter<BeforeKanbanStatusChangeEvent>();
     @Output() AfterStatusChange = new EventEmitter<AfterKanbanStatusChangeEvent>();
     @Output() TaskClicked = new EventEmitter<string>();
+    @Output() TaskDoubleClicked = new EventEmitter<string>();
 
     columns: KanbanColumnDef[] = [
         { Key: 'Open',       Label: 'Open',        Color: 'var(--mj-status-info)' },
@@ -134,10 +137,10 @@ export class TaskKanbanComponent implements OnInit {
         this.BeforeStatusChange.emit(before);
         if (before.Cancel) return;
 
-        const entity = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Tasks');
+        const entity = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
         const pk = new CompositeKey([{ FieldName: 'ID', Value: event.Card.ID }]);
         await entity.InnerLoad(pk);
-        entity.Set('Status', event.ToColumn);
+        entity.Status = event.ToColumn as mjBizAppsTasksTaskEntity['Status'];
         await entity.Save();
 
         this.AfterStatusChange.emit({ TaskID: event.Card.ID, NewStatus: event.ToColumn });
@@ -146,5 +149,9 @@ export class TaskKanbanComponent implements OnInit {
 
     onCardClicked(card: KanbanCardData): void {
         this.TaskClicked.emit(card.ID);
+    }
+
+    onCardDoubleClicked(card: KanbanCardData): void {
+        this.TaskDoubleClicked.emit(card.ID);
     }
 }

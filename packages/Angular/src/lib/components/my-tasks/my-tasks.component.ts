@@ -36,6 +36,7 @@ import { TaskListComponent, TaskRow, BeforeTaskSelectedEvent, BeforeStatusChange
                 [Compact]="Compact"
                 (BeforeTaskSelected)="BeforeTaskSelected.emit($event)"
                 (AfterTaskSelected)="AfterTaskSelected.emit($event)"
+                (TaskDoubleClicked)="TaskDoubleClicked.emit($event)"
                 (BeforeStatusChange)="BeforeStatusChange.emit($event)"
                 (AfterStatusChange)="AfterStatusChange.emit($event)"
                 (CreateTask)="CreateTask.emit()">
@@ -83,6 +84,11 @@ export class MyTasksComponent {
      * Payload is the selected {@link TaskRow}.
      */
     @Output() AfterTaskSelected = new EventEmitter<TaskRow>();
+
+    /**
+     * Re-emitted from the inner {@link TaskListComponent} when double-clicked.
+     */
+    @Output() TaskDoubleClicked = new EventEmitter<TaskRow>();
 
     /** Re-emitted from the inner {@link TaskListComponent}. Cancellable. */
     @Output() BeforeStatusChange = new EventEmitter<BeforeStatusChangeEvent>();
