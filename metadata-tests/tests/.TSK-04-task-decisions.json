@@ -1,0 +1,28 @@
+{
+  "fields": {
+    "TypeID": "@lookup:MJ: Test Types.Name=Integration Test",
+    "Name": "TSK-04 - Task Decisions",
+    "Description": "Test decision/approval workflows, recording structured outcomes and completion timestamps.",
+    "InputDefinition": {},
+    "ExpectedOutcomes": {
+      "summary": "Decision recorded against task with outcome ID, decider person ID, notes, and task completion state."
+    },
+    "Configuration": {
+      "tier": "deterministic",
+      "transport": "server",
+      "checks": [
+        {
+          "type": "task-decisions"
+        }
+      ]
+    },
+    "Status": "Active"
+  },
+  "primaryKey": {
+    "ID": "1A111000-0000-4000-8000-000000000005"
+  },
+  "sync": {
+    "lastModified": "2026-08-14T22:57:29.333Z",
+    "checksum": "90e48b83f75ec9b3ab0b595c09d1249dc2084243336fdfb7af62415f6af342cd"
+  }
+}

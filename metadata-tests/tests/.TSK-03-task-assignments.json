@@ -1,0 +1,28 @@
+{
+  "fields": {
+    "TypeID": "@lookup:MJ: Test Types.Name=Integration Test",
+    "Name": "TSK-03 - Task Assignments",
+    "Description": "Test multi-user task assignments with Primary Owner and Contributor roles and My Tasks query filtering.",
+    "InputDefinition": {},
+    "ExpectedOutcomes": {
+      "summary": "Task assigned to multiple users with distinct roles, verified via My Tasks query filter."
+    },
+    "Configuration": {
+      "tier": "deterministic",
+      "transport": "server",
+      "checks": [
+        {
+          "type": "task-assignments"
+        }
+      ]
+    },
+    "Status": "Active"
+  },
+  "primaryKey": {
+    "ID": "1A111000-0000-4000-8000-000000000004"
+  },
+  "sync": {
+    "lastModified": "2026-08-14T22:57:29.315Z",
+    "checksum": "3c22197b3f3f323d4f9c3f46ed1ca3e2c29ed139ad5df913ff5e7c74c723348f"
+  }
+}

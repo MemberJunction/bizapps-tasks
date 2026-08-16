@@ -1,0 +1,28 @@
+{
+  "fields": {
+    "TypeID": "@lookup:MJ: Test Types.Name=Integration Test",
+    "Name": "TSK-05 - Task Templates",
+    "Description": "Test task template instantiation into a network of child tasks and dependencies.",
+    "InputDefinition": {},
+    "ExpectedOutcomes": {
+      "summary": "Task template instantiated via TaskTemplateService producing ≥5 tasks with correct category and duration offsets."
+    },
+    "Configuration": {
+      "tier": "deterministic",
+      "transport": "server",
+      "checks": [
+        {
+          "type": "task-templates"
+        }
+      ]
+    },
+    "Status": "Active"
+  },
+  "primaryKey": {
+    "ID": "1A111000-0000-4000-8000-000000000006"
+  },
+  "sync": {
+    "lastModified": "2026-08-14T22:57:29.353Z",
+    "checksum": "949de18a170c2c98955aaab3c5a594b0ca7c00ab6be0ac7dce9d3f8b21f84e10"
+  }
+}

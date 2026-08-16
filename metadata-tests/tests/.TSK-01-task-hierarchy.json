@@ -1,0 +1,28 @@
+{
+  "fields": {
+    "TypeID": "@lookup:MJ: Test Types.Name=Integration Test",
+    "Name": "TSK-01 - Task Hierarchy",
+    "Description": "Test multi-level task parent-child hierarchies, depth resolution, and progress rollups.",
+    "InputDefinition": {},
+    "ExpectedOutcomes": {
+      "summary": "Root task with child tasks and grandchild tasks created, parent links intact, deleted cleanly."
+    },
+    "Configuration": {
+      "tier": "deterministic",
+      "transport": "server",
+      "checks": [
+        {
+          "type": "task-hierarchy"
+        }
+      ]
+    },
+    "Status": "Active"
+  },
+  "primaryKey": {
+    "ID": "1A111000-0000-4000-8000-000000000002"
+  },
+  "sync": {
+    "lastModified": "2026-08-14T22:57:29.274Z",
+    "checksum": "2ba3505c3ec09906945891e52f82798e4fe7aff35c756941e74d4842964d20dd"
+  }
+}

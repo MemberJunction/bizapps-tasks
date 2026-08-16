@@ -1,0 +1,110 @@
+[
+  {
+    "fields": {
+      "Name": "BizApps Tasks Integration",
+      "Description": "Every integration bundle for the BizApps Tasks app. Evaluates baseline world setup, task hierarchy, dependencies, assignments, decisions, and template instantiation.",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "8A1244EE-11B3-4A55-9430-891012351234"
+    },
+    "relatedEntities": {
+      "MJ: Test Suite Tests": [
+        {
+          "fields": {
+            "SuiteID": "@parent:ID",
+            "TestID": "@lookup:MJ: Tests.Name=TSK-00 - Task World",
+            "Sequence": 0,
+            "Status": "Active"
+          },
+          "primaryKey": {
+            "ID": "71A0B001-A111-4000-8000-000000000001"
+          },
+          "sync": {
+            "lastModified": "2026-08-14T22:57:29.426Z",
+            "checksum": "3b7cff1fe13c4eac2afe2c0ad1d3c36bd3166621018f44ce68b6bb068e413f33"
+          }
+        },
+        {
+          "fields": {
+            "SuiteID": "@parent:ID",
+            "TestID": "@lookup:MJ: Tests.Name=TSK-01 - Task Hierarchy",
+            "Sequence": 1,
+            "Status": "Active"
+          },
+          "primaryKey": {
+            "ID": "71A0B001-A111-4000-8000-000000000002"
+          },
+          "sync": {
+            "lastModified": "2026-08-14T22:57:29.441Z",
+            "checksum": "8546d0cc33bca66341fecfa8f623aec2c86418426bb525fdf95ab77be089cdd9"
+          }
+        },
+        {
+          "fields": {
+            "SuiteID": "@parent:ID",
+            "TestID": "@lookup:MJ: Tests.Name=TSK-02 - Task Dependencies",
+            "Sequence": 2,
+            "Status": "Active"
+          },
+          "primaryKey": {
+            "ID": "71A0B001-A111-4000-8000-000000000003"
+          },
+          "sync": {
+            "lastModified": "2026-08-14T22:57:29.454Z",
+            "checksum": "c765cce0ef4af4362410dab3f8d8428303219a8d98c35ce5314a5cfcaef37ac1"
+          }
+        },
+        {
+          "fields": {
+            "SuiteID": "@parent:ID",
+            "TestID": "@lookup:MJ: Tests.Name=TSK-03 - Task Assignments",
+            "Sequence": 3,
+            "Status": "Active"
+          },
+          "primaryKey": {
+            "ID": "71A0B001-A111-4000-8000-000000000004"
+          },
+          "sync": {
+            "lastModified": "2026-08-14T22:57:29.468Z",
+            "checksum": "6c5bcdf736302c682d26749ae329d295cab7a8380037fdef1f5399fc7ad6e063"
+          }
+        },
+        {
+          "fields": {
+            "SuiteID": "@parent:ID",
+            "TestID": "@lookup:MJ: Tests.Name=TSK-04 - Task Decisions",
+            "Sequence": 4,
+            "Status": "Active"
+          },
+          "primaryKey": {
+            "ID": "71A0B001-A111-4000-8000-000000000005"
+          },
+          "sync": {
+            "lastModified": "2026-08-14T22:57:29.483Z",
+            "checksum": "1ba232e3ca58bc1f2b3f826508bb54731d49480865acbb16071c9b19ff8f30a3"
+          }
+        },
+        {
+          "fields": {
+            "SuiteID": "@parent:ID",
+            "TestID": "@lookup:MJ: Tests.Name=TSK-05 - Task Templates",
+            "Sequence": 5,
+            "Status": "Active"
+          },
+          "primaryKey": {
+            "ID": "71A0B001-A111-4000-8000-000000000006"
+          },
+          "sync": {
+            "lastModified": "2026-08-14T22:57:29.497Z",
+            "checksum": "d68ebf9806e313a4b1da3fa445db981d1626284c6abc3b9c2e5f6244db952132"
+          }
+        }
+      ]
+    },
+    "sync": {
+      "lastModified": "2026-08-14T22:57:29.384Z",
+      "checksum": "9283beb32c908c150423cb2c31ffff24e2a44c1a365407117743c5f2236aa395"
+    }
+  }
+]
