@@ -1,31 +1,57 @@
-<div class="mjt-hero">
-    <div class="mjt-hero__identity">
-        <div class="mjt-hero__avatar">
-            <i class="fa-solid fa-list-check" aria-hidden="true"></i>
+<div class="mjt-hero" [class.mjt-hero--collapsed]="IsCollapsed">
+    <div class="mjt-hero__main-row">
+        <div class="mjt-hero__identity">
+            <div class="mjt-hero__avatar">
+                <i class="fa-solid fa-list-check" aria-hidden="true"></i>
+            </div>
+            <div class="mjt-hero__copy">
+                <div class="mjt-hero__title-row">
+                    <h1 class="mjt-hero__title">{{ Title }}</h1>
+                    <span [class]="StatusClass">{{ Record.Status || 'Open' }}</span>
+                    <span [class]="PriorityClass">{{ Record.Priority || 'Medium' }}</span>
+                    @if (Record.Type) {
+                        <span class="mjt-chip">{{ TypeName }}</span>
+                    }
+                </div>
+                <div class="mjt-hero__meta">
+                    @if (Record.Category) {
+                        <span>Category: <strong>{{ CategoryName }}</strong></span>
+                        <span>&bull;</span>
+                    }
+                    <span>Schedule: <strong>{{ Schedule }}</strong></span>
+                </div>
+            </div>
         </div>
-        <div class="mjt-hero__copy">
-            <div class="mjt-hero__title-row">
-                <h1 class="mjt-hero__title">{{ Title }}</h1>
-                <span [class]="StatusClass">{{ Record.Status || 'Open' }}</span>
-                <span [class]="PriorityClass">{{ Record.Priority || 'Medium' }}</span>
-                @if (Record.Type) {
-                    <span class="mjt-chip">{{ TypeName }}</span>
+
+        <button class="mjt-hero__collapse-btn" (click)="ToggleCollapse()" [title]="IsCollapsed ? 'Expand details' : 'Collapse details'" type="button">
+            <i class="fa-solid" [class.fa-chevron-up]="!IsCollapsed" [class.fa-chevron-down]="IsCollapsed"></i>
+        </button>
+    </div>
+
+    @if (!IsCollapsed) {
+        <div class="mjt-hero__expanded">
+            <div class="mjt-hero__stats">
+                <div class="mjt-stat">
+                    <span class="mjt-stat__label">Progress</span>
+                    <span class="mjt-stat__value mjt-stat__value--accent">{{ Progress }}</span>
+                </div>
+                <div class="mjt-stat">
+                    <span class="mjt-stat__label">Due Date</span>
+                    <span class="mjt-stat__value">{{ DueLabel }}</span>
+                </div>
+                @if (EstimatedHours > 0) {
+                    <div class="mjt-stat">
+                        <span class="mjt-stat__label">Estimated Effort</span>
+                        <span class="mjt-stat__value">{{ EstimatedHours }}h</span>
+                    </div>
+                }
+                @if (ActualHours > 0) {
+                    <div class="mjt-stat">
+                        <span class="mjt-stat__label">Actual Logged</span>
+                        <span class="mjt-stat__value mjt-stat__value--success">{{ ActualHours }}h</span>
+                    </div>
                 }
             </div>
-            <div class="mjt-hero__meta">
-                <span>Category: <strong>{{ CategoryName }}</strong></span>
-                <span>Schedule: <strong>{{ Schedule }}</strong></span>
-            </div>
         </div>
-    </div>
-    <div class="mjt-hero__stats">
-        <div class="mjt-stat">
-            <span class="mjt-stat__label">Complete</span>
-            <span class="mjt-stat__value">{{ Progress }}</span>
-        </div>
-        <div class="mjt-stat">
-            <span class="mjt-stat__label">Due</span>
-            <span class="mjt-stat__value">{{ DueLabel }}</span>
-        </div>
-    </div>
+    }
 </div>

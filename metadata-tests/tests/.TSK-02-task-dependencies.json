@@ -1,0 +1,28 @@
+{
+  "fields": {
+    "TypeID": "@lookup:MJ: Test Types.Name=Integration Test",
+    "Name": "TSK-02 - Task Dependencies",
+    "Description": "Test task dependencies, FinishToStart relationships, and predecessor-successor linkages.",
+    "InputDefinition": {},
+    "ExpectedOutcomes": {
+      "summary": "FinishToStart dependency correctly links predecessor and successor tasks with lag days."
+    },
+    "Configuration": {
+      "tier": "deterministic",
+      "transport": "server",
+      "checks": [
+        {
+          "type": "task-dependencies"
+        }
+      ]
+    },
+    "Status": "Active"
+  },
+  "primaryKey": {
+    "ID": "1A111000-0000-4000-8000-000000000003"
+  },
+  "sync": {
+    "lastModified": "2026-08-14T22:57:29.296Z",
+    "checksum": "5d713bf7168e1f203e68677c752de6b22b6ac90e247e68d0d74beea271a80ac0"
+  }
+}

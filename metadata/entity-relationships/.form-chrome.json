@@ -1,12 +1,12 @@
 [
   {
     "_comments": [
-      "Created-By Tasks on a Person belong in More — they are an audit hang-on, not the person's work surface."
+      "Created-By Tasks on a Person are an audit hang-on, not the person's work surface."
     ],
     "fields": {
       "Configuration": {
         "UI": {
-          "inclusion": "Primary"
+          "inclusion": "None"
         }
       }
     },
@@ -14,8 +14,8 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Common: People&RelatedEntity=MJ_BizApps_Tasks: Tasks&RelatedEntityJoinField=CreatedByPersonID"
     },
     "sync": {
-      "lastModified": "2026-08-15T02:45:37.415Z",
-      "checksum": "ffcadf6a38dea7ba00c49040ba5c94475c9266e21b9bc382278ef1da715e8086"
+      "lastModified": "2026-08-15T13:14:55.094Z",
+      "checksum": "9cefa22b1ba112e419ae4bb1b3a7c0523ed4d83203e6d34e454e6ae81d2a1f62"
     }
   },
   {
@@ -59,12 +59,14 @@
   },
   {
     "_comments": [
-      "Task form: outgoing dependencies stay first-class."
+      "Task form: outgoing dependency edges are not a form surface.",
+      "The sub-tasks gantt already plots those links. A raw Task Dependencies grid",
+      "is the internal join (TaskID), not something to edit next to the board."
     ],
     "fields": {
       "Configuration": {
         "UI": {
-          "inclusion": "Primary"
+          "inclusion": "None"
         }
       }
     },
@@ -72,18 +74,19 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Dependencies&RelatedEntityJoinField=TaskID"
     },
     "sync": {
-      "lastModified": "2026-08-15T02:45:37.468Z",
-      "checksum": "ffcadf6a38dea7ba00c49040ba5c94475c9266e21b9bc382278ef1da715e8086"
+      "lastModified": "2026-08-15T13:14:55.147Z",
+      "checksum": "9cefa22b1ba112e419ae4bb1b3a7c0523ed4d83203e6d34e454e6ae81d2a1f62"
     }
   },
   {
     "_comments": [
-      "Task form: incoming depends-on edges belong in More."
+      "Task form: incoming depends-on edges are the other end of the same join.",
+      "Not a candidate — same reason as the outgoing TaskID grid."
     ],
     "fields": {
       "Configuration": {
         "UI": {
-          "inclusion": "More"
+          "inclusion": "None"
         }
       }
     },
@@ -91,8 +94,8 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Dependencies&RelatedEntityJoinField=DependsOnTaskID"
     },
     "sync": {
-      "lastModified": "2026-08-15T02:45:37.489Z",
-      "checksum": "58975efd1d9187857b888d0129194c7b3c6f8248bca208c86585ea58e2517426"
+      "lastModified": "2026-08-15T13:14:55.121Z",
+      "checksum": "9cefa22b1ba112e419ae4bb1b3a7c0523ed4d83203e6d34e454e6ae81d2a1f62"
     }
   },
   {
@@ -154,12 +157,12 @@
   },
   {
     "_comments": [
-      "Task form: tag links belong in More."
+      "Task form: tag links are a junction table, not a Task-form surface."
     ],
     "fields": {
       "Configuration": {
         "UI": {
-          "inclusion": "More"
+          "inclusion": "None"
         }
       }
     },
@@ -167,18 +170,18 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Tag Links&RelatedEntityJoinField=TaskID"
     },
     "sync": {
-      "lastModified": "2026-08-15T02:45:37.584Z",
-      "checksum": "58975efd1d9187857b888d0129194c7b3c6f8248bca208c86585ea58e2517426"
+      "lastModified": "2026-08-15T13:14:55.174Z",
+      "checksum": "9cefa22b1ba112e419ae4bb1b3a7c0523ed4d83203e6d34e454e6ae81d2a1f62"
     }
   },
   {
     "_comments": [
-      "Task form: notification logs belong in More."
+      "Task form: notification logs are an audit trail, not a Task-form surface."
     ],
     "fields": {
       "Configuration": {
         "UI": {
-          "inclusion": "More"
+          "inclusion": "None"
         }
       }
     },
@@ -186,8 +189,8 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Notification Logs&RelatedEntityJoinField=TaskID"
     },
     "sync": {
-      "lastModified": "2026-08-15T02:45:37.599Z",
-      "checksum": "58975efd1d9187857b888d0129194c7b3c6f8248bca208c86585ea58e2517426"
+      "lastModified": "2026-08-15T13:14:55.197Z",
+      "checksum": "9cefa22b1ba112e419ae4bb1b3a7c0523ed4d83203e6d34e454e6ae81d2a1f62"
     }
   },
   {

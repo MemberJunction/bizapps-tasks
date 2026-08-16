@@ -158,6 +158,12 @@ All components are standalone with `@if`/`@for` block syntax. No routing -- even
 
 **Automatic Activity Logging** -- Status changes, assignment adds/removes, priority changes, and other auditable events are automatically recorded in TaskActivity.
 
+### Form chrome
+
+The Task form uses MJ's **left-nav** layout (`Entity.Configuration.UI.Form.Layout`). First-class sections are Details, Sub-tasks (the gantt/kanban contribution claims `ParentID`), and Assignments. Comments, activity, links, decisions, and approval JE batches sit in More.
+
+Task Dependencies are **not** on the form. Both join ends (`TaskID` and `DependsOnTaskID`) are `inclusion: None` — they are the internal graph edges the gantt already draws. Tag-link and notification-log grids are also None (junction / audit, not a Task-form surface). Created-by Tasks on a Person are None.
+
 ---
 
 ## Using BizApps Tasks in Your Code

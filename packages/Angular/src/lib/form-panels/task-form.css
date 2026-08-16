@@ -1,12 +1,57 @@
 .mjt-hero {
     display: flex;
     flex-direction: column;
-    gap: var(--mj-space-4);
+    gap: var(--mj-space-3);
     padding: var(--mj-space-4) var(--mj-space-5);
     margin-bottom: var(--mj-space-4);
     background: var(--mj-bg-surface-card);
     border: 1px solid var(--mj-border-default);
     border-radius: var(--mj-radius-lg);
+    transition: all 0.2s ease;
+}
+
+.mjt-hero--collapsed {
+    padding: var(--mj-space-3) var(--mj-space-4);
+}
+
+.mjt-hero__main-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--mj-space-3);
+    width: 100%;
+}
+
+.mjt-hero__collapse-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: var(--mj-radius-sm);
+    background: var(--mj-bg-surface);
+    border: 1px solid var(--mj-border-default);
+    color: var(--mj-text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.mjt-hero__collapse-btn:hover {
+    color: var(--mj-text-primary);
+    border-color: var(--mj-brand-primary);
+    background: color-mix(in srgb, var(--mj-brand-primary) 12%, var(--mj-bg-surface));
+}
+
+.mjt-hero__expanded {
+    padding-top: var(--mj-space-3);
+    border-top: 1px solid var(--mj-border-subtle, rgba(255, 255, 255, 0.06));
+    animation: mjtFadeIn 0.2s ease;
+}
+
+@keyframes mjtFadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .mjt-hero__identity {
