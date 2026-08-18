@@ -17,12 +17,14 @@
             </button>
         </div>
         @if (View === 'gantt') {
-            <bizapps-task-gantt
-                [ParentTaskID]="Record.ID"
-                [IncludeParentSummary]="true"
-                [Height]="'420px'"
-                (TaskDoubleClicked)="OpenChild($event)">
-            </bizapps-task-gantt>
+            <div class="mjt-subtask-fill">
+                <bizapps-task-gantt
+                    [ParentTaskID]="Record.ID"
+                    [IncludeParentSummary]="true"
+                    [Height]="'100%'"
+                    (TaskDoubleClicked)="OpenChild($event)">
+                </bizapps-task-gantt>
+            </div>
         } @else if (ParentFilter) {
             <bizapps-task-kanban
                 [ExtraFilter]="ParentFilter"

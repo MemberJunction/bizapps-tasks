@@ -7,18 +7,20 @@ import { TaskOverviewComponent } from '../components/task-overview/task-overview
 import { TaskHeaderPanel } from './task-header.panel';
 import { TaskSubtasksPanel } from './task-subtasks.panel';
 import { TaskOverviewPanel } from './task-overview.panel';
+import { TaskCategoryHierarchyPanel } from './task-category-hierarchy.panel';
 
-const PANELS = [TaskHeaderPanel, TaskSubtasksPanel, TaskOverviewPanel];
+const MODULE_PANELS = [TaskHeaderPanel, TaskSubtasksPanel, TaskOverviewPanel];
 
 @NgModule({
-    declarations: [...PANELS],
+    declarations: [...MODULE_PANELS],
     imports: [
         CommonModule,
         BaseFormsModule,
         TaskGanttComponent,
         TaskKanbanComponent,
         TaskOverviewComponent,
+        TaskCategoryHierarchyPanel
     ],
-    exports: [...PANELS],
+    exports: [...MODULE_PANELS, TaskCategoryHierarchyPanel],
 })
 export class TasksFormsModule {}

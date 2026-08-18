@@ -107,8 +107,9 @@ import {
         </div>
     `,
     styles: [`
-        :host { display: block; width: 100%; }
-        .mjt-gantt-wrap { display: flex; flex-direction: column; gap: 8px; width: 100%; position: relative; }
+        :host { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; }
+        .mjt-gantt-wrap { display: flex; flex-direction: column; gap: 8px; width: 100%; flex: 1; min-height: 0; position: relative; }
+        .mjt-gantt-wrap mj-gantt-chart { flex: 1; min-height: 0; display: block; }
         .mjt-gantt-toolbar {
             display: flex; align-items: center; justify-content: space-between;
             padding: 6px 12px; background: var(--mj-bg-surface-sunken, #f8fafc);
