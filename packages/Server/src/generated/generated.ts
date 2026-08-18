@@ -501,6 +501,18 @@ export class mjBizAppsTasksTaskCategory_ {
     @MaxLength(36)
     RootParentID?: string;
         
+    @Field(() => Int, {nullable: true}) 
+    ParentIDDepth?: number;
+        
+    @Field({nullable: true}) 
+    ParentIDPath?: string;
+        
+    @Field(() => Boolean, {nullable: true}) 
+    ParentIDIsLeaf?: boolean;
+        
+    @Field(() => Int, {nullable: true}) 
+    ParentIDChildCount?: number;
+        
     @Field(() => [mjBizAppsTasksTaskTemplate_])
     mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplates_CategoryIDArray: mjBizAppsTasksTaskTemplate_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplates
     
@@ -736,6 +748,18 @@ export class mjBizAppsTasksTaskComment_ {
     @Field({nullable: true}) 
     @MaxLength(36)
     RootParentID?: string;
+        
+    @Field(() => Int, {nullable: true}) 
+    ParentIDDepth?: number;
+        
+    @Field({nullable: true}) 
+    ParentIDPath?: string;
+        
+    @Field(() => Boolean, {nullable: true}) 
+    ParentIDIsLeaf?: boolean;
+        
+    @Field(() => Int, {nullable: true}) 
+    ParentIDChildCount?: number;
         
     @Field(() => [mjBizAppsTasksTaskComment_])
     mjBizAppsTasksMJ_BizApps_Tasks_TaskComments_ParentIDArray: mjBizAppsTasksTaskComment_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskComments
@@ -2927,6 +2951,18 @@ export class mjBizAppsTasksTaskTemplateItem_ {
     @MaxLength(36)
     RootParentItemID?: string;
         
+    @Field(() => Int, {nullable: true}) 
+    ParentItemIDDepth?: number;
+        
+    @Field({nullable: true}) 
+    ParentItemIDPath?: string;
+        
+    @Field(() => Boolean, {nullable: true}) 
+    ParentItemIDIsLeaf?: boolean;
+        
+    @Field(() => Int, {nullable: true}) 
+    ParentItemIDChildCount?: number;
+        
     @Field(() => [mjBizAppsTasksTaskTemplateItem_])
     mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplateItems_ParentItemIDArray: mjBizAppsTasksTaskTemplateItem_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplateItems
     
@@ -3432,7 +3468,8 @@ export class mjBizAppsTasksTaskType_ {
     
     @Field(() => [mjBizAppsTasksTaskTemplate_])
     mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplates_TypeIDArray: mjBizAppsTasksTaskTemplate_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplates
-    
+    // Relationship field to MJ_BizApps_Issues: Issue Types not generated: its GraphQL type is not declared in this file.
+
 }
 
 //****************************************************************************
@@ -3615,7 +3652,8 @@ export class mjBizAppsTasksTaskTypeResolver extends ResolverBase {
         const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Templates', rows, this.GetUserFromPayload(userPayload));
         return result;
     }
-        
+        // Relationship to MJ_BizApps_Issues: Issue Types not generated: its GraphQL type is not declared in this file.
+
     @Mutation(() => mjBizAppsTasksTaskType_)
     async CreatemjBizAppsTasksTaskType(
         @Arg('input', () => CreatemjBizAppsTasksTaskTypeInput) input: CreatemjBizAppsTasksTaskTypeInput,
@@ -3741,6 +3779,18 @@ export class mjBizAppsTasksTask_ {
     @MaxLength(36)
     RootParentID?: string;
         
+    @Field(() => Int, {nullable: true}) 
+    ParentIDDepth?: number;
+        
+    @Field({nullable: true}) 
+    ParentIDPath?: string;
+        
+    @Field(() => Boolean, {nullable: true}) 
+    ParentIDIsLeaf?: boolean;
+        
+    @Field(() => Int, {nullable: true}) 
+    ParentIDChildCount?: number;
+        
     @Field(() => [mjBizAppsTasksTaskDependency_])
     mjBizAppsTasksMJ_BizApps_Tasks_TaskDependencies_DependsOnTaskIDArray: mjBizAppsTasksTaskDependency_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskDependencies
     
@@ -3770,7 +3820,8 @@ export class mjBizAppsTasksTask_ {
     
     @Field(() => [mjBizAppsTasksTaskDecision_])
     mjBizAppsTasksMJ_BizApps_Tasks_TaskDecisions_TaskIDArray: mjBizAppsTasksTaskDecision_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskDecisions
-    
+    // Relationship field to MJ_BizApps_Accounting: Journal Entry Batches not generated: its GraphQL type is not declared in this file.
+
 }
 
 //****************************************************************************
@@ -4065,7 +4116,8 @@ export class mjBizAppsTasksTaskResolver extends ResolverBase {
         const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Decisions', rows, this.GetUserFromPayload(userPayload));
         return result;
     }
-        
+        // Relationship to MJ_BizApps_Accounting: Journal Entry Batches not generated: its GraphQL type is not declared in this file.
+
     @Mutation(() => mjBizAppsTasksTask_)
     async CreatemjBizAppsTasksTask(
         @Arg('input', () => CreatemjBizAppsTasksTaskInput) input: CreatemjBizAppsTasksTaskInput,

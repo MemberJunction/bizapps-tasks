@@ -1,4 +1,4 @@
-import { BaseEntity, EntitySaveOptions, EntityDeleteOptions, CompositeKey, ValidationResult, ValidationErrorInfo, ValidationErrorType, Metadata, ProviderType, DatabaseProviderBase } from "@memberjunction/core";
+import { BaseEntity, EntitySaveOptions, EntityDeleteOptions, CompositeKey, ValidationResult, ValidationErrorInfo, ValidationErrorType, Metadata, ProviderType, DatabaseProviderBase, RunView } from "@memberjunction/core";
 import { RegisterClass } from "@memberjunction/global";
 import { z } from "zod";
 
@@ -179,7 +179,7 @@ export const mjBizAppsTasksTaskCategorySchema = z.object({
         * * SQL Data Type: nvarchar(MAX)`),
     ParentID: z.string().nullable().describe(`
         * * Field Name: ParentID
-        * * Display Name: Parent ID
+        * * Display Name: Parent
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Task Categories (vwTaskCategories.ID)`),
     ColorCode: z.string().nullable().describe(`
@@ -208,12 +208,28 @@ export const mjBizAppsTasksTaskCategorySchema = z.object({
         * * Default Value: getutcdate()`),
     Parent: z.string().nullable().describe(`
         * * Field Name: Parent
-        * * Display Name: Parent
+        * * Display Name: Parent Name
         * * SQL Data Type: nvarchar(255)`),
     RootParentID: z.string().nullable().describe(`
         * * Field Name: RootParentID
-        * * Display Name: Root Parent ID
+        * * Display Name: Root Parent
         * * SQL Data Type: uniqueidentifier`),
+    ParentIDDepth: z.number().nullable().describe(`
+        * * Field Name: ParentIDDepth
+        * * Display Name: Depth
+        * * SQL Data Type: int`),
+    ParentIDPath: z.string().nullable().describe(`
+        * * Field Name: ParentIDPath
+        * * Display Name: Path
+        * * SQL Data Type: nvarchar(MAX)`),
+    ParentIDIsLeaf: z.boolean().nullable().describe(`
+        * * Field Name: ParentIDIsLeaf
+        * * Display Name: Is Leaf
+        * * SQL Data Type: bit`),
+    ParentIDChildCount: z.number().nullable().describe(`
+        * * Field Name: ParentIDChildCount
+        * * Display Name: Child Count
+        * * SQL Data Type: int`),
 });
 
 export type mjBizAppsTasksTaskCategoryEntityType = z.infer<typeof mjBizAppsTasksTaskCategorySchema>;
@@ -229,22 +245,22 @@ export const mjBizAppsTasksTaskCommentSchema = z.object({
         * * Default Value: newsequentialid()`),
     TaskID: z.string().describe(`
         * * Field Name: TaskID
-        * * Display Name: Task ID
+        * * Display Name: Task
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)`),
     ParentID: z.string().nullable().describe(`
         * * Field Name: ParentID
-        * * Display Name: Parent ID
+        * * Display Name: Parent Comment
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Task Comments (vwTaskComments.ID)`),
     PersonID: z.string().describe(`
         * * Field Name: PersonID
-        * * Display Name: Person ID
+        * * Display Name: Author ID
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)`),
     Content: z.string().describe(`
         * * Field Name: Content
-        * * Display Name: Content
+        * * Display Name: Comment Content
         * * SQL Data Type: nvarchar(MAX)`),
     IsEdited: z.boolean().describe(`
         * * Field Name: IsEdited
@@ -263,16 +279,32 @@ export const mjBizAppsTasksTaskCommentSchema = z.object({
         * * Default Value: getutcdate()`),
     Task: z.string().describe(`
         * * Field Name: Task
-        * * Display Name: Task
+        * * Display Name: Task Name
         * * SQL Data Type: nvarchar(255)`),
     Person: z.string().describe(`
         * * Field Name: Person
-        * * Display Name: Person
+        * * Display Name: Author Name
         * * SQL Data Type: nvarchar(201)`),
     RootParentID: z.string().nullable().describe(`
         * * Field Name: RootParentID
-        * * Display Name: Root Parent ID
+        * * Display Name: Root Comment
         * * SQL Data Type: uniqueidentifier`),
+    ParentIDDepth: z.number().nullable().describe(`
+        * * Field Name: ParentIDDepth
+        * * Display Name: Depth
+        * * SQL Data Type: int`),
+    ParentIDPath: z.string().nullable().describe(`
+        * * Field Name: ParentIDPath
+        * * Display Name: Path
+        * * SQL Data Type: nvarchar(MAX)`),
+    ParentIDIsLeaf: z.boolean().nullable().describe(`
+        * * Field Name: ParentIDIsLeaf
+        * * Display Name: Is Leaf
+        * * SQL Data Type: bit`),
+    ParentIDChildCount: z.number().nullable().describe(`
+        * * Field Name: ParentIDChildCount
+        * * Display Name: Child Count
+        * * SQL Data Type: int`),
 });
 
 export type mjBizAppsTasksTaskCommentEntityType = z.infer<typeof mjBizAppsTasksTaskCommentSchema>;
@@ -900,6 +932,22 @@ export const mjBizAppsTasksTaskTemplateItemSchema = z.object({
         * * Field Name: RootParentItemID
         * * Display Name: Root Parent Item ID
         * * SQL Data Type: uniqueidentifier`),
+    ParentItemIDDepth: z.number().nullable().describe(`
+        * * Field Name: ParentItemIDDepth
+        * * Display Name: Depth
+        * * SQL Data Type: int`),
+    ParentItemIDPath: z.string().nullable().describe(`
+        * * Field Name: ParentItemIDPath
+        * * Display Name: Path
+        * * SQL Data Type: nvarchar(MAX)`),
+    ParentItemIDIsLeaf: z.boolean().nullable().describe(`
+        * * Field Name: ParentItemIDIsLeaf
+        * * Display Name: Is Leaf
+        * * SQL Data Type: bit`),
+    ParentItemIDChildCount: z.number().nullable().describe(`
+        * * Field Name: ParentItemIDChildCount
+        * * Display Name: Child Count
+        * * SQL Data Type: int`),
 });
 
 export type mjBizAppsTasksTaskTemplateItemEntityType = z.infer<typeof mjBizAppsTasksTaskTemplateItemSchema>;
@@ -1076,7 +1124,7 @@ export const mjBizAppsTasksTaskSchema = z.object({
         * * Default Value: newsequentialid()`),
     Name: z.string().describe(`
         * * Field Name: Name
-        * * Display Name: Name
+        * * Display Name: Task Name
         * * SQL Data Type: nvarchar(255)`),
     Description: z.string().nullable().describe(`
         * * Field Name: Description
@@ -1084,17 +1132,17 @@ export const mjBizAppsTasksTaskSchema = z.object({
         * * SQL Data Type: nvarchar(MAX)`),
     TypeID: z.string().describe(`
         * * Field Name: TypeID
-        * * Display Name: Type ID
+        * * Display Name: Task Type
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Task Types (vwTaskTypes.ID)`),
     CategoryID: z.string().nullable().describe(`
         * * Field Name: CategoryID
-        * * Display Name: Category ID
+        * * Display Name: Category
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Task Categories (vwTaskCategories.ID)`),
     ParentID: z.string().nullable().describe(`
         * * Field Name: ParentID
-        * * Display Name: Parent ID
+        * * Display Name: Parent Task
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)`),
     Status: z.union([z.literal('Blocked'), z.literal('Cancelled'), z.literal('Completed'), z.literal('InProgress'), z.literal('Open')]).describe(`
@@ -1160,7 +1208,7 @@ export const mjBizAppsTasksTaskSchema = z.object({
         * * SQL Data Type: nvarchar(MAX)`),
     CreatedByPersonID: z.string().nullable().describe(`
         * * Field Name: CreatedByPersonID
-        * * Display Name: Created By Person ID
+        * * Display Name: Created By
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)`),
     OverdueNotifiedAt: z.date().nullable().describe(`
@@ -1183,20 +1231,36 @@ export const mjBizAppsTasksTaskSchema = z.object({
         * * SQL Data Type: nvarchar(100)`),
     Category: z.string().nullable().describe(`
         * * Field Name: Category
-        * * Display Name: Category
+        * * Display Name: Category Name
         * * SQL Data Type: nvarchar(255)`),
     Parent: z.string().nullable().describe(`
         * * Field Name: Parent
-        * * Display Name: Parent
+        * * Display Name: Parent Task Name
         * * SQL Data Type: nvarchar(255)`),
     CreatedByPerson: z.string().nullable().describe(`
         * * Field Name: CreatedByPerson
-        * * Display Name: Created By Person
+        * * Display Name: Created By Name
         * * SQL Data Type: nvarchar(201)`),
     RootParentID: z.string().nullable().describe(`
         * * Field Name: RootParentID
-        * * Display Name: Root Parent ID
+        * * Display Name: Root Parent
         * * SQL Data Type: uniqueidentifier`),
+    ParentIDDepth: z.number().nullable().describe(`
+        * * Field Name: ParentIDDepth
+        * * Display Name: Hierarchy Depth
+        * * SQL Data Type: int`),
+    ParentIDPath: z.string().nullable().describe(`
+        * * Field Name: ParentIDPath
+        * * Display Name: Hierarchy Path
+        * * SQL Data Type: nvarchar(MAX)`),
+    ParentIDIsLeaf: z.boolean().nullable().describe(`
+        * * Field Name: ParentIDIsLeaf
+        * * Display Name: Is Leaf Node
+        * * SQL Data Type: bit`),
+    ParentIDChildCount: z.number().nullable().describe(`
+        * * Field Name: ParentIDChildCount
+        * * Display Name: Child Count
+        * * SQL Data Type: int`),
 });
 
 export type mjBizAppsTasksTaskEntityType = z.infer<typeof mjBizAppsTasksTaskSchema>;
@@ -1647,7 +1711,7 @@ export class mjBizAppsTasksTaskCategoryEntity extends BaseEntity<mjBizAppsTasksT
 
     /**
     * * Field Name: ParentID
-    * * Display Name: Parent ID
+    * * Display Name: Parent
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Task Categories (vwTaskCategories.ID)
     */
@@ -1718,7 +1782,7 @@ export class mjBizAppsTasksTaskCategoryEntity extends BaseEntity<mjBizAppsTasksT
 
     /**
     * * Field Name: Parent
-    * * Display Name: Parent
+    * * Display Name: Parent Name
     * * SQL Data Type: nvarchar(255)
     */
     get Parent(): string | null {
@@ -1727,11 +1791,47 @@ export class mjBizAppsTasksTaskCategoryEntity extends BaseEntity<mjBizAppsTasksT
 
     /**
     * * Field Name: RootParentID
-    * * Display Name: Root Parent ID
+    * * Display Name: Root Parent
     * * SQL Data Type: uniqueidentifier
     */
     get RootParentID(): string | null {
         return this.Get('RootParentID');
+    }
+
+    /**
+    * * Field Name: ParentIDDepth
+    * * Display Name: Depth
+    * * SQL Data Type: int
+    */
+    get ParentIDDepth(): number | null {
+        return this.Get('ParentIDDepth');
+    }
+
+    /**
+    * * Field Name: ParentIDPath
+    * * Display Name: Path
+    * * SQL Data Type: nvarchar(MAX)
+    */
+    get ParentIDPath(): string | null {
+        return this.Get('ParentIDPath');
+    }
+
+    /**
+    * * Field Name: ParentIDIsLeaf
+    * * Display Name: Is Leaf
+    * * SQL Data Type: bit
+    */
+    get ParentIDIsLeaf(): boolean | null {
+        return this.Get('ParentIDIsLeaf');
+    }
+
+    /**
+    * * Field Name: ParentIDChildCount
+    * * Display Name: Child Count
+    * * SQL Data Type: int
+    */
+    get ParentIDChildCount(): number | null {
+        return this.Get('ParentIDChildCount');
     }
 }
 
@@ -1780,7 +1880,7 @@ export class mjBizAppsTasksTaskCommentEntity extends BaseEntity<mjBizAppsTasksTa
 
     /**
     * * Field Name: TaskID
-    * * Display Name: Task ID
+    * * Display Name: Task
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
     */
@@ -1793,7 +1893,7 @@ export class mjBizAppsTasksTaskCommentEntity extends BaseEntity<mjBizAppsTasksTa
 
     /**
     * * Field Name: ParentID
-    * * Display Name: Parent ID
+    * * Display Name: Parent Comment
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Task Comments (vwTaskComments.ID)
     */
@@ -1806,7 +1906,7 @@ export class mjBizAppsTasksTaskCommentEntity extends BaseEntity<mjBizAppsTasksTa
 
     /**
     * * Field Name: PersonID
-    * * Display Name: Person ID
+    * * Display Name: Author ID
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
     */
@@ -1819,7 +1919,7 @@ export class mjBizAppsTasksTaskCommentEntity extends BaseEntity<mjBizAppsTasksTa
 
     /**
     * * Field Name: Content
-    * * Display Name: Content
+    * * Display Name: Comment Content
     * * SQL Data Type: nvarchar(MAX)
     */
     get Content(): string {
@@ -1864,7 +1964,7 @@ export class mjBizAppsTasksTaskCommentEntity extends BaseEntity<mjBizAppsTasksTa
 
     /**
     * * Field Name: Task
-    * * Display Name: Task
+    * * Display Name: Task Name
     * * SQL Data Type: nvarchar(255)
     */
     get Task(): string {
@@ -1873,7 +1973,7 @@ export class mjBizAppsTasksTaskCommentEntity extends BaseEntity<mjBizAppsTasksTa
 
     /**
     * * Field Name: Person
-    * * Display Name: Person
+    * * Display Name: Author Name
     * * SQL Data Type: nvarchar(201)
     */
     get Person(): string {
@@ -1882,11 +1982,47 @@ export class mjBizAppsTasksTaskCommentEntity extends BaseEntity<mjBizAppsTasksTa
 
     /**
     * * Field Name: RootParentID
-    * * Display Name: Root Parent ID
+    * * Display Name: Root Comment
     * * SQL Data Type: uniqueidentifier
     */
     get RootParentID(): string | null {
         return this.Get('RootParentID');
+    }
+
+    /**
+    * * Field Name: ParentIDDepth
+    * * Display Name: Depth
+    * * SQL Data Type: int
+    */
+    get ParentIDDepth(): number | null {
+        return this.Get('ParentIDDepth');
+    }
+
+    /**
+    * * Field Name: ParentIDPath
+    * * Display Name: Path
+    * * SQL Data Type: nvarchar(MAX)
+    */
+    get ParentIDPath(): string | null {
+        return this.Get('ParentIDPath');
+    }
+
+    /**
+    * * Field Name: ParentIDIsLeaf
+    * * Display Name: Is Leaf
+    * * SQL Data Type: bit
+    */
+    get ParentIDIsLeaf(): boolean | null {
+        return this.Get('ParentIDIsLeaf');
+    }
+
+    /**
+    * * Field Name: ParentIDChildCount
+    * * Display Name: Child Count
+    * * SQL Data Type: int
+    */
+    get ParentIDChildCount(): number | null {
+        return this.Get('ParentIDChildCount');
     }
 }
 
@@ -2240,30 +2376,30 @@ export class mjBizAppsTasksTaskDependencyEntity extends BaseEntity<mjBizAppsTask
 
     /**
     * Validate() method override for MJ_BizApps_Tasks: Task Dependencies entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
-    * * Table-Level: A task cannot depend on itself. The task ID and the dependent task ID must be different to prevent self-referencing dependencies.
+    * * Table-Level: A task cannot depend on itself. The task and the task it depends on must be different to prevent circular dependencies.
     * @public
     * @method
     * @override
     */
     public override Validate(): ValidationResult {
         const result = super.Validate();
-        this.ValidateTaskNotDependentOnSelf(result);
+        this.ValidateTaskCannotDependOnSelf(result);
         result.Success = result.Success && (result.Errors.length === 0);
 
         return result;
     }
 
     /**
-    * A task cannot depend on itself. The task ID and the dependent task ID must be different to prevent self-referencing dependencies.
+    * A task cannot depend on itself. The task and the task it depends on must be different to prevent circular dependencies.
     * @param result - the ValidationResult object to add any errors or warnings to
     * @public
     * @method
     */
-    public ValidateTaskNotDependentOnSelf(result: ValidationResult) {
+    public ValidateTaskCannotDependOnSelf(result: ValidationResult) {
     	if (this.TaskID != null && this.DependsOnTaskID != null && this.TaskID === this.DependsOnTaskID) {
     		result.Errors.push(new ValidationErrorInfo(
     			"DependsOnTaskID",
-    			"A task cannot depend on itself. The Task ID and Depends On Task ID must be different.",
+    			"A task cannot depend on itself. The task and the dependent task must be different.",
     			this.DependsOnTaskID,
     			ValidationErrorType.Failure
     		));
@@ -3148,6 +3284,38 @@ export class mjBizAppsTasksTaskTemplateItemDependencyEntity extends BaseEntity<m
     }
 
     /**
+    * Validate() method override for MJ_BizApps_Tasks: Task Template Item Dependencies entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
+    * * Table-Level: An item cannot depend on itself; the item and its dependent item must be different.
+    * @public
+    * @method
+    * @override
+    */
+    public override Validate(): ValidationResult {
+        const result = super.Validate();
+        this.ValidateItemIDNotEqualToDependsOnItemID(result);
+        result.Success = result.Success && (result.Errors.length === 0);
+
+        return result;
+    }
+
+    /**
+    * An item cannot depend on itself; the item and its dependent item must be different.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateItemIDNotEqualToDependsOnItemID(result: ValidationResult) {
+    	if (this.ItemID != null && this.DependsOnItemID != null && this.ItemID === this.DependsOnItemID) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"DependsOnItemID",
+    			"An item cannot depend on itself. The Item ID and Depends On Item ID must be different.",
+    			this.DependsOnItemID,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    }
+
+    /**
     * * Field Name: ID
     * * Display Name: ID
     * * SQL Data Type: uniqueidentifier
@@ -3546,6 +3714,42 @@ export class mjBizAppsTasksTaskTemplateItemEntity extends BaseEntity<mjBizAppsTa
     */
     get RootParentItemID(): string | null {
         return this.Get('RootParentItemID');
+    }
+
+    /**
+    * * Field Name: ParentItemIDDepth
+    * * Display Name: Depth
+    * * SQL Data Type: int
+    */
+    get ParentItemIDDepth(): number | null {
+        return this.Get('ParentItemIDDepth');
+    }
+
+    /**
+    * * Field Name: ParentItemIDPath
+    * * Display Name: Path
+    * * SQL Data Type: nvarchar(MAX)
+    */
+    get ParentItemIDPath(): string | null {
+        return this.Get('ParentItemIDPath');
+    }
+
+    /**
+    * * Field Name: ParentItemIDIsLeaf
+    * * Display Name: Is Leaf
+    * * SQL Data Type: bit
+    */
+    get ParentItemIDIsLeaf(): boolean | null {
+        return this.Get('ParentItemIDIsLeaf');
+    }
+
+    /**
+    * * Field Name: ParentItemIDChildCount
+    * * Display Name: Child Count
+    * * SQL Data Type: int
+    */
+    get ParentItemIDChildCount(): number | null {
+        return this.Get('ParentItemIDChildCount');
     }
 }
 
@@ -3992,7 +4196,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
 
     /**
     * Validate() method override for MJ_BizApps_Tasks: Tasks entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
-    * * PercentComplete: Percent complete must be a value between 0 and 100 to ensure accurate progress tracking.
+    * * PercentComplete: Percent complete must be a value between 0 and 100.
     * @public
     * @method
     * @override
@@ -4006,7 +4210,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     }
 
     /**
-    * Percent complete must be a value between 0 and 100 to ensure accurate progress tracking.
+    * Percent complete must be a value between 0 and 100.
     * @param result - the ValidationResult object to add any errors or warnings to
     * @public
     * @method
@@ -4037,7 +4241,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
 
     /**
     * * Field Name: Name
-    * * Display Name: Name
+    * * Display Name: Task Name
     * * SQL Data Type: nvarchar(255)
     */
     get Name(): string {
@@ -4061,7 +4265,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
 
     /**
     * * Field Name: TypeID
-    * * Display Name: Type ID
+    * * Display Name: Task Type
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Task Types (vwTaskTypes.ID)
     */
@@ -4074,7 +4278,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
 
     /**
     * * Field Name: CategoryID
-    * * Display Name: Category ID
+    * * Display Name: Category
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Task Categories (vwTaskCategories.ID)
     */
@@ -4087,7 +4291,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
 
     /**
     * * Field Name: ParentID
-    * * Display Name: Parent ID
+    * * Display Name: Parent Task
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
     */
@@ -4249,7 +4453,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
 
     /**
     * * Field Name: CreatedByPersonID
-    * * Display Name: Created By Person ID
+    * * Display Name: Created By
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
     */
@@ -4303,7 +4507,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
 
     /**
     * * Field Name: Category
-    * * Display Name: Category
+    * * Display Name: Category Name
     * * SQL Data Type: nvarchar(255)
     */
     get Category(): string | null {
@@ -4312,7 +4516,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
 
     /**
     * * Field Name: Parent
-    * * Display Name: Parent
+    * * Display Name: Parent Task Name
     * * SQL Data Type: nvarchar(255)
     */
     get Parent(): string | null {
@@ -4321,7 +4525,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
 
     /**
     * * Field Name: CreatedByPerson
-    * * Display Name: Created By Person
+    * * Display Name: Created By Name
     * * SQL Data Type: nvarchar(201)
     */
     get CreatedByPerson(): string | null {
@@ -4330,10 +4534,46 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
 
     /**
     * * Field Name: RootParentID
-    * * Display Name: Root Parent ID
+    * * Display Name: Root Parent
     * * SQL Data Type: uniqueidentifier
     */
     get RootParentID(): string | null {
         return this.Get('RootParentID');
+    }
+
+    /**
+    * * Field Name: ParentIDDepth
+    * * Display Name: Hierarchy Depth
+    * * SQL Data Type: int
+    */
+    get ParentIDDepth(): number | null {
+        return this.Get('ParentIDDepth');
+    }
+
+    /**
+    * * Field Name: ParentIDPath
+    * * Display Name: Hierarchy Path
+    * * SQL Data Type: nvarchar(MAX)
+    */
+    get ParentIDPath(): string | null {
+        return this.Get('ParentIDPath');
+    }
+
+    /**
+    * * Field Name: ParentIDIsLeaf
+    * * Display Name: Is Leaf Node
+    * * SQL Data Type: bit
+    */
+    get ParentIDIsLeaf(): boolean | null {
+        return this.Get('ParentIDIsLeaf');
+    }
+
+    /**
+    * * Field Name: ParentIDChildCount
+    * * Display Name: Child Count
+    * * SQL Data Type: int
+    */
+    get ParentIDChildCount(): number | null {
+        return this.Get('ParentIDChildCount');
     }
 }

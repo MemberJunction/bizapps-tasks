@@ -41,7 +41,7 @@ module.exports = {
   // MJ core and bizapps-common respectively and consumed as npm packages.
   // (Matches the bizapps-accounting convention; the codegen-lib defaults do NOT
   // exclude __mj_BizAppsCommon, so it must be listed explicitly.)
-  excludeSchemas: ['sys', 'staging', 'dbo', '__mj', '__mj_BizAppsCommon'],
+  excludeSchemas: ['sys', 'staging', 'dbo', '__mj', '__mj_BizAppsCommon', '__mj_BizAppsOrders', '__mj_BizAppsAccounting', '__mj_BizAppsIssues', '__mj_BizAppsMarketing', '__mj_BizAppsATS', '__mj_BizAppsCommittees', '__mj_BizAppsCaliber', '__mj_BizAppsForms'],
 
   // SQL output configuration with Flyway placeholders.
   // The app's own schema (__mj_BizAppsTasks) maps to ${flyway:defaultSchema} so it is

@@ -10,11 +10,11 @@
     <!-- ========================================
          FIELD PANELS
          ======================================== -->
-    <!-- Details Section -->
+    <!-- Task Details Section -->
     <mj-collapsible-panel
-        SectionKey="details"
-        SectionName="Details"
-        Icon="fa fa-align-left"
+        SectionKey="taskDetails"
+        SectionName="Task Details"
+        Icon="fa fa-info-circle"
         [Form]="this"
         [FormContext]="formContext">
         <mj-form-field 
@@ -54,12 +54,89 @@
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
+            FieldName="CreatedByPersonID"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+            LinkType="Record"
+        ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Hierarchy and Sequence Section -->
+    <mj-collapsible-panel
+        SectionKey="hierarchyAndSequence"
+        SectionName="Hierarchy and Sequence"
+        Icon="fa fa-sitemap"
+        [Form]="this"
+        [FormContext]="formContext">
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
             FieldName="ParentID"
             Type="textbox"
             [EditMode]="EditMode"
             [FormContext]="formContext"
             LinkType="Record"
         ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="Sequence"
+            Type="number"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="RootParentID"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="ParentIDDepth"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="ParentIDPath"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="ParentIDIsLeaf"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="ParentIDChildCount"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Status and Priority Section -->
+    <mj-collapsible-panel
+        SectionKey="statusAndPriority"
+        SectionName="Status and Priority"
+        Icon="fa fa-flag"
+        [Form]="this"
+        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -76,6 +153,24 @@
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="BlockedReason"
+            Type="textarea"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Timeline Section -->
+    <mj-collapsible-panel
+        SectionKey="timeline"
+        SectionName="Timeline"
+        Icon="fa fa-calendar-alt"
+        [Form]="this"
+        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -103,6 +198,24 @@
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
+            FieldName="OverdueNotifiedAt"
+            Type="datepicker"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Effort and Progress Section -->
+    <mj-collapsible-panel
+        SectionKey="effortAndProgress"
+        SectionName="Effort and Progress"
+        Icon="fa fa-chart-line"
+        [Form]="this"
+        [FormContext]="formContext">
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
             FieldName="HoursEstimated"
             Type="number"
             [EditMode]="EditMode"
@@ -127,44 +240,21 @@
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
-            FieldName="Sequence"
-            Type="number"
-            [EditMode]="EditMode"
-            [FormContext]="formContext"
-        ></mj-form-field>
-        <mj-form-field 
-            [Record]="record"
-            [ShowLabel]="true"
-            FieldName="BlockedReason"
-            Type="textarea"
-            [EditMode]="EditMode"
-            [FormContext]="formContext"
-        ></mj-form-field>
-        <mj-form-field 
-            [Record]="record"
-            [ShowLabel]="true"
             FieldName="CompletionNotes"
             Type="textarea"
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
-        <mj-form-field 
-            [Record]="record"
-            [ShowLabel]="true"
-            FieldName="CreatedByPersonID"
-            Type="textbox"
-            [EditMode]="EditMode"
-            [FormContext]="formContext"
-            LinkType="Record"
-        ></mj-form-field>
-        <mj-form-field 
-            [Record]="record"
-            [ShowLabel]="true"
-            FieldName="OverdueNotifiedAt"
-            Type="datepicker"
-            [EditMode]="EditMode"
-            [FormContext]="formContext"
-        ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- System Metadata Section -->
+    <mj-collapsible-panel
+        SectionKey="systemMetadata"
+        SectionName="System Metadata"
+        Icon="fa fa-cog"
+        [Form]="this"
+        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -177,14 +267,6 @@
             [Record]="record"
             [ShowLabel]="true"
             FieldName="__mj_UpdatedAt"
-            Type="textbox"
-            [EditMode]="EditMode"
-            [FormContext]="formContext"
-        ></mj-form-field>
-        <mj-form-field 
-            [Record]="record"
-            [ShowLabel]="true"
-            FieldName="RootParentID"
             Type="textbox"
             [EditMode]="EditMode"
             [FormContext]="formContext"
@@ -212,9 +294,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Dependencies','DependsOnTaskID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Dependencies')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Dependencies','DependsOnTaskID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskDependenciesDependsOnTaskID')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskDependenciesDependsOnTaskID', $event.totalRowCount)"
                 >
@@ -237,9 +319,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Dependencies','TaskID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Dependencies')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Dependencies','TaskID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskDependenciesTaskID')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskDependenciesTaskID', $event.totalRowCount)"
                 >
@@ -248,11 +330,11 @@
         }
     </mj-collapsible-panel>
 
-    <!-- Tasks Section -->
+    <!-- Sub-tasks Section -->
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksTasks"
-        SectionName="Tasks"
-        Icon="fa fa-table"
+        SectionName="Sub-tasks"
+        Icon="fa fa-tasks"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"
@@ -262,9 +344,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Tasks','ParentID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Tasks')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Tasks','ParentID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTasks')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTasks', $event.totalRowCount)"
                 >
@@ -287,9 +369,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Assignments','TaskID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Assignments')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Assignments','TaskID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskAssignments')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskAssignments', $event.totalRowCount)"
                 >
@@ -312,9 +394,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Links','TaskID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Links')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Links','TaskID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskLinks')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskLinks', $event.totalRowCount)"
                 >
@@ -327,7 +409,7 @@
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksTaskComments"
         SectionName="Task Comments"
-        Icon="fa fa-table"
+        Icon="fa fa-comments"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"
@@ -337,9 +419,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Comments','TaskID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Comments')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Comments','TaskID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskComments')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskComments', $event.totalRowCount)"
                 >
@@ -362,9 +444,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Activities','TaskID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Activities')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Activities','TaskID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskActivities')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskActivities', $event.totalRowCount)"
                 >
@@ -387,9 +469,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Tag Links','TaskID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Tag Links')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Tag Links','TaskID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskTagLinks')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskTagLinks', $event.totalRowCount)"
                 >
@@ -412,9 +494,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Notification Logs','TaskID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Notification Logs')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Notification Logs','TaskID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskNotificationLogs')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskNotificationLogs', $event.totalRowCount)"
                 >
@@ -437,9 +519,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Decisions','TaskID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Decisions')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Decisions','TaskID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskDecisions')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskDecisions', $event.totalRowCount)"
                 >

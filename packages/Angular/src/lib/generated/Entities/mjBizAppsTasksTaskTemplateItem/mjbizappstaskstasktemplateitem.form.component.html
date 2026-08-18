@@ -10,11 +10,11 @@
     <!-- ========================================
          FIELD PANELS
          ======================================== -->
-    <!-- Details Section -->
+    <!-- Task Template Details Section -->
     <mj-collapsible-panel
-        SectionKey="details"
-        SectionName="Details"
-        Icon="fa fa-align-left"
+        SectionKey="taskTemplateDetails"
+        SectionName="Task Template Details"
+        Icon="fa fa-file-alt"
         [Form]="this"
         [FormContext]="formContext">
         <mj-form-field 
@@ -42,6 +42,16 @@
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Hierarchy and Structure Section -->
+    <mj-collapsible-panel
+        SectionKey="hierarchyAndStructure"
+        SectionName="Hierarchy and Structure"
+        Icon="fa fa-sitemap"
+        [Form]="this"
+        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -51,6 +61,56 @@
             [FormContext]="formContext"
             LinkType="Record"
         ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="RootParentItemID"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="ParentItemIDDepth"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="ParentItemIDPath"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="ParentItemIDIsLeaf"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="ParentItemIDChildCount"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Task Configuration Section -->
+    <mj-collapsible-panel
+        SectionKey="taskConfiguration"
+        SectionName="Task Configuration"
+        Icon="fa fa-sliders-h"
+        [Form]="this"
+        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -83,6 +143,16 @@
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- System Metadata Section -->
+    <mj-collapsible-panel
+        SectionKey="systemMetadata"
+        SectionName="System Metadata"
+        Icon="fa fa-cog"
+        [Form]="this"
+        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -95,14 +165,6 @@
             [Record]="record"
             [ShowLabel]="true"
             FieldName="__mj_UpdatedAt"
-            Type="textbox"
-            [EditMode]="EditMode"
-            [FormContext]="formContext"
-        ></mj-form-field>
-        <mj-form-field 
-            [Record]="record"
-            [ShowLabel]="true"
-            FieldName="RootParentItemID"
             Type="textbox"
             [EditMode]="EditMode"
             [FormContext]="formContext"
@@ -120,7 +182,7 @@
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksTaskTemplateItems"
         SectionName="Task Template Items"
-        Icon="fa fa-table"
+        Icon="fa fa-tasks"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"
@@ -130,9 +192,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Template Items','ParentItemID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Template Items')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Template Items','ParentItemID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskTemplateItems')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskTemplateItems', $event.totalRowCount)"
                 >
@@ -155,9 +217,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Template Item Roles','ItemID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Template Item Roles')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Template Item Roles','ItemID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskTemplateItemRoles')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskTemplateItemRoles', $event.totalRowCount)"
                 >
@@ -180,9 +242,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Template Item Dependencies','DependsOnItemID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Template Item Dependencies')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Template Item Dependencies','DependsOnItemID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskTemplateItemDependenciesDependsOnItemID')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskTemplateItemDependenciesDependsOnItemID', $event.totalRowCount)"
                 >
@@ -205,9 +267,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Template Item Dependencies','ItemID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Template Item Dependencies')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Template Item Dependencies','ItemID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskTemplateItemDependenciesItemID')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskTemplateItemDependenciesItemID', $event.totalRowCount)"
                 >

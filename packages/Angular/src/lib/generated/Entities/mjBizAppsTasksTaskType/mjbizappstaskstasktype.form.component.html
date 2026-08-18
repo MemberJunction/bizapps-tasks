@@ -150,9 +150,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Notification Configs','TaskTypeID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Notification Configs')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Notification Configs','TaskTypeID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskNotificationConfigs')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskNotificationConfigs', $event.totalRowCount)"
                 >
@@ -165,7 +165,7 @@
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksTasks"
         SectionName="Tasks"
-        Icon="fa fa-table"
+        Icon="fa fa-tasks"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"
@@ -175,9 +175,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Tasks','TypeID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Tasks')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Tasks','TypeID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTasks')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTasks', $event.totalRowCount)"
                 >
@@ -200,9 +200,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Templates','TypeID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Templates')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Templates','TypeID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskTemplates')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskTemplates', $event.totalRowCount)"
                 >
