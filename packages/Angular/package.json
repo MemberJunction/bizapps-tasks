@@ -16,7 +16,7 @@
     "test": "echo \"No tests configured yet\""
   },
   "author": "MemberJunction.com",
-  "license": "ISC",
+  "license": "BUSL-1.1",
   "dependencies": {
     "@memberjunction/ng-hierarchy-tree": "6.1.0-edge.2",
     "@mj-biz-apps/tasks-entities": "1.2.3",
