@@ -1,0 +1,126 @@
+[
+  {
+    "_comments": [
+      "Seeds Hierarchy.IsHierarchy=true in EntityField.Configuration for TaskCategory.ParentID."
+    ],
+    "fields": {
+      "Name": "MJ_BizApps_Tasks: Task Categories"
+    },
+    "relatedEntities": {
+      "MJ: Entity Fields": [
+        {
+          "fields": {
+            "Configuration": {
+              "Hierarchy": {
+                "IsHierarchy": true
+              }
+            }
+          },
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Categories&Name=ParentID"
+          },
+          "sync": {
+            "lastModified": "2026-08-18T21:44:04.255Z",
+            "checksum": "c9d7f02681366f41bfee4d9aea7fcd14c0e8d47223c47f20891c562673cfefa1"
+          }
+        }
+      ]
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Categories"
+    }
+  },
+  {
+    "_comments": [
+      "Seeds Hierarchy.IsHierarchy=true in EntityField.Configuration for TaskComment.ParentID."
+    ],
+    "fields": {
+      "Name": "MJ_BizApps_Tasks: Task Comments"
+    },
+    "relatedEntities": {
+      "MJ: Entity Fields": [
+        {
+          "fields": {
+            "Configuration": {
+              "Hierarchy": {
+                "IsHierarchy": true
+              }
+            }
+          },
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Comments&Name=ParentID"
+          },
+          "sync": {
+            "lastModified": "2026-08-18T21:44:04.286Z",
+            "checksum": "c9d7f02681366f41bfee4d9aea7fcd14c0e8d47223c47f20891c562673cfefa1"
+          }
+        }
+      ]
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Comments"
+    }
+  },
+  {
+    "_comments": [
+      "Seeds Hierarchy.IsHierarchy=true in EntityField.Configuration for TaskTemplateItem.ParentItemID."
+    ],
+    "fields": {
+      "Name": "MJ_BizApps_Tasks: Task Template Items"
+    },
+    "relatedEntities": {
+      "MJ: Entity Fields": [
+        {
+          "fields": {
+            "Configuration": {
+              "Hierarchy": {
+                "IsHierarchy": true
+              }
+            }
+          },
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Template Items&Name=ParentItemID"
+          },
+          "sync": {
+            "lastModified": "2026-08-18T21:44:04.342Z",
+            "checksum": "c9d7f02681366f41bfee4d9aea7fcd14c0e8d47223c47f20891c562673cfefa1"
+          }
+        }
+      ]
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Template Items"
+    }
+  },
+  {
+    "_comments": [
+      "Seeds Hierarchy.IsHierarchy=true in EntityField.Configuration for Task.ParentID."
+    ],
+    "fields": {
+      "Name": "MJ_BizApps_Tasks: Tasks"
+    },
+    "relatedEntities": {
+      "MJ: Entity Fields": [
+        {
+          "fields": {
+            "Configuration": {
+              "Hierarchy": {
+                "IsHierarchy": true
+              }
+            }
+          },
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Tasks&Name=ParentID"
+          },
+          "sync": {
+            "lastModified": "2026-08-18T21:44:04.317Z",
+            "checksum": "c9d7f02681366f41bfee4d9aea7fcd14c0e8d47223c47f20891c562673cfefa1"
+          }
+        }
+      ]
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Tasks"
+    }
+  }
+]

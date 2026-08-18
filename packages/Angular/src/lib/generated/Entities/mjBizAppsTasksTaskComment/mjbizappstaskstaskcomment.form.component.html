@@ -10,22 +10,32 @@
     <!-- ========================================
          FIELD PANELS
          ======================================== -->
-    <!-- Details Section -->
+    <!-- Task Context Section -->
     <mj-collapsible-panel
-        SectionKey="details"
-        SectionName="Details"
-        Icon="fa fa-align-left"
+        SectionKey="taskContext"
+        SectionName="Task Context"
+        Icon="fa fa-tasks"
         [Form]="this"
         [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
-            [ShowLabel]="true"
+            [ShowLabel]="false"
             FieldName="TaskID"
             Type="textbox"
             [EditMode]="EditMode"
             [FormContext]="formContext"
             LinkType="Record"
         ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Threading Information Section -->
+    <mj-collapsible-panel
+        SectionKey="threadingInformation"
+        SectionName="Threading Information"
+        Icon="fa fa-project-diagram"
+        [Form]="this"
+        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -38,12 +48,72 @@
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
+            FieldName="RootParentID"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="ParentIDDepth"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="ParentIDPath"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="ParentIDIsLeaf"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="ParentIDChildCount"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Author Information Section -->
+    <mj-collapsible-panel
+        SectionKey="authorInformation"
+        SectionName="Author Information"
+        Icon="fa fa-user"
+        [Form]="this"
+        [FormContext]="formContext">
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="false"
             FieldName="PersonID"
             Type="textbox"
             [EditMode]="EditMode"
             [FormContext]="formContext"
             LinkType="Record"
         ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Comment Content Section -->
+    <mj-collapsible-panel
+        SectionKey="commentContent"
+        SectionName="Comment Content"
+        Icon="fa fa-align-left"
+        [Form]="this"
+        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -60,6 +130,16 @@
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- System Metadata Section -->
+    <mj-collapsible-panel
+        SectionKey="systemMetadata"
+        SectionName="System Metadata"
+        Icon="fa fa-cog"
+        [Form]="this"
+        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -72,14 +152,6 @@
             [Record]="record"
             [ShowLabel]="true"
             FieldName="__mj_UpdatedAt"
-            Type="textbox"
-            [EditMode]="EditMode"
-            [FormContext]="formContext"
-        ></mj-form-field>
-        <mj-form-field 
-            [Record]="record"
-            [ShowLabel]="true"
-            FieldName="RootParentID"
             Type="textbox"
             [EditMode]="EditMode"
             [FormContext]="formContext"
@@ -97,7 +169,7 @@
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksTaskComments"
         SectionName="Task Comments"
-        Icon="fa fa-table"
+        Icon="fa fa-comments"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"
@@ -107,9 +179,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Comments','ParentID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Comments')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Comments','ParentID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskComments')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskComments', $event.totalRowCount)"
                 >

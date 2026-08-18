@@ -16,7 +16,11 @@ export class mjBizAppsTasksTaskCommentFormComponent extends BaseFormComponent {
     override async ngOnInit() {
         await super.ngOnInit();
         this.initSections([
-            { sectionKey: 'details', sectionName: 'Details', isExpanded: true },
+            { sectionKey: 'taskContext', sectionName: 'Task Context', isExpanded: true },
+            { sectionKey: 'threadingInformation', sectionName: 'Threading Information', isExpanded: true },
+            { sectionKey: 'authorInformation', sectionName: 'Author Information', isExpanded: true },
+            { sectionKey: 'commentContent', sectionName: 'Comment Content', isExpanded: true },
+            { sectionKey: 'systemMetadata', sectionName: 'System Metadata', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskComments', sectionName: 'Task Comments', isExpanded: false }
         ]);
     }

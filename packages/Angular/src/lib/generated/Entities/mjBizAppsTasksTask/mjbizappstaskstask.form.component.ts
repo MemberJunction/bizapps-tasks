@@ -16,10 +16,15 @@ export class mjBizAppsTasksTaskFormComponent extends BaseFormComponent {
     override async ngOnInit() {
         await super.ngOnInit();
         this.initSections([
-            { sectionKey: 'details', sectionName: 'Details', isExpanded: true },
+            { sectionKey: 'taskDetails', sectionName: 'Task Details', isExpanded: true },
+            { sectionKey: 'hierarchyAndSequence', sectionName: 'Hierarchy and Sequence', isExpanded: true },
+            { sectionKey: 'statusAndPriority', sectionName: 'Status and Priority', isExpanded: true },
+            { sectionKey: 'timeline', sectionName: 'Timeline', isExpanded: true },
+            { sectionKey: 'effortAndProgress', sectionName: 'Effort and Progress', isExpanded: true },
+            { sectionKey: 'systemMetadata', sectionName: 'System Metadata', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskDependenciesDependsOnTaskID', sectionName: 'Task Dependencies (Depends On Task ID)', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskDependenciesTaskID', sectionName: 'Task Dependencies (Task ID)', isExpanded: false },
-            { sectionKey: 'mJBizAppsTasksTasks', sectionName: 'Tasks', isExpanded: false },
+            { sectionKey: 'mJBizAppsTasksTasks', sectionName: 'Sub-tasks', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskAssignments', sectionName: 'Task Assignments', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskLinks', sectionName: 'Task Links', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskComments', sectionName: 'Task Comments', isExpanded: false },
