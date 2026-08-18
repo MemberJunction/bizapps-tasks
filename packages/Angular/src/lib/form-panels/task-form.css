@@ -170,6 +170,21 @@
     margin-bottom: var(--mj-space-3);
 }
 
+/* Fill the collapsible panel body (capped at 600px) instead of a short 420px box. */
+.mjt-subtask-fill {
+    display: flex;
+    flex-direction: column;
+    min-height: 28rem;
+    height: calc(100vh - 16rem);
+    max-height: 34rem;
+}
+
+.mjt-subtask-fill bizapps-task-gantt {
+    flex: 1;
+    min-height: 0;
+    display: block;
+}
+
 .mjt-view-btn {
     border: 1px solid var(--mj-border-default);
     background: var(--mj-bg-surface);
