@@ -16,7 +16,7 @@
     "test": "echo \"No tests configured yet\""
   },
   "author": "MemberJunction.com",
-  "license": "ISC",
+  "license": "BUSL-1.1",
   "dependencies": {
     "@mj-biz-apps/tasks-entities": "1.2.3",
     "@mj-biz-apps/tasks-core": "1.2.3",

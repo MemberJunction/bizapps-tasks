@@ -1,7 +1,7 @@
 {
   "name": "bizapps-tasks",
   "version": "1.0.0",
-  "license": "ISC",
+  "license": "BUSL-1.1",
   "description": "BizApps Tasks - Reusable task management app for MemberJunction business applications",
   "workspaces": [
     "packages/*"
