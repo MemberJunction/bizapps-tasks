@@ -55,8 +55,14 @@ import {
     standalone: true,
     imports: [CommonModule, MjGanttChartComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
+    host: {
+        '[style.height]': 'Height',
+        '[style.display]': '"flex"',
+        '[style.flexDirection]': '"column"',
+        '[style.width]': '"100%"',
+    },
     template: `
-        <div class="mjt-gantt-wrap">
+        <div class="mjt-gantt-wrap" [style.height]="Height">
             @if (ShowToolbar) {
                 <div class="mjt-gantt-toolbar">
                     <div class="mjt-gantt-legend">
@@ -107,9 +113,9 @@ import {
         </div>
     `,
     styles: [`
-        :host { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; }
-        .mjt-gantt-wrap { display: flex; flex-direction: column; gap: 8px; width: 100%; flex: 1; min-height: 0; position: relative; }
-        .mjt-gantt-wrap mj-gantt-chart { flex: 1; min-height: 0; display: block; }
+        :host { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; flex: 1; }
+        .mjt-gantt-wrap { display: flex; flex-direction: column; gap: 8px; width: 100%; height: 100%; flex: 1; min-height: 0; position: relative; }
+        .mjt-gantt-wrap mj-gantt-chart { flex: 1; min-height: 0; display: flex; flex-direction: column; width: 100%; height: 100%; }
         .mjt-gantt-toolbar {
             display: flex; align-items: center; justify-content: space-between;
             padding: 6px 12px; background: var(--mj-bg-surface-sunken, #f8fafc);

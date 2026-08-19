@@ -170,19 +170,24 @@
     margin-bottom: var(--mj-space-3);
 }
 
-/* Fill the collapsible panel body (capped at 600px) instead of a short 420px box. */
+/* Dynamic fill container — height is measured dynamically from rect.top to viewport bottom */
 .mjt-subtask-fill {
     display: flex;
     flex-direction: column;
-    min-height: 28rem;
-    height: calc(100vh - 16rem);
-    max-height: 34rem;
+    width: 100%;
+    min-height: 360px;
+    box-sizing: border-box;
 }
 
-.mjt-subtask-fill bizapps-task-gantt {
+.mjt-subtask-fill bizapps-task-gantt,
+.mjt-subtask-fill bizapps-task-kanban,
+.mjt-subtask-fill mj-hierarchy-tree {
     flex: 1;
     min-height: 0;
-    display: block;
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 .mjt-view-btn {

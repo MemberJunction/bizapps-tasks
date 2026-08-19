@@ -15,21 +15,35 @@
             <button type="button" class="mjt-view-btn" [class.mjt-view-btn--on]="View === 'kanban'" (click)="SetView('kanban')">
                 <i class="fa-solid fa-columns" aria-hidden="true"></i> Board
             </button>
+            <button type="button" class="mjt-view-btn" [class.mjt-view-btn--on]="View === 'hierarchy'" (click)="SetView('hierarchy')">
+                <i class="fa-solid fa-sitemap" aria-hidden="true"></i> Hierarchy
+            </button>
         </div>
         @if (View === 'gantt') {
-            <div class="mjt-subtask-fill">
+            <div class="mjt-subtask-fill" #subtaskFill [style.height]="ComputedHeight">
                 <bizapps-task-gantt
                     [ParentTaskID]="Record.ID"
                     [IncludeParentSummary]="true"
-                    [Height]="'100%'"
+                    [Height]="ComputedHeight"
                     (TaskDoubleClicked)="OpenChild($event)">
                 </bizapps-task-gantt>
             </div>
-        } @else if (ParentFilter) {
-            <bizapps-task-kanban
-                [ExtraFilter]="ParentFilter"
-                (TaskDoubleClicked)="OpenChild($event)">
-            </bizapps-task-kanban>
+        } @else if (View === 'kanban' && ParentFilter) {
+            <div class="mjt-subtask-fill" #subtaskFill [style.height]="ComputedHeight">
+                <bizapps-task-kanban
+                    [ExtraFilter]="ParentFilter"
+                    (TaskDoubleClicked)="OpenChild($event)">
+                </bizapps-task-kanban>
+            </div>
+        } @else if (View === 'hierarchy') {
+            <div class="mjt-subtask-fill" #subtaskFill [style.height]="ComputedHeight">
+                <mj-hierarchy-tree
+                    [Config]="treeConfig"
+                    [ZoomLevel]="persistedZoomLevel"
+                    (ZoomChange)="onZoomChange($event)"
+                    (Navigate)="onNavigate($event)">
+                </mj-hierarchy-tree>
+            </div>
         }
     }
 </mj-collapsible-panel>
