@@ -133,7 +133,8 @@ export interface TaskKPIs {
                         #taskGantt
                         [CategoryID]="SelectedCategoryID"
                         [Height]="'calc(100vh - 340px)'"
-                        (TaskDoubleClicked)="OpenPanel('detail', $event)">
+                        (TaskClicked)="OpenPanel('detail', $event)"
+                        (TaskDoubleClicked)="OpenFullRecord($event)">
                     </bizapps-task-gantt>
                 }
                 @if (ViewMode === 'kanban') {
@@ -356,6 +357,9 @@ export interface TaskKPIs {
             padding: 16px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
             min-width: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: calc(100vh - 340px);
         }
 
         /* Slide-in Side Drawer */
@@ -408,6 +412,7 @@ export class TasksDashboardPageComponent implements OnInit {
             this.LoadCategories(),
             this.LoadKPIs(),
         ]);
+        this.cdr.markForCheck();
     }
 
     public SetView(mode: TaskViewMode): void {

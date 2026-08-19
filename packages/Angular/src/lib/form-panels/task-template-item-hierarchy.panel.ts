@@ -4,34 +4,34 @@ import { RegisterClassEx } from '@memberjunction/global';
 import { BaseFormPanel, BaseFormsModule, FormNavigationEvent } from '@memberjunction/ng-base-forms';
 import { HierarchyTreeComponent, HierarchyTreeConfig } from '@memberjunction/ng-hierarchy-tree';
 import { UserInfoEngine } from '@memberjunction/core-entities';
-import { mjBizAppsTasksTaskCategoryEntity } from '@mj-biz-apps/tasks-entities';
+import { mjBizAppsTasksTaskTemplateItemEntity } from '@mj-biz-apps/tasks-entities';
 
 /**
- * Task Category Hierarchy & Taxonomy Tree Panel.
+ * Task Template Item Hierarchy Tree Panel.
  *
- * Attaches to `MJ_BizApps_Tasks: Task Categories` and provides an interactive
- * taxonomy visualizer powered by `@memberjunction/ng-hierarchy-tree`.
+ * Attaches to `MJ_BizApps_Tasks: Task Template Items` and provides an interactive
+ * breakdown structure visualizer for nested template items powered by `@memberjunction/ng-hierarchy-tree`.
  */
 @RegisterClassEx(BaseFormPanel, {
-    key: 'form-panel:TaskCategories:taxonomy',
+    key: 'form-panel:TaskTemplateItems:hierarchy',
     metadata: {
-        entity: 'MJ_BizApps_Tasks: Task Categories',
+        entity: 'MJ_BizApps_Tasks: Task Template Items',
         slot: 'after-related',
         sortKey: 40,
-        relatedEntity: 'MJ_BizApps_Tasks: Task Categories',
-        relatedJoinField: 'ParentID'
+        relatedEntity: 'MJ_BizApps_Tasks: Task Template Items',
+        relatedJoinField: 'ParentItemID'
     }
 })
 @Component({
-    selector: 'bizapps-task-category-hierarchy-panel',
+    selector: 'bizapps-task-template-item-hierarchy-panel',
     standalone: true,
     imports: [CommonModule, BaseFormsModule, HierarchyTreeComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         <mj-collapsible-panel
-            SectionKey="taskCategoryTaxonomy"
-            SectionName="Category Hierarchy & Taxonomy"
-            Icon="fa-solid fa-sitemap"
+            SectionKey="taskTemplateItemHierarchy"
+            SectionName="Hierarchy"
+            Icon="fa-solid fa-list-check"
             Variant="related-entity"
             [Form]="FormComponent"
             [FormContext]="FormContext"
@@ -59,10 +59,11 @@ import { mjBizAppsTasksTaskCategoryEntity } from '@mj-biz-apps/tasks-entities';
         }
     `]
 })
-export class TaskCategoryHierarchyPanel extends BaseFormPanel<mjBizAppsTasksTaskCategoryEntity> {
-    private readonly SETTING_KEY = 'mj.hierarchyTree.zoom.task_categories';
+export class TaskTemplateItemHierarchyPanel extends BaseFormPanel<mjBizAppsTasksTaskTemplateItemEntity> {
+    private readonly SETTING_KEY = 'mj.hierarchyTree.zoom.task_template_items';
     private _treeConfig: HierarchyTreeConfig | null = null;
     private _cachedRecordId: string | null = null;
+    private _cachedTemplateId: string | null = null;
 
     public get persistedZoomLevel(): number | undefined {
         const raw = UserInfoEngine.Instance.GetSetting(this.SETTING_KEY);
@@ -81,15 +82,19 @@ export class TaskCategoryHierarchyPanel extends BaseFormPanel<mjBizAppsTasksTask
 
     public get treeConfig(): HierarchyTreeConfig {
         const recId = this.Record?.ID || null;
-        if (!this._treeConfig || this._cachedRecordId !== recId) {
+        const templateId = this.Record?.TemplateID || null;
+        if (!this._treeConfig || this._cachedRecordId !== recId || this._cachedTemplateId !== templateId) {
             this._cachedRecordId = recId;
+            this._cachedTemplateId = templateId;
+            const filter = templateId ? `TemplateID = '${templateId}'` : '';
             this._treeConfig = {
-                EntityName: 'MJ_BizApps_Tasks: Task Categories',
-                ParentField: 'ParentID',
+                EntityName: 'MJ_BizApps_Tasks: Task Template Items',
+                ParentField: 'ParentItemID',
                 SubtitleField: 'Description',
-                DefaultIcon: 'fa-solid fa-folder-tree',
-                DefaultColor: '#8b5cf6',
+                DefaultIcon: 'fa-solid fa-list-check',
+                DefaultColor: '#10b981',
                 ActiveRecordID: recId || undefined,
+                ExtraFilter: filter,
                 Height: '100%',
                 MinHeight: '640px',
                 ShowSearch: true,

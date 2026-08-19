@@ -36,18 +36,46 @@ export async function LoadWorld(ctx: IntegrationCheckContext): Promise<WorldStat
     for (const row of outcomeRows) DecisionOutcomes[row.Name] = row;
 
     const Categories: WorldState['Categories'] = {};
-    for (const name of ['Engineering & Development', 'Product & Design', 'Operations & Legal']) {
-        const existing = await FindId(ctx, TASK_CATEGORY_ENTITY, `Name = '${Quote(name)}'`);
-        if (existing) {
-            Categories[name] = { ID: existing, Name: name };
-            continue;
-        }
+    const categoryTreeDefs: Array<{
+        name: string;
+        description?: string;
+        parentName?: string;
+    }> = [
+        // Level 1: Root Categories
+        { name: 'Engineering & Development', description: 'Core software engineering and technical product development' },
+        { name: 'Product & Design', description: 'Product strategy, UX/UI design, and product specifications' },
+        { name: 'Operations & Legal', description: 'Business operations, legal compliance, and facilities' },
+
+        // Level 2: Sub-categories
+        { name: 'Core Platform & API', description: 'Platform infrastructure, database schemas, and API services', parentName: 'Engineering & Development' },
+        { name: 'Frontend Applications', description: 'Web UI apps, design systems, and client libraries', parentName: 'Engineering & Development' },
+        { name: 'DevOps & Quality Engineering', description: 'CI/CD pipelines, automated testing, and cloud infrastructure', parentName: 'Engineering & Development' },
+        { name: 'User Experience & Research', description: 'User interviews, usability testing, and wireframes', parentName: 'Product & Design' },
+        { name: 'Design Systems & Tokens', description: 'Color palettes, typography, and UI iconography', parentName: 'Product & Design' },
+        { name: 'Information Security & Compliance', description: 'SOC2 audits, penetration testing, and security policy reviews', parentName: 'Operations & Legal' },
+        { name: 'Finance & Accounting Operations', description: 'Budget tracking, invoicing, and contract reviews', parentName: 'Operations & Legal' },
+
+        // Level 3: Leaf Categories
+        { name: 'Database & Migrations', description: 'SQL DDL migrations, views, and data seeding', parentName: 'Core Platform & API' },
+        { name: 'GraphQL Services', description: 'Resolvers, schema generation, and query pipeline', parentName: 'Core Platform & API' },
+        { name: 'Explorer Shell', description: 'Resource tabs, navigation rails, and core layouts', parentName: 'Frontend Applications' },
+        { name: 'Shared Component Library', description: 'Angular UI components, directives, and forms', parentName: 'Frontend Applications' },
+    ];
+
+    for (const def of categoryTreeDefs) {
+        const existing = await FindId(ctx, TASK_CATEGORY_ENTITY, `Name = '${Quote(def.name)}'`);
         const cat = await ctx.Provider.GetEntityObject<mjBizAppsTasksTaskCategoryEntity>(TASK_CATEGORY_ENTITY, ctx.User);
-        cat.NewRecord();
-        cat.Name = name;
+        if (existing) {
+            await cat.Load(existing);
+        } else {
+            cat.NewRecord();
+        }
+        cat.Name = def.name;
+        cat.Description = def.description ?? null;
+        cat.ParentID = def.parentName && Categories[def.parentName] ? Categories[def.parentName].ID : null;
         cat.IsActive = true;
-        await RequireSave(cat, `category ${name}`);
-        Categories[name] = { ID: cat.ID, Name: name };
+        await RequireSave(cat, `category ${def.name}`);
+        Categories[def.name] = { ID: cat.ID, Name: def.name };
     }
 
     const People: WorldState['People'] = {};

@@ -15,6 +15,10 @@ const checks: NamedCheck[] = [
             Assert(!!world.People['sarah.connor@task-world.test'], 'Sarah missing');
             Assert(!!world.SeedTaskIDs['Website Redesign & Portal Launch'], 'root task missing');
             Assert(!!world.Categories['Engineering & Development'], 'Engineering category missing');
+            Assert(!!world.Categories['Core Platform & API'], 'Core Platform category missing');
+            Assert(!!world.Categories['Frontend Applications'], 'Frontend Applications category missing');
+            Assert(!!world.Categories['Database & Migrations'], 'Database & Migrations category missing');
+            Assert(!!world.Categories['Explorer Shell'], 'Explorer Shell category missing');
             World();
         },
     },
