@@ -133,8 +133,7 @@ export interface TaskKPIs {
                         #taskGantt
                         [CategoryID]="SelectedCategoryID"
                         [Height]="'calc(100vh - 340px)'"
-                        (TaskClicked)="OpenPanel('detail', $event)"
-                        (TaskDoubleClicked)="OpenFullRecord($event)">
+                        (TaskDoubleClicked)="OpenPanel('detail', $event)">
                     </bizapps-task-gantt>
                 }
                 @if (ViewMode === 'kanban') {

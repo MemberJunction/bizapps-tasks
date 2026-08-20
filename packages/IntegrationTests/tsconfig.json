@@ -5,7 +5,10 @@
     "rootDir": "src",
     "types": [
       "node"
-    ]
+    ],
+    "paths": {
+      "@mj-biz-apps/tasks-entities-server": ["../EntitiesServer/dist/index.d.ts"]
+    }
   },
   "include": [
     "src/**/*"

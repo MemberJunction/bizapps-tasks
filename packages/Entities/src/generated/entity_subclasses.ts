@@ -1,4 +1,4 @@
-import { BaseEntity, EntitySaveOptions, EntityDeleteOptions, CompositeKey, ValidationResult, ValidationErrorInfo, ValidationErrorType, Metadata, ProviderType, DatabaseProviderBase } from "@memberjunction/core";
+import { BaseEntity, EntitySaveOptions, EntityDeleteOptions, CompositeKey, ValidationResult, ValidationErrorInfo, ValidationErrorType, Metadata, ProviderType, DatabaseProviderBase, RunView } from "@memberjunction/core";
 import { RegisterClass } from "@memberjunction/global";
 import { z } from "zod";
 
@@ -1387,10 +1387,6 @@ export const mjBizAppsTasksTaskSchema = z.object({
         * * Field Name: TaskTypeStatus
         * * Display Name: Task Type Status Name
         * * SQL Data Type: nvarchar(100)`),
-    RootParentID: z.string().nullable().describe(`
-        * * Field Name: RootParentID
-        * * Display Name: Root Parent
-        * * SQL Data Type: uniqueidentifier`),
 });
 
 export type mjBizAppsTasksTaskEntityType = z.infer<typeof mjBizAppsTasksTaskSchema>;
@@ -5014,14 +5010,5 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     */
     get TaskTypeStatus(): string | null {
         return this.Get('TaskTypeStatus');
-    }
-
-    /**
-    * * Field Name: RootParentID
-    * * Display Name: Root Parent
-    * * SQL Data Type: uniqueidentifier
-    */
-    get RootParentID(): string | null {
-        return this.Get('RootParentID');
     }
 }

@@ -80,9 +80,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Template Item Roles','RoleID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Template Item Roles')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Template Item Roles','RoleID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskTemplateItemRoles')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskTemplateItemRoles', $event.totalRowCount)"
                 >
@@ -105,9 +105,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Assignments','RoleID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Assignments')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Assignments','RoleID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskAssignments')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskAssignments', $event.totalRowCount)"
                 >

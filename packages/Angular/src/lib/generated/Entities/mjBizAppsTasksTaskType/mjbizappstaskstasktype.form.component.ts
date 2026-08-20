@@ -22,7 +22,6 @@ export class mjBizAppsTasksTaskTypeFormComponent extends BaseFormComponent {
             { sectionKey: 'mJBizAppsTasksTaskNotificationConfigs', sectionName: 'Task Notification Configs', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTasks', sectionName: 'Tasks', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskTemplates', sectionName: 'Task Templates', isExpanded: false },
-            { sectionKey: 'mJBizAppsIssuesIssueTypes', sectionName: 'Issue Types', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskTypeStatus', sectionName: 'Task Type Status', isExpanded: false }
         ]);
     }

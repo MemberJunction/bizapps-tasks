@@ -80,9 +80,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Tag Links','TagID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Tag Links')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Tag Links','TagID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskTagLinks')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskTagLinks', $event.totalRowCount)"
                 >

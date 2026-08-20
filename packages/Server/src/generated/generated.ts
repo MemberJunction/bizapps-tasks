@@ -7,7 +7,7 @@
 *   >>> THE NEXT TIME THIS FILE IS GENERATED
 *
 **********************************************************************************/
-import { Arg, Ctx, Int, Query, Resolver, Field, Float, ObjectType, FieldResolver, Root, InputType, Mutation,
+import { Arg, Ctx, Int, Query, Resolver, Field, Float, ObjectType, InputType, Mutation,
             PubSub, PubSubEngine, ResolverBase, RunViewByIDInput, RunViewByNameInput, RunDynamicViewInput,
             AppContext, KeyValuePairInput, DeleteOptionsInput, GraphQLTimestamp as Timestamp,
             GetReadOnlyProvider, GetReadWriteProvider, RestoreContextInput } from '@memberjunction/server';
@@ -280,9 +280,6 @@ export class mjBizAppsTasksTaskAssignment_ {
     @MaxLength(201)
     AssignedByPerson?: string;
         
-    @Field(() => [mjBizAppsTasksTaskDecision_])
-    mjBizAppsTasksMJ_BizApps_Tasks_TaskDecisions_TaskAssignmentIDArray: mjBizAppsTasksTaskDecision_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskDecisions
-    
 }
 
 //****************************************************************************
@@ -418,16 +415,6 @@ export class mjBizAppsTasksTaskAssignmentResolver extends ResolverBase {
         return result;
     }
     
-    @FieldResolver(() => [mjBizAppsTasksTaskDecision_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_TaskDecisions_TaskAssignmentIDArray(@Root() mjbizappstaskstaskassignment_: mjBizAppsTasksTaskAssignment_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Decisions', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskDecisions')} WHERE ${provider.QuoteIdentifier('TaskAssignmentID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Decisions', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstaskassignment_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Decisions', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
     @Mutation(() => mjBizAppsTasksTaskAssignment_)
     async CreatemjBizAppsTasksTaskAssignment(
         @Arg('input', () => CreatemjBizAppsTasksTaskAssignmentInput) input: CreatemjBizAppsTasksTaskAssignmentInput,
@@ -513,15 +500,6 @@ export class mjBizAppsTasksTaskCategory_ {
     @Field(() => Int, {nullable: true}) 
     ParentIDChildCount?: number;
         
-    @Field(() => [mjBizAppsTasksTaskTemplate_])
-    mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplates_CategoryIDArray: mjBizAppsTasksTaskTemplate_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplates
-    
-    @Field(() => [mjBizAppsTasksTaskCategory_])
-    mjBizAppsTasksMJ_BizApps_Tasks_TaskCategories_ParentIDArray: mjBizAppsTasksTaskCategory_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskCategories
-    
-    @Field(() => [mjBizAppsTasksTask_])
-    mjBizAppsTasksMJ_BizApps_Tasks_Tasks_CategoryIDArray: mjBizAppsTasksTask_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_Tasks
-    
 }
 
 //****************************************************************************
@@ -645,36 +623,6 @@ export class mjBizAppsTasksTaskCategoryResolver extends ResolverBase {
         return result;
     }
     
-    @FieldResolver(() => [mjBizAppsTasksTaskTemplate_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplates_CategoryIDArray(@Root() mjbizappstaskstaskcategory_: mjBizAppsTasksTaskCategory_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Templates', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskTemplates')} WHERE ${provider.QuoteIdentifier('CategoryID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Templates', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstaskcategory_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Templates', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsTasksTaskCategory_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_TaskCategories_ParentIDArray(@Root() mjbizappstaskstaskcategory_: mjBizAppsTasksTaskCategory_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Categories', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskCategories')} WHERE ${provider.QuoteIdentifier('ParentID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Categories', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstaskcategory_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Categories', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsTasksTask_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_Tasks_CategoryIDArray(@Root() mjbizappstaskstaskcategory_: mjBizAppsTasksTaskCategory_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Tasks', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTasks')} WHERE ${provider.QuoteIdentifier('CategoryID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Tasks', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstaskcategory_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Tasks', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
     @Mutation(() => mjBizAppsTasksTaskCategory_)
     async CreatemjBizAppsTasksTaskCategory(
         @Arg('input', () => CreatemjBizAppsTasksTaskCategoryInput) input: CreatemjBizAppsTasksTaskCategoryInput,
@@ -761,9 +709,6 @@ export class mjBizAppsTasksTaskComment_ {
     @Field(() => Int, {nullable: true}) 
     ParentIDChildCount?: number;
         
-    @Field(() => [mjBizAppsTasksTaskComment_])
-    mjBizAppsTasksMJ_BizApps_Tasks_TaskComments_ParentIDArray: mjBizAppsTasksTaskComment_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskComments
-    
 }
 
 //****************************************************************************
@@ -881,16 +826,6 @@ export class mjBizAppsTasksTaskCommentResolver extends ResolverBase {
         return result;
     }
     
-    @FieldResolver(() => [mjBizAppsTasksTaskComment_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_TaskComments_ParentIDArray(@Root() mjbizappstaskstaskcomment_: mjBizAppsTasksTaskComment_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Comments', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskComments')} WHERE ${provider.QuoteIdentifier('ParentID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Comments', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstaskcomment_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Comments', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
     @Mutation(() => mjBizAppsTasksTaskComment_)
     async CreatemjBizAppsTasksTaskComment(
         @Arg('input', () => CreatemjBizAppsTasksTaskCommentInput) input: CreatemjBizAppsTasksTaskCommentInput,
@@ -955,9 +890,6 @@ export class mjBizAppsTasksTaskDecisionOutcome_ {
     @Field() 
     _mj__UpdatedAt: Date;
         
-    @Field(() => [mjBizAppsTasksTaskDecision_])
-    mjBizAppsTasksMJ_BizApps_Tasks_TaskDecisions_OutcomeIDArray: mjBizAppsTasksTaskDecision_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskDecisions
-    
 }
 
 //****************************************************************************
@@ -1081,16 +1013,6 @@ export class mjBizAppsTasksTaskDecisionOutcomeResolver extends ResolverBase {
         return result;
     }
     
-    @FieldResolver(() => [mjBizAppsTasksTaskDecision_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_TaskDecisions_OutcomeIDArray(@Root() mjbizappstaskstaskdecisionoutcome_: mjBizAppsTasksTaskDecisionOutcome_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Decisions', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskDecisions')} WHERE ${provider.QuoteIdentifier('OutcomeID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Decisions', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstaskdecisionoutcome_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Decisions', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
     @Mutation(() => mjBizAppsTasksTaskDecisionOutcome_)
     async CreatemjBizAppsTasksTaskDecisionOutcome(
         @Arg('input', () => CreatemjBizAppsTasksTaskDecisionOutcomeInput) input: CreatemjBizAppsTasksTaskDecisionOutcomeInput,
@@ -2076,12 +1998,6 @@ export class mjBizAppsTasksTaskRole_ {
     @Field() 
     _mj__UpdatedAt: Date;
         
-    @Field(() => [mjBizAppsTasksTaskTemplateItemRole_])
-    mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplateItemRoles_RoleIDArray: mjBizAppsTasksTaskTemplateItemRole_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplateItemRoles
-    
-    @Field(() => [mjBizAppsTasksTaskAssignment_])
-    mjBizAppsTasksMJ_BizApps_Tasks_TaskAssignments_RoleIDArray: mjBizAppsTasksTaskAssignment_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskAssignments
-    
 }
 
 //****************************************************************************
@@ -2187,26 +2103,6 @@ export class mjBizAppsTasksTaskRoleResolver extends ResolverBase {
         return result;
     }
     
-    @FieldResolver(() => [mjBizAppsTasksTaskTemplateItemRole_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplateItemRoles_RoleIDArray(@Root() mjbizappstaskstaskrole_: mjBizAppsTasksTaskRole_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Template Item Roles', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskTemplateItemRoles')} WHERE ${provider.QuoteIdentifier('RoleID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Template Item Roles', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstaskrole_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Template Item Roles', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsTasksTaskAssignment_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_TaskAssignments_RoleIDArray(@Root() mjbizappstaskstaskrole_: mjBizAppsTasksTaskRole_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Assignments', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskAssignments')} WHERE ${provider.QuoteIdentifier('RoleID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Assignments', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstaskrole_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Assignments', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
     @Mutation(() => mjBizAppsTasksTaskRole_)
     async CreatemjBizAppsTasksTaskRole(
         @Arg('input', () => CreatemjBizAppsTasksTaskRoleInput) input: CreatemjBizAppsTasksTaskRoleInput,
@@ -2421,9 +2317,6 @@ export class mjBizAppsTasksTaskTag_ {
     @Field() 
     _mj__UpdatedAt: Date;
         
-    @Field(() => [mjBizAppsTasksTaskTagLink_])
-    mjBizAppsTasksMJ_BizApps_Tasks_TaskTagLinks_TagIDArray: mjBizAppsTasksTaskTagLink_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskTagLinks
-    
 }
 
 //****************************************************************************
@@ -2529,16 +2422,6 @@ export class mjBizAppsTasksTaskTagResolver extends ResolverBase {
         return result;
     }
     
-    @FieldResolver(() => [mjBizAppsTasksTaskTagLink_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_TaskTagLinks_TagIDArray(@Root() mjbizappstaskstasktag_: mjBizAppsTasksTaskTag_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Tag Links', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskTagLinks')} WHERE ${provider.QuoteIdentifier('TagID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Tag Links', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstasktag_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Tag Links', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
     @Mutation(() => mjBizAppsTasksTaskTag_)
     async CreatemjBizAppsTasksTaskTag(
         @Arg('input', () => CreatemjBizAppsTasksTaskTagInput) input: CreatemjBizAppsTasksTaskTagInput,
@@ -2963,18 +2846,6 @@ export class mjBizAppsTasksTaskTemplateItem_ {
     @Field(() => Int, {nullable: true}) 
     ParentItemIDChildCount?: number;
         
-    @Field(() => [mjBizAppsTasksTaskTemplateItem_])
-    mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplateItems_ParentItemIDArray: mjBizAppsTasksTaskTemplateItem_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplateItems
-    
-    @Field(() => [mjBizAppsTasksTaskTemplateItemRole_])
-    mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplateItemRoles_ItemIDArray: mjBizAppsTasksTaskTemplateItemRole_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplateItemRoles
-    
-    @Field(() => [mjBizAppsTasksTaskTemplateItemDependency_])
-    mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplateItemDependencies_DependsOnItemIDArray: mjBizAppsTasksTaskTemplateItemDependency_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplateItemDependencies
-    
-    @Field(() => [mjBizAppsTasksTaskTemplateItemDependency_])
-    mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplateItemDependencies_ItemIDArray: mjBizAppsTasksTaskTemplateItemDependency_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplateItemDependencies
-    
 }
 
 //****************************************************************************
@@ -3110,46 +2981,6 @@ export class mjBizAppsTasksTaskTemplateItemResolver extends ResolverBase {
         return result;
     }
     
-    @FieldResolver(() => [mjBizAppsTasksTaskTemplateItem_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplateItems_ParentItemIDArray(@Root() mjbizappstaskstasktemplateitem_: mjBizAppsTasksTaskTemplateItem_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Template Items', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskTemplateItems')} WHERE ${provider.QuoteIdentifier('ParentItemID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Template Items', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstasktemplateitem_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Template Items', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsTasksTaskTemplateItemRole_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplateItemRoles_ItemIDArray(@Root() mjbizappstaskstasktemplateitem_: mjBizAppsTasksTaskTemplateItem_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Template Item Roles', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskTemplateItemRoles')} WHERE ${provider.QuoteIdentifier('ItemID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Template Item Roles', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstasktemplateitem_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Template Item Roles', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsTasksTaskTemplateItemDependency_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplateItemDependencies_DependsOnItemIDArray(@Root() mjbizappstaskstasktemplateitem_: mjBizAppsTasksTaskTemplateItem_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Template Item Dependencies', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskTemplateItemDependencies')} WHERE ${provider.QuoteIdentifier('DependsOnItemID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Template Item Dependencies', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstasktemplateitem_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Template Item Dependencies', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsTasksTaskTemplateItemDependency_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplateItemDependencies_ItemIDArray(@Root() mjbizappstaskstasktemplateitem_: mjBizAppsTasksTaskTemplateItem_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Template Item Dependencies', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskTemplateItemDependencies')} WHERE ${provider.QuoteIdentifier('ItemID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Template Item Dependencies', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstasktemplateitem_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Template Item Dependencies', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
     @Mutation(() => mjBizAppsTasksTaskTemplateItem_)
     async CreatemjBizAppsTasksTaskTemplateItem(
         @Arg('input', () => CreatemjBizAppsTasksTaskTemplateItemInput) input: CreatemjBizAppsTasksTaskTemplateItemInput,
@@ -3220,9 +3051,6 @@ export class mjBizAppsTasksTaskTemplate_ {
     @MaxLength(100)
     Type?: string;
         
-    @Field(() => [mjBizAppsTasksTaskTemplateItem_])
-    mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplateItems_TemplateIDArray: mjBizAppsTasksTaskTemplateItem_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplateItems
-    
 }
 
 //****************************************************************************
@@ -3340,16 +3168,6 @@ export class mjBizAppsTasksTaskTemplateResolver extends ResolverBase {
         return result;
     }
     
-    @FieldResolver(() => [mjBizAppsTasksTaskTemplateItem_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplateItems_TemplateIDArray(@Root() mjbizappstaskstasktemplate_: mjBizAppsTasksTaskTemplate_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Template Items', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskTemplateItems')} WHERE ${provider.QuoteIdentifier('TemplateID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Template Items', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstasktemplate_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Template Items', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
     @Mutation(() => mjBizAppsTasksTaskTemplate_)
     async CreatemjBizAppsTasksTaskTemplate(
         @Arg('input', () => CreatemjBizAppsTasksTaskTemplateInput) input: CreatemjBizAppsTasksTaskTemplateInput,
@@ -3453,9 +3271,6 @@ export class mjBizAppsTasksTaskTypeStatus_ {
     @MaxLength(425)
     OnExitAction?: string;
         
-    @Field(() => [mjBizAppsTasksTask_])
-    mjBizAppsTasksMJ_BizApps_Tasks_Tasks_TaskTypeStatusIDArray: mjBizAppsTasksTask_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_Tasks
-    
 }
 
 //****************************************************************************
@@ -3621,16 +3436,6 @@ export class mjBizAppsTasksTaskTypeStatusResolver extends ResolverBase {
         return result;
     }
     
-    @FieldResolver(() => [mjBizAppsTasksTask_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_Tasks_TaskTypeStatusIDArray(@Root() mjbizappstaskstasktypestatus_: mjBizAppsTasksTaskTypeStatus_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Tasks', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTasks')} WHERE ${provider.QuoteIdentifier('TaskTypeStatusID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Tasks', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstasktypestatus_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Tasks', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
     @Mutation(() => mjBizAppsTasksTaskTypeStatus_)
     async CreatemjBizAppsTasksTaskTypeStatus(
         @Arg('input', () => CreatemjBizAppsTasksTaskTypeStatusInput) input: CreatemjBizAppsTasksTaskTypeStatusInput,
@@ -3761,19 +3566,6 @@ export class mjBizAppsTasksTaskType_ {
     @MaxLength(425)
     OnStatusChangeAction?: string;
         
-    @Field(() => [mjBizAppsTasksTaskNotificationConfig_])
-    mjBizAppsTasksMJ_BizApps_Tasks_TaskNotificationConfigs_TaskTypeIDArray: mjBizAppsTasksTaskNotificationConfig_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskNotificationConfigs
-    
-    @Field(() => [mjBizAppsTasksTask_])
-    mjBizAppsTasksMJ_BizApps_Tasks_Tasks_TypeIDArray: mjBizAppsTasksTask_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_Tasks
-    
-    @Field(() => [mjBizAppsTasksTaskTemplate_])
-    mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplates_TypeIDArray: mjBizAppsTasksTaskTemplate_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplates
-    // Relationship field to MJ_BizApps_Issues: Issue Types not generated: its GraphQL type is not declared in this file.
-
-    @Field(() => [mjBizAppsTasksTaskTypeStatus_])
-    mjBizAppsTasksMJ_BizApps_Tasks_TaskTypeStatus_TaskTypeIDArray: mjBizAppsTasksTaskTypeStatus_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskTypeStatus
-    
 }
 
 //****************************************************************************
@@ -3945,47 +3737,6 @@ export class mjBizAppsTasksTaskTypeResolver extends ResolverBase {
         return result;
     }
     
-    @FieldResolver(() => [mjBizAppsTasksTaskNotificationConfig_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_TaskNotificationConfigs_TaskTypeIDArray(@Root() mjbizappstaskstasktype_: mjBizAppsTasksTaskType_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Notification Configs', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskNotificationConfigs')} WHERE ${provider.QuoteIdentifier('TaskTypeID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Notification Configs', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstasktype_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Notification Configs', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsTasksTask_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_Tasks_TypeIDArray(@Root() mjbizappstaskstasktype_: mjBizAppsTasksTaskType_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Tasks', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTasks')} WHERE ${provider.QuoteIdentifier('TypeID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Tasks', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstasktype_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Tasks', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsTasksTaskTemplate_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplates_TypeIDArray(@Root() mjbizappstaskstasktype_: mjBizAppsTasksTaskType_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Templates', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskTemplates')} WHERE ${provider.QuoteIdentifier('TypeID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Templates', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstasktype_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Templates', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        // Relationship to MJ_BizApps_Issues: Issue Types not generated: its GraphQL type is not declared in this file.
-
-    @FieldResolver(() => [mjBizAppsTasksTaskTypeStatus_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_TaskTypeStatus_TaskTypeIDArray(@Root() mjbizappstaskstasktype_: mjBizAppsTasksTaskType_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Type Status', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskTypeStatus')} WHERE ${provider.QuoteIdentifier('TaskTypeID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Type Status', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstasktype_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Type Status', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
     @Mutation(() => mjBizAppsTasksTaskType_)
     async CreatemjBizAppsTasksTaskType(
         @Arg('input', () => CreatemjBizAppsTasksTaskTypeInput) input: CreatemjBizAppsTasksTaskTypeInput,
@@ -4115,41 +3866,6 @@ export class mjBizAppsTasksTask_ {
     @MaxLength(100)
     TaskTypeStatus?: string;
         
-    @Field({nullable: true}) 
-    @MaxLength(36)
-    RootParentID?: string;
-        
-    @Field(() => [mjBizAppsTasksTaskDependency_])
-    mjBizAppsTasksMJ_BizApps_Tasks_TaskDependencies_DependsOnTaskIDArray: mjBizAppsTasksTaskDependency_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskDependencies
-    
-    @Field(() => [mjBizAppsTasksTaskDependency_])
-    mjBizAppsTasksMJ_BizApps_Tasks_TaskDependencies_TaskIDArray: mjBizAppsTasksTaskDependency_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskDependencies
-    
-    @Field(() => [mjBizAppsTasksTask_])
-    mjBizAppsTasksMJ_BizApps_Tasks_Tasks_ParentIDArray: mjBizAppsTasksTask_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_Tasks
-    
-    @Field(() => [mjBizAppsTasksTaskAssignment_])
-    mjBizAppsTasksMJ_BizApps_Tasks_TaskAssignments_TaskIDArray: mjBizAppsTasksTaskAssignment_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskAssignments
-    
-    @Field(() => [mjBizAppsTasksTaskLink_])
-    mjBizAppsTasksMJ_BizApps_Tasks_TaskLinks_TaskIDArray: mjBizAppsTasksTaskLink_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskLinks
-    
-    @Field(() => [mjBizAppsTasksTaskComment_])
-    mjBizAppsTasksMJ_BizApps_Tasks_TaskComments_TaskIDArray: mjBizAppsTasksTaskComment_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskComments
-    
-    @Field(() => [mjBizAppsTasksTaskActivity_])
-    mjBizAppsTasksMJ_BizApps_Tasks_TaskActivities_TaskIDArray: mjBizAppsTasksTaskActivity_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskActivities
-    
-    @Field(() => [mjBizAppsTasksTaskTagLink_])
-    mjBizAppsTasksMJ_BizApps_Tasks_TaskTagLinks_TaskIDArray: mjBizAppsTasksTaskTagLink_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskTagLinks
-    
-    @Field(() => [mjBizAppsTasksTaskNotificationLog_])
-    mjBizAppsTasksMJ_BizApps_Tasks_TaskNotificationLogs_TaskIDArray: mjBizAppsTasksTaskNotificationLog_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskNotificationLogs
-    
-    @Field(() => [mjBizAppsTasksTaskDecision_])
-    mjBizAppsTasksMJ_BizApps_Tasks_TaskDecisions_TaskIDArray: mjBizAppsTasksTaskDecision_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskDecisions
-    // Relationship field to MJ_BizApps_Accounting: Journal Entry Batches not generated: its GraphQL type is not declared in this file.
-
 }
 
 //****************************************************************************
@@ -4351,107 +4067,6 @@ export class mjBizAppsTasksTaskResolver extends ResolverBase {
         return result;
     }
     
-    @FieldResolver(() => [mjBizAppsTasksTaskDependency_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_TaskDependencies_DependsOnTaskIDArray(@Root() mjbizappstaskstask_: mjBizAppsTasksTask_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Dependencies', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskDependencies')} WHERE ${provider.QuoteIdentifier('DependsOnTaskID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Dependencies', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstask_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Dependencies', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsTasksTaskDependency_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_TaskDependencies_TaskIDArray(@Root() mjbizappstaskstask_: mjBizAppsTasksTask_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Dependencies', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskDependencies')} WHERE ${provider.QuoteIdentifier('TaskID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Dependencies', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstask_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Dependencies', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsTasksTask_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_Tasks_ParentIDArray(@Root() mjbizappstaskstask_: mjBizAppsTasksTask_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Tasks', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTasks')} WHERE ${provider.QuoteIdentifier('ParentID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Tasks', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstask_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Tasks', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsTasksTaskAssignment_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_TaskAssignments_TaskIDArray(@Root() mjbizappstaskstask_: mjBizAppsTasksTask_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Assignments', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskAssignments')} WHERE ${provider.QuoteIdentifier('TaskID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Assignments', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstask_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Assignments', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsTasksTaskLink_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_TaskLinks_TaskIDArray(@Root() mjbizappstaskstask_: mjBizAppsTasksTask_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Links', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskLinks')} WHERE ${provider.QuoteIdentifier('TaskID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Links', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstask_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Links', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsTasksTaskComment_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_TaskComments_TaskIDArray(@Root() mjbizappstaskstask_: mjBizAppsTasksTask_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Comments', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskComments')} WHERE ${provider.QuoteIdentifier('TaskID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Comments', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstask_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Comments', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsTasksTaskActivity_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_TaskActivities_TaskIDArray(@Root() mjbizappstaskstask_: mjBizAppsTasksTask_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Activities', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskActivities')} WHERE ${provider.QuoteIdentifier('TaskID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Activities', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstask_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Activities', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsTasksTaskTagLink_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_TaskTagLinks_TaskIDArray(@Root() mjbizappstaskstask_: mjBizAppsTasksTask_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Tag Links', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskTagLinks')} WHERE ${provider.QuoteIdentifier('TaskID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Tag Links', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstask_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Tag Links', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsTasksTaskNotificationLog_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_TaskNotificationLogs_TaskIDArray(@Root() mjbizappstaskstask_: mjBizAppsTasksTask_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Notification Logs', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskNotificationLogs')} WHERE ${provider.QuoteIdentifier('TaskID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Notification Logs', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstask_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Notification Logs', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        
-    @FieldResolver(() => [mjBizAppsTasksTaskDecision_])
-    async mjBizAppsTasksMJ_BizApps_Tasks_TaskDecisions_TaskIDArray(@Root() mjbizappstaskstask_: mjBizAppsTasksTask_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
-        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Decisions', userPayload);
-        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
-        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskDecisions')} WHERE ${provider.QuoteIdentifier('TaskID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Decisions', userPayload, EntityPermissionType.Read, 'AND');
-        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstask_.ID], undefined, this.GetUserFromPayload(userPayload));
-        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Decisions', rows, this.GetUserFromPayload(userPayload));
-        return result;
-    }
-        // Relationship to MJ_BizApps_Accounting: Journal Entry Batches not generated: its GraphQL type is not declared in this file.
-
     @Mutation(() => mjBizAppsTasksTask_)
     async CreatemjBizAppsTasksTask(
         @Arg('input', () => CreatemjBizAppsTasksTaskInput) input: CreatemjBizAppsTasksTaskInput,
