@@ -10,13 +10,13 @@ GO
 ALTER TABLE ${flyway:defaultSchema}.TaskType ADD Code NVARCHAR(50) NULL;
 GO
 
--- Backfill existing seeded task types
-UPDATE ${flyway:defaultSchema}.TaskType SET Code = 'GENERAL' WHERE Name = 'General' AND Code IS NULL;
-UPDATE ${flyway:defaultSchema}.TaskType SET Code = 'ACTION_ITEM' WHERE Name = 'Action Item' AND Code IS NULL;
-UPDATE ${flyway:defaultSchema}.TaskType SET Code = 'FOLLOW_UP' WHERE Name = 'Follow-up' AND Code IS NULL;
-UPDATE ${flyway:defaultSchema}.TaskType SET Code = 'DELIVERABLE' WHERE Name = 'Deliverable' AND Code IS NULL;
-UPDATE ${flyway:defaultSchema}.TaskType SET Code = 'APPROVAL_REQUEST' WHERE Name = 'Approval Request' AND Code IS NULL;
--- Fallback for any custom rows
+-- Backfill existing seeded task types using stable IDs
+UPDATE ${flyway:defaultSchema}.TaskType SET Code = 'GENERAL' WHERE ID = 'F7C1E8DE-8DAC-4BF8-943E-3D5A1210BE82' AND Code IS NULL;
+UPDATE ${flyway:defaultSchema}.TaskType SET Code = 'ACTION_ITEM' WHERE ID = 'EA525DE3-B4A9-471C-AD13-1881E2055121' AND Code IS NULL;
+UPDATE ${flyway:defaultSchema}.TaskType SET Code = 'FOLLOW_UP' WHERE ID = 'EE1A6B5A-A5AD-4A62-89DB-D16FFD2A415C' AND Code IS NULL;
+UPDATE ${flyway:defaultSchema}.TaskType SET Code = 'DELIVERABLE' WHERE ID = '3F002EBA-0F6A-4433-BD98-83BC5982E916' AND Code IS NULL;
+UPDATE ${flyway:defaultSchema}.TaskType SET Code = 'APPROVAL_REQUEST' WHERE ID = '5961EDE5-B996-4083-BE48-64634B4D8D1C' AND Code IS NULL;
+-- Fallback for any custom/legacy rows
 UPDATE ${flyway:defaultSchema}.TaskType SET Code = UPPER(REPLACE(Name, ' ', '_')) WHERE Code IS NULL;
 GO
 
