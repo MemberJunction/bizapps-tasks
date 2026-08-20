@@ -1,4 +1,4 @@
-import { BaseEntity, EntitySaveOptions, EntityDeleteOptions, CompositeKey, ValidationResult, ValidationErrorInfo, ValidationErrorType, Metadata, ProviderType, DatabaseProviderBase, RunView } from "@memberjunction/core";
+import { BaseEntity, EntitySaveOptions, EntityDeleteOptions, CompositeKey, ValidationResult, ValidationErrorInfo, ValidationErrorType, Metadata, ProviderType, DatabaseProviderBase } from "@memberjunction/core";
 import { RegisterClass } from "@memberjunction/global";
 import { z } from "zod";
 
@@ -1007,6 +1007,117 @@ export const mjBizAppsTasksTaskTemplateSchema = z.object({
 export type mjBizAppsTasksTaskTemplateEntityType = z.infer<typeof mjBizAppsTasksTaskTemplateSchema>;
 
 /**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Task Type Status
+ */
+export const mjBizAppsTasksTaskTypeStatusSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()`),
+    TaskTypeID: z.string().describe(`
+        * * Field Name: TaskTypeID
+        * * Display Name: Task Type ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Task Types (vwTaskTypes.ID)
+        * * Description: The Task Type this status belongs to.`),
+    Name: z.string().describe(`
+        * * Field Name: Name
+        * * Display Name: Name
+        * * SQL Data Type: nvarchar(100)
+        * * Description: Display name of the status (e.g. Legal Review, Redlining, Pending Signature).`),
+    Code: z.string().describe(`
+        * * Field Name: Code
+        * * Display Name: Code
+        * * SQL Data Type: nvarchar(50)
+        * * Description: Stable machine code for this status within its Task Type (e.g. LEGAL_REVIEW, REDLINING).`),
+    Description: z.string().nullable().describe(`
+        * * Field Name: Description
+        * * Display Name: Description
+        * * SQL Data Type: nvarchar(MAX)`),
+    MacroStatus: z.union([z.literal('Blocked'), z.literal('Cancelled'), z.literal('Completed'), z.literal('InProgress'), z.literal('Open')]).describe(`
+        * * Field Name: MacroStatus
+        * * Display Name: Macro Status
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: Open
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Blocked
+    *   * Cancelled
+    *   * Completed
+    *   * InProgress
+    *   * Open
+        * * Description: The standard macro-lifecycle state this domain status maps to (Open, InProgress, Blocked, Completed, Cancelled). Ensures progress rollup and Gantt calculations remain consistent.`),
+    Sequence: z.number().describe(`
+        * * Field Name: Sequence
+        * * Display Name: Sequence
+        * * SQL Data Type: int
+        * * Default Value: 100
+        * * Description: Ordering sequence for pickers, stage progression bars, and Kanban columns.`),
+    IsDefault: z.boolean().describe(`
+        * * Field Name: IsDefault
+        * * Display Name: Is Default
+        * * SQL Data Type: bit
+        * * Default Value: 0
+        * * Description: Whether this is the initial default status when a task of this type is created.`),
+    IsTerminal: z.boolean().describe(`
+        * * Field Name: IsTerminal
+        * * Display Name: Is Terminal
+        * * SQL Data Type: bit
+        * * Default Value: 0
+        * * Description: Whether this status represents a closed terminal state for the task.`),
+    Color: z.string().nullable().describe(`
+        * * Field Name: Color
+        * * Display Name: Color
+        * * SQL Data Type: nvarchar(50)`),
+    IconClass: z.string().nullable().describe(`
+        * * Field Name: IconClass
+        * * Display Name: Icon Class
+        * * SQL Data Type: nvarchar(100)`),
+    OnEnterActionID: z.string().nullable().describe(`
+        * * Field Name: OnEnterActionID
+        * * Display Name: On Enter Action ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: Actions (vwActions.ID)
+        * * Description: Action invoked when a task enters this specific status.`),
+    OnExitActionID: z.string().nullable().describe(`
+        * * Field Name: OnExitActionID
+        * * Display Name: On Exit Action ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: Actions (vwActions.ID)
+        * * Description: Action invoked when a task leaves this specific status.`),
+    IsActive: z.boolean().describe(`
+        * * Field Name: IsActive
+        * * Display Name: Is Active
+        * * SQL Data Type: bit
+        * * Default Value: 1`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    TaskType: z.string().describe(`
+        * * Field Name: TaskType
+        * * Display Name: Task Type
+        * * SQL Data Type: nvarchar(100)`),
+    OnEnterAction: z.string().nullable().describe(`
+        * * Field Name: OnEnterAction
+        * * Display Name: On Enter Action
+        * * SQL Data Type: nvarchar(425)`),
+    OnExitAction: z.string().nullable().describe(`
+        * * Field Name: OnExitAction
+        * * Display Name: On Exit Action
+        * * SQL Data Type: nvarchar(425)`),
+});
+
+export type mjBizAppsTasksTaskTypeStatusEntityType = z.infer<typeof mjBizAppsTasksTaskTypeStatusSchema>;
+
+/**
  * zod schema definition for the entity MJ_BizApps_Tasks: Task Types
  */
 export const mjBizAppsTasksTaskTypeSchema = z.object({
@@ -1085,6 +1196,23 @@ export const mjBizAppsTasksTaskTypeSchema = z.object({
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ: Actions (vwActions.ID)
         * * Description: Action invoked when a task of this type transitions to Cancelled (post-commit, non-blocking).`),
+    Code: z.string().describe(`
+        * * Field Name: Code
+        * * Display Name: Code
+        * * SQL Data Type: nvarchar(50)
+        * * Description: Stable unique machine code for programmatic lookups and cross-app metadata references.`),
+    OnCreateActionID: z.string().nullable().describe(`
+        * * Field Name: OnCreateActionID
+        * * Display Name: On Create Action ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: Actions (vwActions.ID)
+        * * Description: Action invoked when a task of this type is first created (e.g. kicks off a task graph workflow, initialization agent, or subtask template generator).`),
+    OnStatusChangeActionID: z.string().nullable().describe(`
+        * * Field Name: OnStatusChangeActionID
+        * * Display Name: On Status Change Action ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: Actions (vwActions.ID)
+        * * Description: Action invoked whenever a task of this type changes status.`),
     OnAssignAction: z.string().nullable().describe(`
         * * Field Name: OnAssignAction
         * * Display Name: On Assign Action
@@ -1108,6 +1236,14 @@ export const mjBizAppsTasksTaskTypeSchema = z.object({
     OnCancelAction: z.string().nullable().describe(`
         * * Field Name: OnCancelAction
         * * Display Name: On Cancel Action
+        * * SQL Data Type: nvarchar(425)`),
+    OnCreateAction: z.string().nullable().describe(`
+        * * Field Name: OnCreateAction
+        * * Display Name: On Create Action
+        * * SQL Data Type: nvarchar(425)`),
+    OnStatusChangeAction: z.string().nullable().describe(`
+        * * Field Name: OnStatusChangeAction
+        * * Display Name: On Status Change Action
         * * SQL Data Type: nvarchar(425)`),
 });
 
@@ -1174,7 +1310,7 @@ export const mjBizAppsTasksTaskSchema = z.object({
         * * SQL Data Type: datetimeoffset`),
     DueAt: z.date().nullable().describe(`
         * * Field Name: DueAt
-        * * Display Name: Due At
+        * * Display Name: Due Date
         * * SQL Data Type: datetimeoffset`),
     CompletedAt: z.date().nullable().describe(`
         * * Field Name: CompletedAt
@@ -1225,13 +1361,19 @@ export const mjBizAppsTasksTaskSchema = z.object({
         * * Display Name: Updated At
         * * SQL Data Type: datetimeoffset
         * * Default Value: getutcdate()`),
+    TaskTypeStatusID: z.string().nullable().describe(`
+        * * Field Name: TaskTypeStatusID
+        * * Display Name: Task Type Status
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Task Type Status (vwTaskTypeStatus.ID)
+        * * Description: Optional reference to the dynamic TaskTypeStatus definition for tasks with type-specific lifecycles.`),
     Type: z.string().describe(`
         * * Field Name: Type
         * * Display Name: Type
         * * SQL Data Type: nvarchar(100)`),
     Category: z.string().nullable().describe(`
         * * Field Name: Category
-        * * Display Name: Category Name
+        * * Display Name: Category
         * * SQL Data Type: nvarchar(255)`),
     Parent: z.string().nullable().describe(`
         * * Field Name: Parent
@@ -1241,26 +1383,14 @@ export const mjBizAppsTasksTaskSchema = z.object({
         * * Field Name: CreatedByPerson
         * * Display Name: Created By Name
         * * SQL Data Type: nvarchar(201)`),
+    TaskTypeStatus: z.string().nullable().describe(`
+        * * Field Name: TaskTypeStatus
+        * * Display Name: Task Type Status Name
+        * * SQL Data Type: nvarchar(100)`),
     RootParentID: z.string().nullable().describe(`
         * * Field Name: RootParentID
         * * Display Name: Root Parent
         * * SQL Data Type: uniqueidentifier`),
-    ParentIDDepth: z.number().nullable().describe(`
-        * * Field Name: ParentIDDepth
-        * * Display Name: Hierarchy Depth
-        * * SQL Data Type: int`),
-    ParentIDPath: z.string().nullable().describe(`
-        * * Field Name: ParentIDPath
-        * * Display Name: Hierarchy Path
-        * * SQL Data Type: nvarchar(MAX)`),
-    ParentIDIsLeaf: z.boolean().nullable().describe(`
-        * * Field Name: ParentIDIsLeaf
-        * * Display Name: Is Leaf Node
-        * * SQL Data Type: bit`),
-    ParentIDChildCount: z.number().nullable().describe(`
-        * * Field Name: ParentIDChildCount
-        * * Display Name: Child Count
-        * * SQL Data Type: int`),
 });
 
 export type mjBizAppsTasksTaskEntityType = z.infer<typeof mjBizAppsTasksTaskSchema>;
@@ -3900,6 +4030,278 @@ export class mjBizAppsTasksTaskTemplateEntity extends BaseEntity<mjBizAppsTasksT
 
 
 /**
+ * MJ_BizApps_Tasks: Task Type Status - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: TaskTypeStatus
+ * * Base View: vwTaskTypeStatus
+ * * @description Dynamic domain statuses and lifecycle stages configured per Task Type.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Task Type Status')
+export class mjBizAppsTasksTaskTypeStatusEntity extends BaseEntity<mjBizAppsTasksTaskTypeStatusEntityType> {
+    /**
+    * Loads the MJ_BizApps_Tasks: Task Type Status record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Task Type Status record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksTaskTypeStatusEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: TaskTypeID
+    * * Display Name: Task Type ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Task Types (vwTaskTypes.ID)
+    * * Description: The Task Type this status belongs to.
+    */
+    get TaskTypeID(): string {
+        return this.Get('TaskTypeID');
+    }
+    set TaskTypeID(value: string) {
+        this.Set('TaskTypeID', value);
+    }
+
+    /**
+    * * Field Name: Name
+    * * Display Name: Name
+    * * SQL Data Type: nvarchar(100)
+    * * Description: Display name of the status (e.g. Legal Review, Redlining, Pending Signature).
+    */
+    get Name(): string {
+        return this.Get('Name');
+    }
+    set Name(value: string) {
+        this.Set('Name', value);
+    }
+
+    /**
+    * * Field Name: Code
+    * * Display Name: Code
+    * * SQL Data Type: nvarchar(50)
+    * * Description: Stable machine code for this status within its Task Type (e.g. LEGAL_REVIEW, REDLINING).
+    */
+    get Code(): string {
+        return this.Get('Code');
+    }
+    set Code(value: string) {
+        this.Set('Code', value);
+    }
+
+    /**
+    * * Field Name: Description
+    * * Display Name: Description
+    * * SQL Data Type: nvarchar(MAX)
+    */
+    get Description(): string | null {
+        return this.Get('Description');
+    }
+    set Description(value: string | null) {
+        this.Set('Description', value);
+    }
+
+    /**
+    * * Field Name: MacroStatus
+    * * Display Name: Macro Status
+    * * SQL Data Type: nvarchar(20)
+    * * Default Value: Open
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Blocked
+    *   * Cancelled
+    *   * Completed
+    *   * InProgress
+    *   * Open
+    * * Description: The standard macro-lifecycle state this domain status maps to (Open, InProgress, Blocked, Completed, Cancelled). Ensures progress rollup and Gantt calculations remain consistent.
+    */
+    get MacroStatus(): 'Blocked' | 'Cancelled' | 'Completed' | 'InProgress' | 'Open' {
+        return this.Get('MacroStatus');
+    }
+    set MacroStatus(value: 'Blocked' | 'Cancelled' | 'Completed' | 'InProgress' | 'Open') {
+        this.Set('MacroStatus', value);
+    }
+
+    /**
+    * * Field Name: Sequence
+    * * Display Name: Sequence
+    * * SQL Data Type: int
+    * * Default Value: 100
+    * * Description: Ordering sequence for pickers, stage progression bars, and Kanban columns.
+    */
+    get Sequence(): number {
+        return this.Get('Sequence');
+    }
+    set Sequence(value: number) {
+        this.Set('Sequence', value);
+    }
+
+    /**
+    * * Field Name: IsDefault
+    * * Display Name: Is Default
+    * * SQL Data Type: bit
+    * * Default Value: 0
+    * * Description: Whether this is the initial default status when a task of this type is created.
+    */
+    get IsDefault(): boolean {
+        return this.Get('IsDefault');
+    }
+    set IsDefault(value: boolean) {
+        this.Set('IsDefault', value);
+    }
+
+    /**
+    * * Field Name: IsTerminal
+    * * Display Name: Is Terminal
+    * * SQL Data Type: bit
+    * * Default Value: 0
+    * * Description: Whether this status represents a closed terminal state for the task.
+    */
+    get IsTerminal(): boolean {
+        return this.Get('IsTerminal');
+    }
+    set IsTerminal(value: boolean) {
+        this.Set('IsTerminal', value);
+    }
+
+    /**
+    * * Field Name: Color
+    * * Display Name: Color
+    * * SQL Data Type: nvarchar(50)
+    */
+    get Color(): string | null {
+        return this.Get('Color');
+    }
+    set Color(value: string | null) {
+        this.Set('Color', value);
+    }
+
+    /**
+    * * Field Name: IconClass
+    * * Display Name: Icon Class
+    * * SQL Data Type: nvarchar(100)
+    */
+    get IconClass(): string | null {
+        return this.Get('IconClass');
+    }
+    set IconClass(value: string | null) {
+        this.Set('IconClass', value);
+    }
+
+    /**
+    * * Field Name: OnEnterActionID
+    * * Display Name: On Enter Action ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ: Actions (vwActions.ID)
+    * * Description: Action invoked when a task enters this specific status.
+    */
+    get OnEnterActionID(): string | null {
+        return this.Get('OnEnterActionID');
+    }
+    set OnEnterActionID(value: string | null) {
+        this.Set('OnEnterActionID', value);
+    }
+
+    /**
+    * * Field Name: OnExitActionID
+    * * Display Name: On Exit Action ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ: Actions (vwActions.ID)
+    * * Description: Action invoked when a task leaves this specific status.
+    */
+    get OnExitActionID(): string | null {
+        return this.Get('OnExitActionID');
+    }
+    set OnExitActionID(value: string | null) {
+        this.Set('OnExitActionID', value);
+    }
+
+    /**
+    * * Field Name: IsActive
+    * * Display Name: Is Active
+    * * SQL Data Type: bit
+    * * Default Value: 1
+    */
+    get IsActive(): boolean {
+        return this.Get('IsActive');
+    }
+    set IsActive(value: boolean) {
+        this.Set('IsActive', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: TaskType
+    * * Display Name: Task Type
+    * * SQL Data Type: nvarchar(100)
+    */
+    get TaskType(): string {
+        return this.Get('TaskType');
+    }
+
+    /**
+    * * Field Name: OnEnterAction
+    * * Display Name: On Enter Action
+    * * SQL Data Type: nvarchar(425)
+    */
+    get OnEnterAction(): string | null {
+        return this.Get('OnEnterAction');
+    }
+
+    /**
+    * * Field Name: OnExitAction
+    * * Display Name: On Exit Action
+    * * SQL Data Type: nvarchar(425)
+    */
+    get OnExitAction(): string | null {
+        return this.Get('OnExitAction');
+    }
+}
+
+
+/**
  * MJ_BizApps_Tasks: Task Types - strongly typed entity sub-class
  * * Schema: __mj_BizAppsTasks
  * * Base Table: TaskType
@@ -4110,6 +4512,47 @@ export class mjBizAppsTasksTaskTypeEntity extends BaseEntity<mjBizAppsTasksTaskT
     }
 
     /**
+    * * Field Name: Code
+    * * Display Name: Code
+    * * SQL Data Type: nvarchar(50)
+    * * Description: Stable unique machine code for programmatic lookups and cross-app metadata references.
+    */
+    get Code(): string {
+        return this.Get('Code');
+    }
+    set Code(value: string) {
+        this.Set('Code', value);
+    }
+
+    /**
+    * * Field Name: OnCreateActionID
+    * * Display Name: On Create Action ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ: Actions (vwActions.ID)
+    * * Description: Action invoked when a task of this type is first created (e.g. kicks off a task graph workflow, initialization agent, or subtask template generator).
+    */
+    get OnCreateActionID(): string | null {
+        return this.Get('OnCreateActionID');
+    }
+    set OnCreateActionID(value: string | null) {
+        this.Set('OnCreateActionID', value);
+    }
+
+    /**
+    * * Field Name: OnStatusChangeActionID
+    * * Display Name: On Status Change Action ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ: Actions (vwActions.ID)
+    * * Description: Action invoked whenever a task of this type changes status.
+    */
+    get OnStatusChangeActionID(): string | null {
+        return this.Get('OnStatusChangeActionID');
+    }
+    set OnStatusChangeActionID(value: string | null) {
+        this.Set('OnStatusChangeActionID', value);
+    }
+
+    /**
     * * Field Name: OnAssignAction
     * * Display Name: On Assign Action
     * * SQL Data Type: nvarchar(425)
@@ -4161,6 +4604,24 @@ export class mjBizAppsTasksTaskTypeEntity extends BaseEntity<mjBizAppsTasksTaskT
     */
     get OnCancelAction(): string | null {
         return this.Get('OnCancelAction');
+    }
+
+    /**
+    * * Field Name: OnCreateAction
+    * * Display Name: On Create Action
+    * * SQL Data Type: nvarchar(425)
+    */
+    get OnCreateAction(): string | null {
+        return this.Get('OnCreateAction');
+    }
+
+    /**
+    * * Field Name: OnStatusChangeAction
+    * * Display Name: On Status Change Action
+    * * SQL Data Type: nvarchar(425)
+    */
+    get OnStatusChangeAction(): string | null {
+        return this.Get('OnStatusChangeAction');
     }
 }
 
@@ -4355,7 +4816,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
 
     /**
     * * Field Name: DueAt
-    * * Display Name: Due At
+    * * Display Name: Due Date
     * * SQL Data Type: datetimeoffset
     */
     get DueAt(): Date | null {
@@ -4497,6 +4958,20 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     }
 
     /**
+    * * Field Name: TaskTypeStatusID
+    * * Display Name: Task Type Status
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Task Type Status (vwTaskTypeStatus.ID)
+    * * Description: Optional reference to the dynamic TaskTypeStatus definition for tasks with type-specific lifecycles.
+    */
+    get TaskTypeStatusID(): string | null {
+        return this.Get('TaskTypeStatusID');
+    }
+    set TaskTypeStatusID(value: string | null) {
+        this.Set('TaskTypeStatusID', value);
+    }
+
+    /**
     * * Field Name: Type
     * * Display Name: Type
     * * SQL Data Type: nvarchar(100)
@@ -4507,7 +4982,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
 
     /**
     * * Field Name: Category
-    * * Display Name: Category Name
+    * * Display Name: Category
     * * SQL Data Type: nvarchar(255)
     */
     get Category(): string | null {
@@ -4533,47 +5008,20 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     }
 
     /**
+    * * Field Name: TaskTypeStatus
+    * * Display Name: Task Type Status Name
+    * * SQL Data Type: nvarchar(100)
+    */
+    get TaskTypeStatus(): string | null {
+        return this.Get('TaskTypeStatus');
+    }
+
+    /**
     * * Field Name: RootParentID
     * * Display Name: Root Parent
     * * SQL Data Type: uniqueidentifier
     */
     get RootParentID(): string | null {
         return this.Get('RootParentID');
-    }
-
-    /**
-    * * Field Name: ParentIDDepth
-    * * Display Name: Hierarchy Depth
-    * * SQL Data Type: int
-    */
-    get ParentIDDepth(): number | null {
-        return this.Get('ParentIDDepth');
-    }
-
-    /**
-    * * Field Name: ParentIDPath
-    * * Display Name: Hierarchy Path
-    * * SQL Data Type: nvarchar(MAX)
-    */
-    get ParentIDPath(): string | null {
-        return this.Get('ParentIDPath');
-    }
-
-    /**
-    * * Field Name: ParentIDIsLeaf
-    * * Display Name: Is Leaf Node
-    * * SQL Data Type: bit
-    */
-    get ParentIDIsLeaf(): boolean | null {
-        return this.Get('ParentIDIsLeaf');
-    }
-
-    /**
-    * * Field Name: ParentIDChildCount
-    * * Display Name: Child Count
-    * * SQL Data Type: int
-    */
-    get ParentIDChildCount(): number | null {
-        return this.Get('ParentIDChildCount');
     }
 }

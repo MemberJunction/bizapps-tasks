@@ -32,6 +32,7 @@ import { mjBizAppsTasksTaskTemplateItemDependencyFormComponent } from "./Entitie
 import { mjBizAppsTasksTaskTemplateItemRoleFormComponent } from "./Entities/mjBizAppsTasksTaskTemplateItemRole/mjbizappstaskstasktemplateitemrole.form.component";
 import { mjBizAppsTasksTaskTemplateItemFormComponent } from "./Entities/mjBizAppsTasksTaskTemplateItem/mjbizappstaskstasktemplateitem.form.component";
 import { mjBizAppsTasksTaskTemplateFormComponent } from "./Entities/mjBizAppsTasksTaskTemplate/mjbizappstaskstasktemplate.form.component";
+import { mjBizAppsTasksTaskTypeStatusFormComponent } from "./Entities/mjBizAppsTasksTaskTypeStatus/mjbizappstaskstasktypestatus.form.component";
 import { mjBizAppsTasksTaskTypeFormComponent } from "./Entities/mjBizAppsTasksTaskType/mjbizappstaskstasktype.form.component";
 import { mjBizAppsTasksTaskFormComponent } from "./Entities/mjBizAppsTasksTask/mjbizappstaskstask.form.component";
    
@@ -55,6 +56,7 @@ declarations: [
     mjBizAppsTasksTaskTemplateItemRoleFormComponent,
     mjBizAppsTasksTaskTemplateItemFormComponent,
     mjBizAppsTasksTaskTemplateFormComponent,
+    mjBizAppsTasksTaskTypeStatusFormComponent,
     mjBizAppsTasksTaskTypeFormComponent,
     mjBizAppsTasksTaskFormComponent],
 imports: [

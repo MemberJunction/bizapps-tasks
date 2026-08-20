@@ -28,6 +28,30 @@ const checks: NamedCheck[] = [
             Assert(await decision.Delete(), 'cleanup decision');
         },
     },
+    {
+        Id: 'task-decisions.TDN2',
+        Name: 'TDN2 — record a decision on Municipal Zoning Variance by Chief Architect',
+        RequiresMutation: true,
+        Fn: async (ctx) => {
+            const world = await GetOrLoadWorld(ctx);
+            const taskID = world.SeedTaskIDs['Municipal Zoning Variance & Building Permits'];
+            const outcome = world.DecisionOutcomes['Approved'] ?? Object.values(world.DecisionOutcomes)[0];
+            const robert = world.People['robert.hayes@task-world.test'] ?? Object.values(world.People)[0];
+            Assert(!!taskID && !!outcome && !!robert, 'seed permit task + outcome + architect');
+
+            const decision = await ctx.Provider.GetEntityObject<mjBizAppsTasksTaskDecisionEntity>(TASK_DECISION_ENTITY, ctx.User);
+            decision.NewRecord();
+            decision.TaskID = taskID;
+            decision.OutcomeID = outcome.ID;
+            decision.DecidedByPersonID = robert.ID;
+            decision.DecisionNotes = 'City council zoning variance approved without conditions';
+            await RequireSave(decision, 'TDN2 zoning decision');
+
+            const rows = await FindRows<{ ID: string }>(ctx, TASK_DECISION_ENTITY, `TaskID = '${taskID}'`, ['ID']);
+            Assert(rows.length >= 1, 'zoning decision queryable');
+            Assert(await decision.Delete(), 'cleanup decision');
+        },
+    },
 ];
 
 for (const check of checks) IntegrationCheckRegistry.Instance.Register(check);

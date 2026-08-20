@@ -39,6 +39,41 @@ const checks: NamedCheck[] = [
             void TaskEntity;
         },
     },
+    {
+        Id: 'task-dependencies.TD2',
+        Name: 'TD2 — critical path dependency chain across construction tasks',
+        RequiresMutation: true,
+        Fn: async (ctx) => {
+            const world = await GetOrLoadWorld(ctx);
+            const blueprints = world.SeedTaskIDs['Architectural Blueprints & Structural Engineering'];
+            const excavation = world.SeedTaskIDs['Site Excavation & Deep Foundation Concrete Pour'];
+            const steel = world.SeedTaskIDs['Structural Steel Erection & Building Envelope'];
+            Assert(!!blueprints && !!excavation && !!steel, 'construction tasks');
+
+            const existing = await FindRows<{ ID: string }>(
+                ctx,
+                TASK_DEPENDENCY_ENTITY,
+                `TaskID = '${steel}' AND DependsOnTaskID = '${excavation}'`,
+                ['ID']
+            );
+            if (existing.length === 0) {
+                const dep = await ctx.Provider.GetEntityObject<mjBizAppsTasksTaskDependencyEntity>(TASK_DEPENDENCY_ENTITY, ctx.User);
+                dep.NewRecord();
+                dep.TaskID = steel;
+                dep.DependsOnTaskID = excavation;
+                dep.DependencyType = 'FinishToStart';
+                await RequireSave(dep, 'TD2 steel depends on excavation');
+            }
+
+            const rows = await FindRows<{ ID: string }>(
+                ctx,
+                TASK_DEPENDENCY_ENTITY,
+                `TaskID = '${steel}' AND DependsOnTaskID = '${excavation}'`,
+                ['ID']
+            );
+            Assert(rows.length >= 1, 'construction dependency chain link verified');
+        },
+    },
 ];
 
 for (const check of checks) IntegrationCheckRegistry.Instance.Register(check);

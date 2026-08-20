@@ -10,11 +10,11 @@
     <!-- ========================================
          FIELD PANELS
          ======================================== -->
-    <!-- Details Section -->
+    <!-- Task Type Definition Section -->
     <mj-collapsible-panel
-        SectionKey="details"
-        SectionName="Details"
-        Icon="fa fa-align-left"
+        SectionKey="taskTypeDefinition"
+        SectionName="Task Type Definition"
+        Icon="fa fa-info-circle"
         [Form]="this"
         [FormContext]="formContext">
         <mj-form-field 
@@ -49,6 +49,32 @@
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="IsActive"
+            Type="checkbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="Code"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Workflow Actions Section -->
+    <mj-collapsible-panel
+        SectionKey="workflowActions"
+        SectionName="Workflow Actions"
+        Icon="fa fa-bolt"
+        [Form]="this"
+        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -88,11 +114,49 @@
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
-            FieldName="IsActive"
-            Type="checkbox"
+            FieldName="OnRejectActionID"
+            Type="textbox"
             [EditMode]="EditMode"
             [FormContext]="formContext"
+            LinkType="Record"
         ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="OnCancelActionID"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+            LinkType="Record"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="OnCreateActionID"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+            LinkType="Record"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="OnStatusChangeActionID"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+            LinkType="Record"
+        ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- System Metadata Section -->
+    <mj-collapsible-panel
+        SectionKey="systemMetadata"
+        SectionName="System Metadata"
+        Icon="fa fa-cog"
+        [Form]="this"
+        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -108,24 +172,6 @@
             Type="textbox"
             [EditMode]="EditMode"
             [FormContext]="formContext"
-        ></mj-form-field>
-        <mj-form-field 
-            [Record]="record"
-            [ShowLabel]="true"
-            FieldName="OnRejectActionID"
-            Type="textbox"
-            [EditMode]="EditMode"
-            [FormContext]="formContext"
-            LinkType="Record"
-        ></mj-form-field>
-        <mj-form-field 
-            [Record]="record"
-            [ShowLabel]="true"
-            FieldName="OnCancelActionID"
-            Type="textbox"
-            [EditMode]="EditMode"
-            [FormContext]="formContext"
-            LinkType="Record"
         ></mj-form-field>
 
     </mj-collapsible-panel>
@@ -150,9 +196,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Notification Configs','TaskTypeID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Notification Configs','TaskTypeID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Notification Configs')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskNotificationConfigs')"
-                [ShowToolbar]="true"
+                [ShowToolbar]="false"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskNotificationConfigs', $event.totalRowCount)"
                 >
@@ -175,9 +221,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Tasks','TypeID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Tasks','TypeID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Tasks')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTasks')"
-                [ShowToolbar]="true"
+                [ShowToolbar]="false"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTasks', $event.totalRowCount)"
                 >
@@ -200,11 +246,61 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Templates','TypeID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Templates','TypeID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Templates')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskTemplates')"
-                [ShowToolbar]="true"
+                [ShowToolbar]="false"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskTemplates', $event.totalRowCount)"
+                >
+            </mj-explorer-entity-data-grid>
+        </div>
+        }
+    </mj-collapsible-panel>
+
+    <!-- Issue Types Section -->
+    <mj-collapsible-panel
+        SectionKey="mJBizAppsIssuesIssueTypes"
+        SectionName="Issue Types"
+        Icon="fa fa-table"
+        Variant="related-entity"
+        [Form]="this"
+        [FormContext]="formContext"
+        [BadgeCount]="GetSectionRowCount('mJBizAppsIssuesIssueTypes')"
+        [DefaultExpanded]="false">
+        @if (record.IsSaved) {
+        <div>
+            <mj-explorer-entity-data-grid
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Issues: Issue Types','DefaultTaskTypeID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Issues: Issue Types')"
+                [AllowLoad]="IsSectionExpanded('mJBizAppsIssuesIssueTypes')"
+                [ShowToolbar]="false"
+                (Navigate)="OnFormNavigate($event)"
+                (AfterDataLoad)="SetSectionRowCount('mJBizAppsIssuesIssueTypes', $event.totalRowCount)"
+                >
+            </mj-explorer-entity-data-grid>
+        </div>
+        }
+    </mj-collapsible-panel>
+
+    <!-- Task Type Status Section -->
+    <mj-collapsible-panel
+        SectionKey="mJBizAppsTasksTaskTypeStatus"
+        SectionName="Task Type Status"
+        Icon="fa fa-tasks"
+        Variant="related-entity"
+        [Form]="this"
+        [FormContext]="formContext"
+        [BadgeCount]="GetSectionRowCount('mJBizAppsTasksTaskTypeStatus')"
+        [DefaultExpanded]="false">
+        @if (record.IsSaved) {
+        <div>
+            <mj-explorer-entity-data-grid
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Type Status','TaskTypeID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Type Status')"
+                [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskTypeStatus')"
+                [ShowToolbar]="false"
+                (Navigate)="OnFormNavigate($event)"
+                (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskTypeStatus', $event.totalRowCount)"
                 >
             </mj-explorer-entity-data-grid>
         </div>

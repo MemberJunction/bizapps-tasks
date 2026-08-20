@@ -31,7 +31,8 @@ export class mjBizAppsTasksTaskFormComponent extends BaseFormComponent {
             { sectionKey: 'mJBizAppsTasksTaskActivities', sectionName: 'Task Activities', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskTagLinks', sectionName: 'Task Tag Links', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskNotificationLogs', sectionName: 'Task Notification Logs', isExpanded: false },
-            { sectionKey: 'mJBizAppsTasksTaskDecisions', sectionName: 'Task Decisions', isExpanded: false }
+            { sectionKey: 'mJBizAppsTasksTaskDecisions', sectionName: 'Task Decisions', isExpanded: false },
+            { sectionKey: 'mJBizAppsAccountingJournalEntryBatches', sectionName: 'Journal Entry Batches', isExpanded: false }
         ]);
     }
 }

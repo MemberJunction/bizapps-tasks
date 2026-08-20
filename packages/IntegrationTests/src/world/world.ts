@@ -2,7 +2,9 @@ export interface WorldState {
     Categories: Record<string, { ID: string; Name: string }>;
     Roles: Record<string, { ID: string; Name: string }>;
     DecisionOutcomes: Record<string, { ID: string; Name: string }>;
-    TaskTypes: Record<string, { ID: string; Name: string }>;
+    TaskTypes: Record<string, { ID: string; Name: string; Code: string; OnCreateActionID?: string | null; OnStatusChangeActionID?: string | null }>;
+    TaskTypeStatuses: Record<string, { ID: string; TaskTypeID: string; Name: string; Code: string; MacroStatus: string; Sequence: number; IsDefault: boolean; IsTerminal: boolean; OnEnterActionID?: string | null; OnExitActionID?: string | null }>;
+    Actions: Record<string, { ID: string; Name: string; Type?: string; DriverClass?: string | null }>;
     People: Record<string, { ID: string; Email: string; FirstName: string; LastName: string }>;
     SeedTaskIDs: Record<string, string>;
 }

@@ -65,30 +65,37 @@ mj app remove bizapps-tasks     # Uninstall (--keep-data to preserve schema)
 
 ---
 
+## Architecture & Lifecycle Guide
+
+For detailed deep-dives on **Task Types**, **Dynamic Task Type Statuses (`TaskTypeStatus`)**, **Event-Driven Action Hooks**, **Flow Agent Integration**, and **Multi-Domain Project Structures**, see the [**Task Workflow & Lifecycle Guide**](./guides/TASK_WORKFLOW_AND_LIFECYCLE_GUIDE.md).
+
+---
+
 ## What You Get
 
-### 15 Database Tables
+### 16 Database Tables
 
 All tables live in the `__mj_BizAppsTasks` SQL schema, deployed via migrations.
 
 | Category | Tables | Purpose |
 |----------|--------|---------|
-| **Core** | Task, TaskType, TaskCategory, TaskRole | Work items and their classification |
+| **Core & Workflow** | Task, TaskType, TaskTypeStatus, TaskCategory, TaskRole | Work items, unique type codes, dynamic domain stages, and action hooks |
 | **Assignment** | TaskAssignment | Multi-person polymorphic assignment (People and AI Agents) |
-| **Linking** | TaskLink | Polymorphic attachment to any entity (committees, meetings, etc.) |
-| **Collaboration** | TaskComment, TaskActivity | Threaded discussion and automatic audit log |
-| **Structure** | TaskDependency, TaskTag, TaskTagLink | Dependency graphs and cross-cutting labels |
+| **Linking** | TaskLink | Polymorphic attachment to any entity (contracts, orders, committees, meetings) |
+| **Collaboration** | TaskComment, TaskActivity | Threaded discussion and automatic server-authoritative audit log |
+| **Structure** | TaskDependency, TaskTag, TaskTagLink | Dependency graphs, critical paths, and cross-cutting labels |
 | **Templates** | TaskTemplate, TaskTemplateItem, TaskTemplateItemDependency, TaskTemplateItemRole | Reusable task structures for recurring workflows |
 
-### 5 TypeScript Packages
+### 6 TypeScript Packages
 
 | Package | NPM Name | Role |
 |---------|----------|------|
 | **Entities** | `@mj-biz-apps/tasks-entities` | Strongly-typed entity classes with Zod validation, custom subclasses for status transitions and cycle detection |
-| **Actions** | `@mj-biz-apps/tasks-actions` | Server-side action handlers |
-| **Core** | `@mj-biz-apps/tasks-core` | TaskService, TaskAssignmentService, TaskTemplateService |
-| **Server** | `@mj-biz-apps/tasks-server` | GraphQL resolvers and server bootstrap |
-| **Angular** | `@mj-biz-apps/tasks-ng` | UI components, generated forms, module |
+| **Entities Server** | `@mj-biz-apps/tasks-entities-server` | Authoritative server subclasses (`TaskEntityServer`), dynamic status sync, terminal completion, and action hook dispatching |
+| **Actions** | `@mj-biz-apps/tasks-actions` | Server-side action handlers and subclasses |
+| **Core** | `@mj-biz-apps/tasks-core` | TaskService, TaskAssignmentService, TaskTemplateService, TaskOrchestrationService |
+| **Server** | `@mj-biz-apps/tasks-server` | GraphQL resolvers, notification handlers, scheduled jobs, and server bootstrap |
+| **Angular** | `@mj-biz-apps/tasks-ng` | UI components, generated forms, Kanban, Gantt, and Dashboard |
 
 ### 10 Reusable Angular Components + Full Dashboard App
 
