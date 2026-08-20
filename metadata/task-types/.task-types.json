@@ -2,6 +2,7 @@
   {
     "fields": {
       "Name": "General",
+      "Code": "GENERAL",
       "Description": "General-purpose task",
       "IconClass": "fa-solid fa-circle-check",
       "DefaultPriority": "Medium"
@@ -10,13 +11,14 @@
       "ID": "F7C1E8DE-8DAC-4BF8-943E-3D5A1210BE82"
     },
     "sync": {
-      "lastModified": "2026-06-09T16:59:36.921Z",
-      "checksum": "d9cb1b758ce20fc4bc9e6779250d6a445ea3d574ccdb7e07f267173cb51ff8ba"
+      "lastModified": "2026-08-20T12:30:43.773Z",
+      "checksum": "27b31f73346ea24fb62ef197f70703752ecb86ff0497b6f0c79178fa2c1d4202"
     }
   },
   {
     "fields": {
       "Name": "Action Item",
+      "Code": "ACTION_ITEM",
       "Description": "Action item from a meeting or discussion",
       "IconClass": "fa-solid fa-bolt",
       "DefaultPriority": "Medium"
@@ -25,13 +27,14 @@
       "ID": "EA525DE3-B4A9-471C-AD13-1881E2055121"
     },
     "sync": {
-      "lastModified": "2026-06-09T16:59:36.934Z",
-      "checksum": "861fb7ab3c0e2ca948c3abc35ade1645f90f0ed36bc121fd92c1d0b34bc3332b"
+      "lastModified": "2026-08-20T12:30:43.773Z",
+      "checksum": "40f2c51271b2144bc06ee9f548d512c9cbb8b8f7f85782dd399b2f45a96c4878"
     }
   },
   {
     "fields": {
       "Name": "Follow-up",
+      "Code": "FOLLOW_UP",
       "Description": "Follow-up on a previous discussion or decision",
       "IconClass": "fa-solid fa-arrow-rotate-right",
       "DefaultPriority": "Medium"
@@ -40,13 +43,14 @@
       "ID": "EE1A6B5A-A5AD-4A62-89DB-D16FFD2A415C"
     },
     "sync": {
-      "lastModified": "2026-06-09T16:59:36.947Z",
-      "checksum": "d4502735c5ef747c763a0f979777a2c4ef50e78bf858e8c7dc54888fd855724d"
+      "lastModified": "2026-08-20T12:30:43.773Z",
+      "checksum": "ea1c1bc13bd697c26de31fb4620eb3c9dd6d0a90f1e958e2c5a9d74cc3f298ab"
     }
   },
   {
     "fields": {
       "Name": "Deliverable",
+      "Code": "DELIVERABLE",
       "Description": "A concrete output or artifact to be produced",
       "IconClass": "fa-solid fa-file-export",
       "DefaultPriority": "High"
@@ -55,13 +59,14 @@
       "ID": "3F002EBA-0F6A-4433-BD98-83BC5982E916"
     },
     "sync": {
-      "lastModified": "2026-06-09T16:59:36.958Z",
-      "checksum": "3c53d018909c197185bcd66e62e726d215435d4f3b8ceb524f67c5ab0b8e2f42"
+      "lastModified": "2026-08-20T12:30:43.774Z",
+      "checksum": "2a68b9d3017c3c60ac398b33228a6471ba3a22bbd0fd323ac9ddbc8b348801f5"
     }
   },
   {
     "fields": {
       "Name": "Approval Request",
+      "Code": "APPROVAL_REQUEST",
       "Description": "An approval/decision workflow request routed to one or more approvers. Consumers wire OnReject/OnCancel/OnComplete actions to feed the decision back to the source record.",
       "IconClass": "fa-solid fa-stamp",
       "DefaultPriority": "High"
@@ -70,8 +75,8 @@
       "ID": "5961EDE5-B996-4083-BE48-64634B4D8D1C"
     },
     "sync": {
-      "lastModified": "2026-06-23T21:14:52.525Z",
-      "checksum": "5324e65f3c50f348a27348e8d35271f82828f3a75121afe4d77c1847c498ca14"
+      "lastModified": "2026-08-20T12:30:43.774Z",
+      "checksum": "7b923fe7371b0fe260bbbe093e44d56e81b346b05ad5f650cfa49a291a0c9c73"
     }
   }
 ]

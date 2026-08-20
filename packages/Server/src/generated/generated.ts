@@ -17,7 +17,7 @@ import { MaxLength } from 'class-validator';
 import * as mj_core_schema_server_object_types from '@memberjunction/server'
 
 
-import { mjBizAppsTasksTaskActivityEntity, mjBizAppsTasksTaskAssignmentEntity, mjBizAppsTasksTaskCategoryEntity, mjBizAppsTasksTaskCommentEntity, mjBizAppsTasksTaskDecisionOutcomeEntity, mjBizAppsTasksTaskDecisionEntity, mjBizAppsTasksTaskDependencyEntity, mjBizAppsTasksTaskLinkEntity, mjBizAppsTasksTaskNotificationConfigEntity, mjBizAppsTasksTaskNotificationLogEntity, mjBizAppsTasksTaskRoleEntity, mjBizAppsTasksTaskTagLinkEntity, mjBizAppsTasksTaskTagEntity, mjBizAppsTasksTaskTemplateItemDependencyEntity, mjBizAppsTasksTaskTemplateItemRoleEntity, mjBizAppsTasksTaskTemplateItemEntity, mjBizAppsTasksTaskTemplateEntity, mjBizAppsTasksTaskTypeEntity, mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
+import { mjBizAppsTasksTaskActivityEntity, mjBizAppsTasksTaskAssignmentEntity, mjBizAppsTasksTaskCategoryEntity, mjBizAppsTasksTaskCommentEntity, mjBizAppsTasksTaskDecisionOutcomeEntity, mjBizAppsTasksTaskDecisionEntity, mjBizAppsTasksTaskDependencyEntity, mjBizAppsTasksTaskLinkEntity, mjBizAppsTasksTaskNotificationConfigEntity, mjBizAppsTasksTaskNotificationLogEntity, mjBizAppsTasksTaskRoleEntity, mjBizAppsTasksTaskTagLinkEntity, mjBizAppsTasksTaskTagEntity, mjBizAppsTasksTaskTemplateItemDependencyEntity, mjBizAppsTasksTaskTemplateItemRoleEntity, mjBizAppsTasksTaskTemplateItemEntity, mjBizAppsTasksTaskTemplateEntity, mjBizAppsTasksTaskTypeStatusEntity, mjBizAppsTasksTaskTypeEntity, mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
     
 
 //****************************************************************************
@@ -3380,6 +3380,287 @@ export class mjBizAppsTasksTaskTemplateResolver extends ResolverBase {
 }
 
 //****************************************************************************
+// ENTITY CLASS for MJ_BizApps_Tasks: Task Type Status
+//****************************************************************************
+@ObjectType({ description: `Dynamic domain statuses and lifecycle stages configured per Task Type.` })
+export class mjBizAppsTasksTaskTypeStatus_ {
+    @Field() 
+    @MaxLength(36)
+    ID: string;
+        
+    @Field({description: `The Task Type this status belongs to.`}) 
+    @MaxLength(36)
+    TaskTypeID: string;
+        
+    @Field({description: `Display name of the status (e.g. Legal Review, Redlining, Pending Signature).`}) 
+    @MaxLength(100)
+    Name: string;
+        
+    @Field({description: `Stable machine code for this status within its Task Type (e.g. LEGAL_REVIEW, REDLINING).`}) 
+    @MaxLength(50)
+    Code: string;
+        
+    @Field({nullable: true}) 
+    Description?: string;
+        
+    @Field({description: `The standard macro-lifecycle state this domain status maps to (Open, InProgress, Blocked, Completed, Cancelled). Ensures progress rollup and Gantt calculations remain consistent.`}) 
+    @MaxLength(20)
+    MacroStatus: string;
+        
+    @Field(() => Int, {description: `Ordering sequence for pickers, stage progression bars, and Kanban columns.`}) 
+    Sequence: number;
+        
+    @Field(() => Boolean, {description: `Whether this is the initial default status when a task of this type is created.`}) 
+    IsDefault: boolean;
+        
+    @Field(() => Boolean, {description: `Whether this status represents a closed terminal state for the task.`}) 
+    IsTerminal: boolean;
+        
+    @Field({nullable: true}) 
+    @MaxLength(50)
+    Color?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(100)
+    IconClass?: string;
+        
+    @Field({nullable: true, description: `Action invoked when a task enters this specific status.`}) 
+    @MaxLength(36)
+    OnEnterActionID?: string;
+        
+    @Field({nullable: true, description: `Action invoked when a task leaves this specific status.`}) 
+    @MaxLength(36)
+    OnExitActionID?: string;
+        
+    @Field(() => Boolean) 
+    IsActive: boolean;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field() 
+    @MaxLength(100)
+    TaskType: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(425)
+    OnEnterAction?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(425)
+    OnExitAction?: string;
+        
+    @Field(() => [mjBizAppsTasksTask_])
+    mjBizAppsTasksMJ_BizApps_Tasks_Tasks_TaskTypeStatusIDArray: mjBizAppsTasksTask_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_Tasks
+    
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Task Type Status
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsTasksTaskTypeStatusInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    TaskTypeID?: string;
+
+    @Field({ nullable: true })
+    Name?: string;
+
+    @Field({ nullable: true })
+    Code?: string;
+
+    @Field({ nullable: true })
+    Description: string | null;
+
+    @Field({ nullable: true })
+    MacroStatus?: string;
+
+    @Field(() => Int, { nullable: true })
+    Sequence?: number;
+
+    @Field(() => Boolean, { nullable: true })
+    IsDefault?: boolean;
+
+    @Field(() => Boolean, { nullable: true })
+    IsTerminal?: boolean;
+
+    @Field({ nullable: true })
+    Color: string | null;
+
+    @Field({ nullable: true })
+    IconClass: string | null;
+
+    @Field({ nullable: true })
+    OnEnterActionID: string | null;
+
+    @Field({ nullable: true })
+    OnExitActionID: string | null;
+
+    @Field(() => Boolean, { nullable: true })
+    IsActive?: boolean;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Task Type Status
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsTasksTaskTypeStatusInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    TaskTypeID?: string;
+
+    @Field({ nullable: true })
+    Name?: string;
+
+    @Field({ nullable: true })
+    Code?: string;
+
+    @Field({ nullable: true })
+    Description?: string | null;
+
+    @Field({ nullable: true })
+    MacroStatus?: string;
+
+    @Field(() => Int, { nullable: true })
+    Sequence?: number;
+
+    @Field(() => Boolean, { nullable: true })
+    IsDefault?: boolean;
+
+    @Field(() => Boolean, { nullable: true })
+    IsTerminal?: boolean;
+
+    @Field({ nullable: true })
+    Color?: string | null;
+
+    @Field({ nullable: true })
+    IconClass?: string | null;
+
+    @Field({ nullable: true })
+    OnEnterActionID?: string | null;
+
+    @Field({ nullable: true })
+    OnExitActionID?: string | null;
+
+    @Field(() => Boolean, { nullable: true })
+    IsActive?: boolean;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+//****************************************************************************
+// RESOLVER for MJ_BizApps_Tasks: Task Type Status
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsTasksTaskTypeStatusViewResult {
+    @Field(() => [mjBizAppsTasksTaskTypeStatus_])
+    Results: mjBizAppsTasksTaskTypeStatus_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsTasksTaskTypeStatus_)
+export class mjBizAppsTasksTaskTypeStatusResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsTasksTaskTypeStatusViewResult)
+    async RunmjBizAppsTasksTaskTypeStatusViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTaskTypeStatusViewResult)
+    async RunmjBizAppsTasksTaskTypeStatusViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTaskTypeStatusViewResult)
+    async RunmjBizAppsTasksTaskTypeStatusDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_Tasks: Task Type Status';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsTasksTaskTypeStatus_, { nullable: true })
+    async mjBizAppsTasksTaskTypeStatus(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsTasksTaskTypeStatus_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Type Status', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskTypeStatus')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Type Status', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Type Status', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @FieldResolver(() => [mjBizAppsTasksTask_])
+    async mjBizAppsTasksMJ_BizApps_Tasks_Tasks_TaskTypeStatusIDArray(@Root() mjbizappstaskstasktypestatus_: mjBizAppsTasksTaskTypeStatus_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Tasks', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTasks')} WHERE ${provider.QuoteIdentifier('TaskTypeStatusID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Tasks', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstasktypestatus_.ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Tasks', rows, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+        
+    @Mutation(() => mjBizAppsTasksTaskTypeStatus_)
+    async CreatemjBizAppsTasksTaskTypeStatus(
+        @Arg('input', () => CreatemjBizAppsTasksTaskTypeStatusInput) input: CreatemjBizAppsTasksTaskTypeStatusInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_Tasks: Task Type Status', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsTasksTaskTypeStatus_)
+    async UpdatemjBizAppsTasksTaskTypeStatus(
+        @Arg('input', () => UpdatemjBizAppsTasksTaskTypeStatusInput) input: UpdatemjBizAppsTasksTaskTypeStatusInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_Tasks: Task Type Status', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsTasksTaskTypeStatus_)
+    async DeletemjBizAppsTasksTaskTypeStatus(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_Tasks: Task Type Status', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
 // ENTITY CLASS for MJ_BizApps_Tasks: Task Types
 //****************************************************************************
 @ObjectType()
@@ -3436,6 +3717,18 @@ export class mjBizAppsTasksTaskType_ {
     @MaxLength(36)
     OnCancelActionID?: string;
         
+    @Field({description: `Stable unique machine code for programmatic lookups and cross-app metadata references.`}) 
+    @MaxLength(50)
+    Code: string;
+        
+    @Field({nullable: true, description: `Action invoked when a task of this type is first created (e.g. kicks off a task graph workflow, initialization agent, or subtask template generator).`}) 
+    @MaxLength(36)
+    OnCreateActionID?: string;
+        
+    @Field({nullable: true, description: `Action invoked whenever a task of this type changes status.`}) 
+    @MaxLength(36)
+    OnStatusChangeActionID?: string;
+        
     @Field({nullable: true}) 
     @MaxLength(425)
     OnAssignAction?: string;
@@ -3460,6 +3753,14 @@ export class mjBizAppsTasksTaskType_ {
     @MaxLength(425)
     OnCancelAction?: string;
         
+    @Field({nullable: true}) 
+    @MaxLength(425)
+    OnCreateAction?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(425)
+    OnStatusChangeAction?: string;
+        
     @Field(() => [mjBizAppsTasksTaskNotificationConfig_])
     mjBizAppsTasksMJ_BizApps_Tasks_TaskNotificationConfigs_TaskTypeIDArray: mjBizAppsTasksTaskNotificationConfig_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskNotificationConfigs
     
@@ -3470,6 +3771,9 @@ export class mjBizAppsTasksTaskType_ {
     mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplates_TypeIDArray: mjBizAppsTasksTaskTemplate_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskTemplates
     // Relationship field to MJ_BizApps_Issues: Issue Types not generated: its GraphQL type is not declared in this file.
 
+    @Field(() => [mjBizAppsTasksTaskTypeStatus_])
+    mjBizAppsTasksMJ_BizApps_Tasks_TaskTypeStatus_TaskTypeIDArray: mjBizAppsTasksTaskTypeStatus_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskTypeStatus
+    
 }
 
 //****************************************************************************
@@ -3512,6 +3816,15 @@ export class CreatemjBizAppsTasksTaskTypeInput {
 
     @Field({ nullable: true })
     OnCancelActionID: string | null;
+
+    @Field({ nullable: true })
+    Code?: string;
+
+    @Field({ nullable: true })
+    OnCreateActionID: string | null;
+
+    @Field({ nullable: true })
+    OnStatusChangeActionID: string | null;
 
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
@@ -3558,6 +3871,15 @@ export class UpdatemjBizAppsTasksTaskTypeInput {
 
     @Field({ nullable: true })
     OnCancelActionID?: string | null;
+
+    @Field({ nullable: true })
+    Code?: string;
+
+    @Field({ nullable: true })
+    OnCreateActionID?: string | null;
+
+    @Field({ nullable: true })
+    OnStatusChangeActionID?: string | null;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];
@@ -3654,6 +3976,16 @@ export class mjBizAppsTasksTaskTypeResolver extends ResolverBase {
     }
         // Relationship to MJ_BizApps_Issues: Issue Types not generated: its GraphQL type is not declared in this file.
 
+    @FieldResolver(() => [mjBizAppsTasksTaskTypeStatus_])
+    async mjBizAppsTasksMJ_BizApps_Tasks_TaskTypeStatus_TaskTypeIDArray(@Root() mjbizappstaskstasktype_: mjBizAppsTasksTaskType_, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Type Status', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskTypeStatus')} WHERE ${provider.QuoteIdentifier('TaskTypeID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Type Status', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [mjbizappstaskstasktype_.ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.ArrayMapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Type Status', rows, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+        
     @Mutation(() => mjBizAppsTasksTaskType_)
     async CreatemjBizAppsTasksTaskType(
         @Arg('input', () => CreatemjBizAppsTasksTaskTypeInput) input: CreatemjBizAppsTasksTaskTypeInput,
@@ -3759,6 +4091,10 @@ export class mjBizAppsTasksTask_ {
     @Field() 
     _mj__UpdatedAt: Date;
         
+    @Field({nullable: true, description: `Optional reference to the dynamic TaskTypeStatus definition for tasks with type-specific lifecycles.`}) 
+    @MaxLength(36)
+    TaskTypeStatusID?: string;
+        
     @Field() 
     @MaxLength(100)
     Type: string;
@@ -3776,20 +4112,12 @@ export class mjBizAppsTasksTask_ {
     CreatedByPerson?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(36)
-    RootParentID?: string;
-        
-    @Field(() => Int, {nullable: true}) 
-    ParentIDDepth?: number;
+    @MaxLength(100)
+    TaskTypeStatus?: string;
         
     @Field({nullable: true}) 
-    ParentIDPath?: string;
-        
-    @Field(() => Boolean, {nullable: true}) 
-    ParentIDIsLeaf?: boolean;
-        
-    @Field(() => Int, {nullable: true}) 
-    ParentIDChildCount?: number;
+    @MaxLength(36)
+    RootParentID?: string;
         
     @Field(() => [mjBizAppsTasksTaskDependency_])
     mjBizAppsTasksMJ_BizApps_Tasks_TaskDependencies_DependsOnTaskIDArray: mjBizAppsTasksTaskDependency_[]; // Link to mjBizAppsTasksMJ_BizApps_Tasks_TaskDependencies
@@ -3886,6 +4214,9 @@ export class CreatemjBizAppsTasksTaskInput {
     @Field({ nullable: true })
     OverdueNotifiedAt: Date | null;
 
+    @Field({ nullable: true })
+    TaskTypeStatusID: string | null;
+
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
 }
@@ -3952,6 +4283,9 @@ export class UpdatemjBizAppsTasksTaskInput {
 
     @Field({ nullable: true })
     OverdueNotifiedAt?: Date | null;
+
+    @Field({ nullable: true })
+    TaskTypeStatusID?: string | null;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];

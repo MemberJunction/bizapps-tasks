@@ -124,9 +124,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Decisions','TaskAssignmentID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Decisions','TaskAssignmentID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Decisions')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskDecisions')"
-                [ShowToolbar]="true"
+                [ShowToolbar]="false"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskDecisions', $event.totalRowCount)"
                 >

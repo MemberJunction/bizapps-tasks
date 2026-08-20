@@ -16,10 +16,14 @@ export class mjBizAppsTasksTaskTypeFormComponent extends BaseFormComponent {
     override async ngOnInit() {
         await super.ngOnInit();
         this.initSections([
-            { sectionKey: 'details', sectionName: 'Details', isExpanded: true },
+            { sectionKey: 'taskTypeDefinition', sectionName: 'Task Type Definition', isExpanded: true },
+            { sectionKey: 'workflowActions', sectionName: 'Workflow Actions', isExpanded: true },
+            { sectionKey: 'systemMetadata', sectionName: 'System Metadata', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskNotificationConfigs', sectionName: 'Task Notification Configs', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTasks', sectionName: 'Tasks', isExpanded: false },
-            { sectionKey: 'mJBizAppsTasksTaskTemplates', sectionName: 'Task Templates', isExpanded: false }
+            { sectionKey: 'mJBizAppsTasksTaskTemplates', sectionName: 'Task Templates', isExpanded: false },
+            { sectionKey: 'mJBizAppsIssuesIssueTypes', sectionName: 'Issue Types', isExpanded: false },
+            { sectionKey: 'mJBizAppsTasksTaskTypeStatus', sectionName: 'Task Type Status', isExpanded: false }
         ]);
     }
 }
