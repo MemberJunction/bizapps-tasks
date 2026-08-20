@@ -12,13 +12,13 @@ import { TaskService } from '@mj-biz-apps/tasks-core';
  *   - Sub-task progress rollup (cascading read-modify-write up the parent chain)
  *
  * The client-shared {@link TaskEntity} keeps only validation + in-record field
- * side-effects. Registered at priority 2 to win over the priority-1 TaskEntity.
+ * side-effects. Compiler/import order ensures this server subclass takes effect.
  *
  * Pattern mirrors SaaS's entities-server subclasses: override Save() to snapshot
  * pre-save state and write the audit log, and register a per-instance event
  * handler (once) for the cascading rollup so it fires after finalizeSave().
  */
-@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Tasks', 2)
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Tasks')
 export class TaskEntityServer extends TaskEntity {
     private _rollupHandlerRegistered = false;
 
