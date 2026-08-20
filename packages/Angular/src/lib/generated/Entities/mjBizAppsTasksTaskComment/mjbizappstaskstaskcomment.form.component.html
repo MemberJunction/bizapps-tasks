@@ -179,9 +179,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Comments','ParentID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Comments')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Comments','ParentID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskComments')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskComments', $event.totalRowCount)"
                 >

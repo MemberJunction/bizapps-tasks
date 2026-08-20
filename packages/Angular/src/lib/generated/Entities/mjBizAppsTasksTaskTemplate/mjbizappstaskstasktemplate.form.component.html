@@ -98,9 +98,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Template Items','TemplateID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Template Items')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Template Items','TemplateID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskTemplateItems')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskTemplateItems', $event.totalRowCount)"
                 >

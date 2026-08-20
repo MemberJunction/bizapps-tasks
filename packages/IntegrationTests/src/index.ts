@@ -1,8 +1,10 @@
 import { LoadGeneratedEntities as LoadTaskEntities } from '@mj-biz-apps/tasks-entities';
 import { LoadGeneratedEntities as LoadCommonEntities } from '@mj-biz-apps/common-entities';
+import { LoadBizAppsTasksEntitiesServer } from '@mj-biz-apps/tasks-entities-server';
 
 LoadCommonEntities();
 LoadTaskEntities();
+LoadBizAppsTasksEntitiesServer();
 
 export * from './entity-names.js';
 export * from './wire.js';

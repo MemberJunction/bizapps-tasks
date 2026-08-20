@@ -423,6 +423,11 @@ export class TaskEntityServer extends TaskEntity {
                     { Name: 'DueAt', Value: this.DueAt, Type: 'Input' },
                     { Name: 'TaskRecord', Value: recordBag, Type: 'Input' },
                     { Name: 'Payload', Value: JSON.stringify(payloadObject), Type: 'Input' },
+                    // Generic utility action compatibility bindings
+                    { Name: 'Expression', Value: `${this.PercentComplete || 100} * 1`, Type: 'Input' },
+                    { Name: 'Color', Value: '#2563eb', Type: 'Input' },
+                    { Name: 'Text', Value: this.Name, Type: 'Input' },
+                    { Name: 'Input', Value: this.Name, Type: 'Input' },
                 ],
                 Filters: [],
             });

@@ -165,9 +165,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Templates','CategoryID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Templates')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Templates','CategoryID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskTemplates')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskTemplates', $event.totalRowCount)"
                 >
@@ -190,9 +190,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Categories','ParentID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Categories')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Categories','ParentID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskCategories')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskCategories', $event.totalRowCount)"
                 >
@@ -215,9 +215,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Tasks','CategoryID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Tasks')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Tasks','CategoryID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTasks')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTasks', $event.totalRowCount)"
                 >

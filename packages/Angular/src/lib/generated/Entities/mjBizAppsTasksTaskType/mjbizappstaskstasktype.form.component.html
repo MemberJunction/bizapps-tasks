@@ -196,9 +196,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Notification Configs','TaskTypeID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Notification Configs')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Notification Configs','TaskTypeID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskNotificationConfigs')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskNotificationConfigs', $event.totalRowCount)"
                 >
@@ -221,9 +221,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Tasks','TypeID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Tasks')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Tasks','TypeID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTasks')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTasks', $event.totalRowCount)"
                 >
@@ -246,36 +246,11 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Templates','TypeID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Templates')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Templates','TypeID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskTemplates')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskTemplates', $event.totalRowCount)"
-                >
-            </mj-explorer-entity-data-grid>
-        </div>
-        }
-    </mj-collapsible-panel>
-
-    <!-- Issue Types Section -->
-    <mj-collapsible-panel
-        SectionKey="mJBizAppsIssuesIssueTypes"
-        SectionName="Issue Types"
-        Icon="fa fa-table"
-        Variant="related-entity"
-        [Form]="this"
-        [FormContext]="formContext"
-        [BadgeCount]="GetSectionRowCount('mJBizAppsIssuesIssueTypes')"
-        [DefaultExpanded]="false">
-        @if (record.IsSaved) {
-        <div>
-            <mj-explorer-entity-data-grid
-                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Issues: Issue Types','DefaultTaskTypeID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Issues: Issue Types')"
-                [AllowLoad]="IsSectionExpanded('mJBizAppsIssuesIssueTypes')"
-                [ShowToolbar]="false"
-                (Navigate)="OnFormNavigate($event)"
-                (AfterDataLoad)="SetSectionRowCount('mJBizAppsIssuesIssueTypes', $event.totalRowCount)"
                 >
             </mj-explorer-entity-data-grid>
         </div>
@@ -296,9 +271,9 @@
         <div>
             <mj-explorer-entity-data-grid
                 [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Type Status','TaskTypeID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Type Status')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Type Status','TaskTypeID')"
                 [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskTypeStatus')"
-                [ShowToolbar]="false"
+                [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskTypeStatus', $event.totalRowCount)"
                 >
