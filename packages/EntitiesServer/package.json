@@ -26,6 +26,7 @@
     "@mj-biz-apps/tasks-core": "1.2.3"
   },
   "peerDependencies": {
+    "@memberjunction/actions": "^6.1.0-edge.2",
     "@memberjunction/core": "^6.1.0-edge.2",
     "@memberjunction/global": "^6.1.0-edge.2"
   },
