@@ -2,10 +2,10 @@
   "fields": {
     "TypeID": "@lookup:MJ: Test Types.Name=Integration Test",
     "Name": "TSK-00 - Task World",
-    "Description": "Commit the baseline Task World via BaseEntity subclasses: categories, roles, decision outcomes, people, sprint templates, and sample active projects.",
+    "Description": "Commit the baseline Task World via BaseEntity subclasses: multi-domain categories, people, task types with unique codes, dynamic statuses, action hooks, and 3 divergent project hierarchies.",
     "InputDefinition": {},
     "ExpectedOutcomes": {
-      "summary": "5 Categories, 3 Roles, 3 Decision Outcomes, 4 People, Sprint Template with 5 items, sample Root Project and subtasks."
+      "summary": "15+ Categories across 3 domains, 6 Task Types, Dynamic TaskTypeStatus records, Candidate Actions, 8 People, and 3 distinct Top-Level Projects with subtasks."
     },
     "Configuration": {
       "tier": "deterministic",
@@ -22,7 +22,7 @@
     "ID": "1A111000-0000-4000-8000-000000000001"
   },
   "sync": {
-    "lastModified": "2026-08-14T22:57:29.251Z",
-    "checksum": "04f7d118313d7f2ebbb8131d05a242c91f724d0854f8ecc89d51ea5762fdefe0"
+    "lastModified": "2026-08-20T13:43:44.047Z",
+    "checksum": "1191403fd79e875a69658067b1c34bcc70d0495a3acba7947023bbf2f625b660"
   }
 }

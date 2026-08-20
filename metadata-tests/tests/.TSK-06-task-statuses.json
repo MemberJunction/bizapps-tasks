@@ -1,0 +1,28 @@
+{
+  "fields": {
+    "TypeID": "@lookup:MJ: Test Types.Name=Integration Test",
+    "Name": "TSK-06 - Task Statuses and Lifecycle",
+    "Description": "Test dynamic TaskTypeStatus defaulting, multi-stage transitions, macro-status sync, and terminal completion.",
+    "InputDefinition": {},
+    "ExpectedOutcomes": {
+      "summary": "TaskTypeStatus auto-assignment, MacroStatus synchronization across Open/InProgress/Completed/Cancelled, and terminal 100% progress auto-completion."
+    },
+    "Configuration": {
+      "tier": "deterministic",
+      "transport": "server",
+      "checks": [
+        {
+          "type": "task-statuses"
+        }
+      ]
+    },
+    "Status": "Active"
+  },
+  "primaryKey": {
+    "ID": "1A111000-0000-4000-8000-000000000007"
+  },
+  "sync": {
+    "lastModified": "2026-08-20T13:43:44.073Z",
+    "checksum": "09032b8e7f8fcaeeea159409bbe3a258f9ed30a23fbca9dc91eb3419f165ccc0"
+  }
+}

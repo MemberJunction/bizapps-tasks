@@ -1,0 +1,28 @@
+{
+  "fields": {
+    "TypeID": "@lookup:MJ: Test Types.Name=Integration Test",
+    "Name": "TSK-07 - Task Action and Workflow Hooks",
+    "Description": "Test event-driven Action and Workflow hook execution on TaskType and TaskTypeStatus lifecycle events.",
+    "InputDefinition": {},
+    "ExpectedOutcomes": {
+      "summary": "Non-blocking action hook execution on task creation, status changes, and stage transitions with universal task payload."
+    },
+    "Configuration": {
+      "tier": "deterministic",
+      "transport": "server",
+      "checks": [
+        {
+          "type": "task-action-hooks"
+        }
+      ]
+    },
+    "Status": "Active"
+  },
+  "primaryKey": {
+    "ID": "1A111000-0000-4000-8000-000000000008"
+  },
+  "sync": {
+    "lastModified": "2026-08-20T13:43:44.092Z",
+    "checksum": "381093cda2ac35d1b70a95a9fc0dd063711aa387ef1f2f501d164d826e00cdb3"
+  }
+}

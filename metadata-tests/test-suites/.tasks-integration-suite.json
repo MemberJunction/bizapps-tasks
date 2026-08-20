@@ -99,6 +99,36 @@
             "lastModified": "2026-08-14T22:57:29.497Z",
             "checksum": "d68ebf9806e313a4b1da3fa445db981d1626284c6abc3b9c2e5f6244db952132"
           }
+        },
+        {
+          "fields": {
+            "SuiteID": "@parent:ID",
+            "TestID": "@lookup:MJ: Tests.Name=TSK-06 - Task Statuses and Lifecycle",
+            "Sequence": 6,
+            "Status": "Active"
+          },
+          "primaryKey": {
+            "ID": "71A0B001-A111-4000-8000-000000000007"
+          },
+          "sync": {
+            "lastModified": "2026-08-20T13:43:44.134Z",
+            "checksum": "4c178c93e1f60310dcb0afb7aaa891243bcb08db6fa57e5b8dae20bec9c20205"
+          }
+        },
+        {
+          "fields": {
+            "SuiteID": "@parent:ID",
+            "TestID": "@lookup:MJ: Tests.Name=TSK-07 - Task Action and Workflow Hooks",
+            "Sequence": 7,
+            "Status": "Active"
+          },
+          "primaryKey": {
+            "ID": "71A0B001-A111-4000-8000-000000000008"
+          },
+          "sync": {
+            "lastModified": "2026-08-20T13:43:44.146Z",
+            "checksum": "5bbfc6ffd63dabaeb03c387776d902a45d8239097497881e2d8be49e557f5b84"
+          }
         }
       ]
     },
