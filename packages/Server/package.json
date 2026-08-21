@@ -29,14 +29,14 @@
     "class-validator": "^0.14.3"
   },
   "peerDependencies": {
-    "@memberjunction/core": "^6.1.0-edge.2",
-    "@memberjunction/core-entities": "^6.1.0-edge.2",
-    "@memberjunction/global": "^6.1.0-edge.2",
-    "@memberjunction/server": "^6.1.0-edge.2",
-    "@memberjunction/sqlserver-dataprovider": "^6.1.0-edge.2",
-    "@memberjunction/scheduling-engine": "^6.1.0-edge.2",
-    "@memberjunction/scheduling-base-types": "^6.1.0-edge.2",
-    "@memberjunction/actions": "^6.1.0-edge.2",
+    "@memberjunction/core": "^6.1.0-edge.3",
+    "@memberjunction/core-entities": "^6.1.0-edge.3",
+    "@memberjunction/global": "^6.1.0-edge.3",
+    "@memberjunction/server": "^6.1.0-edge.3",
+    "@memberjunction/sqlserver-dataprovider": "^6.1.0-edge.3",
+    "@memberjunction/scheduling-engine": "^6.1.0-edge.3",
+    "@memberjunction/scheduling-base-types": "^6.1.0-edge.3",
+    "@memberjunction/actions": "^6.1.0-edge.3",
     "rxjs": "^7.8.2"
   },
   "repository": {
