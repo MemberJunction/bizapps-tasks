@@ -1,5 +1,38 @@
 # @mj-biz-apps/tasks-ng
 
+## 1.3.0
+
+### Minor Changes
+
+- f49dd48: Open a Task record through SharedService (no optional NavigationService no-op). Generated Task form gets an identity header plus a Gantt/Kanban sub-task contribution and left-nav FormRole chrome.
+- 52e9d2d: feat(tasks): TaskType Code, dynamic TaskTypeStatus, and workflow action triggers
+
+  - Adds unique `Code` and event-driven action triggers (`OnCreateActionID`, `OnStatusChangeActionID`) to `TaskType`.
+  - Introduces `TaskTypeStatus` entity for customizable per-type task stages with `OnEnterActionID` and `OnExitActionID` lifecycle hooks.
+  - Extends `TaskEntityServer` with automated `TaskTypeStatus` synchronization and universal payload action execution for downstream workflows and AI Flow Agents.
+
+### Patch Changes
+
+- efe3791: feat(tasks-ng): add TaskCategoryHierarchyPanel with @memberjunction/ng-hierarchy-tree
+
+  - Adds `TaskCategoryHierarchyPanel` to `MJ_BizApps_Tasks: Task Categories` in the `after-related` slot for interactive portfolio category hierarchy visualization.
+  - Polishes Gantt flex layout and height responsiveness.
+
+- d0f50a4: Gantt on the Tasks dashboard opens the detail slide-in only on double-click, so single-click stays available for native DHTMLX selection, drag, and zoom.
+- 1c87a4a: Tasks Gantt persists grid pane width and column widths with zoom in `mj.tasks.gantt.v1` (still reads the old zoom-only key). Other apps keep their own settings.
+- ec7cb35: Task Gantt status legend dots use MJ status/brand tokens instead of hardcoded hex.
+- f7b01ea: Task Gantt starts one step zoomed out (month), adds +/- controls, and persists the preferred zoom level via UserInfoEngine (`mj.tasks.ganttZoom.v1`).
+- 3431e79: Declare BUSL-1.1 in mj-app.json. The LICENSE file and every package
+  already state BUSL-1.1; the app manifest still said ISC, so anything
+  reading the manifest saw the wrong license.
+- Updated dependencies [90418c2]
+- Updated dependencies [178cced]
+- Updated dependencies [f2a41f2]
+- Updated dependencies [3431e79]
+- Updated dependencies [52e9d2d]
+  - @mj-biz-apps/tasks-entities@1.3.0
+  - @mj-biz-apps/tasks-core@1.3.0
+
 ## 1.2.3
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @mj-biz-apps/tasks-actions
 
+## 1.3.0
+
+### Patch Changes
+
+- 3431e79: Declare BUSL-1.1 in mj-app.json. The LICENSE file and every package
+  already state BUSL-1.1; the app manifest still said ISC, so anything
+  reading the manifest saw the wrong license.
+
 ## 1.2.3
 
 ## 1.2.2

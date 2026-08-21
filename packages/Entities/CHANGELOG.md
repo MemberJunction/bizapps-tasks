@@ -1,5 +1,24 @@
 # @mj-biz-apps/tasks-entities
 
+## 1.3.0
+
+### Minor Changes
+
+- 90418c2: Task and Person form chrome uses L1 inclusion. Tasks stay Primary on Person; comments, assignments, decisions, and activities are None.
+- 178cced: Task form uses left-nav. Both Task Dependencies grids (TaskID and DependsOnTaskID) are None — the sub-tasks gantt already plots those links. Tag links and notification logs are None. Created-by Tasks on Person are None.
+- f2a41f2: Park Tasks created by a Person (CreatedByPersonID) in More on the Person form. Assignee is polymorphic, so there is no People→Task Assignments PersonID relationship to mark.
+- 52e9d2d: feat(tasks): TaskType Code, dynamic TaskTypeStatus, and workflow action triggers
+
+  - Adds unique `Code` and event-driven action triggers (`OnCreateActionID`, `OnStatusChangeActionID`) to `TaskType`.
+  - Introduces `TaskTypeStatus` entity for customizable per-type task stages with `OnEnterActionID` and `OnExitActionID` lifecycle hooks.
+  - Extends `TaskEntityServer` with automated `TaskTypeStatus` synchronization and universal payload action execution for downstream workflows and AI Flow Agents.
+
+### Patch Changes
+
+- 3431e79: Declare BUSL-1.1 in mj-app.json. The LICENSE file and every package
+  already state BUSL-1.1; the app manifest still said ISC, so anything
+  reading the manifest saw the wrong license.
+
 ## 1.2.3
 
 ### Patch Changes
