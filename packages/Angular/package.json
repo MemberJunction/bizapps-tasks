@@ -18,7 +18,7 @@
   "author": "MemberJunction.com",
   "license": "BUSL-1.1",
   "dependencies": {
-    "@memberjunction/ng-hierarchy-tree": "6.1.0-edge.2",
+    "@memberjunction/ng-hierarchy-tree": "6.1.0-edge.3",
     "@mj-biz-apps/tasks-entities": "1.2.3",
     "@mj-biz-apps/tasks-core": "1.2.3",
     "dhtmlx-gantt": "^9.1.2",
