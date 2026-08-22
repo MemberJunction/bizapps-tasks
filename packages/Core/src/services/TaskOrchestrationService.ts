@@ -4,6 +4,7 @@ import type {
     mjBizAppsTasksTaskDecisionEntity,
     mjBizAppsTasksTaskDecisionOutcomeEntity,
     mjBizAppsTasksTaskLinkEntity,
+    mjBizAppsTasksTaskAssignmentEntity,
 } from "@mj-biz-apps/tasks-entities";
 import { TaskService } from "./TaskService.js";
 import { TaskAssignmentService } from "./TaskAssignmentService.js";
@@ -12,6 +13,28 @@ const TASKS_ENTITY = 'MJ_BizApps_Tasks: Tasks';
 const TASK_DECISIONS_ENTITY = 'MJ_BizApps_Tasks: Task Decisions';
 const TASK_DECISION_OUTCOMES_ENTITY = 'MJ_BizApps_Tasks: Task Decision Outcomes';
 const TASK_LINKS_ENTITY = 'MJ_BizApps_Tasks: Task Links';
+const TASK_ASSIGNMENTS_ENTITY = 'MJ_BizApps_Tasks: Task Assignments';
+
+/** The TaskAssignment.Status values that mean the assignment is still actionable (can decide). */
+const ACTIVE_ASSIGNMENT_STATUSES: ReadonlySet<string> = new Set(['Pending', 'InProgress']);
+
+/**
+ * Case-insensitive UUID equality. SQL Server returns UUIDs uppercase and PostgreSQL lowercase,
+ * so identity comparisons across the decider Person, the linked-user record, and the assignment's
+ * assignee must normalize case rather than use `===`.
+ */
+function uuidEquals(a: string | null | undefined, b: string | null | undefined): boolean {
+    return !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+/**
+ * Normalizes a user's linked-identity field to a trimmed string. `UserInfo.LinkedEntityID` /
+ * `LinkedEntityRecordID` are typed `number` in the generated interface but carry GUID strings at
+ * runtime — coerce (never cast to `any`) and treat null/undefined as absent.
+ */
+function idToString(value: string | number | null | undefined): string {
+    return value == null ? '' : String(value).trim();
+}
 
 /** The closed set of task statuses (mirrors the generated Task.Status union). */
 export type TaskStatus = 'Open' | 'InProgress' | 'Blocked' | 'Completed' | 'Cancelled';
@@ -67,9 +90,20 @@ export type CreateTaskParams = {
 export type RecordDecisionParams = {
     TaskID: string;
     OutcomeCode: TaskDecisionOutcomeCode;
+    /**
+     * @deprecated Client-supplied identity is NOT trusted and no longer determines who is
+     * recorded as the decider — `RecordDecision` always stamps the decision from the
+     * authenticated caller's linked Person. If supplied, it is asserted to equal the resolved
+     * caller's Person (a mismatch throws, to surface a forged-identity attempt); otherwise it is
+     * ignored. New callers should omit it.
+     */
     DecidedByPersonID?: string;
     Notes?: string;
-    /** When set, records a per-assignee decision for multi-approver flows. */
+    /**
+     * When set, records a per-assignee decision for multi-approver flows. It is validated
+     * against the caller's own active assignments on the task — a value that does not belong to
+     * the caller is rejected.
+     */
     TaskAssignmentID?: string;
 };
 
@@ -169,18 +203,45 @@ export class TaskOrchestrationService {
      *
      * The status transition fires the existing server hook seam, so consumers' OnReject /
      * OnCancel / OnComplete actions run as a side-effect of recording the decision.
+     *
+     * Security (non-repudiation): the decider is derived from the authenticated caller's linked
+     * Person, never from client-supplied `DecidedByPersonID`, and the caller must hold an ACTIVE
+     * assignment on the task. This prevents any user who can write a TaskDecision from approving
+     * an arbitrary task and attributing it to another Person. See `assertCallerIsActiveApprover`.
+     *
+     * NOTE (defense in depth): this identity + assignment enforcement lives in the service so it
+     * holds on every call path, but the browser calls this service directly with no server
+     * boundary in between, so a determined client could still call the underlying entity API.
+     * This decision path should be moved behind a server-side Action / GraphQL resolver
+     * (`ResolverBase` with a per-request `contextUser`) that is the ONLY writer of TaskDecision +
+     * the terminal Task transition, with entity permissions denying direct TaskDecision create to
+     * ordinary users. The checks below are written to run unchanged there.
      */
     async RecordDecision(params: RecordDecisionParams, contextUser?: UserInfo): Promise<RecordDecisionResult> {
         const outcome = await this.resolveOutcome(params.OutcomeCode, contextUser);
+
+        // Derive the decider from the authenticated caller — client input is not trusted.
+        const caller = this.resolveCaller(contextUser);
+        const callerPersonID = this.resolveCallerPersonID(caller);
+
+        // A client-supplied decider that disagrees with the caller is a forgery attempt — reject it.
+        if (params.DecidedByPersonID != null && !uuidEquals(params.DecidedByPersonID, callerPersonID)) {
+            throw new Error(
+                `Refusing to record a decision under another identity: supplied DecidedByPersonID does not match the authenticated user.`,
+            );
+        }
+
+        // Enforce the assignee gate: only an active approver assigned to THIS task may decide it.
+        const assignment = await this.assertCallerIsActiveApprover(params.TaskID, caller, callerPersonID, params.TaskAssignmentID, contextUser);
 
         const md = new Metadata();
         const decision = await md.GetEntityObject<mjBizAppsTasksTaskDecisionEntity>(TASK_DECISIONS_ENTITY, contextUser);
         decision.NewRecord();
         decision.TaskID = params.TaskID;
         decision.OutcomeID = outcome.ID;
-        if (params.DecidedByPersonID != null) decision.DecidedByPersonID = params.DecidedByPersonID;
+        decision.DecidedByPersonID = callerPersonID; // server-derived identity, never client input
         if (params.Notes != null) decision.DecisionNotes = params.Notes;
-        if (params.TaskAssignmentID != null) decision.TaskAssignmentID = params.TaskAssignmentID;
+        decision.TaskAssignmentID = assignment.ID;   // the caller's own validated assignment
 
         if (!(await decision.Save())) {
             throw new Error(`Failed to record decision for task ${params.TaskID}: ${decision.LatestResult?.CompleteMessage ?? 'unknown error'}`);
@@ -188,7 +249,7 @@ export class TaskOrchestrationService {
 
         await this.taskService.logActivity({
             taskID: params.TaskID,
-            personID: params.DecidedByPersonID,
+            personID: callerPersonID,
             activityType: 'DecisionRecorded',
             newValue: outcome.Code,
             description: `Decision recorded: ${outcome.Name}`,
@@ -248,6 +309,80 @@ export class TaskOrchestrationService {
     // ---------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------
+
+    /**
+     * Resolves the authenticated caller. Prefers the server-supplied `contextUser`; falls back to
+     * the provider's `CurrentUser` on the client. Throws when neither is available — a decision may
+     * never be recorded without an identity.
+     */
+    private resolveCaller(contextUser?: UserInfo): UserInfo {
+        const caller = contextUser ?? new Metadata().CurrentUser;
+        if (!caller) {
+            throw new Error('Cannot record a task decision: no authenticated user in context.');
+        }
+        return caller;
+    }
+
+    /**
+     * The caller's linked Person record ID — the identity actually stamped on the decision. A user
+     * that is not linked to a Person cannot be an approver, so this throws rather than guessing.
+     */
+    private resolveCallerPersonID(caller: UserInfo): string {
+        const personID = idToString(caller.LinkedEntityRecordID);
+        if (!personID) {
+            throw new Error(
+                `Cannot record a task decision: user '${caller.Email ?? caller.ID}' is not linked to a Person record.`,
+            );
+        }
+        return personID;
+    }
+
+    /**
+     * Assignee gate. Loads the task's assignments and asserts the caller holds one that is (a) still
+     * active and (b) points at the caller's own linked Person (matching BOTH the assignee entity and
+     * record, so an Agent assignment that happens to share a record id cannot satisfy it). Returns
+     * the matched assignment so the decision can be bound to it. Throws otherwise — this is the check
+     * that stops a non-approver from recording, or forging, a decision.
+     */
+    private async assertCallerIsActiveApprover(
+        taskID: string,
+        caller: UserInfo,
+        callerPersonID: string,
+        requestedAssignmentID: string | undefined,
+        contextUser?: UserInfo,
+    ): Promise<mjBizAppsTasksTaskAssignmentEntity> {
+        const rv = new RunView();
+        const result = await rv.RunView<mjBizAppsTasksTaskAssignmentEntity>({
+            EntityName: TASK_ASSIGNMENTS_ENTITY,
+            ExtraFilter: `TaskID = '${taskID.replace(/'/g, "''")}'`,
+            ResultType: 'entity_object',
+        }, contextUser);
+
+        if (!result?.Success) {
+            throw new Error(`Failed to load assignments for task ${taskID}: ${result?.ErrorMessage ?? 'unknown error'}`);
+        }
+
+        const callerEntityID = idToString(caller.LinkedEntityID);
+        const callerAssignments = (result.Results ?? []).filter(a =>
+            ACTIVE_ASSIGNMENT_STATUSES.has(a.Status) &&
+            uuidEquals(a.AssigneeEntityID, callerEntityID) &&
+            uuidEquals(a.AssigneeRecordID, callerPersonID),
+        );
+
+        if (callerAssignments.length === 0) {
+            throw new Error(`User is not an active approver on task ${taskID}; cannot record a decision.`);
+        }
+
+        // For multi-approver flows, honor a requested assignment only if it is one of the caller's own.
+        if (requestedAssignmentID != null) {
+            const chosen = callerAssignments.find(a => uuidEquals(a.ID, requestedAssignmentID));
+            if (!chosen) {
+                throw new Error(`TaskAssignment ${requestedAssignmentID} does not belong to the authenticated user for task ${taskID}.`);
+            }
+            return chosen;
+        }
+        return callerAssignments[0];
+    }
 
     private async loadTask(taskID: string, contextUser?: UserInfo): Promise<mjBizAppsTasksTaskEntity> {
         const md = new Metadata();

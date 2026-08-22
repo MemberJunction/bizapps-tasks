@@ -72,7 +72,6 @@ export interface ApprovalRow {
             @if (SelectedApprovalID) {
                 <bizapps-approval-decision-panel
                     [TaskID]="SelectedApprovalID"
-                    [DecidedByPersonID]="ApproverPersonID"
                     (DecisionRecorded)="onDecisionRecorded($event)"
                     (Cancelled)="SelectedApprovalID = null">
                 </bizapps-approval-decision-panel>

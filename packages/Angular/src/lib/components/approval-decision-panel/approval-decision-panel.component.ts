@@ -34,11 +34,13 @@ export interface DecisionRecordedEvent {
  *
  * Standalone and Router-free so any Explorer or app can embed it.
  *
+ * The decider identity is NOT supplied by the client — the orchestration service derives it from
+ * the authenticated user and enforces that they are an active approver on the task.
+ *
  * @example
  * ```html
  * <bizapps-approval-decision-panel
  *     [TaskID]="selectedApprovalID"
- *     [DecidedByPersonID]="currentUserPersonID"
  *     (DecisionRecorded)="onDecision($event)"
  *     (Cancelled)="closePanel()">
  * </bizapps-approval-decision-panel>
@@ -161,9 +163,6 @@ export class ApprovalDecisionPanelComponent implements OnInit {
     }
     private _taskID: string | null = null;
 
-    /** The Person recording the decision (stamped on the TaskDecision). */
-    @Input() DecidedByPersonID: string | null = null;
-
     // ── Outputs ─────────────────────────────────────────────
 
     /** Emitted after a decision is successfully recorded and the task transitioned. */
@@ -245,12 +244,12 @@ export class ApprovalDecisionPanelComponent implements OnInit {
             // Delegate to the shared orchestration service so the decision row,
             // the DecisionRecorded activity log, and the status transition all
             // happen through ONE code path (server + browser identical). The
-            // service falls back to the provider's CurrentUser when contextUser
-            // is omitted (client-side), per the MJ pattern.
+            // service derives the decider from the authenticated user (falling back
+            // to the provider's CurrentUser client-side) and enforces the assignee
+            // gate — the client never supplies who approved.
             const result = await this.orchestration.RecordDecision({
                 TaskID: this._taskID,
                 OutcomeCode: outcome.Code as TaskDecisionOutcomeCode,
-                DecidedByPersonID: this.DecidedByPersonID ?? undefined,
                 Notes: this.Notes || undefined,
             });
             this.DecisionRecorded.emit({
