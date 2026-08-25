@@ -34,14 +34,10 @@ module.exports = {
     },
   ],
 
-  // Run CodeGen against MJ_BizAppTask (clean DB) — not MJ_5_9_0 which has Committees cross-schema FKs.
-  //
-  // Scope CodeGen to the schema tasks OWNS (__mj_BizAppsTasks). Exclude core (__mj)
-  // and __mj_BizAppsCommon — tasks only references those via FK; they are owned by
-  // MJ core and bizapps-common respectively and consumed as npm packages.
-  // (Matches the bizapps-accounting convention; the codegen-lib defaults do NOT
-  // exclude __mj_BizAppsCommon, so it must be listed explicitly.)
-  excludeSchemas: ['sys', 'staging', 'dbo', '__mj', '__mj_BizAppsCommon', '__mj_BizAppsOrders', '__mj_BizAppsAccounting', '__mj_BizAppsIssues', '__mj_BizAppsMarketing', '__mj_BizAppsATS', '__mj_BizAppsCommittees', '__mj_BizAppsCaliber', '__mj_BizAppsForms'],
+  // Allow-list: CodeGen this app's schema only (MJ >= 5.50 includeSchemas).
+  // Unnamed schemas — core, siblings, never-seen client schemas — are excluded.
+  includeSchemas: ['__mj_BizAppsTasks'],
+  excludeSchemas: [],
 
   // SQL output configuration with Flyway placeholders.
   // The app's own schema (__mj_BizAppsTasks) maps to ${flyway:defaultSchema} so it is
