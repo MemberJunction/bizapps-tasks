@@ -11,7 +11,7 @@
 -- =============================================================================
 
 /* SQL text to update existing entities from schema */
-EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='${mjSchema}_BizAppsAccounting,${mjSchema}_BizAppsCommon,${mjSchema}_BizAppsIssues,${mjSchema}_BizAppsOrders,${mjSchema},sys';
+EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='sys,staging', @IncludedSchemaNames='${flyway:defaultSchema}';
 
 /* SQL text to insert 12 new entity field(s) — hierarchy virtuals for Task Categories/Comments/Template Items.
    CodeGen emitted these during a sibling-schema --skipfiles run; folded here because they belong to Tasks. */
@@ -773,13 +773,13 @@ EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='${
       END;
 
 /* SQL text to update existing entity fields from schema */
-EXEC [${mjSchema}].[spUpdateExistingEntityFieldsFromSchema] @ExcludedSchemaNames='${mjSchema}_BizAppsAccounting,${mjSchema}_BizAppsCommon,${mjSchema}_BizAppsIssues,${mjSchema}_BizAppsOrders,${mjSchema},sys';
+EXEC [${mjSchema}].[spUpdateExistingEntityFieldsFromSchema] @ExcludedSchemaNames='sys,staging', @IncludedSchemaNames='${flyway:defaultSchema}';
 
 /* SQL text to set default column width where needed */
-EXEC [${mjSchema}].[spSetDefaultColumnWidthWhereNeeded] @ExcludedSchemaNames='${mjSchema}_BizAppsAccounting,${mjSchema}_BizAppsCommon,${mjSchema}_BizAppsIssues,${mjSchema}_BizAppsOrders,${mjSchema},sys';
+EXEC [${mjSchema}].[spSetDefaultColumnWidthWhereNeeded] @ExcludedSchemaNames='sys,staging', @IncludedSchemaNames='${flyway:defaultSchema}';
 
 /* SQL text to sync schema info from database schemas */
-EXEC [${mjSchema}].[spUpdateSchemaInfoFromDatabase] @ExcludedSchemaNames='${mjSchema}_BizAppsAccounting,${mjSchema}_BizAppsCommon,${mjSchema}_BizAppsIssues,${mjSchema}_BizAppsOrders,${mjSchema},sys';
+EXEC [${mjSchema}].[spUpdateSchemaInfoFromDatabase] @ExcludedSchemaNames='sys,staging', @IncludedSchemaNames='${flyway:defaultSchema}';
 
 /* Hierarchy Metadata Function SQL for MJ_BizApps_Tasks: Task Categories.ParentID */
 -----------------------------------------------------------------
