@@ -1,5 +1,21 @@
 # @mj-biz-apps/tasks-server
 
+## 1.4.0
+
+### Minor Changes
+
+- 0064e26: Drop the form-chrome record naming `MJ_BizApps_Accounting: Journal Entry Batches` — Tasks metadata must not reference consumer apps, and the unresolvable `@lookup` rolled back the entire metadata push on any install without Accounting. Ship the v1.2.x metadata sync migration so a migrations-only install carries the full form chrome, display-name pins, and application settings with no `mj sync push` required.
+- 0592ecc: Scope CodeGen heal EXECs with authored excludeSchemas plus `@IncludedSchemaNames` for the Tasks schema, instead of photographing sibling Open Apps.
+
+### Patch Changes
+
+- Updated dependencies [0064e26]
+- Updated dependencies [0592ecc]
+  - @mj-biz-apps/tasks-entities@1.4.0
+  - @mj-biz-apps/tasks-core@1.4.0
+  - @mj-biz-apps/tasks-entities-server@1.4.0
+  - @mj-biz-apps/tasks-actions@1.4.0
+
 ## 1.3.0
 
 ### Minor Changes
