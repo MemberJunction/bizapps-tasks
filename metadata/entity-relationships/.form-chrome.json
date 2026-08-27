@@ -14,7 +14,7 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Common: People&RelatedEntity=MJ_BizApps_Tasks: Tasks&RelatedEntityJoinField=CreatedByPersonID"
     },
     "sync": {
-      "lastModified": "2026-08-24T20:07:33.289Z",
+      "lastModified": "2026-08-27T05:01:49.448Z",
       "checksum": "9cefa22b1ba112e419ae4bb1b3a7c0523ed4d83203e6d34e454e6ae81d2a1f62"
     }
   },
@@ -34,7 +34,7 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Tasks&RelatedEntityJoinField=ParentID"
     },
     "sync": {
-      "lastModified": "2026-08-24T20:07:33.377Z",
+      "lastModified": "2026-08-27T05:01:49.424Z",
       "checksum": "88e8a74c6ebb117eaea63fae14ef5724ec2960ef7b858b1cc25cfa9a3d618ced"
     }
   },
@@ -53,7 +53,7 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Assignments&RelatedEntityJoinField=TaskID"
     },
     "sync": {
-      "lastModified": "2026-08-24T20:07:33.312Z",
+      "lastModified": "2026-08-27T05:01:49.524Z",
       "checksum": "ffcadf6a38dea7ba00c49040ba5c94475c9266e21b9bc382278ef1da715e8086"
     }
   },
@@ -74,7 +74,7 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Dependencies&RelatedEntityJoinField=TaskID"
     },
     "sync": {
-      "lastModified": "2026-08-24T20:07:33.334Z",
+      "lastModified": "2026-08-27T05:01:49.476Z",
       "checksum": "9cefa22b1ba112e419ae4bb1b3a7c0523ed4d83203e6d34e454e6ae81d2a1f62"
     }
   },
@@ -94,7 +94,7 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Dependencies&RelatedEntityJoinField=DependsOnTaskID"
     },
     "sync": {
-      "lastModified": "2026-08-24T20:07:33.357Z",
+      "lastModified": "2026-08-27T05:01:49.499Z",
       "checksum": "9cefa22b1ba112e419ae4bb1b3a7c0523ed4d83203e6d34e454e6ae81d2a1f62"
     }
   },
@@ -113,7 +113,7 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Comments&RelatedEntityJoinField=TaskID"
     },
     "sync": {
-      "lastModified": "2026-08-24T20:07:33.397Z",
+      "lastModified": "2026-08-27T05:01:49.546Z",
       "checksum": "58975efd1d9187857b888d0129194c7b3c6f8248bca208c86585ea58e2517426"
     }
   },
@@ -132,7 +132,7 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Activities&RelatedEntityJoinField=TaskID"
     },
     "sync": {
-      "lastModified": "2026-08-24T20:07:33.416Z",
+      "lastModified": "2026-08-27T05:01:49.569Z",
       "checksum": "58975efd1d9187857b888d0129194c7b3c6f8248bca208c86585ea58e2517426"
     }
   },
@@ -151,7 +151,7 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Links&RelatedEntityJoinField=TaskID"
     },
     "sync": {
-      "lastModified": "2026-08-24T20:07:33.436Z",
+      "lastModified": "2026-08-27T05:01:49.596Z",
       "checksum": "58975efd1d9187857b888d0129194c7b3c6f8248bca208c86585ea58e2517426"
     }
   },
@@ -170,7 +170,7 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Tag Links&RelatedEntityJoinField=TaskID"
     },
     "sync": {
-      "lastModified": "2026-08-24T20:07:33.457Z",
+      "lastModified": "2026-08-27T05:01:49.619Z",
       "checksum": "9cefa22b1ba112e419ae4bb1b3a7c0523ed4d83203e6d34e454e6ae81d2a1f62"
     }
   },
@@ -189,7 +189,7 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Notification Logs&RelatedEntityJoinField=TaskID"
     },
     "sync": {
-      "lastModified": "2026-08-24T20:07:33.478Z",
+      "lastModified": "2026-08-27T05:01:49.638Z",
       "checksum": "9cefa22b1ba112e419ae4bb1b3a7c0523ed4d83203e6d34e454e6ae81d2a1f62"
     }
   },
@@ -208,7 +208,7 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Decisions&RelatedEntityJoinField=TaskID"
     },
     "sync": {
-      "lastModified": "2026-08-24T20:07:33.705Z",
+      "lastModified": "2026-08-27T05:01:49.796Z",
       "checksum": "58975efd1d9187857b888d0129194c7b3c6f8248bca208c86585ea58e2517426"
     }
   },
@@ -227,7 +227,7 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Common: People&RelatedEntity=MJ_BizApps_Tasks: Task Comments&RelatedEntityJoinField=PersonID"
     },
     "sync": {
-      "lastModified": "2026-08-24T20:07:33.722Z",
+      "lastModified": "2026-08-27T05:01:49.676Z",
       "checksum": "9cefa22b1ba112e419ae4bb1b3a7c0523ed4d83203e6d34e454e6ae81d2a1f62"
     }
   },
@@ -246,7 +246,7 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Common: People&RelatedEntity=MJ_BizApps_Tasks: Task Assignments&RelatedEntityJoinField=AssignedByPersonID"
     },
     "sync": {
-      "lastModified": "2026-08-24T20:07:33.523Z",
+      "lastModified": "2026-08-27T05:01:49.724Z",
       "checksum": "9cefa22b1ba112e419ae4bb1b3a7c0523ed4d83203e6d34e454e6ae81d2a1f62"
     }
   },
@@ -265,7 +265,7 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Common: People&RelatedEntity=MJ_BizApps_Tasks: Task Decisions&RelatedEntityJoinField=DecidedByPersonID"
     },
     "sync": {
-      "lastModified": "2026-08-24T20:07:33.547Z",
+      "lastModified": "2026-08-27T05:01:49.700Z",
       "checksum": "9cefa22b1ba112e419ae4bb1b3a7c0523ed4d83203e6d34e454e6ae81d2a1f62"
     }
   },
@@ -284,27 +284,8 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Common: People&RelatedEntity=MJ_BizApps_Tasks: Task Activities&RelatedEntityJoinField=PersonID"
     },
     "sync": {
-      "lastModified": "2026-08-24T20:07:33.571Z",
+      "lastModified": "2026-08-27T05:01:49.747Z",
       "checksum": "9cefa22b1ba112e419ae4bb1b3a7c0523ed4d83203e6d34e454e6ae81d2a1f62"
-    }
-  },
-  {
-    "_comments": [
-      "Task form: JE batches this task approved sit in More."
-    ],
-    "fields": {
-      "Configuration": {
-        "UI": {
-          "inclusion": "More"
-        }
-      }
-    },
-    "primaryKey": {
-      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Accounting: Journal Entry Batches&RelatedEntityJoinField=ApprovalTaskID"
-    },
-    "sync": {
-      "lastModified": "2026-08-24T20:07:33.590Z",
-      "checksum": "58975efd1d9187857b888d0129194c7b3c6f8248bca208c86585ea58e2517426"
     }
   },
   {
@@ -322,7 +303,7 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Task Types&RelatedEntity=MJ_BizApps_Tasks: Task Templates&RelatedEntityJoinField=TypeID"
     },
     "sync": {
-      "lastModified": "2026-08-24T20:07:33.610Z",
+      "lastModified": "2026-08-27T05:01:49.822Z",
       "checksum": "ffcadf6a38dea7ba00c49040ba5c94475c9266e21b9bc382278ef1da715e8086"
     }
   },
@@ -341,7 +322,7 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Task Types&RelatedEntity=MJ_BizApps_Tasks: Tasks&RelatedEntityJoinField=TypeID"
     },
     "sync": {
-      "lastModified": "2026-08-24T20:07:33.630Z",
+      "lastModified": "2026-08-27T05:01:49.772Z",
       "checksum": "58975efd1d9187857b888d0129194c7b3c6f8248bca208c86585ea58e2517426"
     }
   },
@@ -360,7 +341,7 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Task Types&RelatedEntity=MJ_BizApps_Tasks: Task Notification Configs&RelatedEntityJoinField=TaskTypeID"
     },
     "sync": {
-      "lastModified": "2026-08-24T20:07:33.656Z",
+      "lastModified": "2026-08-27T05:01:49.844Z",
       "checksum": "58975efd1d9187857b888d0129194c7b3c6f8248bca208c86585ea58e2517426"
     }
   },
@@ -379,7 +360,7 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Task Templates&RelatedEntity=MJ_BizApps_Tasks: Task Template Items&RelatedEntityJoinField=TemplateID"
     },
     "sync": {
-      "lastModified": "2026-08-24T20:07:33.685Z",
+      "lastModified": "2026-08-27T05:01:49.884Z",
       "checksum": "ffcadf6a38dea7ba00c49040ba5c94475c9266e21b9bc382278ef1da715e8086"
     }
   },
@@ -398,7 +379,7 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Task Categories&RelatedEntity=MJ_BizApps_Tasks: Task Categories&RelatedEntityJoinField=ParentID"
     },
     "sync": {
-      "lastModified": "2026-08-24T20:07:33.788Z",
+      "lastModified": "2026-08-27T05:01:49.866Z",
       "checksum": "ffcadf6a38dea7ba00c49040ba5c94475c9266e21b9bc382278ef1da715e8086"
     }
   },
@@ -417,7 +398,7 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Task Categories&RelatedEntity=MJ_BizApps_Tasks: Task Templates&RelatedEntityJoinField=CategoryID"
     },
     "sync": {
-      "lastModified": "2026-08-24T20:07:33.751Z",
+      "lastModified": "2026-08-27T05:01:49.936Z",
       "checksum": "ffcadf6a38dea7ba00c49040ba5c94475c9266e21b9bc382278ef1da715e8086"
     }
   },
@@ -436,7 +417,7 @@
       "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Task Categories&RelatedEntity=MJ_BizApps_Tasks: Tasks&RelatedEntityJoinField=CategoryID"
     },
     "sync": {
-      "lastModified": "2026-08-24T20:07:33.771Z",
+      "lastModified": "2026-08-27T05:01:49.917Z",
       "checksum": "58975efd1d9187857b888d0129194c7b3c6f8248bca208c86585ea58e2517426"
     }
   }
