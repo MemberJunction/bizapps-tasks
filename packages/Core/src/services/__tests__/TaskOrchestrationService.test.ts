@@ -56,7 +56,31 @@ function makeFakeEntity(initial: Record<string, any> = {}) {
   return entity;
 }
 
-const user: any = { ID: 'user-1', Email: 'tester@example.com' };
+// The authenticated caller: linked to the People entity + Person 'p1'. RecordDecision derives the
+// decider from THIS, never from client-supplied input.
+const user: any = {
+  ID: 'user-1',
+  Email: 'tester@example.com',
+  LinkedEntityID: 'people-entity',
+  LinkedEntityRecordID: 'p1',
+};
+
+/** An active approver assignment for `user` (People entity, record p1). */
+function activeAssignmentForCaller(overrides: Record<string, any> = {}) {
+  return {
+    ID: 'assign-1',
+    TaskID: 'task-1',
+    AssigneeEntityID: 'people-entity',
+    AssigneeRecordID: 'p1',
+    Status: 'Pending',
+    ...overrides,
+  };
+}
+
+/** Queues the assignee-gate RunView (assignments for the task) to succeed with the given rows. */
+function mockAssignmentsRunView(rows: Record<string, any>[]) {
+  runViewMock.mockResolvedValueOnce({ Success: true, Results: rows });
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -127,6 +151,8 @@ describe('TaskOrchestrationService.RecordDecision', () => {
       Success: true,
       Results: [{ ID: 'outcome-approved', Name: 'Approved', Code: 'Approved', IsTerminal: true }],
     });
+    // 2) assignee-gate RunView → caller has an active approver assignment
+    mockAssignmentsRunView([activeAssignmentForCaller()]);
 
     const decision = makeFakeEntity();
     const activity = makeFakeEntity();
@@ -144,6 +170,9 @@ describe('TaskOrchestrationService.RecordDecision', () => {
 
     expect(decision.OutcomeID).toBe('outcome-approved');
     expect(decision.TaskID).toBe('task-1');
+    // Decider stamped from the authenticated caller, and bound to the caller's own assignment.
+    expect(decision.DecidedByPersonID).toBe('p1');
+    expect(decision.TaskAssignmentID).toBe('assign-1');
     expect(decision.Save).toHaveBeenCalledOnce();
     expect(result.NewStatus).toBe('Completed');
     expect(task.Status).toBe('Completed');
@@ -155,6 +184,7 @@ describe('TaskOrchestrationService.RecordDecision', () => {
       Success: true,
       Results: [{ ID: 'outcome-rejected', Name: 'Rejected', Code: 'Rejected', IsTerminal: true }],
     });
+    mockAssignmentsRunView([activeAssignmentForCaller()]);
     const decision = makeFakeEntity();
     const activity = makeFakeEntity();
     const task = makeFakeEntity({ Status: 'Open' });
@@ -175,6 +205,7 @@ describe('TaskOrchestrationService.RecordDecision', () => {
       Success: true,
       Results: [{ ID: 'outcome-interim', Name: 'Needs Info', Code: 'Approved', IsTerminal: false }],
     });
+    mockAssignmentsRunView([activeAssignmentForCaller()]);
     const decision = makeFakeEntity();
     const activity = makeFakeEntity();
     const task = makeFakeEntity({ Status: 'Open' });
@@ -197,5 +228,70 @@ describe('TaskOrchestrationService.RecordDecision', () => {
     await expect(
       svc.RecordDecision({ TaskID: 'task-1', OutcomeCode: 'Approved' }, user),
     ).rejects.toThrow(/not found/);
+  });
+
+  // ── Security: identity + assignee enforcement ──────────────────────────────
+
+  it('rejects a decision when the caller has no active assignment on the task (assignee gate)', async () => {
+    runViewMock.mockResolvedValueOnce({
+      Success: true,
+      Results: [{ ID: 'outcome-approved', Name: 'Approved', Code: 'Approved', IsTerminal: true }],
+    });
+    mockAssignmentsRunView([]); // caller is not assigned
+
+    const svc = new TaskOrchestrationService();
+    await expect(
+      svc.RecordDecision({ TaskID: 'task-1', OutcomeCode: 'Approved' }, user),
+    ).rejects.toThrow(/not an active approver/);
+    // No decision was written.
+    expect(getEntityObjectMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects a decision whose assignment belongs to a different Person (no forged assignee)', async () => {
+    runViewMock.mockResolvedValueOnce({
+      Success: true,
+      Results: [{ ID: 'outcome-approved', Name: 'Approved', Code: 'Approved', IsTerminal: true }],
+    });
+    // Assignment exists but for another Person / entity — must not satisfy the gate.
+    mockAssignmentsRunView([
+      activeAssignmentForCaller({ ID: 'assign-2', AssigneeRecordID: 'someone-else' }),
+    ]);
+
+    const svc = new TaskOrchestrationService();
+    await expect(
+      svc.RecordDecision({ TaskID: 'task-1', OutcomeCode: 'Approved' }, user),
+    ).rejects.toThrow(/not an active approver/);
+    expect(getEntityObjectMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects a client-supplied DecidedByPersonID that does not match the authenticated caller', async () => {
+    runViewMock.mockResolvedValueOnce({
+      Success: true,
+      Results: [{ ID: 'outcome-approved', Name: 'Approved', Code: 'Approved', IsTerminal: true }],
+    });
+
+    const svc = new TaskOrchestrationService();
+    await expect(
+      svc.RecordDecision(
+        { TaskID: 'task-1', OutcomeCode: 'Approved', DecidedByPersonID: 'impersonated-person' },
+        user,
+      ),
+    ).rejects.toThrow(/another identity/);
+    // Rejected before the assignee-gate RunView and before any write.
+    expect(runViewMock).toHaveBeenCalledOnce();
+    expect(getEntityObjectMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects an inactive (Completed) assignment', async () => {
+    runViewMock.mockResolvedValueOnce({
+      Success: true,
+      Results: [{ ID: 'outcome-approved', Name: 'Approved', Code: 'Approved', IsTerminal: true }],
+    });
+    mockAssignmentsRunView([activeAssignmentForCaller({ Status: 'Completed' })]);
+
+    const svc = new TaskOrchestrationService();
+    await expect(
+      svc.RecordDecision({ TaskID: 'task-1', OutcomeCode: 'Approved' }, user),
+    ).rejects.toThrow(/not an active approver/);
   });
 });
