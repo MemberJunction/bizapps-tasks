@@ -24,10 +24,10 @@
     "vitest": "^4.0.18"
   },
   "dependencies": {
-    "@memberjunction/core": "^6.1.0-edge.3",
-    "@memberjunction/global": "^6.1.0-edge.3",
-    "@memberjunction/testing-integration": "^6.1.0-edge.3",
-    "@mj-biz-apps/common-entities": ">=0.1.0",
+    "@memberjunction/core": "^6.1.0-edge.5",
+    "@memberjunction/global": "^6.1.0-edge.5",
+    "@memberjunction/testing-integration": "^6.1.0-edge.5",
+    "@mj-biz-apps/common-entities": ">=5.37.0",
     "@mj-biz-apps/tasks-entities": "1.4.1",
     "@mj-biz-apps/tasks-entities-server": "1.4.1"
   },
