@@ -1,5 +1,13 @@
 # @mj-biz-apps/tasks-entities-server
 
+## 1.4.1
+
+### Patch Changes
+
+- Updated dependencies [c2969c4]
+  - @mj-biz-apps/tasks-entities@1.4.1
+  - @mj-biz-apps/tasks-core@1.4.1
+
 ## 1.4.0
 
 ### Patch Changes
