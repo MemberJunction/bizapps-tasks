@@ -26,9 +26,9 @@
     "@mj-biz-apps/tasks-core": "1.4.1"
   },
   "peerDependencies": {
-    "@memberjunction/actions": "^6.1.0-edge.3",
-    "@memberjunction/core": "^6.1.0-edge.3",
-    "@memberjunction/global": "^6.1.0-edge.3"
+    "@memberjunction/actions": "^6.1.0-edge.5",
+    "@memberjunction/core": "^6.1.0-edge.5",
+    "@memberjunction/global": "^6.1.0-edge.5"
   },
   "repository": {
     "type": "git",
