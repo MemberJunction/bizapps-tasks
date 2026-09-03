@@ -1,5 +1,21 @@
 # @mj-biz-apps/tasks-ng
 
+## 1.4.3
+
+### Patch Changes
+
+- 921648d: License declarations now agree on BUSL-1.1 everywhere.
+
+  The README badge was the last thing in the repo still advertising ISC — `LICENSE`,
+  `package.json`, `mj-app.json`, the README's own License section and every workspace package
+  already declare BUSL-1.1. A green ISC badge at the top of the README is the first thing a
+  reader sees, so it outranked all of them in practice. The badge now reads BUSL-1.1 and links
+  to `LICENSE`.
+
+- Updated dependencies [921648d]
+  - @mj-biz-apps/tasks-core@1.4.3
+  - @mj-biz-apps/tasks-entities@1.4.3
+
 ## 1.4.2
 
 ### Patch Changes
