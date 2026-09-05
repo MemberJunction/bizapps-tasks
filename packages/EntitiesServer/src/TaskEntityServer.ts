@@ -73,6 +73,11 @@ export interface TaskActionHookResult {
  *   - Parent sub-task progress rollup
  *   - Event-driven Action & Workflow hook execution (OnCreate, OnStatusChange, OnEnterStatus, OnExitStatus, OnComplete, OnCancel, OnReject, OnPercentChange)
  *
+ * Lifecycle hook dispatch lives HERE and only here — it fires on the status
+ * TRANSITION captured pre-save. TaskNotificationHandler (tasks-server) must not
+ * invoke these hooks again, or one transition would fire them twice and later
+ * edits of a terminal task would replay them.
+ *
  * Compiler/import order ensures this server subclass takes effect.
  */
 @RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Tasks')
@@ -336,24 +341,30 @@ export class TaskEntityServer extends TaskEntity {
             );
         }
 
-        if (ctx.statusChanged && this.Status === 'Cancelled' && taskType.OnCancelActionID) {
-            await this.invokeAction(
-                taskType.OnCancelActionID,
-                'OnCancel',
-                taskType.Code,
-                currentTypeStatusCode,
-                ctx.oldStatus
-            );
-        }
-
-        if (ctx.statusChanged && (this.Status === 'Blocked' || this.Status === 'Cancelled') && taskType.OnRejectActionID) {
-            await this.invokeAction(
-                taskType.OnRejectActionID,
-                'OnReject',
-                taskType.Code,
-                currentTypeStatusCode,
-                ctx.oldStatus
-            );
+        if (ctx.statusChanged && this.Status === 'Cancelled') {
+            // A cancellation driven by a Rejected decision is a rejection and fires
+            // OnReject (e.g. "return the source record to Draft"); a plain cancel
+            // fires OnCancel. Never both, and Blocked never fires OnReject.
+            const rejected = await this.taskHasRejectedDecision();
+            if (rejected) {
+                if (taskType.OnRejectActionID) {
+                    await this.invokeAction(
+                        taskType.OnRejectActionID,
+                        'OnReject',
+                        taskType.Code,
+                        currentTypeStatusCode,
+                        ctx.oldStatus
+                    );
+                }
+            } else if (taskType.OnCancelActionID) {
+                await this.invokeAction(
+                    taskType.OnCancelActionID,
+                    'OnCancel',
+                    taskType.Code,
+                    currentTypeStatusCode,
+                    ctx.oldStatus
+                );
+            }
         }
 
         // 6. OnPercentChange hook
@@ -446,6 +457,36 @@ export class TaskEntityServer extends TaskEntity {
             LogError(`[BizAppsTasks] Error invoking ${hookType} action ${actionID}: ${msg}`);
             return { Invoked: true, Success: false, Message: msg };
         }
+    }
+
+    /**
+     * Returns true when this task has a TaskDecision with the 'Rejected' outcome.
+     * Used to distinguish a rejection from a plain cancellation when routing the
+     * OnReject vs. OnCancel hooks.
+     *
+     * Resolves the rejected outcome by its stable Code, then matches decisions by
+     * OutcomeID — so renaming the outcome's display Name doesn't break routing.
+     */
+    protected async taskHasRejectedDecision(): Promise<boolean> {
+        const rv = new RunView();
+        const outcomeResult = await rv.RunView<{ ID: string }>({
+            EntityName: 'MJ_BizApps_Tasks: Task Decision Outcomes',
+            ExtraFilter: `Code = 'Rejected'`,
+            Fields: ['ID'],
+            ResultType: 'simple',
+            MaxRows: 1,
+        }, this.ContextCurrentUser);
+        const rejectedOutcomeID = outcomeResult?.Results?.[0]?.ID;
+        if (!rejectedOutcomeID) return false;
+
+        const result = await rv.RunView<{ ID: string }>({
+            EntityName: 'MJ_BizApps_Tasks: Task Decisions',
+            ExtraFilter: `TaskID = '${this.ID}' AND OutcomeID = '${rejectedOutcomeID}'`,
+            Fields: ['ID'],
+            ResultType: 'simple',
+            MaxRows: 1,
+        }, this.ContextCurrentUser);
+        return (result?.Results?.length ?? 0) > 0;
     }
 
     /**

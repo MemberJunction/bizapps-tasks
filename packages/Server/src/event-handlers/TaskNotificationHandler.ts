@@ -8,7 +8,12 @@
  * - Task completed → notify all assignees
  * - Task status changed to Blocked → notify all assignees
  * - Task comment created → notify all assignees except the commenter
- * - TaskType action hooks → invoke linked MJ Actions (OnAssign, OnComplete, OnOverdue, OnPercentChange)
+ * - OnAssign TaskType action hook → invoked when a new assignment is created
+ *
+ * NOTE: Lifecycle action hooks (OnComplete, OnCancel, OnReject, OnStatusChange,
+ * etc.) are dispatched SOLELY by TaskEntityServer on the status TRANSITION —
+ * they must NOT be invoked here, or a single approval fires the privileged
+ * callback twice and any later edit of a terminal task replays it.
  */
 import {
     BaseEntity,
@@ -21,6 +26,7 @@ import {
 } from '@memberjunction/core';
 import { MJEventType, MJGlobal, MJEvent } from '@memberjunction/global';
 import { Subscription } from 'rxjs';
+import { isUuid } from '../util/uuid-guard.js';
 
 /** Entity names we listen for */
 const TASKS_ENTITY = 'MJ_BizApps_Tasks: Tasks';
@@ -121,7 +127,9 @@ function logHandlerError(handler: string): (err: unknown) => void {
  * - If blocked → notify all assignees: "Task blocked: {name}"
  * - If newly created → no notification (assignment creation handles that)
  *
- * Also invokes TaskType action hooks if configured (OnComplete, OnOverdue, OnPercentChange).
+ * Notification-only: lifecycle action hook dispatch (OnComplete/OnCancel/OnReject)
+ * lives in TaskEntityServer, which fires on the status transition. Invoking hooks
+ * here as well would double-fire them and replay them on later edits.
  */
 async function handleTaskSave(event: BaseEntityEvent): Promise<void> {
     const task = event.baseEntity!;
@@ -148,9 +156,7 @@ async function handleTaskSave(event: BaseEntityEvent): Promise<void> {
             );
             LogStatus(`[BizAppsTasks] Sent completion notification for "${taskName}" to ${userIDs.length} assignee(s)`);
         }
-
-        // Invoke OnComplete action if configured on TaskType
-        await invokeTaskTypeAction(task, 'OnCompleteActionID', contextUser);
+        // OnComplete action dispatch intentionally NOT here — TaskEntityServer owns it.
     }
 
     if (status === 'Blocked') {
@@ -168,42 +174,8 @@ async function handleTaskSave(event: BaseEntityEvent): Promise<void> {
         }
     }
 
-    if (status === 'Cancelled') {
-        // A cancellation that follows a Rejected decision is treated as a rejection,
-        // firing OnReject (e.g. "return the source record to Draft"); a plain cancel
-        // fires OnCancel. Both are post-commit and non-blocking.
-        const rejected = await taskHasRejectedDecision(taskID, contextUser);
-        await invokeTaskTypeAction(task, rejected ? 'OnRejectActionID' : 'OnCancelActionID', contextUser);
-    }
-}
-
-/**
- * Returns true when the task has a TaskDecision with the 'Rejected' outcome.
- * Used to distinguish a rejection from a plain cancellation when routing hooks.
- *
- * Resolves the rejected outcome by its stable Code, then matches decisions by
- * OutcomeID — so renaming the outcome's display Name doesn't break routing.
- */
-async function taskHasRejectedDecision(taskID: string, contextUser: UserInfo): Promise<boolean> {
-    const rv = new RunView();
-    const outcomeResult = await rv.RunView<{ ID: string }>({
-        EntityName: 'MJ_BizApps_Tasks: Task Decision Outcomes',
-        ExtraFilter: `Code = 'Rejected'`,
-        Fields: ['ID'],
-        ResultType: 'simple',
-        MaxRows: 1,
-    }, contextUser);
-    const rejectedOutcomeID = outcomeResult?.Results?.[0]?.ID;
-    if (!rejectedOutcomeID) return false;
-
-    const result = await rv.RunView<{ ID: string }>({
-        EntityName: 'MJ_BizApps_Tasks: Task Decisions',
-        ExtraFilter: `TaskID = '${taskID}' AND OutcomeID = '${rejectedOutcomeID}'`,
-        Fields: ['ID'],
-        ResultType: 'simple',
-        MaxRows: 1,
-    }, contextUser);
-    return (result?.Results?.length ?? 0) > 0;
+    // OnCancel/OnReject action dispatch intentionally NOT here — TaskEntityServer
+    // fires them on the status transition, including the rejected-decision routing.
 }
 
 // ---------------------------------------------------------------------------
@@ -458,7 +430,17 @@ async function getTaskAssigneeUserIDs(taskID: string, contextUser: UserInfo): Pr
         return [];
     }
 
-    const personIDs = assignments.Results.map(a => a.AssigneeRecordID);
+    // AssigneeRecordID is free text; only strict UUIDs may enter the SQL filter.
+    const personIDs = assignments.Results
+        .map(a => a.AssigneeRecordID)
+        .filter((id: string) => {
+            if (isUuid(id)) return true;
+            LogError(`[BizAppsTasks] Skipping non-UUID AssigneeRecordID '${id}' on assignment for task ${taskID} — excluded from person lookup`);
+            return false;
+        });
+    if (personIDs.length === 0) {
+        return [];
+    }
     const inClause = personIDs.map((id: string) => `'${id}'`).join(',');
 
     const people = await rv.RunView<PersonLinkRow>({
@@ -481,6 +463,11 @@ async function getTaskAssigneeUserIDs(taskID: string, contextUser: UserInfo): Pr
  * Resolves a PersonID to their linked MJ UserID (if any).
  */
 async function getPersonLinkedUserID(personID: string, contextUser: UserInfo): Promise<string | null> {
+    // personID may originate from free-text AssigneeRecordID — validate before it enters SQL.
+    if (!isUuid(personID)) {
+        LogError(`[BizAppsTasks] Skipping non-UUID person ID '${personID}' — excluded from linked-user lookup`);
+        return null;
+    }
     const rv = new RunView();
     const result = await rv.RunView<PersonLinkRow>({
         EntityName: 'MJ_BizApps_Common: People',

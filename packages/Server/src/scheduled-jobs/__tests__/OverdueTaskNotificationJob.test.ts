@@ -41,6 +41,10 @@ import { OverdueTaskNotificationJob } from '../OverdueTaskNotificationJob.js';
 
 const NOW = new Date('2026-06-09T12:00:00Z');
 
+// Person IDs must be strict UUIDs — non-UUID AssigneeRecordID values are
+// filtered out before entering any SQL filter (second-order injection guard).
+const PERSON_1 = '11111111-1111-1111-1111-111111111111';
+
 /** Global config row with overrideable fields. */
 function globalConfig(overrides: Record<string, any> = {}) {
   return {
@@ -123,15 +127,15 @@ describe('OverdueTaskNotificationJob.Execute — grace period & repeat filtering
     Status: 'Open', Priority: 'High',
     DueAt: '2026-06-08T12:00:00Z',   // 24h before NOW
     OverdueNotifiedAt: null,
-    CreatedByPersonID: 'person-1',
+    CreatedByPersonID: PERSON_1,
   };
 
   it('notifies a task past its grace period with a resolvable recipient', async () => {
     wireRunView({
       configs: [globalConfig({ OverdueGracePeriodHours: 0 })],
       tasks: [baseTask],
-      assignments: [{ AssigneeRecordID: 'person-1' }],
-      people: [{ ID: 'person-1', LinkedUserID: 'user-1' }],
+      assignments: [{ AssigneeRecordID: PERSON_1 }],
+      people: [{ ID: PERSON_1, LinkedUserID: 'user-1' }],
     });
     const job = new OverdueTaskNotificationJob();
     const result = await job.Execute(makeContext());
@@ -143,8 +147,8 @@ describe('OverdueTaskNotificationJob.Execute — grace period & repeat filtering
     wireRunView({
       configs: [globalConfig({ OverdueGracePeriodHours: 48 })],
       tasks: [baseTask],
-      assignments: [{ AssigneeRecordID: 'person-1' }],
-      people: [{ ID: 'person-1', LinkedUserID: 'user-1' }],
+      assignments: [{ AssigneeRecordID: PERSON_1 }],
+      people: [{ ID: PERSON_1, LinkedUserID: 'user-1' }],
     });
     const job = new OverdueTaskNotificationJob();
     const result = await job.Execute(makeContext());
@@ -155,8 +159,8 @@ describe('OverdueTaskNotificationJob.Execute — grace period & repeat filtering
     wireRunView({
       configs: [globalConfig({ OverdueRepeatIntervalHours: null })],
       tasks: [{ ...baseTask, OverdueNotifiedAt: '2026-06-08T13:00:00Z' }],
-      assignments: [{ AssigneeRecordID: 'person-1' }],
-      people: [{ ID: 'person-1', LinkedUserID: 'user-1' }],
+      assignments: [{ AssigneeRecordID: PERSON_1 }],
+      people: [{ ID: PERSON_1, LinkedUserID: 'user-1' }],
     });
     const job = new OverdueTaskNotificationJob();
     const result = await job.Execute(makeContext());
@@ -168,8 +172,8 @@ describe('OverdueTaskNotificationJob.Execute — grace period & repeat filtering
     wireRunView({
       configs: [globalConfig({ OverdueRepeatIntervalHours: 12 })],
       tasks: [{ ...baseTask, OverdueNotifiedAt: '2026-06-08T11:00:00Z' }],
-      assignments: [{ AssigneeRecordID: 'person-1' }],
-      people: [{ ID: 'person-1', LinkedUserID: 'user-1' }],
+      assignments: [{ AssigneeRecordID: PERSON_1 }],
+      people: [{ ID: PERSON_1, LinkedUserID: 'user-1' }],
     });
     const job = new OverdueTaskNotificationJob();
     const result = await job.Execute(makeContext());
@@ -181,8 +185,8 @@ describe('OverdueTaskNotificationJob.Execute — grace period & repeat filtering
     wireRunView({
       configs: [globalConfig({ OverdueRepeatIntervalHours: 12 })],
       tasks: [{ ...baseTask, OverdueNotifiedAt: '2026-06-09T11:00:00Z' }],
-      assignments: [{ AssigneeRecordID: 'person-1' }],
-      people: [{ ID: 'person-1', LinkedUserID: 'user-1' }],
+      assignments: [{ AssigneeRecordID: PERSON_1 }],
+      people: [{ ID: PERSON_1, LinkedUserID: 'user-1' }],
     });
     const job = new OverdueTaskNotificationJob();
     const result = await job.Execute(makeContext());
@@ -193,12 +197,33 @@ describe('OverdueTaskNotificationJob.Execute — grace period & repeat filtering
     wireRunView({
       configs: [globalConfig({ OverdueNotificationsEnabled: false })],
       tasks: [baseTask],
-      assignments: [{ AssigneeRecordID: 'person-1' }],
-      people: [{ ID: 'person-1', LinkedUserID: 'user-1' }],
+      assignments: [{ AssigneeRecordID: PERSON_1 }],
+      people: [{ ID: PERSON_1, LinkedUserID: 'user-1' }],
     });
     const job = new OverdueTaskNotificationJob();
     const result = await job.Execute(makeContext());
     expect(result.Details?.tasksNotified).toBe(0);
+  });
+
+  it('filters out non-UUID assignee record IDs so they never reach a SQL filter', async () => {
+    // The only assignee has a free-text (injection-shaped) AssigneeRecordID and
+    // the creator is null → no valid recipients → task is skipped entirely.
+    wireRunView({
+      configs: [globalConfig()],
+      tasks: [{ ...baseTask, CreatedByPersonID: null }],
+      assignments: [{ AssigneeRecordID: `x' OR 1=1 --` }],
+      people: [{ ID: PERSON_1, LinkedUserID: 'user-1' }],
+    });
+    const job = new OverdueTaskNotificationJob();
+    const result = await job.Execute(makeContext());
+    expect(result.Details?.tasksNotified).toBe(0);
+    // No People query should carry the malicious value.
+    const peopleCalls = runViewMock.mock.calls.filter(
+      (c: any[]) => c[0]?.EntityName === 'MJ_BizApps_Common: People'
+    );
+    for (const call of peopleCalls) {
+      expect(call[0].ExtraFilter).not.toContain('OR 1=1');
+    }
   });
 
   it('skips a task with no resolvable recipients', async () => {
@@ -223,10 +248,10 @@ describe('OverdueTaskNotificationJob — per-TaskType config override', () => {
       ],
       tasks: [{
         ID: 't1', Name: 'T', TypeID: 'type-1', Status: 'Open', Priority: 'Low',
-        DueAt: '2026-06-08T12:00:00Z', OverdueNotifiedAt: null, CreatedByPersonID: 'person-1',
+        DueAt: '2026-06-08T12:00:00Z', OverdueNotifiedAt: null, CreatedByPersonID: PERSON_1,
       }],
-      assignments: [{ AssigneeRecordID: 'person-1' }],
-      people: [{ ID: 'person-1', LinkedUserID: 'user-1' }],
+      assignments: [{ AssigneeRecordID: PERSON_1 }],
+      people: [{ ID: PERSON_1, LinkedUserID: 'user-1' }],
     });
     const job = new OverdueTaskNotificationJob();
     const result = await job.Execute(makeContext());

@@ -27,6 +27,7 @@ vi.mock('@memberjunction/core', () => {
       constructor(public KeyValuePairs: any[]) {}
     },
     BaseEntity: class {},
+    LogError: vi.fn(),
   };
 });
 
