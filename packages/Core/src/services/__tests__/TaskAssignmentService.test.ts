@@ -12,6 +12,7 @@ vi.mock('@memberjunction/core', () => ({
   },
   CompositeKey: class { constructor(public KeyValuePairs: any[]) {} },
   BaseEntity: class {},
+  LogError: vi.fn(),
 }));
 
 import { TaskAssignmentService } from '../TaskAssignmentService.js';
@@ -79,6 +80,23 @@ describe('TaskAssignmentService.assignToTask', () => {
     expect(fields).not.toContain('RoleID');
     expect(fields).not.toContain('RoleNotes');
     expect(fields).not.toContain('AssignedByPersonID');
+  });
+
+  it('throws and does NOT log an activity when the assignment save fails', async () => {
+    const assignment = makeFakeEntity();
+    assignment.Save = vi.fn(async () => false);
+    (assignment as any).LatestResult = { CompleteMessage: 'validation failed' };
+    getEntityObjectMock.mockResolvedValueOnce(assignment);
+
+    const svc = new TaskAssignmentService();
+    await expect(svc.assignToTask({
+      taskID: 'task-err',
+      assigneeEntityID: 'entity-1',
+      assigneeRecordID: 'person-1',
+    })).rejects.toThrow('validation failed');
+
+    // Only the assignment entity was created — no activity row was written.
+    expect(getEntityObjectMock).toHaveBeenCalledOnce();
   });
 });
 

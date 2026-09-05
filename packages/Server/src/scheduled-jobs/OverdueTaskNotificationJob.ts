@@ -21,6 +21,7 @@ import { MJScheduledJobEntity } from '@memberjunction/core-entities';
 import { RegisterClass } from '@memberjunction/global';
 import { BaseScheduledJob, ScheduledJobExecutionContext } from '@memberjunction/scheduling-engine';
 import { ScheduledJobResult, NotificationContent } from '@memberjunction/scheduling-base-types';
+import { isUuid } from '../util/uuid-guard.js';
 
 /** Shape of the TaskNotificationConfig rows loaded from the DB. */
 interface NotificationConfig {
@@ -220,7 +221,15 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
                 ResultType: 'simple',
             }, contextUser);
 
-            const personIDs = (assignments?.Results ?? []).map(a => a.AssigneeRecordID);
+            // AssigneeRecordID is free text; only strict UUIDs may enter the SQL filter
+            // (this job runs under the scheduler's system context).
+            const personIDs = (assignments?.Results ?? [])
+                .map(a => a.AssigneeRecordID)
+                .filter(id => {
+                    if (isUuid(id)) return true;
+                    this.logError(`Skipping non-UUID AssigneeRecordID '${id}' on assignment for task ${task.ID} ("${task.Name}") — excluded from recipient resolution`);
+                    return false;
+                });
             for (const personID of personIDs) {
                 const uid = await this.getLinkedUserID(personID, contextUser);
                 if (uid) userIDs.add(uid);
@@ -237,6 +246,11 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
     }
 
     private async getLinkedUserID(personID: string, contextUser: UserInfo): Promise<string | null> {
+        // Defense in depth: never interpolate a non-UUID person ID into the filter.
+        if (!isUuid(personID)) {
+            this.logError(`Skipping non-UUID person ID '${personID}' — excluded from linked-user lookup`);
+            return null;
+        }
         const rv = new RunView();
         const result = await rv.RunView<{ ID: string; LinkedUserID: string | null }>({
             EntityName: 'MJ_BizApps_Common: People',
