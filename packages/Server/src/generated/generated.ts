@@ -3866,6 +3866,10 @@ export class mjBizAppsTasksTask_ {
     @MaxLength(100)
     TaskTypeStatus?: string;
         
+    @Field({nullable: true}) 
+    @MaxLength(36)
+    RootParentID?: string;
+        
 }
 
 //****************************************************************************

@@ -1,5 +1,55 @@
 # @mj-biz-apps/tasks-entities
 
+## 1.4.3
+
+### Patch Changes
+
+- 921648d: License declarations now agree on BUSL-1.1 everywhere.
+
+  The README badge was the last thing in the repo still advertising ISC — `LICENSE`,
+  `package.json`, `mj-app.json`, the README's own License section and every workspace package
+  already declare BUSL-1.1. A green ISC badge at the top of the README is the first thing a
+  reader sees, so it outranked all of them in practice. The badge now reads BUSL-1.1 and links
+  to `LICENSE`.
+
+## 1.4.2
+
+### Patch Changes
+
+- a49f88a: Move to MJ `6.1.0-edge.5` and drop the exact `ng-hierarchy-tree` pin.
+
+  37 `@memberjunction/*` dependencies move to `^6.1.0-edge.5`, one of which was pinned **exactly** at
+  `6.1.0-edge.3` — `ng-hierarchy-tree`, the same pin bizapps-orders removed because it _"forced two MJ
+  copies into consumers' Explorer trees and split the ClassFactory registry"_. Caret, never exact.
+
+  `@mj-biz-apps/common-entities` also moves to `>=5.37.0`, matching what is published.
+
+  This matters to consumers: `tasks-*@1.4.1` publishes with `@memberjunction/*` at `^6.1.0-edge.3`, so
+  anything installing bizapps-tasks beside an edge.5 app resolves two MJ trees.
+
+  Verified after a clean install: a single `@memberjunction/core` at edge.5, zero packages at edge.2/3/4.
+
+## 1.4.1
+
+### Patch Changes
+
+- c2969c4: Release 1.4.1 to align the open-app set.
+
+  There is no functional change since 1.4.0. The only commit on `next` since the v1.4.0 tag is
+  the lockfile catch-up that the 1.4.0 publish itself back-merged (internal workspace
+  self-references 1.3.0 -> 1.4.0), so the shipped `dist` output is unchanged.
+
+  This version exists so every open app AIDP consumes moves together and the platform
+  manifest can state one coherent floor across the set, rather than pinning tasks a release
+  behind its siblings.
+
+## 1.4.0
+
+### Minor Changes
+
+- 0064e26: Drop the form-chrome record naming `MJ_BizApps_Accounting: Journal Entry Batches` — Tasks metadata must not reference consumer apps, and the unresolvable `@lookup` rolled back the entire metadata push on any install without Accounting. Ship the v1.2.x metadata sync migration so a migrations-only install carries the full form chrome, display-name pins, and application settings with no `mj sync push` required.
+- 0592ecc: Scope CodeGen heal EXECs with authored excludeSchemas plus `@IncludedSchemaNames` for the Tasks schema, instead of photographing sibling Open Apps.
+
 ## 1.3.0
 
 ### Minor Changes
