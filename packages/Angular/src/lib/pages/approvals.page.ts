@@ -63,8 +63,12 @@ export class ApprovalsPageComponent implements OnInit {
     private cdr = inject(ChangeDetectorRef);
 
     ngOnInit(): void {
-        const md = new Metadata();
-        this.PersonID = md.CurrentUser?.Email ?? null;
+        // Same identity the service gate uses (TaskOrchestrationService.RecordDecision): the user's
+        // linked Person record. `LinkedEntityRecordID` is typed `number` on UserInfo but carries a
+        // GUID string at runtime — coerce rather than cast. Null when the user has no linked Person.
+        const linked = new Metadata().CurrentUser?.LinkedEntityRecordID;
+        const personID = linked == null ? '' : String(linked).trim();
+        this.PersonID = personID || null;
         this.cdr.markForCheck();
     }
 

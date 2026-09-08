@@ -282,6 +282,46 @@ describe('TaskOrchestrationService.RecordDecision', () => {
     expect(getEntityObjectMock).not.toHaveBeenCalled();
   });
 
+  it('orders the assignment lookup so the fallback pick is deterministic', async () => {
+    runViewMock.mockResolvedValueOnce({
+      Success: true,
+      Results: [{ ID: 'outcome-approved', Name: 'Approved', Code: 'Approved', IsTerminal: true }],
+    });
+    mockAssignmentsRunView([
+      activeAssignmentForCaller({ ID: 'assign-earliest' }),
+      activeAssignmentForCaller({ ID: 'assign-later' }),
+    ]);
+    const decision = makeFakeEntity();
+    const activity = makeFakeEntity();
+    const task = makeFakeEntity({ Status: 'Open' });
+    getEntityObjectMock
+      .mockResolvedValueOnce(decision)
+      .mockResolvedValueOnce(activity)
+      .mockResolvedValueOnce(task);
+
+    const svc = new TaskOrchestrationService();
+    await svc.RecordDecision({ TaskID: 'task-1', OutcomeCode: 'Approved' }, user);
+
+    // The assignment query carries a stable OrderBy, and the first returned row is bound.
+    const assignmentQuery = runViewMock.mock.calls[1][0];
+    expect(assignmentQuery.OrderBy).toBe('__mj_CreatedAt ASC, ID ASC');
+    expect(decision.TaskAssignmentID).toBe('assign-earliest');
+  });
+
+  it('rejects a caller whose user has no linked entity (fails closed before matching)', async () => {
+    runViewMock.mockResolvedValueOnce({
+      Success: true,
+      Results: [{ ID: 'outcome-approved', Name: 'Approved', Code: 'Approved', IsTerminal: true }],
+    });
+    mockAssignmentsRunView([activeAssignmentForCaller()]);
+
+    const svc = new TaskOrchestrationService();
+    await expect(
+      svc.RecordDecision({ TaskID: 'task-1', OutcomeCode: 'Approved' }, { ...user, LinkedEntityID: null }),
+    ).rejects.toThrow(/no linked entity/);
+    expect(getEntityObjectMock).not.toHaveBeenCalled();
+  });
+
   it('rejects an inactive (Completed) assignment', async () => {
     runViewMock.mockResolvedValueOnce({
       Success: true,

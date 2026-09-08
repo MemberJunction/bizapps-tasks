@@ -1,4 +1,5 @@
 import { CompositeKey, LogError, Metadata, RunView, UserInfo } from "@memberjunction/core";
+import { UUIDsEqual } from "@memberjunction/global";
 import type {
     mjBizAppsTasksTaskEntity,
     mjBizAppsTasksTaskDecisionEntity,
@@ -17,15 +18,6 @@ const TASK_ASSIGNMENTS_ENTITY = 'MJ_BizApps_Tasks: Task Assignments';
 
 /** The TaskAssignment.Status values that mean the assignment is still actionable (can decide). */
 const ACTIVE_ASSIGNMENT_STATUSES: ReadonlySet<string> = new Set(['Pending', 'InProgress']);
-
-/**
- * Case-insensitive UUID equality. SQL Server returns UUIDs uppercase and PostgreSQL lowercase,
- * so identity comparisons across the decider Person, the linked-user record, and the assignment's
- * assignee must normalize case rather than use `===`.
- */
-function uuidEquals(a: string | null | undefined, b: string | null | undefined): boolean {
-    return !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
-}
 
 /**
  * Normalizes a user's linked-identity field to a trimmed string. `UserInfo.LinkedEntityID` /
@@ -225,7 +217,7 @@ export class TaskOrchestrationService {
         const callerPersonID = this.resolveCallerPersonID(caller);
 
         // A client-supplied decider that disagrees with the caller is a forgery attempt — reject it.
-        if (params.DecidedByPersonID != null && !uuidEquals(params.DecidedByPersonID, callerPersonID)) {
+        if (params.DecidedByPersonID != null && !UUIDsEqual(params.DecidedByPersonID, callerPersonID)) {
             throw new Error(
                 `Refusing to record a decision under another identity: supplied DecidedByPersonID does not match the authenticated user.`,
             );
@@ -355,6 +347,9 @@ export class TaskOrchestrationService {
         const result = await rv.RunView<mjBizAppsTasksTaskAssignmentEntity>({
             EntityName: TASK_ASSIGNMENTS_ENTITY,
             ExtraFilter: `TaskID = '${taskID.replace(/'/g, "''")}'`,
+            // Stable order so the fallback pick below (earliest assignment) is deterministic across
+            // platforms — SQL Server and PostgreSQL return unordered rows in different physical orders.
+            OrderBy: '__mj_CreatedAt ASC, ID ASC',
             ResultType: 'entity_object',
         }, contextUser);
 
@@ -362,11 +357,19 @@ export class TaskOrchestrationService {
             throw new Error(`Failed to load assignments for task ${taskID}: ${result?.ErrorMessage ?? 'unknown error'}`);
         }
 
+        // A user with no linked entity cannot be matched to any assignment — fail closed here rather
+        // than let an empty id fall through to the comparisons below.
         const callerEntityID = idToString(caller.LinkedEntityID);
+        if (!callerEntityID) {
+            throw new Error(`Cannot record a task decision: user '${caller.Email ?? caller.ID}' has no linked entity.`);
+        }
+
+        // UUIDsEqual (from @memberjunction/global) normalizes case — SQL Server returns UUIDs
+        // uppercase and PostgreSQL lowercase — so identity comparisons never use `===`.
         const callerAssignments = (result.Results ?? []).filter(a =>
             ACTIVE_ASSIGNMENT_STATUSES.has(a.Status) &&
-            uuidEquals(a.AssigneeEntityID, callerEntityID) &&
-            uuidEquals(a.AssigneeRecordID, callerPersonID),
+            UUIDsEqual(a.AssigneeEntityID, callerEntityID) &&
+            UUIDsEqual(a.AssigneeRecordID, callerPersonID),
         );
 
         if (callerAssignments.length === 0) {
@@ -375,12 +378,13 @@ export class TaskOrchestrationService {
 
         // For multi-approver flows, honor a requested assignment only if it is one of the caller's own.
         if (requestedAssignmentID != null) {
-            const chosen = callerAssignments.find(a => uuidEquals(a.ID, requestedAssignmentID));
+            const chosen = callerAssignments.find(a => UUIDsEqual(a.ID, requestedAssignmentID));
             if (!chosen) {
                 throw new Error(`TaskAssignment ${requestedAssignmentID} does not belong to the authenticated user for task ${taskID}.`);
             }
             return chosen;
         }
+        // No assignment requested: bind to the caller's earliest active assignment (query is ordered).
         return callerAssignments[0];
     }
 
