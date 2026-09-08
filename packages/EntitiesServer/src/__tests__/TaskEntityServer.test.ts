@@ -254,6 +254,149 @@ describe('TaskEntityServer', () => {
       );
     });
 
+    function cancelledCtx(): TaskLifecycleContext {
+      return {
+        isNew: false,
+        statusChanged: true,
+        typeStatusChanged: false,
+        pctChanged: false,
+        priorityChanged: false,
+        dueChanged: false,
+        oldStatus: 'InProgress',
+        newStatus: 'Cancelled',
+        oldTypeStatusID: null,
+        newTypeStatusID: null,
+        oldPct: 50,
+        newPct: 50,
+        oldPriority: 'Medium',
+        newPriority: 'Medium',
+        oldDue: null,
+        newDue: null,
+        typeID: 'TYPE-1',
+      };
+    }
+
+    it('fires ONLY OnCancel (never OnReject) on a plain cancellation', async () => {
+      const server = new TaskEntityServer();
+      server.ID = 'TASK-4';
+      server.TypeID = 'TYPE-1';
+      server.Status = 'Cancelled';
+
+      vi.spyOn(server as unknown as { loadTaskType: (id: string) => Promise<unknown> }, 'loadTaskType').mockResolvedValue({
+        ID: 'TYPE-1',
+        Code: 'APPROVAL_REQUEST',
+        OnCancelActionID: 'ACTION-CANCEL',
+        OnRejectActionID: 'ACTION-REJECT',
+      });
+      vi.spyOn(server as unknown as { taskHasRejectedDecision: () => Promise<boolean> }, 'taskHasRejectedDecision')
+        .mockResolvedValue(false);
+
+      const invokeSpy = vi.spyOn(server, 'invokeAction').mockResolvedValue({ Invoked: true, Success: true });
+
+      await server.dispatchLifecycleActionHooks(cancelledCtx());
+
+      expect(invokeSpy).toHaveBeenCalledWith('ACTION-CANCEL', 'OnCancel', 'APPROVAL_REQUEST', null, 'InProgress');
+      const hookTypes = invokeSpy.mock.calls.map(c => c[1]);
+      expect(hookTypes).not.toContain('OnReject');
+    });
+
+    it('fires ONLY OnReject (never OnCancel) when a Rejected decision drove the cancellation', async () => {
+      const server = new TaskEntityServer();
+      server.ID = 'TASK-5';
+      server.TypeID = 'TYPE-1';
+      server.Status = 'Cancelled';
+
+      vi.spyOn(server as unknown as { loadTaskType: (id: string) => Promise<unknown> }, 'loadTaskType').mockResolvedValue({
+        ID: 'TYPE-1',
+        Code: 'APPROVAL_REQUEST',
+        OnCancelActionID: 'ACTION-CANCEL',
+        OnRejectActionID: 'ACTION-REJECT',
+      });
+      vi.spyOn(server as unknown as { taskHasRejectedDecision: () => Promise<boolean> }, 'taskHasRejectedDecision')
+        .mockResolvedValue(true);
+
+      const invokeSpy = vi.spyOn(server, 'invokeAction').mockResolvedValue({ Invoked: true, Success: true });
+
+      await server.dispatchLifecycleActionHooks(cancelledCtx());
+
+      expect(invokeSpy).toHaveBeenCalledWith('ACTION-REJECT', 'OnReject', 'APPROVAL_REQUEST', null, 'InProgress');
+      const hookTypes = invokeSpy.mock.calls.map(c => c[1]);
+      expect(hookTypes).not.toContain('OnCancel');
+    });
+
+    it('fires OnReject when the task lands on the REJECTED stage even with no decision row (status-dropdown path)', async () => {
+      const server = new TaskEntityServer();
+      server.ID = 'TASK-5b';
+      server.TypeID = 'TYPE-1';
+      server.TaskTypeStatusID = 'STATUS-REJECTED';
+      server.Status = 'Cancelled';
+
+      vi.spyOn(server as unknown as { loadTaskType: (id: string) => Promise<unknown> }, 'loadTaskType').mockResolvedValue({
+        ID: 'TYPE-1',
+        Code: 'APPROVAL_REQUEST',
+        OnCancelActionID: 'ACTION-CANCEL',
+        OnRejectActionID: 'ACTION-REJECT',
+      });
+      vi.spyOn(server as unknown as { loadTaskTypeStatus: (id: string) => Promise<unknown> }, 'loadTaskTypeStatus')
+        .mockResolvedValue({ ID: 'STATUS-REJECTED', Code: 'REJECTED', MacroStatus: 'Cancelled' });
+      const decisionSpy = vi.spyOn(server as unknown as { taskHasRejectedDecision: () => Promise<boolean> }, 'taskHasRejectedDecision')
+        .mockResolvedValue(false);
+
+      const invokeSpy = vi.spyOn(server, 'invokeAction').mockResolvedValue({ Invoked: true, Success: true });
+
+      await server.dispatchLifecycleActionHooks(cancelledCtx());
+
+      expect(invokeSpy).toHaveBeenCalledWith('ACTION-REJECT', 'OnReject', 'APPROVAL_REQUEST', 'REJECTED', 'InProgress');
+      expect(invokeSpy.mock.calls.map(c => c[1])).not.toContain('OnCancel');
+      // The stage signal short-circuits — no decision query needed.
+      expect(decisionSpy).not.toHaveBeenCalled();
+    });
+
+    it('skips the rejected-decision query when the type wires neither OnCancel nor OnReject', async () => {
+      const server = new TaskEntityServer();
+      server.ID = 'TASK-5c';
+      server.TypeID = 'TYPE-1';
+      server.Status = 'Cancelled';
+
+      vi.spyOn(server as unknown as { loadTaskType: (id: string) => Promise<unknown> }, 'loadTaskType').mockResolvedValue({
+        ID: 'TYPE-1',
+        Code: 'GENERAL',
+        OnCancelActionID: null,
+        OnRejectActionID: null,
+      });
+      const decisionSpy = vi.spyOn(server as unknown as { taskHasRejectedDecision: () => Promise<boolean> }, 'taskHasRejectedDecision')
+        .mockResolvedValue(false);
+      const invokeSpy = vi.spyOn(server, 'invokeAction').mockResolvedValue({ Invoked: true, Success: true });
+
+      await server.dispatchLifecycleActionHooks(cancelledCtx());
+
+      expect(decisionSpy).not.toHaveBeenCalled();
+      expect(invokeSpy).not.toHaveBeenCalled();
+    });
+
+    it('does NOT fire OnReject when a task merely becomes Blocked', async () => {
+      const server = new TaskEntityServer();
+      server.ID = 'TASK-6';
+      server.TypeID = 'TYPE-1';
+      server.Status = 'Blocked';
+
+      vi.spyOn(server as unknown as { loadTaskType: (id: string) => Promise<unknown> }, 'loadTaskType').mockResolvedValue({
+        ID: 'TYPE-1',
+        Code: 'APPROVAL_REQUEST',
+        OnRejectActionID: 'ACTION-REJECT',
+      });
+
+      const invokeSpy = vi.spyOn(server, 'invokeAction').mockResolvedValue({ Invoked: true, Success: true });
+
+      const ctx = cancelledCtx();
+      ctx.newStatus = 'Blocked';
+      await server.dispatchLifecycleActionHooks(ctx);
+
+      const hookTypes = invokeSpy.mock.calls.map(c => c[1]);
+      expect(hookTypes).not.toContain('OnReject');
+      expect(hookTypes).not.toContain('OnCancel');
+    });
+
     it('dispatches OnExitStatus and OnEnterStatus on stage transition', async () => {
       const server = new TaskEntityServer();
       server.ID = 'TASK-3';

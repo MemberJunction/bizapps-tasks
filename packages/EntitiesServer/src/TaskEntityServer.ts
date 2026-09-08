@@ -34,6 +34,13 @@ export type TaskActionHookType =
 /**
  * Lifecycle snapshot captured pre-save to drive post-save audit logging and action triggers.
  */
+/**
+ * Conventional TaskTypeStatus.Code for a type's "rejected" stage (the seeded Approval Request
+ * type ships APPROVAL_REQUEST.REJECTED with MacroStatus Cancelled). Landing on this stage is
+ * treated as a rejection for OnReject/OnCancel routing even when no TaskDecision was recorded.
+ */
+export const REJECTED_STAGE_CODE = 'REJECTED';
+
 export interface TaskLifecycleContext {
     isNew: boolean;
     statusChanged: boolean;
@@ -72,6 +79,11 @@ export interface TaskActionHookResult {
  *   - Server-authoritative activity audit logging (MJ_BizApps_Tasks: Task Activities)
  *   - Parent sub-task progress rollup
  *   - Event-driven Action & Workflow hook execution (OnCreate, OnStatusChange, OnEnterStatus, OnExitStatus, OnComplete, OnCancel, OnReject, OnPercentChange)
+ *
+ * Lifecycle hook dispatch lives HERE and only here — it fires on the status
+ * TRANSITION captured pre-save. TaskNotificationHandler (tasks-server) must not
+ * invoke these hooks again, or one transition would fire them twice and later
+ * edits of a terminal task would replay them.
  *
  * Compiler/import order ensures this server subclass takes effect.
  */
@@ -336,24 +348,8 @@ export class TaskEntityServer extends TaskEntity {
             );
         }
 
-        if (ctx.statusChanged && this.Status === 'Cancelled' && taskType.OnCancelActionID) {
-            await this.invokeAction(
-                taskType.OnCancelActionID,
-                'OnCancel',
-                taskType.Code,
-                currentTypeStatusCode,
-                ctx.oldStatus
-            );
-        }
-
-        if (ctx.statusChanged && (this.Status === 'Blocked' || this.Status === 'Cancelled') && taskType.OnRejectActionID) {
-            await this.invokeAction(
-                taskType.OnRejectActionID,
-                'OnReject',
-                taskType.Code,
-                currentTypeStatusCode,
-                ctx.oldStatus
-            );
+        if (ctx.statusChanged && this.Status === 'Cancelled') {
+            await this.dispatchCancelOrRejectHook(taskType, currentTypeStatusCode, ctx);
         }
 
         // 6. OnPercentChange hook
@@ -446,6 +442,80 @@ export class TaskEntityServer extends TaskEntity {
             LogError(`[BizAppsTasks] Error invoking ${hookType} action ${actionID}: ${msg}`);
             return { Invoked: true, Success: false, Message: msg };
         }
+    }
+
+    /**
+     * Routes a Cancelled transition to exactly one of OnReject / OnCancel.
+     *
+     * A cancellation is a REJECTION when either signal is present:
+     *   (a) the task landed on its type's rejected stage (TaskTypeStatus.Code === REJECTED_STAGE_CODE,
+     *       e.g. the seeded APPROVAL_REQUEST.REJECTED stage reached via the status dropdown or bulk
+     *       status change — that path writes no TaskDecision), or
+     *   (b) a TaskDecision with the Rejected outcome exists (the RecordDecision path, which saves the
+     *       decision before transitioning the task).
+     * Otherwise it is a plain cancel. Never both, and Blocked never fires OnReject.
+     *
+     * The decision query is skipped entirely when the type wires neither hook.
+     */
+    protected async dispatchCancelOrRejectHook(
+        taskType: mjBizAppsTasksTaskTypeEntity,
+        currentTypeStatusCode: string | null,
+        ctx: TaskLifecycleContext,
+    ): Promise<void> {
+        if (!taskType.OnRejectActionID && !taskType.OnCancelActionID) return;
+
+        const rejected = this.isRejectedStage(currentTypeStatusCode) || await this.taskHasRejectedDecision();
+        const [actionID, hook] = rejected
+            ? [taskType.OnRejectActionID, 'OnReject' as const]
+            : [taskType.OnCancelActionID, 'OnCancel' as const];
+        if (!actionID) return;
+
+        await this.invokeAction(actionID, hook, taskType.Code, currentTypeStatusCode, ctx.oldStatus);
+    }
+
+    /** True when the task's current TaskTypeStatus is the conventional rejected stage. */
+    protected isRejectedStage(currentTypeStatusCode: string | null): boolean {
+        return (currentTypeStatusCode ?? '').trim().toUpperCase() === REJECTED_STAGE_CODE;
+    }
+
+    /**
+     * Returns true when this task has a TaskDecision with the 'Rejected' outcome.
+     * Used to distinguish a rejection from a plain cancellation when routing the
+     * OnReject vs. OnCancel hooks.
+     *
+     * Resolves the rejected outcome by its stable Code, then matches decisions by
+     * OutcomeID — so renaming the outcome's display Name doesn't break routing.
+     * A failed query is logged and treated as "no rejected decision" — the stage
+     * check above still routes the common UI path correctly.
+     */
+    protected async taskHasRejectedDecision(): Promise<boolean> {
+        const rv = new RunView();
+        const outcomeResult = await rv.RunView<{ ID: string }>({
+            EntityName: 'MJ_BizApps_Tasks: Task Decision Outcomes',
+            ExtraFilter: `Code = 'Rejected'`,
+            Fields: ['ID'],
+            ResultType: 'simple',
+            MaxRows: 1,
+        }, this.ContextCurrentUser);
+        if (!outcomeResult?.Success) {
+            LogError(`TaskEntityServer: could not resolve the Rejected outcome for task ${this.ID}: ${outcomeResult?.ErrorMessage ?? 'unknown error'}`);
+            return false;
+        }
+        const rejectedOutcomeID = outcomeResult.Results?.[0]?.ID;
+        if (!rejectedOutcomeID) return false;
+
+        const result = await rv.RunView<{ ID: string }>({
+            EntityName: 'MJ_BizApps_Tasks: Task Decisions',
+            ExtraFilter: `TaskID = '${this.ID}' AND OutcomeID = '${rejectedOutcomeID}'`,
+            Fields: ['ID'],
+            ResultType: 'simple',
+            MaxRows: 1,
+        }, this.ContextCurrentUser);
+        if (!result?.Success) {
+            LogError(`TaskEntityServer: could not load decisions for task ${this.ID}: ${result?.ErrorMessage ?? 'unknown error'}`);
+            return false;
+        }
+        return (result.Results?.length ?? 0) > 0;
     }
 
     /**

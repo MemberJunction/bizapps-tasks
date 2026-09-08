@@ -1,4 +1,4 @@
-import { BaseEntity, CompositeKey, Metadata, RunView, UserInfo } from "@memberjunction/core";
+import { BaseEntity, CompositeKey, LogError, Metadata, RunView, UserInfo } from "@memberjunction/core";
 import { TaskService } from "./TaskService.js";
 
 /**
@@ -30,7 +30,12 @@ export class TaskAssignmentService {
         if (params.roleNotes) assignment.Set('RoleNotes', params.roleNotes);
         if (params.assignedByPersonID) assignment.Set('AssignedByPersonID', params.assignedByPersonID);
 
-        await assignment.Save();
+        const saved = await assignment.Save();
+        if (!saved) {
+            const detail = assignment.LatestResult?.CompleteMessage ?? 'unknown error';
+            LogError(`TaskAssignmentService.assignToTask: failed to save assignment for task ${params.taskID}: ${detail}`);
+            throw new Error(`Failed to save task assignment: ${detail}`);
+        }
 
         await this.taskService.logActivity({
             taskID: params.taskID,

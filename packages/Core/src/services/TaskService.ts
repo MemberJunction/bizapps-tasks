@@ -1,4 +1,4 @@
-import { BaseEntity, CompositeKey, Metadata, RunView, UserInfo } from "@memberjunction/core";
+import { BaseEntity, CompositeKey, LogError, Metadata, RunView, UserInfo } from "@memberjunction/core";
 
 /**
  * Core task management service.
@@ -69,7 +69,11 @@ export class TaskService {
             parentTask.Set('Status', 'Completed');
         }
 
-        await parentTask.Save();
+        const saved = await parentTask.Save();
+        if (!saved) {
+            LogError(`TaskService.rollupParentProgress: failed to save parent task ${parentTaskID}: ${parentTask.LatestResult?.CompleteMessage ?? 'unknown error'}`);
+            return; // parent unchanged — recursing on stale data would be misleading
+        }
 
         // Recurse up the tree
         const grandParentID = parentTask.Get('ParentID') as string | null;
@@ -102,6 +106,9 @@ export class TaskService {
         if (params.previousValue) activity.Set('PreviousValue', params.previousValue);
         if (params.newValue) activity.Set('NewValue', params.newValue);
         activity.Set('Description', params.description);
-        await activity.Save();
+        const saved = await activity.Save();
+        if (!saved) {
+            LogError(`TaskService.logActivity: failed to save '${params.activityType}' activity for task ${params.taskID}: ${activity.LatestResult?.CompleteMessage ?? 'unknown error'}`);
+        }
     }
 }
