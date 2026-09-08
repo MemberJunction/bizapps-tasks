@@ -24,9 +24,8 @@ import {
     RunView,
     UserInfo,
 } from '@memberjunction/core';
-import { MJEventType, MJGlobal, MJEvent } from '@memberjunction/global';
+import { IsValidUUID, MJEventType, MJGlobal, MJEvent } from '@memberjunction/global';
 import { Subscription } from 'rxjs';
-import { isUuid } from '../util/uuid-guard.js';
 
 /** Entity names we listen for */
 const TASKS_ENTITY = 'MJ_BizApps_Tasks: Tasks';
@@ -199,8 +198,21 @@ async function handleAssignmentSave(event: BaseEntityEvent): Promise<void> {
 
     const assigneeRecordID = assignment.Get('AssigneeRecordID') as string;
     const taskID = assignment.Get('TaskID') as string;
+    const roleID = assignment.Get('RoleID') as string | null;
 
-    // Resolve the assignee's linked MJ UserID
+    // The notification needs a linked MJ user; the OnAssign hook does not. Never let an
+    // unresolvable recipient (no linked user, non-UUID assignee) suppress the hook.
+    await notifyAssignee(assigneeRecordID, taskID, roleID, contextUser);
+
+    // Invoke OnAssign action if configured on the task's TaskType
+    await invokeTaskTypeActionByTaskID(taskID, 'OnAssignActionID', contextUser);
+}
+
+/**
+ * Sends the "You've been assigned" notification to the assignee's linked MJ user, if any.
+ * Silently skips assignees that have no linked user (or whose record id is not a Person).
+ */
+async function notifyAssignee(assigneeRecordID: string, taskID: string, roleID: string | null, contextUser: UserInfo): Promise<void> {
     const userID = await getPersonLinkedUserID(assigneeRecordID, contextUser);
     if (!userID) return;
 
@@ -222,7 +234,6 @@ async function handleAssignmentSave(event: BaseEntityEvent): Promise<void> {
     const dueStr = dueAt ? ` Due: ${dueAt}.` : '';
 
     // Resolve role name if present
-    const roleID = assignment.Get('RoleID') as string | null;
     let roleStr = '';
     if (roleID) {
         const roleResult = await new RunView().RunView<{ Name: string }>({
@@ -242,9 +253,6 @@ async function handleAssignmentSave(event: BaseEntityEvent): Promise<void> {
         contextUser
     );
     LogStatus(`[BizAppsTasks] Sent assignment notification for "${taskName}"`);
-
-    // Invoke OnAssign action if configured on the task's TaskType
-    await invokeTaskTypeActionByTaskID(taskID, 'OnAssignActionID', contextUser);
 }
 
 // ---------------------------------------------------------------------------
@@ -434,7 +442,7 @@ async function getTaskAssigneeUserIDs(taskID: string, contextUser: UserInfo): Pr
     const personIDs = assignments.Results
         .map(a => a.AssigneeRecordID)
         .filter((id: string) => {
-            if (isUuid(id)) return true;
+            if (IsValidUUID(id)) return true;
             LogError(`[BizAppsTasks] Skipping non-UUID AssigneeRecordID '${id}' on assignment for task ${taskID} — excluded from person lookup`);
             return false;
         });
@@ -464,7 +472,7 @@ async function getTaskAssigneeUserIDs(taskID: string, contextUser: UserInfo): Pr
  */
 async function getPersonLinkedUserID(personID: string, contextUser: UserInfo): Promise<string | null> {
     // personID may originate from free-text AssigneeRecordID — validate before it enters SQL.
-    if (!isUuid(personID)) {
+    if (!IsValidUUID(personID)) {
         LogError(`[BizAppsTasks] Skipping non-UUID person ID '${personID}' — excluded from linked-user lookup`);
         return null;
     }

@@ -18,10 +18,9 @@
  */
 import { Metadata, RunView, UserInfo, ValidationResult } from '@memberjunction/core';
 import { MJScheduledJobEntity } from '@memberjunction/core-entities';
-import { RegisterClass } from '@memberjunction/global';
+import { IsValidUUID, RegisterClass } from '@memberjunction/global';
 import { BaseScheduledJob, ScheduledJobExecutionContext } from '@memberjunction/scheduling-engine';
 import { ScheduledJobResult, NotificationContent } from '@memberjunction/scheduling-base-types';
-import { isUuid } from '../util/uuid-guard.js';
 
 /** Shape of the TaskNotificationConfig rows loaded from the DB. */
 interface NotificationConfig {
@@ -226,7 +225,7 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
             const personIDs = (assignments?.Results ?? [])
                 .map(a => a.AssigneeRecordID)
                 .filter(id => {
-                    if (isUuid(id)) return true;
+                    if (IsValidUUID(id)) return true;
                     this.logError(`Skipping non-UUID AssigneeRecordID '${id}' on assignment for task ${task.ID} ("${task.Name}") — excluded from recipient resolution`);
                     return false;
                 });
@@ -247,7 +246,7 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
 
     private async getLinkedUserID(personID: string, contextUser: UserInfo): Promise<string | null> {
         // Defense in depth: never interpolate a non-UUID person ID into the filter.
-        if (!isUuid(personID)) {
+        if (!IsValidUUID(personID)) {
             this.logError(`Skipping non-UUID person ID '${personID}' — excluded from linked-user lookup`);
             return null;
         }

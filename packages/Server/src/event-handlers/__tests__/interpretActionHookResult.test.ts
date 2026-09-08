@@ -14,6 +14,7 @@ vi.mock('@memberjunction/core', () => ({
 }));
 vi.mock('@memberjunction/global', () => ({
   MJEventType: { ComponentEvent: 'ComponentEvent' },
+  IsValidUUID: (v: string | null | undefined) => !!v && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(v.trim()),
   MJGlobal: { Instance: { GetGlobalObjectStore: () => ({}), GetEventListener: () => ({ subscribe: () => ({ unsubscribe() {} }) }) } },
 }));
 

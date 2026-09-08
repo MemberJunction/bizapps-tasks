@@ -34,6 +34,13 @@ export type TaskActionHookType =
 /**
  * Lifecycle snapshot captured pre-save to drive post-save audit logging and action triggers.
  */
+/**
+ * Conventional TaskTypeStatus.Code for a type's "rejected" stage (the seeded Approval Request
+ * type ships APPROVAL_REQUEST.REJECTED with MacroStatus Cancelled). Landing on this stage is
+ * treated as a rejection for OnReject/OnCancel routing even when no TaskDecision was recorded.
+ */
+export const REJECTED_STAGE_CODE = 'REJECTED';
+
 export interface TaskLifecycleContext {
     isNew: boolean;
     statusChanged: boolean;
@@ -342,29 +349,7 @@ export class TaskEntityServer extends TaskEntity {
         }
 
         if (ctx.statusChanged && this.Status === 'Cancelled') {
-            // A cancellation driven by a Rejected decision is a rejection and fires
-            // OnReject (e.g. "return the source record to Draft"); a plain cancel
-            // fires OnCancel. Never both, and Blocked never fires OnReject.
-            const rejected = await this.taskHasRejectedDecision();
-            if (rejected) {
-                if (taskType.OnRejectActionID) {
-                    await this.invokeAction(
-                        taskType.OnRejectActionID,
-                        'OnReject',
-                        taskType.Code,
-                        currentTypeStatusCode,
-                        ctx.oldStatus
-                    );
-                }
-            } else if (taskType.OnCancelActionID) {
-                await this.invokeAction(
-                    taskType.OnCancelActionID,
-                    'OnCancel',
-                    taskType.Code,
-                    currentTypeStatusCode,
-                    ctx.oldStatus
-                );
-            }
+            await this.dispatchCancelOrRejectHook(taskType, currentTypeStatusCode, ctx);
         }
 
         // 6. OnPercentChange hook
@@ -460,12 +445,48 @@ export class TaskEntityServer extends TaskEntity {
     }
 
     /**
+     * Routes a Cancelled transition to exactly one of OnReject / OnCancel.
+     *
+     * A cancellation is a REJECTION when either signal is present:
+     *   (a) the task landed on its type's rejected stage (TaskTypeStatus.Code === REJECTED_STAGE_CODE,
+     *       e.g. the seeded APPROVAL_REQUEST.REJECTED stage reached via the status dropdown or bulk
+     *       status change — that path writes no TaskDecision), or
+     *   (b) a TaskDecision with the Rejected outcome exists (the RecordDecision path, which saves the
+     *       decision before transitioning the task).
+     * Otherwise it is a plain cancel. Never both, and Blocked never fires OnReject.
+     *
+     * The decision query is skipped entirely when the type wires neither hook.
+     */
+    protected async dispatchCancelOrRejectHook(
+        taskType: mjBizAppsTasksTaskTypeEntity,
+        currentTypeStatusCode: string | null,
+        ctx: TaskLifecycleContext,
+    ): Promise<void> {
+        if (!taskType.OnRejectActionID && !taskType.OnCancelActionID) return;
+
+        const rejected = this.isRejectedStage(currentTypeStatusCode) || await this.taskHasRejectedDecision();
+        const [actionID, hook] = rejected
+            ? [taskType.OnRejectActionID, 'OnReject' as const]
+            : [taskType.OnCancelActionID, 'OnCancel' as const];
+        if (!actionID) return;
+
+        await this.invokeAction(actionID, hook, taskType.Code, currentTypeStatusCode, ctx.oldStatus);
+    }
+
+    /** True when the task's current TaskTypeStatus is the conventional rejected stage. */
+    protected isRejectedStage(currentTypeStatusCode: string | null): boolean {
+        return (currentTypeStatusCode ?? '').trim().toUpperCase() === REJECTED_STAGE_CODE;
+    }
+
+    /**
      * Returns true when this task has a TaskDecision with the 'Rejected' outcome.
      * Used to distinguish a rejection from a plain cancellation when routing the
      * OnReject vs. OnCancel hooks.
      *
      * Resolves the rejected outcome by its stable Code, then matches decisions by
      * OutcomeID — so renaming the outcome's display Name doesn't break routing.
+     * A failed query is logged and treated as "no rejected decision" — the stage
+     * check above still routes the common UI path correctly.
      */
     protected async taskHasRejectedDecision(): Promise<boolean> {
         const rv = new RunView();
@@ -476,7 +497,11 @@ export class TaskEntityServer extends TaskEntity {
             ResultType: 'simple',
             MaxRows: 1,
         }, this.ContextCurrentUser);
-        const rejectedOutcomeID = outcomeResult?.Results?.[0]?.ID;
+        if (!outcomeResult?.Success) {
+            LogError(`TaskEntityServer: could not resolve the Rejected outcome for task ${this.ID}: ${outcomeResult?.ErrorMessage ?? 'unknown error'}`);
+            return false;
+        }
+        const rejectedOutcomeID = outcomeResult.Results?.[0]?.ID;
         if (!rejectedOutcomeID) return false;
 
         const result = await rv.RunView<{ ID: string }>({
@@ -486,7 +511,11 @@ export class TaskEntityServer extends TaskEntity {
             ResultType: 'simple',
             MaxRows: 1,
         }, this.ContextCurrentUser);
-        return (result?.Results?.length ?? 0) > 0;
+        if (!result?.Success) {
+            LogError(`TaskEntityServer: could not load decisions for task ${this.ID}: ${result?.ErrorMessage ?? 'unknown error'}`);
+            return false;
+        }
+        return (result.Results?.length ?? 0) > 0;
     }
 
     /**

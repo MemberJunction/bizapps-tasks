@@ -8,6 +8,7 @@ const { runViewMock, getEntityObjectMock } = vi.hoisted(() => ({
 
 vi.mock('@memberjunction/global', () => ({
   RegisterClass: () => () => {},
+  IsValidUUID: (v: string | null | undefined) => !!v && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(v.trim()),
 }));
 
 vi.mock('@memberjunction/core', () => {

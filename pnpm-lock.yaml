@@ -220,6 +220,9 @@ importers:
       '@mj-biz-apps/common-entities':
         specifier: '>=5.37.0'
         version: 5.37.0(@memberjunction/core@6.1.0-edge.5)(@memberjunction/global@6.1.0-edge.5)
+      '@mj-biz-apps/tasks-core':
+        specifier: 1.4.3
+        version: link:../Core
       '@mj-biz-apps/tasks-entities':
         specifier: 1.4.3
         version: link:../Entities
