@@ -72,7 +72,6 @@ export interface ApprovalRow {
             @if (SelectedApprovalID) {
                 <bizapps-approval-decision-panel
                     [TaskID]="SelectedApprovalID"
-                    [DecidedByPersonID]="ApproverPersonID"
                     (DecisionRecorded)="onDecisionRecorded($event)"
                     (Cancelled)="SelectedApprovalID = null">
                 </bizapps-approval-decision-panel>
@@ -243,7 +242,10 @@ export class ApprovalInboxComponent implements OnInit {
 
     /**
      * Builds the ExtraFilter for pending approvals: tasks of the approval TaskType,
-     * assigned to this approver, still open, and without any terminal decision yet.
+     * assigned to this approver on a still-ACTIVE assignment, still open, and without
+     * any terminal decision yet. The assignment-status predicate mirrors the service-side
+     * gate in `TaskOrchestrationService.RecordDecision`, so the inbox never lists a task
+     * the decision panel would then refuse.
      */
     private async buildPendingFilter(): Promise<string> {
         const typeName = this.ApprovalTypeName.replace(/'/g, "''");
@@ -251,7 +253,7 @@ export class ApprovalInboxComponent implements OnInit {
         return [
             `TypeID IN (SELECT ID FROM __mj_BizAppsTasks.TaskType WHERE Name = '${typeName}')`,
             `Status NOT IN ('Completed', 'Cancelled')`,
-            `ID IN (SELECT TaskID FROM __mj_BizAppsTasks.TaskAssignment WHERE AssigneeRecordID = '${personID}')`,
+            `ID IN (SELECT TaskID FROM __mj_BizAppsTasks.TaskAssignment WHERE AssigneeRecordID = '${personID}' AND Status IN ('Pending', 'InProgress'))`,
             `ID NOT IN (SELECT d.TaskID FROM __mj_BizAppsTasks.TaskDecision d INNER JOIN __mj_BizAppsTasks.TaskDecisionOutcome o ON d.OutcomeID = o.ID WHERE o.IsTerminal = 1)`,
         ].join(' AND ');
     }
