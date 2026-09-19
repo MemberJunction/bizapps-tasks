@@ -1,0 +1,30 @@
+[
+  {
+    "fields": {
+      "PipelineID": "FD3C2552-07C0-492D-8219-042DBE57B2AA",
+      "Version": 1,
+      "AlgorithmID": "B2FD5E4A-75D4-401A-A1DA-F223A5234FDA",
+      "ArtifactFileID": "330C63F5-BF48-487E-B534-0FF5D1BAD692",
+      "FittedPreprocessing": "{\"ops\":[{\"op\":\"onehot\",\"col\":\"Priority\",\"vocabulary\":[\"Critical\",\"High\",\"Low\",\"Medium\"]},{\"op\":\"onehot\",\"col\":\"Category\",\"vocabulary\":[]}],\"output_columns\":[\"Priority=Critical\",\"Priority=High\",\"Priority=Low\",\"Priority=Medium\",\"LeadDays\",\"AssignmentsCount\",\"CommentsCount\"]}",
+      "FeatureSchema": "[{\"Name\":\"LeadDays\",\"Kind\":\"numeric\"},{\"Name\":\"AssignmentsCount\",\"Kind\":\"numeric\"},{\"Name\":\"CommentsCount\",\"Kind\":\"numeric\"},{\"Name\":\"Priority\",\"Kind\":\"numeric\"},{\"Name\":\"Category\",\"Kind\":\"numeric\"}]",
+      "TargetVariable": "IsSLABreached",
+      "ProblemType": "classification",
+      "Metrics": "{\"accuracy\":0.9019607843137255,\"f1\":0.9107142857142857,\"precision\":0.9107142857142857,\"recall\":0.9107142857142857,\"auc\":0.9769021739130435}",
+      "HoldoutMetrics": "{\"accuracy\":0.84,\"f1\":0.8181818181818182,\"precision\":0.8181818181818182,\"recall\":0.8181818181818182,\"auc\":0.8766233766233766}",
+      "FeatureImportance": "{\"Priority=Critical\":0,\"Priority=High\":0.0446343779677113,\"Priority=Low\":0.029439696106362774,\"Priority=Medium\":0.1063627730294397,\"LeadDays\":0.8195631528964862,\"AssignmentsCount\":0,\"CommentsCount\":0}",
+      "Lineage": "{\"pipelineId\":\"FD3C2552-07C0-492D-8219-042DBE57B2AA\",\"pipelineVersion\":1,\"targetEntityName\":\"MJ_BizApps_Tasks: Tasks\",\"sourceBindings\":[{\"Kind\":\"Entity\",\"Ref\":\"MJ_BizApps_Tasks: Tasks\"}],\"featureSteps\":{\"Steps\":[{\"Id\":\"select-raw\",\"Kind\":\"select\",\"Columns\":[\"LeadDays\",\"AssignmentsCount\",\"CommentsCount\",\"Priority\",\"Category\"]},{\"Id\":\"onehot-Priority\",\"Kind\":\"onehot\",\"Column\":\"Priority\"},{\"Id\":\"onehot-Category\",\"Kind\":\"onehot\",\"Column\":\"Category\"}]},\"asOfStrategy\":{\"Mode\":\"none\"},\"sidecarVersion\":\"predictive-studio-agent\",\"lockedHoldoutRowCount\":25,\"trainingRowCount\":102,\"assembledAt\":\"2026-09-19T17:22:17.551Z\"}",
+      "TrainedAt": "2026-09-19T17:22:17.551Z",
+      "TrainingDurationSec": 0,
+      "TrainingRowCount": 102,
+      "Status": "Published",
+      "SkipEmbeddings": false
+    },
+    "primaryKey": {
+      "ID": "CE6C5BA5-BC3F-4D08-B777-5E4F66B63661"
+    },
+    "sync": {
+      "lastModified": "2026-09-19T17:34:30.668Z",
+      "checksum": "60b198c3e08eab2b9ab74cf2086aaa8a3e95d09e5f4ecc1225435ca002291eb8"
+    }
+  }
+]

@@ -84,6 +84,7 @@ export class TaskEntityServer extends TaskEntity {
 
         // 1. Pre-Save Sync: Synchronize TaskTypeStatusID <-> Status and defaults
         await this.syncTaskTypeStatusPreSave();
+        this.syncPredictiveSLAFieldsPreSave();
 
         // 2. Snapshot dirty flags and old values BEFORE super.Save resets them
         const lifecycleContext = this.captureLifecycleContext();
@@ -143,6 +144,26 @@ export class TaskEntityServer extends TaskEntity {
                         this.PercentComplete = 100;
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * Synchronizes PredictedSLARiskBand when PredictedSLABreachProbability changes or is set.
+     */
+    private syncPredictiveSLAFieldsPreSave(): void {
+        const probField = this.Fields.find(f => f.CodeName === 'PredictedSLABreachProbability');
+        const probDirty = probField?.Dirty ?? false;
+        if (this.PredictedSLABreachProbability != null && (probDirty || !this.PredictedSLARiskBand)) {
+            const p = this.PredictedSLABreachProbability;
+            if (p < 0.30) {
+                this.PredictedSLARiskBand = 'Low';
+            } else if (p < 0.70) {
+                this.PredictedSLARiskBand = 'Medium';
+            } else if (p < 0.90) {
+                this.PredictedSLARiskBand = 'High';
+            } else {
+                this.PredictedSLARiskBand = 'Critical';
             }
         }
     }

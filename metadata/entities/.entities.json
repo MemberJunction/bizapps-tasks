@@ -4,6 +4,7 @@
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Tasks"
     },
     "fields": {
+      "BaseViewGenerated": false,
       "AllowUserSearchAPI": true,
       "AutoUpdateAllowUserSearchAPI": false
     },
@@ -17,6 +18,10 @@
             "IncludeInUserSearchAPI": true,
             "UserSearchPredicateAPI": "BeginsWith",
             "AutoUpdateIncludeInUserSearchAPI": false
+          },
+          "sync": {
+            "lastModified": "2026-09-17T23:07:39.046Z",
+            "checksum": "a466f182b244c1a8245c11a1df92cf1ec368e5456934ce8351c40d7a5b6f0f0f"
           }
         },
         {
@@ -26,9 +31,17 @@
           "fields": {
             "IncludeInUserSearchAPI": false,
             "AutoUpdateIncludeInUserSearchAPI": false
+          },
+          "sync": {
+            "lastModified": "2026-09-17T23:07:39.088Z",
+            "checksum": "882b1c4b195c7cc964188965e4b057dc2624ed5517b4ddd7b2e2fb41bd664a8c"
           }
         }
       ]
+    },
+    "sync": {
+      "lastModified": "2026-09-17T23:07:38.836Z",
+      "checksum": "0baff3649c31ed20ff60ec19d166dca22a08387e38072e637e0d28aec06cf5d6"
     }
   },
   {
@@ -49,6 +62,10 @@
             "IncludeInUserSearchAPI": true,
             "UserSearchPredicateAPI": "BeginsWith",
             "AutoUpdateIncludeInUserSearchAPI": false
+          },
+          "sync": {
+            "lastModified": "2026-09-17T23:07:39.046Z",
+            "checksum": "a466f182b244c1a8245c11a1df92cf1ec368e5456934ce8351c40d7a5b6f0f0f"
           }
         },
         {
@@ -58,9 +75,17 @@
           "fields": {
             "IncludeInUserSearchAPI": false,
             "AutoUpdateIncludeInUserSearchAPI": false
+          },
+          "sync": {
+            "lastModified": "2026-09-17T23:07:39.089Z",
+            "checksum": "882b1c4b195c7cc964188965e4b057dc2624ed5517b4ddd7b2e2fb41bd664a8c"
           }
         }
       ]
+    },
+    "sync": {
+      "lastModified": "2026-09-17T23:07:38.840Z",
+      "checksum": "0baff3649c31ed20ff60ec19d166dca22a08387e38072e637e0d28aec06cf5d6"
     }
   },
   {
@@ -81,6 +106,10 @@
             "IncludeInUserSearchAPI": true,
             "UserSearchPredicateAPI": "BeginsWith",
             "AutoUpdateIncludeInUserSearchAPI": false
+          },
+          "sync": {
+            "lastModified": "2026-09-17T23:07:39.038Z",
+            "checksum": "a466f182b244c1a8245c11a1df92cf1ec368e5456934ce8351c40d7a5b6f0f0f"
           }
         },
         {
@@ -90,9 +119,17 @@
           "fields": {
             "IncludeInUserSearchAPI": false,
             "AutoUpdateIncludeInUserSearchAPI": false
+          },
+          "sync": {
+            "lastModified": "2026-09-17T23:07:39.062Z",
+            "checksum": "882b1c4b195c7cc964188965e4b057dc2624ed5517b4ddd7b2e2fb41bd664a8c"
           }
         }
       ]
+    },
+    "sync": {
+      "lastModified": "2026-09-17T23:07:38.842Z",
+      "checksum": "0baff3649c31ed20ff60ec19d166dca22a08387e38072e637e0d28aec06cf5d6"
     }
   },
   {
@@ -113,6 +150,10 @@
             "IncludeInUserSearchAPI": true,
             "UserSearchPredicateAPI": "BeginsWith",
             "AutoUpdateIncludeInUserSearchAPI": false
+          },
+          "sync": {
+            "lastModified": "2026-09-17T23:07:39.031Z",
+            "checksum": "a466f182b244c1a8245c11a1df92cf1ec368e5456934ce8351c40d7a5b6f0f0f"
           }
         },
         {
@@ -122,9 +163,17 @@
           "fields": {
             "IncludeInUserSearchAPI": false,
             "AutoUpdateIncludeInUserSearchAPI": false
+          },
+          "sync": {
+            "lastModified": "2026-09-17T23:07:39.058Z",
+            "checksum": "882b1c4b195c7cc964188965e4b057dc2624ed5517b4ddd7b2e2fb41bd664a8c"
           }
         }
       ]
+    },
+    "sync": {
+      "lastModified": "2026-09-17T23:07:38.842Z",
+      "checksum": "0baff3649c31ed20ff60ec19d166dca22a08387e38072e637e0d28aec06cf5d6"
     }
   },
   {
@@ -134,6 +183,10 @@
     "fields": {
       "AllowUserSearchAPI": false,
       "AutoUpdateAllowUserSearchAPI": false
+    },
+    "sync": {
+      "lastModified": "2026-09-17T23:07:38.843Z",
+      "checksum": "557b2f2d442156dd31b2ae55bcfb3080cb61cf2d094d43039aa4c5907568aba6"
     }
   },
   {
@@ -143,6 +196,10 @@
     "fields": {
       "AllowUserSearchAPI": false,
       "AutoUpdateAllowUserSearchAPI": false
+    },
+    "sync": {
+      "lastModified": "2026-09-17T23:07:38.847Z",
+      "checksum": "557b2f2d442156dd31b2ae55bcfb3080cb61cf2d094d43039aa4c5907568aba6"
     }
   },
   {
@@ -152,6 +209,10 @@
     "fields": {
       "AllowUserSearchAPI": false,
       "AutoUpdateAllowUserSearchAPI": false
+    },
+    "sync": {
+      "lastModified": "2026-09-17T23:07:38.852Z",
+      "checksum": "557b2f2d442156dd31b2ae55bcfb3080cb61cf2d094d43039aa4c5907568aba6"
     }
   },
   {
@@ -161,6 +222,10 @@
     "fields": {
       "AllowUserSearchAPI": false,
       "AutoUpdateAllowUserSearchAPI": false
+    },
+    "sync": {
+      "lastModified": "2026-09-17T23:07:38.848Z",
+      "checksum": "557b2f2d442156dd31b2ae55bcfb3080cb61cf2d094d43039aa4c5907568aba6"
     }
   },
   {
@@ -170,6 +235,10 @@
     "fields": {
       "AllowUserSearchAPI": false,
       "AutoUpdateAllowUserSearchAPI": false
+    },
+    "sync": {
+      "lastModified": "2026-09-17T23:07:38.852Z",
+      "checksum": "557b2f2d442156dd31b2ae55bcfb3080cb61cf2d094d43039aa4c5907568aba6"
     }
   },
   {
@@ -179,6 +248,10 @@
     "fields": {
       "AllowUserSearchAPI": false,
       "AutoUpdateAllowUserSearchAPI": false
+    },
+    "sync": {
+      "lastModified": "2026-09-17T23:07:38.855Z",
+      "checksum": "557b2f2d442156dd31b2ae55bcfb3080cb61cf2d094d43039aa4c5907568aba6"
     }
   },
   {
@@ -188,6 +261,10 @@
     "fields": {
       "AllowUserSearchAPI": false,
       "AutoUpdateAllowUserSearchAPI": false
+    },
+    "sync": {
+      "lastModified": "2026-09-17T23:07:38.966Z",
+      "checksum": "557b2f2d442156dd31b2ae55bcfb3080cb61cf2d094d43039aa4c5907568aba6"
     }
   },
   {
@@ -197,6 +274,10 @@
     "fields": {
       "AllowUserSearchAPI": false,
       "AutoUpdateAllowUserSearchAPI": false
+    },
+    "sync": {
+      "lastModified": "2026-09-17T23:07:38.970Z",
+      "checksum": "557b2f2d442156dd31b2ae55bcfb3080cb61cf2d094d43039aa4c5907568aba6"
     }
   },
   {
@@ -206,6 +287,10 @@
     "fields": {
       "AllowUserSearchAPI": false,
       "AutoUpdateAllowUserSearchAPI": false
+    },
+    "sync": {
+      "lastModified": "2026-09-17T23:07:38.967Z",
+      "checksum": "557b2f2d442156dd31b2ae55bcfb3080cb61cf2d094d43039aa4c5907568aba6"
     }
   },
   {
@@ -215,6 +300,10 @@
     "fields": {
       "AllowUserSearchAPI": false,
       "AutoUpdateAllowUserSearchAPI": false
+    },
+    "sync": {
+      "lastModified": "2026-09-17T23:07:38.972Z",
+      "checksum": "557b2f2d442156dd31b2ae55bcfb3080cb61cf2d094d43039aa4c5907568aba6"
     }
   },
   {
@@ -224,6 +313,10 @@
     "fields": {
       "AllowUserSearchAPI": false,
       "AutoUpdateAllowUserSearchAPI": false
+    },
+    "sync": {
+      "lastModified": "2026-09-17T23:07:38.971Z",
+      "checksum": "557b2f2d442156dd31b2ae55bcfb3080cb61cf2d094d43039aa4c5907568aba6"
     }
   },
   {
@@ -233,6 +326,10 @@
     "fields": {
       "AllowUserSearchAPI": false,
       "AutoUpdateAllowUserSearchAPI": false
+    },
+    "sync": {
+      "lastModified": "2026-09-17T23:07:38.972Z",
+      "checksum": "557b2f2d442156dd31b2ae55bcfb3080cb61cf2d094d43039aa4c5907568aba6"
     }
   },
   {
@@ -242,6 +339,10 @@
     "fields": {
       "AllowUserSearchAPI": false,
       "AutoUpdateAllowUserSearchAPI": false
+    },
+    "sync": {
+      "lastModified": "2026-09-17T23:07:38.959Z",
+      "checksum": "557b2f2d442156dd31b2ae55bcfb3080cb61cf2d094d43039aa4c5907568aba6"
     }
   },
   {
@@ -251,6 +352,10 @@
     "fields": {
       "AllowUserSearchAPI": false,
       "AutoUpdateAllowUserSearchAPI": false
+    },
+    "sync": {
+      "lastModified": "2026-09-17T23:07:38.970Z",
+      "checksum": "557b2f2d442156dd31b2ae55bcfb3080cb61cf2d094d43039aa4c5907568aba6"
     }
   },
   {
@@ -260,6 +365,10 @@
     "fields": {
       "AllowUserSearchAPI": false,
       "AutoUpdateAllowUserSearchAPI": false
+    },
+    "sync": {
+      "lastModified": "2026-09-17T23:07:38.959Z",
+      "checksum": "557b2f2d442156dd31b2ae55bcfb3080cb61cf2d094d43039aa4c5907568aba6"
     }
   }
 ]

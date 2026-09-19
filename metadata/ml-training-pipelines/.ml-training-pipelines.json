@@ -1,0 +1,152 @@
+[
+  {
+    "fields": {
+      "Name": "Identify tasks at risk of breaching their SLA so that managers can intervene … (LightGBM)",
+      "Description": "Identify tasks at risk of breaching their SLA so that managers can intervene proactively to ensure timely completion.",
+      "Version": 1,
+      "Status": "Draft",
+      "TargetEntityID": "B348FFA2-B1A7-4AC2-B6FD-F4E0C0697466",
+      "TargetVariable": "IsSLABreached",
+      "ProblemType": "classification",
+      "AlgorithmID": "B2FD5E4A-75D4-401A-A1DA-F223A5234FDA",
+      "SourceBindings": "[{\"Kind\":\"Entity\",\"Ref\":\"MJ_BizApps_Tasks: Tasks\"}]",
+      "FeatureSteps": "{\"Steps\":[{\"Id\":\"select-raw\",\"Kind\":\"select\",\"Columns\":[\"LeadDays\",\"AssignmentsCount\",\"CommentsCount\",\"Priority\",\"Category\"]},{\"Id\":\"onehot-Priority\",\"Kind\":\"onehot\",\"Column\":\"Priority\"},{\"Id\":\"onehot-Category\",\"Kind\":\"onehot\",\"Column\":\"Category\"}]}",
+      "AsOfStrategy": "{\"Mode\":\"none\"}",
+      "LeakageGuard": "{\"DenyFields\":[\"CompletedAt\",\"HoursActual\",\"PercentComplete\",\"CompletionNotes\",\"BlockedReason\",\"OverdueNotifiedAt\"],\"SingleFeatureDominanceThreshold\":0.6}",
+      "ValidationStrategy": "{\"Strategy\":\"kfold\",\"K\":5,\"LockedHoldoutFraction\":0.2}",
+      "SkipEmbeddings": false
+    },
+    "primaryKey": {
+      "ID": "FD3C2552-07C0-492D-8219-042DBE57B2AA"
+    },
+    "sync": {
+      "lastModified": "2026-09-19T17:34:19.340Z",
+      "checksum": "cdaebe4eb9aae190aa1dc724ff86bd1dc417dbbde905129b655bb67e83dee652"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Identify tasks at risk of breaching their SLA so that managers can intervene … (RandomForest)",
+      "Description": "Identify tasks at risk of breaching their SLA so that managers can intervene proactively to ensure timely completion.",
+      "Version": 1,
+      "Status": "Draft",
+      "TargetEntityID": "B348FFA2-B1A7-4AC2-B6FD-F4E0C0697466",
+      "TargetVariable": "IsSLABreached",
+      "ProblemType": "classification",
+      "AlgorithmID": "F966965D-3A87-4DD6-91E0-4F9D1AF17796",
+      "SourceBindings": "[{\"Kind\":\"Entity\",\"Ref\":\"MJ_BizApps_Tasks: Tasks\"}]",
+      "FeatureSteps": "{\"Steps\":[{\"Id\":\"select-raw\",\"Kind\":\"select\",\"Columns\":[\"LeadDays\",\"AssignmentsCount\",\"CommentsCount\",\"Priority\",\"Category\"]},{\"Id\":\"onehot-Priority\",\"Kind\":\"onehot\",\"Column\":\"Priority\"},{\"Id\":\"onehot-Category\",\"Kind\":\"onehot\",\"Column\":\"Category\"}]}",
+      "AsOfStrategy": "{\"Mode\":\"none\"}",
+      "LeakageGuard": "{\"DenyFields\":[\"CompletedAt\",\"HoursActual\",\"PercentComplete\",\"CompletionNotes\",\"BlockedReason\",\"OverdueNotifiedAt\"],\"SingleFeatureDominanceThreshold\":0.6}",
+      "ValidationStrategy": "{\"Strategy\":\"kfold\",\"K\":5,\"LockedHoldoutFraction\":0.2}",
+      "SkipEmbeddings": false
+    },
+    "primaryKey": {
+      "ID": "96DD5FFB-306E-49B6-8EC6-74D43F562388"
+    },
+    "sync": {
+      "lastModified": "2026-09-19T17:34:19.340Z",
+      "checksum": "6ccfa98c918bf81c5f31dcef96804a12f9ed942a6eae4ecf4011956a686ef76c"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Identify tasks at risk of breaching their SLA early so that managers can real… (LightGBM)",
+      "Description": "Identify tasks at risk of breaching their SLA early so that managers can reallocate resources or expedite processing to ensure compliance.",
+      "Version": 1,
+      "Status": "Draft",
+      "TargetEntityID": "B348FFA2-B1A7-4AC2-B6FD-F4E0C0697466",
+      "TargetVariable": "IsSLABreached",
+      "ProblemType": "classification",
+      "AlgorithmID": "B2FD5E4A-75D4-401A-A1DA-F223A5234FDA",
+      "SourceBindings": "[{\"Kind\":\"Entity\",\"Ref\":\"MJ_BizApps_Tasks: Tasks\"}]",
+      "FeatureSteps": "{\"Steps\":[{\"Id\":\"select-raw\",\"Kind\":\"select\",\"Columns\":[\"LeadDays\",\"AssignmentsCount\",\"CommentsCount\",\"Priority\",\"Category\"]},{\"Id\":\"onehot-Priority\",\"Kind\":\"onehot\",\"Column\":\"Priority\"},{\"Id\":\"onehot-Category\",\"Kind\":\"onehot\",\"Column\":\"Category\"}]}",
+      "AsOfStrategy": "{\"Mode\":\"none\"}",
+      "LeakageGuard": "{\"DenyFields\":[\"CompletedAt\",\"HoursActual\",\"PercentComplete\",\"CompletionNotes\",\"BlockedReason\",\"OverdueNotifiedAt\"],\"SingleFeatureDominanceThreshold\":0.6}",
+      "ValidationStrategy": "{\"Strategy\":\"kfold\",\"K\":5,\"LockedHoldoutFraction\":0.2}",
+      "SkipEmbeddings": false
+    },
+    "primaryKey": {
+      "ID": "1A05785F-6A04-43B4-9082-8A948FAD51A4"
+    },
+    "sync": {
+      "lastModified": "2026-09-19T17:34:19.340Z",
+      "checksum": "0849dcd25dd7304a1a3fe0835091916ee5ffdd90bae144e008bdefb138e3b2d3"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Identify tasks at risk of breaching their SLA so that managers can intervene … (XGBoost)",
+      "Description": "Identify tasks at risk of breaching their SLA so that managers can intervene proactively to ensure timely completion.",
+      "Version": 1,
+      "Status": "Draft",
+      "TargetEntityID": "B348FFA2-B1A7-4AC2-B6FD-F4E0C0697466",
+      "TargetVariable": "IsSLABreached",
+      "ProblemType": "classification",
+      "AlgorithmID": "25E83BF9-C5EE-4BDF-A891-D36D871B73E3",
+      "SourceBindings": "[{\"Kind\":\"Entity\",\"Ref\":\"MJ_BizApps_Tasks: Tasks\"}]",
+      "FeatureSteps": "{\"Steps\":[{\"Id\":\"select-raw\",\"Kind\":\"select\",\"Columns\":[\"LeadDays\",\"AssignmentsCount\",\"CommentsCount\",\"Priority\",\"Category\"]},{\"Id\":\"onehot-Priority\",\"Kind\":\"onehot\",\"Column\":\"Priority\"},{\"Id\":\"onehot-Category\",\"Kind\":\"onehot\",\"Column\":\"Category\"}]}",
+      "AsOfStrategy": "{\"Mode\":\"none\"}",
+      "LeakageGuard": "{\"DenyFields\":[\"CompletedAt\",\"HoursActual\",\"PercentComplete\",\"CompletionNotes\",\"BlockedReason\",\"OverdueNotifiedAt\"],\"SingleFeatureDominanceThreshold\":0.6}",
+      "ValidationStrategy": "{\"Strategy\":\"kfold\",\"K\":5,\"LockedHoldoutFraction\":0.2}",
+      "SkipEmbeddings": false
+    },
+    "primaryKey": {
+      "ID": "C7246BD3-11CE-451B-916C-B35F68543B60"
+    },
+    "sync": {
+      "lastModified": "2026-09-19T17:34:19.340Z",
+      "checksum": "fa3418428ce2fc8aea396bda4c71393be5f1b61e9b828649decefc7d1cc9498a"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Identify tasks at risk of breaching their SLA early so that managers can real… (XGBoost)",
+      "Description": "Identify tasks at risk of breaching their SLA early so that managers can reallocate resources or expedite processing to ensure compliance.",
+      "Version": 1,
+      "Status": "Draft",
+      "TargetEntityID": "B348FFA2-B1A7-4AC2-B6FD-F4E0C0697466",
+      "TargetVariable": "IsSLABreached",
+      "ProblemType": "classification",
+      "AlgorithmID": "25E83BF9-C5EE-4BDF-A891-D36D871B73E3",
+      "SourceBindings": "[{\"Kind\":\"Entity\",\"Ref\":\"MJ_BizApps_Tasks: Tasks\"}]",
+      "FeatureSteps": "{\"Steps\":[{\"Id\":\"select-raw\",\"Kind\":\"select\",\"Columns\":[\"LeadDays\",\"AssignmentsCount\",\"CommentsCount\",\"Priority\",\"Category\"]},{\"Id\":\"onehot-Priority\",\"Kind\":\"onehot\",\"Column\":\"Priority\"},{\"Id\":\"onehot-Category\",\"Kind\":\"onehot\",\"Column\":\"Category\"}]}",
+      "AsOfStrategy": "{\"Mode\":\"none\"}",
+      "LeakageGuard": "{\"DenyFields\":[\"CompletedAt\",\"HoursActual\",\"PercentComplete\",\"CompletionNotes\",\"BlockedReason\",\"OverdueNotifiedAt\"],\"SingleFeatureDominanceThreshold\":0.6}",
+      "ValidationStrategy": "{\"Strategy\":\"kfold\",\"K\":5,\"LockedHoldoutFraction\":0.2}",
+      "SkipEmbeddings": false
+    },
+    "primaryKey": {
+      "ID": "BED7BD93-2A08-41C6-A555-C2F26DE38949"
+    },
+    "sync": {
+      "lastModified": "2026-09-19T17:34:19.340Z",
+      "checksum": "6762279375edb3dba970330cd61612e19f4e48ec8e693c59dafdd45b312bfdcb"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Identify tasks at risk of breaching their SLA early so that managers can real… (RandomForest)",
+      "Description": "Identify tasks at risk of breaching their SLA early so that managers can reallocate resources or expedite processing to ensure compliance.",
+      "Version": 1,
+      "Status": "Draft",
+      "TargetEntityID": "B348FFA2-B1A7-4AC2-B6FD-F4E0C0697466",
+      "TargetVariable": "IsSLABreached",
+      "ProblemType": "classification",
+      "AlgorithmID": "F966965D-3A87-4DD6-91E0-4F9D1AF17796",
+      "SourceBindings": "[{\"Kind\":\"Entity\",\"Ref\":\"MJ_BizApps_Tasks: Tasks\"}]",
+      "FeatureSteps": "{\"Steps\":[{\"Id\":\"select-raw\",\"Kind\":\"select\",\"Columns\":[\"LeadDays\",\"AssignmentsCount\",\"CommentsCount\",\"Priority\",\"Category\"]},{\"Id\":\"onehot-Priority\",\"Kind\":\"onehot\",\"Column\":\"Priority\"},{\"Id\":\"onehot-Category\",\"Kind\":\"onehot\",\"Column\":\"Category\"}]}",
+      "AsOfStrategy": "{\"Mode\":\"none\"}",
+      "LeakageGuard": "{\"DenyFields\":[\"CompletedAt\",\"HoursActual\",\"PercentComplete\",\"CompletionNotes\",\"BlockedReason\",\"OverdueNotifiedAt\"],\"SingleFeatureDominanceThreshold\":0.6}",
+      "ValidationStrategy": "{\"Strategy\":\"kfold\",\"K\":5,\"LockedHoldoutFraction\":0.2}",
+      "SkipEmbeddings": false
+    },
+    "primaryKey": {
+      "ID": "9F9A9266-8D6F-4631-9937-DFE3A80CB0CE"
+    },
+    "sync": {
+      "lastModified": "2026-09-19T17:34:19.340Z",
+      "checksum": "bafba59815fa8817759a0a08638d1c98574e0af14674103015f6e632933d2afc"
+    }
+  }
+]
