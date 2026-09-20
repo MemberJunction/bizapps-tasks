@@ -4,8 +4,6 @@
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Tasks"
     },
     "fields": {
-      "BaseViewGenerated": false,
-      "GeneratedBaseViewName": "vwTasksGenerated",
       "AllowUserSearchAPI": true,
       "AutoUpdateAllowUserSearchAPI": false
     },
