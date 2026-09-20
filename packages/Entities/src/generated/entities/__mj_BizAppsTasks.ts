@@ -1404,6 +1404,30 @@ export const mjBizAppsTasksTaskSchema = z.object({
         * * Field Name: TaskTypeStatus
         * * Display Name: Task Type Status Name
         * * SQL Data Type: nvarchar(100)`),
+    RootParentID: z.string().nullable().describe(`
+        * * Field Name: RootParentID
+        * * Display Name: Root Parent
+        * * SQL Data Type: uniqueidentifier`),
+    IsSLABreached: z.string().nullable().describe(`
+        * * Field Name: IsSLABreached
+        * * Display Name: Is SLA Breached
+        * * SQL Data Type: varchar(8)
+        * * Description: Indicates whether the task breached its SLA (Met vs. Breached). Ground truth target for predictive models.`),
+    LeadDays: z.number().nullable().describe(`
+        * * Field Name: LeadDays
+        * * Display Name: Lead Days
+        * * SQL Data Type: int
+        * * Description: Number of days between task start/creation and SLA target due date.`),
+    AssignmentsCount: z.number().describe(`
+        * * Field Name: AssignmentsCount
+        * * Display Name: Assignments Count
+        * * SQL Data Type: int
+        * * Description: Total number of team members assigned to this task.`),
+    CommentsCount: z.number().describe(`
+        * * Field Name: CommentsCount
+        * * Display Name: Comments Count
+        * * SQL Data Type: int
+        * * Description: Total number of comments recorded on this task.`),
 });
 
 export type mjBizAppsTasksTaskEntityType = z.infer<typeof mjBizAppsTasksTaskSchema>;
@@ -5074,5 +5098,54 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     */
     get TaskTypeStatus(): string | null {
         return this.Get('TaskTypeStatus');
+    }
+
+    /**
+    * * Field Name: RootParentID
+    * * Display Name: Root Parent
+    * * SQL Data Type: uniqueidentifier
+    */
+    get RootParentID(): string | null {
+        return this.Get('RootParentID');
+    }
+
+    /**
+    * * Field Name: IsSLABreached
+    * * Display Name: Is SLA Breached
+    * * SQL Data Type: varchar(8)
+    * * Description: Indicates whether the task breached its SLA (Met vs. Breached). Ground truth target for predictive models.
+    */
+    get IsSLABreached(): string | null {
+        return this.Get('IsSLABreached');
+    }
+
+    /**
+    * * Field Name: LeadDays
+    * * Display Name: Lead Days
+    * * SQL Data Type: int
+    * * Description: Number of days between task start/creation and SLA target due date.
+    */
+    get LeadDays(): number | null {
+        return this.Get('LeadDays');
+    }
+
+    /**
+    * * Field Name: AssignmentsCount
+    * * Display Name: Assignments Count
+    * * SQL Data Type: int
+    * * Description: Total number of team members assigned to this task.
+    */
+    get AssignmentsCount(): number {
+        return this.Get('AssignmentsCount');
+    }
+
+    /**
+    * * Field Name: CommentsCount
+    * * Display Name: Comments Count
+    * * SQL Data Type: int
+    * * Description: Total number of comments recorded on this task.
+    */
+    get CommentsCount(): number {
+        return this.Get('CommentsCount');
     }
 }

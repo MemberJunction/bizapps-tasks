@@ -16,7 +16,13 @@ export class mjBizAppsTasksTaskFormComponent extends BaseFormComponent {
     override async ngOnInit() {
         await super.ngOnInit();
         this.initSections([
+            { sectionKey: 'taskDetails', sectionName: 'Task Details', isExpanded: true },
             { sectionKey: 'statusAndPriority', sectionName: 'Status and Priority', isExpanded: true },
+            { sectionKey: 'timelineAndProgress', sectionName: 'Timeline and Progress', isExpanded: true },
+            { sectionKey: 'ownershipAndAudit', sectionName: 'Ownership and Audit', isExpanded: true },
+            { sectionKey: 'predictiveSLAMetrics', sectionName: 'Predictive SLA Metrics', isExpanded: true },
+            { sectionKey: 'details', sectionName: 'Details', isExpanded: true },
+            { sectionKey: 'systemMetadata', sectionName: 'System Metadata', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskDependenciesDependsOnTaskID', sectionName: 'Task Dependencies (Depends On Task ID)', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskDependenciesTaskID', sectionName: 'Task Dependencies (Task ID)', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTasks', sectionName: 'Sub-tasks', isExpanded: false },

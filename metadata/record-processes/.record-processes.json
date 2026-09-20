@@ -12,7 +12,7 @@
       "CronExpression": "0 0 * * *",
       "Timezone": "UTC",
       "OnDemandEnabled": true,
-      "OutputMapping": "{\"fields\":{\"PredictedSLABreachProbability\":\"$.score\",\"PredictedSLAScoredAt\":\"$.scoredAt\"}}",
+      "OutputMapping": null,
       "SkipUnchanged": true,
       "BatchSize": 100,
       "MaxConcurrency": 1,
@@ -23,8 +23,8 @@
       "ID": "C25CE023-B984-40FB-9AA6-9AAAF8F0125E"
     },
     "sync": {
-      "lastModified": "2026-09-19T17:34:49.197Z",
-      "checksum": "73c29ba8d0dd6b99851976c757733bdcc0bf8b1622910f7531503d8bdd12518e"
+      "lastModified": "2026-09-20T23:03:05.437Z",
+      "checksum": "481b23201c64acb0ba885498f039df42e434a57314b43262a13cfc9d55c73b8a"
     }
   }
 ]

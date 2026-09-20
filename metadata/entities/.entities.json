@@ -5,6 +5,7 @@
     },
     "fields": {
       "BaseViewGenerated": false,
+      "GeneratedBaseViewName": "vwTasksGenerated",
       "AllowUserSearchAPI": true,
       "AutoUpdateAllowUserSearchAPI": false
     },

@@ -316,28 +316,4 @@ describe('TaskEntityServer', () => {
       );
     });
   });
-
-  describe('syncPredictiveSLAFieldsPreSave', () => {
-    it('sets risk band based on PredictedSLABreachProbability', () => {
-      const server = new TaskEntityServer();
-      server.PredictedSLABreachProbability = 0.15;
-      server.syncPredictiveSLAFieldsPreSave();
-      expect(server.PredictedSLARiskBand).toBe('Low');
-
-      server.PredictedSLABreachProbability = 0.55;
-      server.PredictedSLARiskBand = null;
-      server.syncPredictiveSLAFieldsPreSave();
-      expect(server.PredictedSLARiskBand).toBe('Medium');
-
-      server.PredictedSLABreachProbability = 0.85;
-      server.PredictedSLARiskBand = null;
-      server.syncPredictiveSLAFieldsPreSave();
-      expect(server.PredictedSLARiskBand).toBe('High');
-
-      server.PredictedSLABreachProbability = 0.95;
-      server.PredictedSLARiskBand = null;
-      server.syncPredictiveSLAFieldsPreSave();
-      expect(server.PredictedSLARiskBand).toBe('Critical');
-    });
-  });
 });

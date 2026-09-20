@@ -3933,6 +3933,23 @@ export class mjBizAppsTasksTask_ {
     @MaxLength(100)
     TaskTypeStatus?: string;
         
+    @Field({nullable: true}) 
+    @MaxLength(36)
+    RootParentID?: string;
+        
+    @Field({nullable: true, description: `Indicates whether the task breached its SLA (Met vs. Breached). Ground truth target for predictive models.`}) 
+    @MaxLength(8)
+    IsSLABreached?: string;
+        
+    @Field(() => Int, {nullable: true, description: `Number of days between task start/creation and SLA target due date.`}) 
+    LeadDays?: number;
+        
+    @Field(() => Int, {nullable: true, description: `Total number of team members assigned to this task.`}) 
+    AssignmentsCount?: number;
+        
+    @Field(() => Int, {nullable: true, description: `Total number of comments recorded on this task.`}) 
+    CommentsCount?: number;
+        
     @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
     ReadableFields___?: string[];
         
