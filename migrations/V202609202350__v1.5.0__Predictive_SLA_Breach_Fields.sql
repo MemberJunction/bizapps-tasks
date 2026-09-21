@@ -114,12 +114,22 @@ SELECT
             DATEDIFF(day, g.[__mj_CreatedAt], g.[DueAt]) 
         ELSE NULL 
     END AS [LeadDays],
-    ISNULL((SELECT COUNT(*) FROM [${flyway:defaultSchema}].[TaskAssignment] ta WHERE ta.[TaskID] = g.[ID]), 0) AS [AssignmentsCount],
-    ISNULL((SELECT COUNT(*) FROM [${flyway:defaultSchema}].[TaskComment] tc WHERE tc.[TaskID] = g.[ID]), 0) AS [CommentsCount]
+    ISNULL(a.[AssignmentsCount], 0) AS [AssignmentsCount],
+    ISNULL(c.[CommentsCount], 0) AS [CommentsCount]
 FROM
     [${flyway:defaultSchema}].[vwTasksGenerated] AS g
 OUTER APPLY
-    [${flyway:defaultSchema}].[fnTaskParentID_GetRootID]([g].[ID], [g].[ParentID]) AS root_ParentID;
+    [${flyway:defaultSchema}].[fnTaskParentID_GetRootID]([g].[ID], [g].[ParentID]) AS root_ParentID
+LEFT OUTER JOIN (
+    SELECT [TaskID], COUNT(*) AS [AssignmentsCount]
+    FROM [${flyway:defaultSchema}].[TaskAssignment]
+    GROUP BY [TaskID]
+) AS a ON a.[TaskID] = g.[ID]
+LEFT OUTER JOIN (
+    SELECT [TaskID], COUNT(*) AS [CommentsCount]
+    FROM [${flyway:defaultSchema}].[TaskComment]
+    GROUP BY [TaskID]
+) AS c ON c.[TaskID] = g.[ID];
 GO
 
 IF DATABASE_PRINCIPAL_ID('cdp_UI') IS NOT NULL
