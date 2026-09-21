@@ -1,0 +1,13 @@
+{
+  "entity": "MJ: ML Models",
+  "filePattern": "**/.*.json",
+  "pull": {
+    "filter": "PipelineID = 'FD3C2552-07C0-492D-8219-042DBE57B2AA'",
+    "createNewFileIfNotFound": true,
+    "newFileName": ".ml-models.json",
+    "appendRecordsToExistingFile": true,
+    "updateExistingRecords": true,
+    "ignoreNullFields": true,
+    "ignoreVirtualFields": true
+  }
+}
