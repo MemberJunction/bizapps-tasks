@@ -82,6 +82,7 @@ LEFT OUTER JOIN
   ON
     [t].[ParentID] = mjBizAppsTasksTask_ParentID.[ID]
 LEFT OUTER JOIN
+    -- Note: Sibling common schema name assumed to track core schema (${mjSchema}_BizAppsCommon)
     [${mjSchema}_BizAppsCommon].[Person] AS mjBizAppsCommonPerson_CreatedByPersonID
   ON
     [t].[CreatedByPersonID] = mjBizAppsCommonPerson_CreatedByPersonID.[ID]
@@ -190,8 +191,12 @@ GO
 EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='', @IncludedSchemaNames='${flyway:defaultSchema}';
 
 /* SQL text to insert 7 new entity field(s) */
+DECLARE @TaskEntityID UNIQUEIDENTIFIER =
+    (SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks');
+IF @TaskEntityID IS NULL RAISERROR('Tasks entity not registered', 16, 1);
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '33d3756e-8ac7-4a57-be61-946d1ae7c2d6' OR (EntityID = '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')' AND Name = 'PredictedSLABreachProbability')) BEGIN
+
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '33d3756e-8ac7-4a57-be61-946d1ae7c2d6' OR (EntityID = @TaskEntityID AND Name = 'PredictedSLABreachProbability')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -225,8 +230,8 @@ EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='',
          VALUES
          (
             '33d3756e-8ac7-4a57-be61-946d1ae7c2d6',
-            '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')', -- Entity: MJ_BizApps_Tasks: Tasks
-            (SELECT COALESCE(MAX([Sequence]), 0) + 1 FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')'),
+            @TaskEntityID, -- Entity: MJ_BizApps_Tasks: Tasks
+            (SELECT COALESCE(MAX([Sequence]), 0) + 1 FROM [${mjSchema}].[EntityField] WHERE [EntityID] = @TaskEntityID),
             'PredictedSLABreachProbability',
             'Predicted SLA Breach Probability',
             'Predicted probability (0.0000 - 1.0000) that this task breaches its target due date or SLA.',
@@ -254,7 +259,7 @@ EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='',
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '54214dda-792c-4a7a-a6c0-115ba1c90aab' OR (EntityID = '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')' AND Name = 'PredictedSLARiskBand')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '54214dda-792c-4a7a-a6c0-115ba1c90aab' OR (EntityID = @TaskEntityID AND Name = 'PredictedSLARiskBand')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -288,8 +293,8 @@ EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='',
          VALUES
          (
             '54214dda-792c-4a7a-a6c0-115ba1c90aab',
-            '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')', -- Entity: MJ_BizApps_Tasks: Tasks
-            (SELECT COALESCE(MAX([Sequence]), 0) + 1 FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')'),
+            @TaskEntityID, -- Entity: MJ_BizApps_Tasks: Tasks
+            (SELECT COALESCE(MAX([Sequence]), 0) + 1 FROM [${mjSchema}].[EntityField] WHERE [EntityID] = @TaskEntityID),
             'PredictedSLARiskBand',
             'Predicted SLA Risk Band',
             'Operational SLA breach risk tier: Low (<0.30), Medium (0.30-0.70), High (>0.70), or Critical.',
@@ -317,7 +322,7 @@ EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='',
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'a92eaf03-b039-4dc4-931c-8c6d7c038217' OR (EntityID = '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')' AND Name = 'PredictedSLAScoredAt')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'a92eaf03-b039-4dc4-931c-8c6d7c038217' OR (EntityID = @TaskEntityID AND Name = 'PredictedSLAScoredAt')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -351,8 +356,8 @@ EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='',
          VALUES
          (
             'a92eaf03-b039-4dc4-931c-8c6d7c038217',
-            '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')', -- Entity: MJ_BizApps_Tasks: Tasks
-            (SELECT COALESCE(MAX([Sequence]), 0) + 1 FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')'),
+            @TaskEntityID, -- Entity: MJ_BizApps_Tasks: Tasks
+            (SELECT COALESCE(MAX([Sequence]), 0) + 1 FROM [${mjSchema}].[EntityField] WHERE [EntityID] = @TaskEntityID),
             'PredictedSLAScoredAt',
             'Predicted SLA Scored At',
             'Timestamp when this task was last scored by the predictive SLA breach model.',
@@ -380,7 +385,7 @@ EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='',
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'e7737a78-1c54-4766-929c-bfe8ddf0555c' OR (EntityID = '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')' AND Name = 'IsSLABreached')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'e7737a78-1c54-4766-929c-bfe8ddf0555c' OR (EntityID = @TaskEntityID AND Name = 'IsSLABreached')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -414,8 +419,8 @@ EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='',
          VALUES
          (
             'e7737a78-1c54-4766-929c-bfe8ddf0555c',
-            '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')', -- Entity: MJ_BizApps_Tasks: Tasks
-            (SELECT COALESCE(MAX([Sequence]), 0) + 1 FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')'),
+            @TaskEntityID, -- Entity: MJ_BizApps_Tasks: Tasks
+            (SELECT COALESCE(MAX([Sequence]), 0) + 1 FROM [${mjSchema}].[EntityField] WHERE [EntityID] = @TaskEntityID),
             'IsSLABreached',
             'Is SLA Breached',
             NULL,
@@ -443,7 +448,7 @@ EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='',
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '35141732-5d6a-459a-a2fa-76808f95160b' OR (EntityID = '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')' AND Name = 'LeadDays')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '35141732-5d6a-459a-a2fa-76808f95160b' OR (EntityID = @TaskEntityID AND Name = 'LeadDays')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -477,8 +482,8 @@ EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='',
          VALUES
          (
             '35141732-5d6a-459a-a2fa-76808f95160b',
-            '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')', -- Entity: MJ_BizApps_Tasks: Tasks
-            (SELECT COALESCE(MAX([Sequence]), 0) + 1 FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')'),
+            @TaskEntityID, -- Entity: MJ_BizApps_Tasks: Tasks
+            (SELECT COALESCE(MAX([Sequence]), 0) + 1 FROM [${mjSchema}].[EntityField] WHERE [EntityID] = @TaskEntityID),
             'LeadDays',
             'Lead Days',
             NULL,
@@ -506,7 +511,7 @@ EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='',
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'aad50345-db1b-4bc8-8515-979137c33382' OR (EntityID = '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')' AND Name = 'AssignmentsCount')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'aad50345-db1b-4bc8-8515-979137c33382' OR (EntityID = @TaskEntityID AND Name = 'AssignmentsCount')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -540,8 +545,8 @@ EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='',
          VALUES
          (
             'aad50345-db1b-4bc8-8515-979137c33382',
-            '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')', -- Entity: MJ_BizApps_Tasks: Tasks
-            (SELECT COALESCE(MAX([Sequence]), 0) + 1 FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')'),
+            @TaskEntityID, -- Entity: MJ_BizApps_Tasks: Tasks
+            (SELECT COALESCE(MAX([Sequence]), 0) + 1 FROM [${mjSchema}].[EntityField] WHERE [EntityID] = @TaskEntityID),
             'AssignmentsCount',
             'Assignments Count',
             NULL,
@@ -569,7 +574,7 @@ EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='',
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '45355317-a1ab-468f-8901-4564b03ccc4b' OR (EntityID = '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')' AND Name = 'CommentsCount')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '45355317-a1ab-468f-8901-4564b03ccc4b' OR (EntityID = @TaskEntityID AND Name = 'CommentsCount')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -603,8 +608,8 @@ EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='',
          VALUES
          (
             '45355317-a1ab-468f-8901-4564b03ccc4b',
-            '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')', -- Entity: MJ_BizApps_Tasks: Tasks
-            (SELECT COALESCE(MAX([Sequence]), 0) + 1 FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')'),
+            @TaskEntityID, -- Entity: MJ_BizApps_Tasks: Tasks
+            (SELECT COALESCE(MAX([Sequence]), 0) + 1 FROM [${mjSchema}].[EntityField] WHERE [EntityID] = @TaskEntityID),
             'CommentsCount',
             'Comments Count',
             NULL,
@@ -632,7 +637,7 @@ EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='',
          )
       END;
 
-      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '9e82d5eb-b2ac-458f-8c8e-fb2dfee82244' OR (EntityID = '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')' AND Name = 'RootParentID')) BEGIN
+      IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '9e82d5eb-b2ac-458f-8c8e-fb2dfee82244' OR (EntityID = @TaskEntityID AND Name = 'RootParentID')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
          (
             [ID],
@@ -667,8 +672,8 @@ EXEC [${mjSchema}].[spUpdateExistingEntitiesFromSchema] @ExcludedSchemaNames='',
          VALUES
          (
             '9e82d5eb-b2ac-458f-8c8e-fb2dfee82244',
-            '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')', -- Entity: MJ_BizApps_Tasks: Tasks
-            (SELECT COALESCE(MAX([Sequence]), 0) + 1 FROM [${mjSchema}].[EntityField] WHERE [EntityID] = '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')'),
+            @TaskEntityID, -- Entity: MJ_BizApps_Tasks: Tasks
+            (SELECT COALESCE(MAX([Sequence]), 0) + 1 FROM [${mjSchema}].[EntityField] WHERE [EntityID] = @TaskEntityID),
             'RootParentID',
             'Root Parent ID',
             'Root parent task in the hierarchy',
@@ -1199,10 +1204,9 @@ REVOKE EXECUTE ON [${flyway:defaultSchema}].[spDeleteTask] FROM [cdp_Integration
 GRANT EXECUTE ON [${flyway:defaultSchema}].[spDeleteTask] TO [cdp_Developer], [cdp_Integration];
 
 /* SQL text to delete unneeded entity fields (1 scoped entities) */
-EXEC [${mjSchema}].[spDeleteUnneededEntityFields] @ExcludedSchemaNames='', @EntityIDs='(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')', @IncludedSchemaNames='${flyway:defaultSchema}';
 
 /* SQL text to update existing entity fields from schema (1 scoped entities) */
-EXEC [${mjSchema}].[spUpdateExistingEntityFieldsFromSchema] @ExcludedSchemaNames='', @EntityIDs='(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')', @IncludedSchemaNames='${flyway:defaultSchema}';
+EXEC [${mjSchema}].[spUpdateExistingEntityFieldsFromSchema] @ExcludedSchemaNames='', @IncludedSchemaNames='${flyway:defaultSchema}';
 
 /* SQL text to set default column width where needed */
 EXEC [${mjSchema}].[spSetDefaultColumnWidthWhereNeeded] @ExcludedSchemaNames='', @IncludedSchemaNames='${flyway:defaultSchema}';
@@ -1412,18 +1416,21 @@ WHERE
    ID = 'A92EAF03-B039-4DC4-931C-8C6D7C038217';
 
 /* Set entity icon to fa fa-tasks */
+DECLARE @TaskEntityID_Settings UNIQUEIDENTIFIER =
+    (SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks');
+
 
                UPDATE [${mjSchema}].[Entity]
                SET [Icon] = 'fa fa-tasks', [__mj_UpdatedAt] = GETUTCDATE()
-               WHERE [ID] = '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')';
+               WHERE [ID] = @TaskEntityID_Settings;
 
 /* Insert FieldCategoryInfo setting for entity */
 IF NOT EXISTS (
-      SELECT 1 FROM [${mjSchema}].[EntitySetting] WHERE [EntityID] = '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')' AND [Name] = 'FieldCategoryInfo'
+      SELECT 1 FROM [${mjSchema}].[EntitySetting] WHERE [EntityID] = @TaskEntityID_Settings AND [Name] = 'FieldCategoryInfo'
    )
    BEGIN
       INSERT INTO [${mjSchema}].[EntitySetting] ([ID], [EntityID], [Name], [Value], [__mj_CreatedAt], [__mj_UpdatedAt])
-               VALUES ('9aa482c3-1a7f-53ba-9040-cdb96c79943c', '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')', 'FieldCategoryInfo', '{
+               VALUES ('9aa482c3-1a7f-53ba-9040-cdb96c79943c', @TaskEntityID_Settings, 'FieldCategoryInfo', '{
   "Ownership and Audit": {
     "description": "Information about who created or owns the task",
     "icon": "fa fa-user-tag"
@@ -1449,11 +1456,11 @@ IF NOT EXISTS (
 
 /* Insert FieldCategoryIcons setting (legacy) */
 IF NOT EXISTS (
-      SELECT 1 FROM [${mjSchema}].[EntitySetting] WHERE [EntityID] = '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')' AND [Name] = 'FieldCategoryIcons'
+      SELECT 1 FROM [${mjSchema}].[EntitySetting] WHERE [EntityID] = @TaskEntityID_Settings AND [Name] = 'FieldCategoryIcons'
    )
    BEGIN
       INSERT INTO [${mjSchema}].[EntitySetting] ([ID], [EntityID], [Name], [Value], [__mj_CreatedAt], [__mj_UpdatedAt])
-               VALUES ('190fe5f2-3423-5e28-82d8-f35fb65f7ae8', '(SELECT [ID] FROM [${mjSchema}].[Entity] WHERE [Name] = 'MJ_BizApps_Tasks: Tasks')', 'FieldCategoryIcons', '{
+               VALUES ('190fe5f2-3423-5e28-82d8-f35fb65f7ae8', @TaskEntityID_Settings, 'FieldCategoryIcons', '{
   "Ownership and Audit": "fa fa-user-tag",
   "Predictive SLA Metrics": "fa fa-chart-line",
   "System Metadata": "fa fa-database",

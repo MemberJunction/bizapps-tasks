@@ -12,7 +12,7 @@
       "CronExpression": "0 0 * * *",
       "Timezone": "UTC",
       "OnDemandEnabled": true,
-      "OutputMapping": null,
+      "OutputMapping": "{\"PredictedSLABreachProbability\":\"$.score\",\"PredictedSLARiskBand\":\"$.band\",\"PredictedSLAScoredAt\":\"$.scoredAt\"}",
       "SkipUnchanged": true,
       "BatchSize": 100,
       "MaxConcurrency": 1,
