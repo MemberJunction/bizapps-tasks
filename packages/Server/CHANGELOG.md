@@ -1,5 +1,19 @@
 # @mj-biz-apps/tasks-server
 
+## 1.5.0
+
+### Minor Changes
+
+- 66e1d7b: Add predictive SLA breach outcome columns, layered base views (vwTasksGenerated and vwTasks), and scoring binding write-back.
+
+### Patch Changes
+
+- Updated dependencies [66e1d7b]
+  - @mj-biz-apps/tasks-entities@1.5.0
+  - @mj-biz-apps/tasks-core@1.5.0
+  - @mj-biz-apps/tasks-entities-server@1.5.0
+  - @mj-biz-apps/tasks-actions@1.5.0
+
 ## 1.4.3
 
 ### Patch Changes

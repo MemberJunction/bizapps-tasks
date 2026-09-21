@@ -1,5 +1,12 @@
 # @mj-biz-apps/tasks-core
 
+## 1.5.0
+
+### Patch Changes
+
+- Updated dependencies [66e1d7b]
+  - @mj-biz-apps/tasks-entities@1.5.0
+
 ## 1.4.3
 
 ### Patch Changes

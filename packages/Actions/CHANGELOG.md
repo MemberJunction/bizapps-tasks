@@ -1,5 +1,7 @@
 # @mj-biz-apps/tasks-actions
 
+## 1.5.0
+
 ## 1.4.3
 
 ### Patch Changes
