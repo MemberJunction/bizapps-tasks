@@ -77,10 +77,12 @@ export class BeforeCommentPostedEvent {
                             <button class="btn-open-record" (click)="onOpenFullRecord()" title="Open Full Record in Explorer">
                                 <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Record
                             </button>
-                            <button class="btn-edit" (click)="EditRequested.emit(TaskID!)">
-                                <i class="fa-solid fa-pen"></i> Edit
-                            </button>
-                            @if (ShowDelete) {
+                            @if (!ReadOnly) {
+                                <button class="btn-edit" (click)="EditRequested.emit(TaskID!)">
+                                    <i class="fa-solid fa-pen"></i> Edit
+                                </button>
+                            }
+                            @if (ShowDelete && !ReadOnly) {
                                 @if (!confirmingDelete) {
                                     <button class="btn-delete" (click)="confirmingDelete = true">
                                         <i class="fa-solid fa-trash"></i>
@@ -210,12 +212,17 @@ export class BeforeCommentPostedEvent {
                     <!-- Activity + Comments -->
                     <div class="field-block">
                         <label>Activity</label>
-                        <div class="comment-input-row">
-                            <input type="text" [(ngModel)]="newComment"
-                                   placeholder="Add a comment..." class="comment-input"
-                                   (keydown.enter)="PostComment()" />
-                            <button class="btn-post" (click)="PostComment()" [disabled]="!newComment.trim()">Post</button>
-                        </div>
+                        @if (!ReadOnly) {
+                            <div class="comment-input-row">
+                                <input type="text" [(ngModel)]="newComment"
+                                       placeholder="Add a comment..." class="comment-input"
+                                       (keydown.enter)="PostComment()" />
+                                <button class="btn-post" (click)="PostComment()" [disabled]="!newComment.trim()">Post</button>
+                            </div>
+                            @if (commentError) {
+                                <div class="comment-error" role="alert">{{ commentError }}</div>
+                            }
+                        }
                         <div class="timeline">
                             @for (entry of timeline; track entry.Timestamp) {
                                 <div class="timeline-entry" [class.is-comment]="entry.Type === 'comment'">
@@ -380,7 +387,8 @@ export class BeforeCommentPostedEvent {
         }
 
         /* ─── Comment Input ─── */
-        .comment-input-row { display: flex; gap: 8px; margin-bottom: 16px; }
+        .comment-input-row { display: flex; gap: 8px; margin-bottom: 8px; }
+        .comment-error { color: var(--mj-status-error); font-size: 12px; margin-bottom: 12px; }
         .comment-input {
             flex: 1; padding: 8px 12px; border: 1px solid var(--mj-border-default); border-radius: var(--mj-radius-md);
             font-size: 13px; font-family: inherit;
@@ -451,6 +459,9 @@ export class TaskDetailPanelComponent implements OnChanges {
     /** Whether to show the delete button. @default false */
     @Input() ShowDelete = false;
 
+    /** Hides Edit, delete, and the comment box. @default false */
+    @Input() ReadOnly = false;
+
     // ── Outputs ─────────────────────────────────────────────
 
     /**
@@ -506,6 +517,8 @@ export class TaskDetailPanelComponent implements OnChanges {
     loading = false;
     /** @internal */
     newComment = '';
+    /** @internal Shown when a comment save is refused. The box keeps the text. */
+    commentError = '';
     /** @internal */
     private cdr = inject(ChangeDetectorRef);
 
@@ -676,7 +689,7 @@ export class TaskDetailPanelComponent implements OnChanges {
      * Called internally by the comment input, but can also be called programmatically.
      */
     async PostComment(): Promise<void> {
-        if (!this.newComment.trim() || !this.TaskID) return;
+        if (this.ReadOnly || !this.newComment.trim() || !this.TaskID) return;
 
         const before = new BeforeCommentPostedEvent(this.TaskID, this.newComment.trim());
         this.BeforeCommentPosted.emit(before);
@@ -687,7 +700,13 @@ export class TaskDetailPanelComponent implements OnChanges {
         comment.Set('TaskID', this.TaskID);
         if (this.PersonID) comment.Set('PersonID', this.PersonID);
         comment.Set('Content', this.newComment.trim());
-        await comment.Save();
+        const saved = await comment.Save();
+        if (!saved) {
+            this.commentError = comment.LatestResult?.CompleteMessage || 'The comment was refused.';
+            this.cdr.markForCheck();
+            return;
+        }
+        this.commentError = '';
         this.newComment = '';
         await this.loadTimeline();
         this.cdr.markForCheck();

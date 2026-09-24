@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, inject, Input, OnInit, Output } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, inject, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Metadata, RunView, CompositeKey } from '@memberjunction/core';
@@ -156,7 +156,10 @@ export class BeforeStatusChangeEvent {
                                min="0" max="100" placeholder="%" class="bulk-pct-input" />
                     }
                     <button class="bulk-btn bulk-apply" [disabled]="!bulkStatus" (click)="applyBulkStatus()">Apply</button>
-                    <button class="bulk-btn bulk-cancel" (click)="selectedIDs = []; cdr.markForCheck()">Clear</button>
+                    <button class="bulk-btn bulk-cancel" (click)="selectedIDs = []; bulkError = ''; cdr.markForCheck()">Clear</button>
+                    @if (bulkError) {
+                        <span class="bulk-error" role="alert">{{ bulkError }}</span>
+                    }
                 </div>
             }
 
@@ -166,7 +169,7 @@ export class BeforeStatusChangeEvent {
                     @for (task of filteredTasks; track task.ID) {
                         <!-- Skip sub-tasks whose parent is collapsed -->
                         @if (task.Depth === 0 || isParentExpanded(task)) {
-                            <div class="task-card-wrapper" [class.is-child]="task.Depth > 0">
+                            <div class="task-card-wrapper" [class.is-child]="task.Depth > 0" [style.margin-left.px]="task.Depth * 32">
                                 <!-- Tree connector line for sub-tasks -->
                                 @if (task.Depth > 0) {
                                     <div class="tree-connector">
@@ -387,9 +390,7 @@ export class BeforeStatusChangeEvent {
             position: relative;
             display: flex; align-items: stretch;
         }
-        .task-card-wrapper.is-child {
-            margin-left: 32px;
-        }
+        .bulk-error { color: var(--mj-status-error); font-size: 12px; }
         .tree-connector {
             position: relative; width: 24px; flex-shrink: 0;
         }
@@ -574,7 +575,7 @@ export class BeforeStatusChangeEvent {
  * </bizapps-task-list>
  * ```
  */
-export class TaskListComponent implements OnInit {
+export class TaskListComponent implements OnInit, OnChanges {
     // ── Inputs ──────────────────────────────────────────────
 
     /**
@@ -698,6 +699,8 @@ export class TaskListComponent implements OnInit {
     bulkStatus = '';
     /** @internal */
     bulkPercent: number | null = null;
+    /** @internal Shown when a bulk status save is refused. */
+    bulkError = '';
     /** @internal */
     loading = false;
     /** @internal */
@@ -724,6 +727,12 @@ export class TaskListComponent implements OnInit {
         if (this.StatusFilter) this.statusFilter = this.StatusFilter;
         this.loadTasks();
         if (this.ShowQuickAdd) this.loadQuickAddPeople();
+    }
+
+    ngOnChanges(changes: SimpleChanges): void {
+        const filterChanged = (changes['ExtraFilter'] && !changes['ExtraFilter'].firstChange)
+            || (changes['CategoryID'] && !changes['CategoryID'].firstChange);
+        if (filterChanged) this.loadTasks();
     }
 
     // ── Public Methods ──────────────────────────────────────
@@ -847,21 +856,20 @@ export class TaskListComponent implements OnInit {
             // Create assignment if a person was selected
             if (this.quickAddPersonID) {
                 try {
-                    const peEntityResult = await new RunView().RunView<{ ID: string }>({
-                        EntityName: 'MJ: Entities',
-                        ExtraFilter: `Name = 'MJ_BizApps_Common: People'`,
-                        ResultType: 'simple',
-                        MaxRows: 1,
-                    });
-                    const peopleEntityID = peEntityResult?.Results?.[0]?.ID;
-                    if (peopleEntityID) {
+                    const peopleEntityID = Metadata.Provider.EntityByName('MJ_BizApps_Common: People')?.ID;
+                    if (!peopleEntityID) {
+                        console.error('Quick-add assignment skipped: People is not installed.');
+                    } else {
                         const assignment = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Assignments');
                         assignment.NewRecord();
                         assignment.Set('TaskID', savedID);
                         assignment.Set('AssigneeEntityID', peopleEntityID);
                         assignment.Set('AssigneeRecordID', this.quickAddPersonID);
                         assignment.Set('Status', 'Pending');
-                        await assignment.Save();
+                        const assigned = await assignment.Save();
+                        if (!assigned) {
+                            console.error('Quick-add assignment was refused:', assignment.LatestResult?.CompleteMessage);
+                        }
                     }
                 } catch (e) {
                     console.error('Quick-add assignment failed:', e);
@@ -1104,13 +1112,11 @@ export class TaskListComponent implements OnInit {
         if (!this.bulkStatus || this.selectedIDs.length === 0) return;
         const status = this.bulkStatus;
         const pct = this.bulkPercent;
-        // Clear selection immediately so UI updates
         const ids = [...this.selectedIDs];
-        this.selectedIDs = [];
-        this.bulkStatus = '';
-        this.bulkPercent = null;
+        this.bulkError = '';
         this.cdr.markForCheck();
 
+        const refused: string[] = [];
         for (const id of ids) {
             try {
                 const entity = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Tasks');
@@ -1123,10 +1129,18 @@ export class TaskListComponent implements OnInit {
                 if (status === 'Completed') {
                     entity.Set('PercentComplete', 100);
                 }
-                await entity.Save();
+                const saved = await entity.Save();
+                if (!saved) refused.push(entity.LatestResult?.CompleteMessage || 'The status change was refused.');
             } catch (e) {
-                console.error(`Failed to update task ${id}:`, e);
+                refused.push(e instanceof Error ? e.message : 'The status change was refused.');
             }
+        }
+        if (refused.length === 0) {
+            this.selectedIDs = [];
+            this.bulkStatus = '';
+            this.bulkPercent = null;
+        } else {
+            this.bulkError = refused[0];
         }
         await this.loadTasks(true);
     }

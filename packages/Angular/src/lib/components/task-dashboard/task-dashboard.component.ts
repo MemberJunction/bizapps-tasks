@@ -80,7 +80,7 @@ type PanelMode = 'none' | 'detail' | 'edit' | 'template';
                         #taskKanban
                         [CategoryID]="CategoryID"
                         [ExtraFilter]="ExtraFilter"
-                        (TaskClicked)="openPanel('detail', $event)"
+                        (TaskClicked)="openPanel('detail', $event.ID)"
                         (TaskDoubleClicked)="onOpenFullRecord($event)">
                     </bizapps-task-kanban>
                 }

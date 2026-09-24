@@ -140,7 +140,7 @@ export interface TaskKPIs {
                     <bizapps-task-kanban
                         #taskKanban
                         [CategoryID]="SelectedCategoryID"
-                        (TaskClicked)="OpenPanel('detail', $event)"
+                        (TaskClicked)="OpenPanel('detail', $event.ID)"
                         (TaskDoubleClicked)="OpenFullRecord($event)">
                     </bizapps-task-kanban>
                 }

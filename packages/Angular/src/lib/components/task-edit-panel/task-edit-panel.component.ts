@@ -226,7 +226,7 @@ export class BeforeTaskSaveEvent {
                     }
                     <div class="form-actions">
                         <button type="button" class="btn-secondary" (click)="Cancel.emit()">Cancel</button>
-                        <button type="submit" class="btn-primary" [disabled]="saving || !form.Name?.trim()">
+                        <button type="submit" class="btn-primary" [disabled]="ReadOnly || saving || !form.Name?.trim()">
                             {{ saving ? 'Saving...' : (isNew ? 'Create' : 'Save') }}
                         </button>
                     </div>
@@ -397,6 +397,15 @@ export class TaskEditPanelComponent implements OnChanges {
      */
     @Input() AssigneeScope: string | string[] | null = null;
 
+    /**
+     * Extra SQL filter for the Parent Task list. A space passes its filed-task
+     * scope so the picker stays inside that space.
+     */
+    @Input() ParentTaskFilter: string | null = null;
+
+    /** Hides the save. A guest still sees the fields. @default false */
+    @Input() ReadOnly = false;
+
     // ── Outputs ─────────────────────────────────────────────
 
     /**
@@ -560,14 +569,17 @@ export class TaskEditPanelComponent implements OnChanges {
 
     private async loadLookups(): Promise<void> {
         const rv = new RunView();
-        const [types, cats, ppl, rls, tasks, tags, entity] = await Promise.all([
+        const [types, cats, ppl, rls, tasks, tags] = await Promise.all([
             rv.RunView<{ ID: string; Name: string }>({ EntityName: 'MJ_BizApps_Tasks: Task Types', ExtraFilter: 'IsActive = 1', ResultType: 'simple' }),
             new RunView().RunView<{ ID: string; Name: string }>({ EntityName: 'MJ_BizApps_Tasks: Task Categories', ExtraFilter: 'IsActive = 1', OrderBy: 'Sequence ASC', ResultType: 'simple' }),
             new RunView().RunView<PersonRow>({ EntityName: 'MJ_BizApps_Common: People', ExtraFilter: this.buildAssigneeScopeFilter(), ResultType: 'simple' }),
             new RunView().RunView<{ ID: string; Name: string }>({ EntityName: 'MJ_BizApps_Tasks: Task Roles', OrderBy: 'Sequence ASC', ResultType: 'simple' }),
-            new RunView().RunView<{ ID: string; Name: string }>({ EntityName: 'MJ_BizApps_Tasks: Tasks', ResultType: 'simple' }),
+            new RunView().RunView<{ ID: string; Name: string }>({
+                EntityName: 'MJ_BizApps_Tasks: Tasks',
+                ExtraFilter: this.ParentTaskFilter || undefined,
+                ResultType: 'simple',
+            }),
             new RunView().RunView<{ ID: string; Name: string; ColorCode: string | null }>({ EntityName: 'MJ_BizApps_Tasks: Task Tags', ResultType: 'simple' }),
-            new RunView().RunView<{ ID: string }>({ EntityName: 'MJ: Entities', ExtraFilter: `Name = 'MJ_BizApps_Common: People'`, ResultType: 'simple', MaxRows: 1 }),
         ]);
         this.taskTypes = types?.Results ?? [];
         // TypeID is a required FK on Tasks. For a new task with no type chosen yet,
@@ -580,7 +592,10 @@ export class TaskEditPanelComponent implements OnChanges {
         this.roles = rls?.Results ?? [];
         this.availableTasks = (tasks?.Results ?? []).filter(t => t.ID !== this.TaskID);
         this.allTags = tags?.Results ?? [];
-        this.peopleEntityID = entity?.Results?.[0]?.ID ?? null;
+        this.peopleEntityID = Metadata.Provider.EntityByName('MJ_BizApps_Common: People')?.ID ?? null;
+        if (!this.peopleEntityID) {
+            this.saveError = 'People is not installed, so assignees cannot be saved.';
+        }
 
         if (this.TaskID && this.selectedTags.length === 0) {
             await this.loadExistingTags();
@@ -643,7 +658,13 @@ export class TaskEditPanelComponent implements OnChanges {
         const role = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Roles');
         role.NewRecord();
         role.Set('Name', name);
-        await role.Save();
+        const saved = await role.Save();
+        if (!saved) {
+            this.saveError = role.LatestResult?.CompleteMessage || 'The role was refused.';
+            this.creatingRole = false;
+            this.cdr.markForCheck();
+            return;
+        }
 
         this.roles.push({ ID: role.Get('ID'), Name: name });
         this.newRoleName = '';
@@ -677,7 +698,13 @@ export class TaskEditPanelComponent implements OnChanges {
         tag.NewRecord();
         tag.Set('Name', name);
         tag.Set('ColorCode', color);
-        await tag.Save();
+        const saved = await tag.Save();
+        if (!saved) {
+            this.saveError = tag.LatestResult?.CompleteMessage || 'The tag was refused.';
+            this.creatingTag = false;
+            this.cdr.markForCheck();
+            return;
+        }
 
         const newTag = { ID: tag.Get('ID'), Name: name, ColorCode: color };
         this.allTags.push(newTag);
@@ -693,7 +720,7 @@ export class TaskEditPanelComponent implements OnChanges {
     }
 
     async save(): Promise<void> {
-        if (!this.form.Name?.trim()) return;
+        if (this.ReadOnly || !this.form.Name?.trim()) return;
 
         const before = new BeforeTaskSaveEvent(this.TaskID, { ...this.form });
         this.BeforeSave.emit(before);
@@ -737,8 +764,14 @@ export class TaskEditPanelComponent implements OnChanges {
         const savedID = entity.Get('ID') as string;
 
         // Save assignees — create new, update existing, delete removed
+        const assigneeWork = this.assignees.some((row) => !!row.PersonID) || !!this.TaskID;
+        if (!this.peopleEntityID && assigneeWork) {
+            this.saveError = 'People is not installed, so assignees cannot be saved.';
+            this.saving = false;
+            this.cdr.markForCheck();
+            return;
+        }
         if (this.peopleEntityID) {
-            // Load current assignments from DB to diff against
             const rv2 = new RunView();
             const currentAssignments = this.TaskID ? await rv2.RunView<{ ID: string }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Assignments',
@@ -747,35 +780,35 @@ export class TaskEditPanelComponent implements OnChanges {
             }) : null;
             const existingIDs = new Set(this.assignees.filter(a => !a.IsNew && a.ExistingID).map(a => a.ExistingID!));
 
-            // Delete removed assignments (ones in DB but no longer in form)
             for (const dbRow of currentAssignments?.Results ?? []) {
                 if (!existingIDs.has(dbRow.ID)) {
                     const del = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Assignments');
                     const pk = new CompositeKey([{ FieldName: 'ID', Value: dbRow.ID }]);
                     await del.InnerLoad(pk);
-                    await del.Delete();
+                    const removed = await del.Delete();
+                    if (!removed) return this.stopSave(del, 'The assignee removal was refused.');
                 }
             }
 
             for (const a of this.assignees) {
                 if (!a.PersonID) continue;
                 if (a.IsNew) {
-                    // Create new assignment
                     const assignment = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Assignments');
                     assignment.NewRecord();
                     assignment.Set('TaskID', savedID);
                     assignment.Set('AssigneeEntityID', this.peopleEntityID);
                     assignment.Set('AssigneeRecordID', a.PersonID);
                     if (a.RoleID) assignment.Set('RoleID', a.RoleID);
-                    await assignment.Save();
+                    const assigned = await assignment.Save();
+                    if (!assigned) return this.stopSave(assignment, 'The assignee was refused.');
                 } else if (a.ExistingID) {
-                    // Update existing assignment (person or role may have changed)
                     const assignment = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Assignments');
                     const pk = new CompositeKey([{ FieldName: 'ID', Value: a.ExistingID }]);
                     await assignment.InnerLoad(pk);
                     assignment.Set('AssigneeRecordID', a.PersonID);
                     if (a.RoleID) assignment.Set('RoleID', a.RoleID);
-                    await assignment.Save();
+                    const assigned = await assignment.Save();
+                    if (!assigned) return this.stopSave(assignment, 'The assignee was refused.');
                 }
             }
         }
@@ -800,31 +833,38 @@ export class TaskEditPanelComponent implements OnChanges {
                     link.NewRecord();
                     link.Set('TaskID', savedID);
                     link.Set('TagID', tagID);
-                    await link.Save();
+                    const linked = await link.Save();
+                    if (!linked) return this.stopSave(link, 'The tag was refused.');
                 }
             }
 
-            // Remove deselected — delete links whose tag is no longer selected
             for (const existingLink of existingLinks) {
                 if (!selectedTagIDs.has(existingLink.TagID)) {
                     const link = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Tag Links');
                     const pk = new CompositeKey([{ FieldName: 'ID', Value: existingLink.ID }]);
                     await link.InnerLoad(pk);
-                    await link.Delete();
+                    const removed = await link.Delete();
+                    if (!removed) return this.stopSave(link, 'The tag removal was refused.');
                 }
             }
         } else {
-            // New task — just create all tag links
             for (const tag of this.selectedTags) {
                 const link = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Tag Links');
                 link.NewRecord();
                 link.Set('TaskID', savedID);
                 link.Set('TagID', tag.ID);
-                await link.Save();
+                const linked = await link.Save();
+                if (!linked) return this.stopSave(link, 'The tag was refused.');
             }
         }
 
         this.saving = false;
         this.Saved.emit(savedID);
+    }
+
+    private stopSave(record: { LatestResult?: { CompleteMessage?: string } | null }, fallback: string): void {
+        this.saveError = record.LatestResult?.CompleteMessage || fallback;
+        this.saving = false;
+        this.cdr.markForCheck();
     }
 }
