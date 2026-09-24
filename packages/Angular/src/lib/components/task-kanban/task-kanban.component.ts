@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, inject, Input, Output, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, inject, Input, Output, OnChanges, OnInit, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CompositeKey, Metadata, RunView } from '@memberjunction/core';
 import { MjKanbanBoardComponent, KanbanCardData, KanbanColumnDef, KanbanCardMovedEvent } from '@memberjunction/ng-kanban';
@@ -23,6 +23,12 @@ export class BeforeKanbanStatusChangeEvent {
 export interface AfterKanbanStatusChangeEvent {
     TaskID: string;
     NewStatus: string;
+}
+
+/** The task a board click names. `ID` opens it; `Name` labels a subtask. */
+export interface TaskClickRow {
+    ID: string;
+    Name: string;
 }
 
 /** Priority → color mapping for card accents. */
@@ -61,6 +67,9 @@ const PRIORITY_BADGE_COLORS: Record<string, string> = {
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [CommonModule, MjKanbanBoardComponent],
     template: `
+        @if (moveError) {
+            <div class="move-error" role="alert">{{ moveError }}</div>
+        }
         <mj-kanban-board
             [Columns]="columns"
             [Cards]="cards"
@@ -69,9 +78,10 @@ const PRIORITY_BADGE_COLORS: Record<string, string> = {
             (CardClicked)="onCardClicked($event)"
             (CardDoubleClicked)="onCardDoubleClicked($event)">
         </mj-kanban-board>
-    `
+    `,
+    styles: [`.move-error { color: var(--mj-status-error); font-size: 12px; margin-bottom: 8px; }`]
 })
-export class TaskKanbanComponent implements OnInit {
+export class TaskKanbanComponent implements OnInit, OnChanges {
     @Input() CategoryID: string | null = null;
     @Input() ExtraFilter: string | null = null;
     @Input() ReadOnly = false;
@@ -79,6 +89,8 @@ export class TaskKanbanComponent implements OnInit {
     @Output() BeforeStatusChange = new EventEmitter<BeforeKanbanStatusChangeEvent>();
     @Output() AfterStatusChange = new EventEmitter<AfterKanbanStatusChangeEvent>();
     @Output() TaskClicked = new EventEmitter<string>();
+    /** The clicked card's id and title. `TaskClicked` stays the id. */
+    @Output() TaskRowClicked = new EventEmitter<TaskClickRow>();
     @Output() TaskDoubleClicked = new EventEmitter<string>();
 
     columns: KanbanColumnDef[] = [
@@ -89,9 +101,17 @@ export class TaskKanbanComponent implements OnInit {
     ];
 
     cards: KanbanCardData[] = [];
+    /** @internal Shown when a drag's status save is refused. The card snaps back. */
+    moveError = '';
     private cdr = inject(ChangeDetectorRef);
 
     ngOnInit(): void { this.LoadTasks(); }
+
+    ngOnChanges(changes: SimpleChanges): void {
+        const filterChanged = (changes['ExtraFilter'] && !changes['ExtraFilter'].firstChange)
+            || (changes['CategoryID'] && !changes['CategoryID'].firstChange);
+        if (filterChanged) this.LoadTasks();
+    }
 
     Refresh(): void { this.LoadTasks(); }
 
@@ -141,7 +161,13 @@ export class TaskKanbanComponent implements OnInit {
         const pk = new CompositeKey([{ FieldName: 'ID', Value: event.Card.ID }]);
         await entity.InnerLoad(pk);
         entity.Status = event.ToColumn as mjBizAppsTasksTaskEntity['Status'];
-        await entity.Save();
+        const saved = await entity.Save();
+        if (!saved) {
+            this.moveError = entity.LatestResult?.CompleteMessage || 'The status change was refused.';
+            await this.LoadTasks(true);
+            return;
+        }
+        this.moveError = '';
 
         this.AfterStatusChange.emit({ TaskID: event.Card.ID, NewStatus: event.ToColumn });
         await this.LoadTasks(true);
@@ -149,6 +175,7 @@ export class TaskKanbanComponent implements OnInit {
 
     onCardClicked(card: KanbanCardData): void {
         this.TaskClicked.emit(card.ID);
+        this.TaskRowClicked.emit({ ID: card.ID, Name: card.Title });
     }
 
     onCardDoubleClicked(card: KanbanCardData): void {
