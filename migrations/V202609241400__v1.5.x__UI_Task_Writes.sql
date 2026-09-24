@@ -1,5 +1,6 @@
--- The UI role stays read-only on every tasks entity, then receives only the
--- writes the panels make:
+-- The opening reset clears create, update, and delete on every UI tasks row.
+-- A host that had given the UI role extra writes on those entities loses them.
+-- The UI role then receives only the writes the panels make:
 --   create and update: Tasks, Task Comments, Task Assignments
 --   create: Task Tag Links, Task Tags, Task Roles, Task Decisions, Task Activities
 --   delete: Task Assignments, Task Tag Links
@@ -20,7 +21,8 @@ WHERE p.RoleID = @UI
   AND e.Name LIKE N'MJ_BizApps_Tasks:%';
 
 UPDATE p
-SET p.CanCreate = v.CanCreate,
+SET p.CanRead = 1,
+    p.CanCreate = v.CanCreate,
     p.CanUpdate = v.CanUpdate,
     p.CanDelete = v.CanDelete,
     p.__mj_UpdatedAt = GETUTCDATE()
@@ -62,7 +64,7 @@ IF EXISTS (
               N'MJ_BizApps_Tasks: Task Roles',
               N'MJ_BizApps_Tasks: Task Decisions',
               N'MJ_BizApps_Tasks: Task Activities'
-          ) AND p.CanRead = 1 AND p.CanCreate = 0 AND p.CanUpdate = 0 AND p.CanDelete = 0)
+          ) AND p.CanCreate = 0 AND p.CanUpdate = 0 AND p.CanDelete = 0)
       )
 )
     THROW 50000, 'A UI tasks grant is outside the panel list.', 1;
