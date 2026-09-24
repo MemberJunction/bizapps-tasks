@@ -131,6 +131,7 @@ export class BeforePanelCloseEvent {
                             [TaskID]="selectedTaskID"
                             [PersonID]="PersonID"
                             [ShowDelete]="ShowDelete"
+                            [ReadOnly]="ReadOnly"
                             (EditRequested)="onEditRequested($event)"
                             (OpenRecordRequested)="onOpenFullRecord($event)"
                             (DeleteRequested)="onDeleteRequested($event)"
@@ -146,6 +147,8 @@ export class BeforePanelCloseEvent {
                             [DefaultCategoryID]="CategoryID"
                             [DefaultTypeID]="DefaultTypeID"
                             [AssigneeScope]="AssigneeScope"
+                            [ParentTaskFilter]="ParentTaskFilter"
+                            [ReadOnly]="ReadOnly"
                             (BeforeSave)="BeforeTaskSave.emit($event)"
                             (Saved)="onTaskSaved($event)"
                             (Cancel)="closePanel()">
@@ -240,6 +243,18 @@ export class TaskPanelComponent {
      * string or an array of Person IDs. Passed through.
      */
     @Input() AssigneeScope: string | string[] | null = null;
+
+    /**
+     * Extra SQL filter for the edit panel's Parent Task list.
+     * Passed through.
+     */
+    @Input() ParentTaskFilter: string | null = null;
+
+    /**
+     * Hides Edit, the comment box, and the edit panel's save.
+     * @default false
+     */
+    @Input() ReadOnly = false;
 
     // ── Outputs (Before — cancellable) ──────────────────────
 

@@ -24,6 +24,9 @@ import {
     TASKS_GANTT_ZOOM_SETTING,
     type TasksGanttPref,
 } from './gantt-zoom-pref';
+import { type TaskClickRow } from '../task-kanban/task-kanban.component';
+
+const TASK_ID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
 /**
  * Task-specific Gantt chart that wraps the generic `<mj-gantt-chart>`.
@@ -161,6 +164,8 @@ export class TaskGanttComponent implements OnInit, OnChanges {
     @Input() Columns: GanttColumnDef[] | null = null;
 
     @Output() TaskClicked = new EventEmitter<string>();
+    /** The clicked bar's id and name. `TaskClicked` stays the id. */
+    @Output() TaskRowClicked = new EventEmitter<TaskClickRow>();
     @Output() TaskDoubleClicked = new EventEmitter<string>();
     @Output() BeforeZoomChange = new EventEmitter<BeforeZoomChangeEventArgs>();
     @Output() AfterZoomChange = new EventEmitter<AfterZoomChangeEventArgs>();
@@ -259,37 +264,37 @@ export class TaskGanttComponent implements OnInit, OnChanges {
                 if (this.ExtraFilter) filters.push(this.ExtraFilter);
             }
 
-            const [tasksResult, depsResult] = await Promise.all([
-                rv.RunView<{
-                    ID: string;
-                    Name: string;
-                    StartedAt: string | null;
-                    DueAt: string | null;
-                    PercentComplete: number;
-                    ParentID: string | null;
-                    Status: string;
-                    Priority: string;
-                    Sequence: number;
-                }>({
-                    EntityName: 'MJ_BizApps_Tasks: Tasks',
-                    ExtraFilter: filters.join(' AND '),
-                    OrderBy: 'Sequence ASC',
-                    ResultType: 'simple',
-                    MaxRows: 500,
-                }),
-                new RunView().RunView<{
-                    ID: string;
-                    TaskID: string;
-                    DependsOnTaskID: string;
-                    DependencyType: string;
-                }>({
-                    EntityName: 'MJ_BizApps_Tasks: Task Dependencies',
-                    ResultType: 'simple',
-                    MaxRows: 500,
-                }),
-            ]);
+            const tasksResult = await rv.RunView<{
+                ID: string;
+                Name: string;
+                StartedAt: string | null;
+                DueAt: string | null;
+                PercentComplete: number;
+                ParentID: string | null;
+                Status: string;
+                Priority: string;
+                Sequence: number;
+            }>({
+                EntityName: 'MJ_BizApps_Tasks: Tasks',
+                ExtraFilter: filters.join(' AND '),
+                OrderBy: 'Sequence ASC',
+                ResultType: 'simple',
+                MaxRows: 500,
+            });
 
             const tasks = tasksResult?.Results ?? [];
+            const taskIds = tasks.map((task) => task.ID).filter((id) => TASK_ID.test(id));
+            const depsResult = taskIds.length === 0 ? null : await new RunView().RunView<{
+                ID: string;
+                TaskID: string;
+                DependsOnTaskID: string;
+                DependencyType: string;
+            }>({
+                EntityName: 'MJ_BizApps_Tasks: Task Dependencies',
+                ExtraFilter: `TaskID IN (${taskIds.map((id) => `'${id}'`).join(',')}) OR DependsOnTaskID IN (${taskIds.map((id) => `'${id}'`).join(',')})`,
+                ResultType: 'simple',
+                MaxRows: 500,
+            });
             const deps = depsResult?.Results ?? [];
 
             this.items = tasks.map((t) => {
@@ -329,6 +334,7 @@ export class TaskGanttComponent implements OnInit, OnChanges {
     public onItemClicked(event: GanttItemClickedEvent): void {
         if (event.Item?.ID) {
             this.TaskClicked.emit(event.Item.ID);
+            this.TaskRowClicked.emit({ ID: event.Item.ID, Name: event.Item.Name ?? '' });
         }
     }
 
