@@ -726,6 +726,13 @@ export class TaskEditPanelComponent implements OnChanges {
         this.BeforeSave.emit(before);
         if (before.Cancel) return;
 
+        const assigneeWork = this.assignees.some((row) => !!row.PersonID) || !!this.TaskID;
+        if (!this.peopleEntityID && assigneeWork) {
+            this.saveError = 'People is not installed, so assignees cannot be saved.';
+            this.cdr.markForCheck();
+            return;
+        }
+
         this.saving = true;
         this.cdr.markForCheck();
 
@@ -763,14 +770,6 @@ export class TaskEditPanelComponent implements OnChanges {
         this.saveError = null;
         const savedID = entity.Get('ID') as string;
 
-        // Save assignees — create new, update existing, delete removed
-        const assigneeWork = this.assignees.some((row) => !!row.PersonID) || !!this.TaskID;
-        if (!this.peopleEntityID && assigneeWork) {
-            this.saveError = 'People is not installed, so assignees cannot be saved.';
-            this.saving = false;
-            this.cdr.markForCheck();
-            return;
-        }
         if (this.peopleEntityID) {
             const rv2 = new RunView();
             const currentAssignments = this.TaskID ? await rv2.RunView<{ ID: string }>({

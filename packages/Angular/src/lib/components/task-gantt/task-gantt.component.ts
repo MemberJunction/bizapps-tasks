@@ -163,7 +163,9 @@ export class TaskGanttComponent implements OnInit, OnChanges {
     @Input() ShowToolbar = true;
     @Input() Columns: GanttColumnDef[] | null = null;
 
-    @Output() TaskClicked = new EventEmitter<TaskClickRow>();
+    @Output() TaskClicked = new EventEmitter<string>();
+    /** The clicked bar's id and name. `TaskClicked` stays the id. */
+    @Output() TaskRowClicked = new EventEmitter<TaskClickRow>();
     @Output() TaskDoubleClicked = new EventEmitter<string>();
     @Output() BeforeZoomChange = new EventEmitter<BeforeZoomChangeEventArgs>();
     @Output() AfterZoomChange = new EventEmitter<AfterZoomChangeEventArgs>();
@@ -331,7 +333,8 @@ export class TaskGanttComponent implements OnInit, OnChanges {
 
     public onItemClicked(event: GanttItemClickedEvent): void {
         if (event.Item?.ID) {
-            this.TaskClicked.emit({ ID: event.Item.ID, Name: event.Item.Name ?? '' });
+            this.TaskClicked.emit(event.Item.ID);
+            this.TaskRowClicked.emit({ ID: event.Item.ID, Name: event.Item.Name ?? '' });
         }
     }
 

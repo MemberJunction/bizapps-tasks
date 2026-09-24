@@ -88,7 +88,9 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
 
     @Output() BeforeStatusChange = new EventEmitter<BeforeKanbanStatusChangeEvent>();
     @Output() AfterStatusChange = new EventEmitter<AfterKanbanStatusChangeEvent>();
-    @Output() TaskClicked = new EventEmitter<TaskClickRow>();
+    @Output() TaskClicked = new EventEmitter<string>();
+    /** The clicked card's id and title. `TaskClicked` stays the id. */
+    @Output() TaskRowClicked = new EventEmitter<TaskClickRow>();
     @Output() TaskDoubleClicked = new EventEmitter<string>();
 
     columns: KanbanColumnDef[] = [
@@ -172,7 +174,8 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
     }
 
     onCardClicked(card: KanbanCardData): void {
-        this.TaskClicked.emit({ ID: card.ID, Name: card.Title });
+        this.TaskClicked.emit(card.ID);
+        this.TaskRowClicked.emit({ ID: card.ID, Name: card.Title });
     }
 
     onCardDoubleClicked(card: KanbanCardData): void {
