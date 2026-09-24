@@ -1,5 +1,11 @@
 # @mj-biz-apps/tasks-entities
 
+## 1.6.0
+
+### Minor Changes
+
+- e9cf427: The UI role's task grants live in metadata/entities/.ui-role-permissions.json and are applied with mj sync push. Create and update cover tasks, comments, and assignments. Create covers tag links, tags, roles, decisions, and activities. Delete covers assignments and tag links. The list and board reload when their filter changes, and the list indents by depth. TaskClicked stays the task id. TaskRowClicked carries the id and name. The edit panel reads the People id from metadata before it saves, accepts a parent-list filter, and reports a refused save.
+
 ## 1.5.0
 
 ### Minor Changes
