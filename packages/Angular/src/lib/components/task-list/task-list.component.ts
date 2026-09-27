@@ -948,7 +948,6 @@ export class TaskListComponent implements OnInit, OnChanges {
         });
 
         const now = new Date();
-        const soon = new Date(now.getTime() + 48 * 60 * 60 * 1000);
         const rawTasks = result?.Results ?? [];
 
         // Build parent-child map for depth and child counts
