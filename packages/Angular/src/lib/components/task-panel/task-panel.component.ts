@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, in
 import { CommonModule } from '@angular/common';
 import { OpenTaskRecord } from '../../open-task-record';
 import { TaskListComponent, TaskRow, BeforeTaskSelectedEvent, BeforeStatusChangeEvent } from '../task-list/task-list.component';
-import { TaskKanbanComponent, BeforeKanbanStatusChangeEvent, AfterKanbanStatusChangeEvent } from '../task-kanban/task-kanban.component';
+import { TaskKanbanComponent, BeforeKanbanStatusChangeEvent, AfterKanbanStatusChangeEvent, KanbanTaskData } from '../task-kanban/task-kanban.component';
 import { TaskGanttComponent } from '../task-gantt/task-gantt.component';
 import { TaskDetailPanelComponent, BeforeCommentPostedEvent } from '../task-detail-panel/task-detail-panel.component';
 import { TaskEditPanelComponent, BeforeTaskSaveEvent } from '../task-edit-panel/task-edit-panel.component';
@@ -579,24 +579,30 @@ export class TaskPanelComponent {
         this.BeforeKanbanStatusChange.emit(event);
         if (event.Cancel) return;
 
+        const data = event.Card?.Data as KanbanTaskData | undefined;
+        const dueAt = data?.DueAt ? new Date(data.DueAt) : null;
+        const now = new Date();
+        const isOverdue = dueAt != null && dueAt < now && event.OldStatus !== 'Completed' && event.OldStatus !== 'Cancelled';
+        const isDueSoon = dueAt != null && dueAt >= now && (dueAt.getTime() - now.getTime() <= 48 * 60 * 60 * 1000) && event.OldStatus !== 'Completed' && event.OldStatus !== 'Cancelled';
+
         const row: TaskRow = {
             ID: event.TaskID,
-            Name: event.Card?.Title ?? '',
-            Description: event.Card?.Subtitle ?? null,
+            Name: data?.Name ?? event.Card?.Title ?? '',
+            Description: data?.Description ?? (event.Card?.Subtitle || null),
             Status: event.OldStatus,
-            Priority: event.Card?.BadgeText ?? 'Medium',
-            DueAt: null,
-            PercentComplete: event.OldStatus === 'Completed' ? 100 : 0,
-            HoursEstimated: null,
-            ParentID: null,
+            Priority: data?.Priority ?? event.Card?.BadgeText ?? 'Medium',
+            DueAt: dueAt,
+            PercentComplete: data?.PercentComplete ?? (event.OldStatus === 'Completed' ? 100 : 0),
+            HoursEstimated: data?.HoursEstimated ?? null,
+            ParentID: data?.ParentID ?? null,
             Depth: 0,
-            Assignees: [],
-            Tags: [],
-            IsOverdue: false,
-            IsDueSoon: false,
-            ChildCount: 0,
+            Assignees: undefined,
+            Tags: undefined,
+            ChildCount: undefined,
+            IsOverdue: isOverdue,
+            IsDueSoon: isDueSoon,
         };
-        const before = new BeforeStatusChangeEvent(row, event.NewStatus);
+        const before = new BeforeStatusChangeEvent(row, event.NewStatus, ['Assignees', 'Tags', 'Subtasks']);
         this.BeforeStatusChange.emit(before);
         if (before.Cancel) {
             event.Cancel = true;
@@ -606,22 +612,28 @@ export class TaskPanelComponent {
     /** @internal */
     onKanbanStatusChange(event: AfterKanbanStatusChangeEvent): void {
         this.AfterKanbanStatusChange.emit(event);
+        const data = event.Card?.Data as KanbanTaskData | undefined;
+        const dueAt = data?.DueAt ? new Date(data.DueAt) : null;
+        const now = new Date();
+        const isOverdue = dueAt != null && dueAt < now && event.NewStatus !== 'Completed' && event.NewStatus !== 'Cancelled';
+        const isDueSoon = dueAt != null && dueAt >= now && (dueAt.getTime() - now.getTime() <= 48 * 60 * 60 * 1000) && event.NewStatus !== 'Completed' && event.NewStatus !== 'Cancelled';
+
         const row: TaskRow = {
             ID: event.TaskID,
-            Name: '',
-            Description: null,
+            Name: data?.Name ?? event.Card?.Title ?? '',
+            Description: data?.Description ?? (event.Card?.Subtitle || null),
             Status: event.NewStatus,
-            Priority: 'Medium',
-            DueAt: null,
-            PercentComplete: event.NewStatus === 'Completed' ? 100 : 0,
-            HoursEstimated: null,
-            ParentID: null,
+            Priority: data?.Priority ?? event.Card?.BadgeText ?? 'Medium',
+            DueAt: dueAt,
+            PercentComplete: event.NewStatus === 'Completed' ? 100 : (data?.PercentComplete ?? 0),
+            HoursEstimated: data?.HoursEstimated ?? null,
+            ParentID: data?.ParentID ?? null,
             Depth: 0,
-            Assignees: [],
-            Tags: [],
-            IsOverdue: false,
-            IsDueSoon: false,
-            ChildCount: 0,
+            Assignees: undefined,
+            Tags: undefined,
+            ChildCount: undefined,
+            IsOverdue: isOverdue,
+            IsDueSoon: isDueSoon,
         };
         this.AfterStatusChange.emit(row);
     }

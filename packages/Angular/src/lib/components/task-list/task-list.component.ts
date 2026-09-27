@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, in
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Metadata, RunView, CompositeKey } from '@memberjunction/core';
+import { UUIDsEqual } from '@memberjunction/global';
 import type { mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
 
 /**
@@ -43,16 +44,16 @@ export interface TaskRow {
     ParentID: string | null;
     /** Nesting depth in the hierarchy (0 = top-level). Adjusted when filtering. */
     Depth: number;
-    /** Resolved assignee details including display name, role, and per-person status. */
-    Assignees: { Name: string; Role: string; Status: string }[];
-    /** Resolved tag details including display name and color code. */
-    Tags: { Name: string; Color: string }[];
+    /** Resolved assignee details including display name, role, and per-person status, or undefined if not loaded by source view. */
+    Assignees?: { Name: string; Role: string; Status: string }[];
+    /** Resolved tag details including display name and color code, or undefined if not loaded by source view. */
+    Tags?: { Name: string; Color: string }[];
     /** True if the task is active (not Completed/Cancelled) and past its DueAt. */
     IsOverdue: boolean;
     /** True if the task is active and due within the next 48 hours. */
     IsDueSoon: boolean;
-    /** Number of direct child tasks. Used to show the parent folder icon. */
-    ChildCount: number;
+    /** Number of direct child tasks, or undefined if not loaded by source view. */
+    ChildCount?: number;
 }
 
 /**
@@ -89,7 +90,9 @@ export class BeforeStatusChangeEvent {
         /** The task whose status is about to change. */
         public Task: TaskRow,
         /** The new status value that will be applied. */
-        public NewStatus: string
+        public NewStatus: string,
+        /** Optional indicator of fields not loaded by the source view (e.g. ['Assignees', 'Tags', 'Subtasks']). */
+        public UnknownFields?: ('Assignees' | 'Tags' | 'Subtasks')[]
     ) {}
 }
 
@@ -181,19 +184,19 @@ export class BeforeStatusChangeEvent {
                                 <div class="task-card"
                                      [class.overdue]="task.IsOverdue"
                                      [class.completed]="task.Status === 'Completed'"
-                                     [class.selected]="selectedIDs.includes(task.ID)"
+                                     [class.selected]="isSelected(task.ID)"
                                      [class.sub-task]="task.Depth > 0"
                                      (click)="onTaskClick(task)"
                                      (dblclick)="onTaskDblClick(task)">
 
                                     <!-- Checkbox -->
                                     <input type="checkbox" class="task-checkbox"
-                                           [checked]="selectedIDs.includes(task.ID)"
+                                           [checked]="isSelected(task.ID)"
                                            (click)="$event.stopPropagation()"
                                            (change)="toggleSelect(task.ID)" />
 
                                     <!-- Expand/collapse toggle for parents -->
-                                    @if (task.ChildCount > 0) {
+                                    @if (task.ChildCount && task.ChildCount > 0) {
                                         <button class="expand-toggle" (click)="toggleExpand(task.ID); $event.stopPropagation()">
                                             <i [class]="expandedIDs.has(task.ID) ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-right'"></i>
                                         </button>
@@ -206,7 +209,7 @@ export class BeforeStatusChangeEvent {
                                     <div class="card-content">
                                         <div class="card-title-row">
                                             <h4 class="card-title">
-                                                @if (task.ChildCount > 0) {
+                                                @if (task.ChildCount && task.ChildCount > 0) {
                                                     <span class="child-count-badge">{{ task.ChildCount }}</span>
                                                 }
                                                 {{ task.Name }}
@@ -218,7 +221,7 @@ export class BeforeStatusChangeEvent {
                                 }
 
                                 <!-- Progress bar -->
-                                @if (task.PercentComplete > 0 || task.ChildCount > 0) {
+                                @if (task.PercentComplete > 0 || (task.ChildCount && task.ChildCount > 0)) {
                                     <div class="progress-row">
                                         <div class="progress-bar">
                                             <div class="progress-fill"
@@ -231,7 +234,7 @@ export class BeforeStatusChangeEvent {
 
                                 <!-- Meta row -->
                                 <div class="card-meta">
-                                    @if (task.Assignees.length > 0) {
+                                    @if (task.Assignees && task.Assignees.length > 0) {
                                         @for (a of task.Assignees; track a.Name) {
                                             <span class="meta-chip assignee-chip">
                                                 <span class="assignee-dot" [ngClass]="'dot-' + a.Status.toLowerCase()"></span>
@@ -254,7 +257,7 @@ export class BeforeStatusChangeEvent {
                                             {{ task.HoursEstimated }}h
                                         </span>
                                     }
-                                    @for (tag of task.Tags; track tag.Name) {
+                                    @for (tag of task.Tags ?? []; track tag.Name) {
                                         <span class="meta-chip tag-chip" [style.background]="tag.Color + '18'" [style.color]="tag.Color">
                                             {{ tag.Name }}
                                         </span>
@@ -757,7 +760,7 @@ export class TaskListComponent implements OnInit, OnChanges {
      * @param taskID - The ID of the task to select.
      */
     SelectTask(taskID: string): void {
-        const task = this.tasks.find(t => t.ID === taskID);
+        const task = this.tasks.find(t => UUIDsEqual(t.ID, taskID));
         if (task) this.onTaskClick(task);
     }
 
@@ -943,7 +946,7 @@ export class TaskListComponent implements OnInit, OnChanges {
         const depthMap = new Map<string, number>();
         const getDepth = (id: string): number => {
             if (depthMap.has(id)) return depthMap.get(id)!;
-            const r = rawTasks.find((t: any) => t.ID === id);
+            const r = rawTasks.find(t => UUIDsEqual(t.ID, id));
             if (!r?.ParentID) { depthMap.set(id, 0); return 0; }
             const d = getDepth(r.ParentID) + 1;
             depthMap.set(id, d);
@@ -954,7 +957,7 @@ export class TaskListComponent implements OnInit, OnChanges {
         // Sort: parents first, then children grouped under parents
         const sorted = this.sortHierarchically(rawTasks, depthMap);
 
-        this.tasks = sorted.map((r: any) => {
+        this.tasks = sorted.map(r => {
             const dueAt = r.DueAt ? new Date(r.DueAt) : null;
             const isActive = r.Status !== 'Completed' && r.Status !== 'Cancelled';
             return {
@@ -975,6 +978,9 @@ export class TaskListComponent implements OnInit, OnChanges {
                 ChildCount: childCounts.get(r.ID) ?? 0,
             } as TaskRow;
         });
+
+        // Filter out any selected ID that is no longer in current rawTasks
+        this.selectedIDs = this.selectedIDs.filter(id => rawTasks.some(t => UUIDsEqual(t.ID, id)));
 
         // Load assignees and tags in parallel
         await Promise.all([this.loadAssignees(), this.loadTags()]);
@@ -1017,8 +1023,9 @@ export class TaskListComponent implements OnInit, OnChanges {
         }
 
         for (const a of assignments?.Results ?? []) {
-            const task = this.tasks.find(t => t.ID === a.TaskID);
+            const task = this.tasks.find(t => UUIDsEqual(t.ID, a.TaskID));
             if (!task) continue;
+            if (!task.Assignees) task.Assignees = [];
             task.Assignees.push({
                 Name: personMap.get(a.AssigneeRecordID) ?? 'Unknown',
                 Role: (a.RoleID ? roleMap.get(a.RoleID) : undefined) ?? 'Primary',
@@ -1050,15 +1057,18 @@ export class TaskListComponent implements OnInit, OnChanges {
         }
 
         for (const link of tagLinks?.Results ?? []) {
-            const task = this.tasks.find(t => t.ID === link.TaskID);
+            const task = this.tasks.find(t => UUIDsEqual(t.ID, link.TaskID));
             const tag = tagMap.get(link.TagID);
-            if (task && tag) task.Tags.push(tag);
+            if (task && tag) {
+                if (!task.Tags) task.Tags = [];
+                task.Tags.push(tag);
+            }
         }
     }
 
-    private sortHierarchically(items: any[], depthMap: Map<string, number>): any[] {
-        const result: any[] = [];
-        const childrenOf = new Map<string | null, any[]>();
+    private sortHierarchically<T extends { ID: string; ParentID: string | null }>(items: T[], depthMap: Map<string, number>): T[] {
+        const result: T[] = [];
+        const childrenOf = new Map<string | null, T[]>();
 
         for (const item of items) {
             const parentID = item.ParentID || null;
@@ -1109,10 +1119,14 @@ export class TaskListComponent implements OnInit, OnChanges {
 
     // -- Selection + Bulk --
     toggleSelect(taskID: string): void {
-        const idx = this.selectedIDs.indexOf(taskID);
+        const idx = this.selectedIDs.findIndex(id => UUIDsEqual(id, taskID));
         if (idx >= 0) this.selectedIDs.splice(idx, 1);
         else this.selectedIDs.push(taskID);
         this.cdr.markForCheck();
+    }
+
+    isSelected(taskID: string): boolean {
+        return this.selectedIDs.some(id => UUIDsEqual(id, taskID));
     }
 
     async applyBulkStatus(): Promise<void> {
@@ -1127,12 +1141,13 @@ export class TaskListComponent implements OnInit, OnChanges {
         const processedIDs: string[] = [];
 
         for (const id of ids) {
-            const task = this.tasks.find(t => t.ID === id);
-            if (task) {
-                const before = new BeforeStatusChangeEvent(task, status);
-                this.BeforeStatusChange.emit(before);
-                if (before.Cancel) continue;
-            }
+            const task = this.tasks.find(t => UUIDsEqual(t.ID, id));
+            // Skip any ID that isn't in the current rows
+            if (!task) continue;
+
+            const before = new BeforeStatusChangeEvent(task, status);
+            this.BeforeStatusChange.emit(before);
+            if (before.Cancel) continue;
 
             try {
                 const entity = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
@@ -1150,15 +1165,13 @@ export class TaskListComponent implements OnInit, OnChanges {
                     refused.push(entity.LatestResult?.CompleteMessage || 'The status change was refused.');
                 } else {
                     processedIDs.push(id);
-                    if (task) {
-                        task.Status = status;
-                        if (status === 'InProgress' && pct != null) {
-                            task.PercentComplete = Math.min(100, Math.max(0, pct));
-                        } else if (status === 'Completed') {
-                            task.PercentComplete = 100;
-                        }
-                        this.AfterStatusChange.emit(task);
+                    task.Status = status;
+                    if (status === 'InProgress' && pct != null) {
+                        task.PercentComplete = Math.min(100, Math.max(0, pct));
+                    } else if (status === 'Completed') {
+                        task.PercentComplete = 100;
                     }
+                    this.AfterStatusChange.emit(task);
                 }
             } catch (e) {
                 refused.push(e instanceof Error ? e.message : 'The status change was refused.');
@@ -1169,7 +1182,7 @@ export class TaskListComponent implements OnInit, OnChanges {
             this.bulkStatus = '';
             this.bulkPercent = null;
         } else {
-            this.selectedIDs = this.selectedIDs.filter(id => !processedIDs.includes(id));
+            this.selectedIDs = this.selectedIDs.filter(id => !processedIDs.some(pid => UUIDsEqual(pid, id)));
             this.bulkError = refused[0];
         }
         await this.loadTasks(true);

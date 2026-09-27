@@ -7,8 +7,6 @@ import { TaskTemplateWizardComponent } from '../task-template-wizard/task-templa
 import type { TaskListComponent } from '../task-list/task-list.component';
 import type { TaskKanbanComponent } from '../task-kanban/task-kanban.component';
 import type { TaskGanttComponent } from '../task-gantt/task-gantt.component';
-
-export type ViewMode = TaskViewMode;
 type PanelMode = 'none' | 'detail' | 'edit' | 'template';
 
 /**
@@ -53,6 +51,7 @@ type PanelMode = 'none' | 'detail' | 'edit' | 'template';
                     [AllowedViewModes]="EnabledViews"
                     [ViewMode]="viewMode"
                     (ViewModeChange)="viewMode = $event"
+                    [GanttHeight]="'calc(100vh - 140px)'"
                     (TaskSelected)="TaskSelected.emit($event)"
                     (TaskDoubleClicked)="onOpenFullRecord($event)"
                     (OpenRecordRequested)="onOpenFullRecord($event)">
@@ -137,7 +136,7 @@ export class TaskDashboardComponent implements OnInit {
      * the toggle is hidden entirely.
      * @default ['list', 'kanban', 'gantt']
      */
-    @Input() EnabledViews: ViewMode[] = ['list', 'kanban', 'gantt'];
+    @Input() EnabledViews: TaskViewMode[] = ['list', 'kanban', 'gantt'];
 
     /**
      * Whether to show the delete control in the task detail panel.
@@ -178,7 +177,7 @@ export class TaskDashboardComponent implements OnInit {
     // ── Internal State ──────────────────────────────────────
 
     /** @internal Current active view tab. */
-    viewMode: ViewMode = 'list';
+    viewMode: TaskViewMode = 'list';
 
     ngOnInit(): void {
         // Default to the first enabled view

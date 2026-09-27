@@ -18,12 +18,26 @@ export class BeforeKanbanStatusChangeEvent {
     ) {}
 }
 
+/** Shape of task entity row stored in KanbanCardData.Data. */
+export interface KanbanTaskData {
+    ID: string;
+    Name: string;
+    Description: string | null;
+    Status: string;
+    Priority: string;
+    DueAt: string | null;
+    PercentComplete: number | null;
+    HoursEstimated: number | null;
+    ParentID: string | null;
+}
+
 /**
  * Event emitted after a drag-and-drop status change has been persisted.
  */
 export interface AfterKanbanStatusChangeEvent {
     TaskID: string;
     NewStatus: string;
+    Card?: KanbanCardData;
 }
 
 /** The task a board click names. `ID` opens it; `Name` labels a subtask. */
@@ -123,14 +137,7 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
         if (this.CategoryID) filters.push(`CategoryID = '${this.CategoryID}'`);
         if (this.ExtraFilter) filters.push(this.ExtraFilter);
 
-        const result = await rv.RunView<{
-            ID: string;
-            Name: string;
-            Description: string | null;
-            Status: string;
-            Priority: string;
-            DueAt: string | null;
-        }>({
+        const result = await rv.RunView<KanbanTaskData>({
             EntityName: 'MJ_BizApps_Tasks: Tasks',
             ExtraFilter: filters.join(' AND '),
             OrderBy: 'Sequence ASC',
@@ -171,7 +178,7 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
         }
         this.moveError = '';
 
-        this.AfterStatusChange.emit({ TaskID: event.Card.ID, NewStatus: event.ToColumn });
+        this.AfterStatusChange.emit({ TaskID: event.Card.ID, NewStatus: event.ToColumn, Card: event.Card });
         await this.LoadTasks(true);
     }
 

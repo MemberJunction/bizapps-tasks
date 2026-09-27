@@ -78,26 +78,44 @@ describe('TaskPanelComponent', () => {
         let beforeFired = false;
         let beforeTaskID = '';
         let beforeNewStatus = '';
+        let capturedBeforeRow: TaskRow | undefined;
+        let capturedUnknownFields: ('Assignees' | 'Tags' | 'Subtasks')[] | undefined;
         component.BeforeStatusChange.subscribe(e => {
             beforeFired = true;
             beforeTaskID = e.Task.ID;
             beforeNewStatus = e.NewStatus;
+            capturedBeforeRow = e.Task;
+            capturedUnknownFields = e.UnknownFields;
         });
 
         let afterFired = false;
         let afterTaskID = '';
         let afterNewStatus = '';
+        let capturedAfterRow: TaskRow | undefined;
         component.AfterStatusChange.subscribe(task => {
             afterFired = true;
             afterTaskID = task.ID;
             afterNewStatus = task.Status;
+            capturedAfterRow = task;
         });
+
+        const cardData = {
+            ID: 'task-1',
+            Name: 'Test Task',
+            Description: 'Task description',
+            Status: 'Open',
+            Priority: 'High',
+            DueAt: '2026-10-01T00:00:00Z',
+            PercentComplete: 25,
+            HoursEstimated: 5,
+            ParentID: null,
+        };
 
         const kanbanBefore = new BeforeKanbanStatusChangeEvent(
             'task-1',
             'Open',
             'InProgress',
-            { ID: 'task-1', Title: 'Test Task', ColumnKey: 'Open' }
+            { ID: 'task-1', Title: 'Test Task', ColumnKey: 'Open', Data: cardData }
         );
         component.onKanbanBeforeStatusChange(kanbanBefore);
 
@@ -105,11 +123,28 @@ describe('TaskPanelComponent', () => {
         expect(beforeTaskID).toBe('task-1');
         expect(beforeNewStatus).toBe('InProgress');
         expect(kanbanBefore.Cancel).toBe(false);
+        expect(capturedBeforeRow?.Name).toBe('Test Task');
+        expect(capturedBeforeRow?.Priority).toBe('High');
+        expect(capturedBeforeRow?.DueAt).toBeInstanceOf(Date);
+        expect(capturedBeforeRow?.PercentComplete).toBe(25);
+        expect(capturedBeforeRow?.HoursEstimated).toBe(5);
+        expect(capturedBeforeRow?.Assignees).toBeUndefined();
+        expect(capturedBeforeRow?.Tags).toBeUndefined();
+        expect(capturedBeforeRow?.ChildCount).toBeUndefined();
+        expect(capturedUnknownFields).toEqual(['Assignees', 'Tags', 'Subtasks']);
 
-        component.onKanbanStatusChange({ TaskID: 'task-1', NewStatus: 'InProgress' });
+        component.onKanbanStatusChange({
+            TaskID: 'task-1',
+            NewStatus: 'InProgress',
+            Card: { ID: 'task-1', Title: 'Test Task', ColumnKey: 'InProgress', Data: cardData },
+        });
         expect(afterFired).toBe(true);
         expect(afterTaskID).toBe('task-1');
         expect(afterNewStatus).toBe('InProgress');
+        expect(capturedAfterRow?.Name).toBe('Test Task');
+        expect(capturedAfterRow?.Priority).toBe('High');
+        expect(capturedAfterRow?.DueAt).toBeInstanceOf(Date);
+        expect(capturedAfterRow?.Assignees).toBeUndefined();
     });
 
     it('cancelling BeforeStatusChange cancels the kanban move', () => {
