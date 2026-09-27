@@ -1,14 +1,14 @@
 import { Component, EventEmitter, Input, Output, ViewChild, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { BaseEntity } from '@memberjunction/core';
 import { OpenTaskRecord } from '../../open-task-record';
-import { TaskListComponent, TaskRow } from '../task-list/task-list.component';
-import { TaskKanbanComponent } from '../task-kanban/task-kanban.component';
-import { TaskGanttComponent } from '../task-gantt/task-gantt.component';
-import { TaskDetailPanelComponent } from '../task-detail-panel/task-detail-panel.component';
-import { TaskEditPanelComponent } from '../task-edit-panel/task-edit-panel.component';
+import { TaskPanelComponent, TaskViewMode } from '../task-panel/task-panel.component';
 import { TaskTemplateWizardComponent } from '../task-template-wizard/task-template-wizard.component';
+import type { TaskListComponent } from '../task-list/task-list.component';
+import type { TaskKanbanComponent } from '../task-kanban/task-kanban.component';
+import type { TaskGanttComponent } from '../task-gantt/task-gantt.component';
 
-type ViewMode = 'list' | 'kanban' | 'gantt';
+export type ViewMode = TaskViewMode;
 type PanelMode = 'none' | 'detail' | 'edit' | 'template';
 
 /**
@@ -22,8 +22,8 @@ type PanelMode = 'none' | 'detail' | 'edit' | 'template';
     standalone: true,
     imports: [
         CommonModule,
-        TaskListComponent, TaskKanbanComponent, TaskGanttComponent,
-        TaskDetailPanelComponent, TaskEditPanelComponent, TaskTemplateWizardComponent,
+        TaskPanelComponent,
+        TaskTemplateWizardComponent,
     ],
     template: `
         <div class="dashboard">
@@ -35,96 +35,39 @@ type PanelMode = 'none' | 'detail' | 'edit' | 'template';
                         <i class="fa-solid fa-list-check"></i> Tasks
                     </h2>
                     <div class="toolbar-actions">
-                        @if (enabledViewCount > 1) {
-                            <div class="view-toggle">
-                                @if (EnabledViews.includes('list')) {
-                                    <button [class.active]="viewMode === 'list'" (click)="viewMode = 'list'">
-                                        <i class="fa-solid fa-list"></i> List
-                                    </button>
-                                }
-                                @if (EnabledViews.includes('kanban')) {
-                                    <button [class.active]="viewMode === 'kanban'" (click)="viewMode = 'kanban'">
-                                        <i class="fa-solid fa-columns"></i> Board
-                                    </button>
-                                }
-                                @if (EnabledViews.includes('gantt')) {
-                                    <button [class.active]="viewMode === 'gantt'" (click)="viewMode = 'gantt'">
-                                        <i class="fa-solid fa-chart-gantt"></i> Gantt
-                                    </button>
-                                }
-                            </div>
-                        }
                         <button class="btn-template" (click)="openPanel('template')">
                             <i class="fa-solid fa-copy"></i> From Template
                         </button>
-                        <button class="btn-create" (click)="openPanel('edit', null)">
+                        <button class="btn-create" (click)="openCreateTask()">
                             + New Task
                         </button>
                     </div>
                 </div>
 
-                <!-- Views -->
-                @if (viewMode === 'list') {
-                    <bizapps-task-list
-                        #taskList
-                        [CategoryID]="CategoryID"
-                        [ExtraFilter]="ExtraFilter"
-                        [ShowCreateButton]="false"
-                        (AfterTaskSelected)="onTaskSelected($event)"
-                        (TaskDoubleClicked)="onOpenFullRecord($event.ID)"
-                        (CreateTask)="openPanel('edit', null)">
-                    </bizapps-task-list>
-                }
-                @if (viewMode === 'kanban') {
-                    <bizapps-task-kanban
-                        #taskKanban
-                        [CategoryID]="CategoryID"
-                        [ExtraFilter]="ExtraFilter"
-                        (TaskClicked)="openPanel('detail', $event)"
-                        (TaskDoubleClicked)="onOpenFullRecord($event)">
-                    </bizapps-task-kanban>
-                }
-                @if (viewMode === 'gantt') {
-                    <bizapps-task-gantt
-                        #taskGantt
-                        [CategoryID]="CategoryID"
-                        [ExtraFilter]="ExtraFilter"
-                        [Height]="'calc(100vh - 140px)'"
-                        (TaskDoubleClicked)="openPanel('detail', $event)">
-                    </bizapps-task-gantt>
-                }
+                <bizapps-task-panel
+                    #taskPanel
+                    [CategoryID]="CategoryID"
+                    [ExtraFilter]="ExtraFilter"
+                    [PersonID]="PersonID"
+                    [ShowDelete]="ShowDelete"
+                    [AllowedViewModes]="EnabledViews"
+                    [ViewMode]="viewMode"
+                    (ViewModeChange)="viewMode = $event"
+                    (TaskSelected)="TaskSelected.emit($event)"
+                    (TaskDoubleClicked)="onOpenFullRecord($event)"
+                    (OpenRecordRequested)="onOpenFullRecord($event)">
+                </bizapps-task-panel>
             </div>
 
-            <!-- Slide-in panel overlay -->
-            @if (panelMode !== 'none') {
+            <!-- Slide-in panel overlay for template wizard -->
+            @if (panelMode === 'template') {
                 <div class="panel-backdrop" (click)="closePanel()"></div>
                 <div class="side-panel">
-                    @if (panelMode === 'detail') {
-                        <bizapps-task-detail-panel
-                            [TaskID]="selectedTaskID"
-                            [PersonID]="PersonID"
-                            [ShowDelete]="ShowDelete"
-                            (EditRequested)="openPanel('edit', $event)"
-                            (OpenRecordRequested)="onOpenFullRecord($event)"
-                            (DeleteRequested)="onTaskDeleted()"
-                            (Close)="closePanel()">
-                        </bizapps-task-detail-panel>
-                    }
-                    @if (panelMode === 'edit') {
-                        <bizapps-task-edit-panel
-                            [TaskID]="selectedTaskID"
-                            [DefaultCategoryID]="CategoryID"
-                            (Saved)="onTaskSaved($event)"
-                            (Cancel)="closePanel()">
-                        </bizapps-task-edit-panel>
-                    }
-                    @if (panelMode === 'template') {
-                        <bizapps-task-template-wizard
-                            [DefaultCategoryID]="CategoryID"
-                            (Created)="onTemplateCreated($event)"
-                            (Cancelled)="closePanel()">
-                        </bizapps-task-template-wizard>
-                    }
+                    <bizapps-task-template-wizard
+                        [DefaultCategoryID]="CategoryID"
+                        (Created)="onTemplateCreated($event)"
+                        (Cancelled)="closePanel()">
+                    </bizapps-task-template-wizard>
                 </div>
             }
         </div>
@@ -156,16 +99,6 @@ type PanelMode = 'none' | 'detail' | 'edit' | 'template';
             display: flex; align-items: center; gap: 8px;
         }
         .toolbar-actions { display: flex; gap: 8px; align-items: center; }
-        .view-toggle {
-            display: inline-flex; border: 1px solid var(--mj-border-strong); border-radius: var(--mj-radius-md); overflow: hidden;
-        }
-        .view-toggle button {
-            padding: 6px 12px; border: none; background: var(--mj-bg-surface); font-size: 0.85rem;
-            cursor: pointer; display: flex; align-items: center; gap: 4px;
-            border-right: 1px solid var(--mj-border-strong); font-family: inherit;
-        }
-        .view-toggle button:last-child { border-right: none; }
-        .view-toggle button.active { background: var(--mj-brand-primary); color: var(--mj-text-inverse); }
         .btn-create {
             padding: 6px 14px; border: none; border-radius: var(--mj-radius-md);
             background: var(--mj-brand-primary); color: var(--mj-text-inverse); font-size: 0.85rem; cursor: pointer;
@@ -178,25 +111,6 @@ type PanelMode = 'none' | 'detail' | 'edit' | 'template';
         }
     `]
 })
-/**
- * Full-featured Tasks dashboard combining list, kanban, and gantt views
- * with a view toggle toolbar, slide-in detail/edit panels, and template wizard.
- *
- * Designed to be registered as a standalone MJ Application with its own nav
- * entry, or embedded within any consuming app's layout. Internally composes
- * {@link TaskListComponent}, {@link TaskKanbanComponent}, {@link TaskGanttComponent},
- * {@link TaskDetailPanelComponent}, {@link TaskEditPanelComponent}, and
- * {@link TaskTemplateWizardComponent}.
- *
- * @example
- * ```html
- * <bizapps-task-dashboard
- *     [CategoryID]="committeeCategoryId"
- *     [PersonID]="currentUserPersonID"
- *     (TaskSelected)="onTaskOpened($event)">
- * </bizapps-task-dashboard>
- * ```
- */
 export class TaskDashboardComponent implements OnInit {
     // ── Inputs ──────────────────────────────────────────────
 
@@ -252,16 +166,14 @@ export class TaskDashboardComponent implements OnInit {
      */
     @Output() OpenRecordRequested = new EventEmitter<string>();
 
-
-
     // ── View References ─────────────────────────────────────
 
     /** @internal */
-    @ViewChild('taskList') taskList?: TaskListComponent;
-    /** @internal */
-    @ViewChild('taskKanban') taskKanban?: TaskKanbanComponent;
-    /** @internal */
-    @ViewChild('taskGantt') taskGantt?: TaskGanttComponent;
+    @ViewChild('taskPanel') taskPanel?: TaskPanelComponent;
+
+    get taskList(): TaskListComponent | undefined { return this.taskPanel?.taskList; }
+    get taskKanban(): TaskKanbanComponent | undefined { return this.taskPanel?.taskKanban; }
+    get taskGantt(): TaskGanttComponent | undefined { return this.taskPanel?.taskGantt; }
 
     // ── Internal State ──────────────────────────────────────
 
@@ -274,10 +186,9 @@ export class TaskDashboardComponent implements OnInit {
             this.viewMode = this.EnabledViews[0];
         }
     }
+
     /** @internal Current slide-in panel state. */
     panelMode: PanelMode = 'none';
-    /** @internal Task ID for the open detail/edit panel, or null for new task. */
-    selectedTaskID: string | null = null;
 
     // ── Public Methods ──────────────────────────────────────
 
@@ -285,9 +196,7 @@ export class TaskDashboardComponent implements OnInit {
      * Refreshes whichever view is currently active (list, kanban, or gantt).
      */
     RefreshCurrentView(): void {
-        this.taskList?.Refresh();
-        this.taskKanban?.Refresh();
-        this.taskGantt?.Refresh();
+        this.taskPanel?.Refresh();
     }
 
     /**
@@ -295,7 +204,7 @@ export class TaskDashboardComponent implements OnInit {
      * @param taskID - The task to display.
      */
     OpenDetailPanel(taskID: string): void {
-        this.openPanel('detail', taskID);
+        this.taskPanel?.OpenDetail(taskID);
     }
 
     /**
@@ -304,50 +213,44 @@ export class TaskDashboardComponent implements OnInit {
      * @param taskID - The task to edit, or `null` for new.
      */
     OpenEditPanel(taskID: string | null): void {
-        this.openPanel('edit', taskID);
+        this.taskPanel?.OpenEdit(taskID);
     }
 
     /**
      * Closes any open slide-in panel (detail, edit, or template wizard).
      */
     ClosePanel(): void {
+        this.taskPanel?.Close();
         this.closePanel();
     }
 
     // ── Internal Event Handlers ─────────────────────────────
 
     /** @internal */
-    onTaskSelected(task: TaskRow): void {
-        this.openPanel('detail', task.ID);
-        this.TaskSelected.emit(task.ID);
+    openCreateTask(): void {
+        this.taskPanel?.OpenEdit(null);
     }
 
     /** @internal */
     openPanel(mode: PanelMode, taskID?: string | null): void {
-        this.panelMode = mode;
-        this.selectedTaskID = taskID ?? null;
+        if (mode === 'template') {
+            this.panelMode = 'template';
+        } else if (mode === 'detail' && taskID) {
+            this.taskPanel?.OpenDetail(taskID);
+        } else if (mode === 'edit') {
+            this.taskPanel?.OpenEdit(taskID ?? null);
+        } else {
+            this.closePanel();
+        }
     }
 
     /** @internal */
     closePanel(): void {
         this.panelMode = 'none';
-        this.selectedTaskID = null;
     }
 
     /** @internal */
-    onTaskSaved(_taskID: string): void {
-        this.closePanel();
-        this.RefreshCurrentView();
-    }
-
-    /** @internal */
-    onTaskDeleted(): void {
-        this.closePanel();
-        this.RefreshCurrentView();
-    }
-
-    /** @internal */
-    onTemplateCreated(_tasks: any[]): void {
+    onTemplateCreated(_tasks: BaseEntity[]): void {
         this.closePanel();
         this.RefreshCurrentView();
     }

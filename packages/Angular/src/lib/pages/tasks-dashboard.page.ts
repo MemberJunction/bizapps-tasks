@@ -9,8 +9,9 @@ import { TaskGanttComponent } from '../components/task-gantt/task-gantt.componen
 import { TaskDetailPanelComponent } from '../components/task-detail-panel/task-detail-panel.component';
 import { TaskEditPanelComponent } from '../components/task-edit-panel/task-edit-panel.component';
 import { TaskTemplateWizardComponent } from '../components/task-template-wizard/task-template-wizard.component';
+import { TaskViewMode } from '../components/task-panel/task-panel.component';
 
-export type TaskViewMode = 'list' | 'kanban' | 'gantt';
+export type { TaskViewMode };
 export type TasksDashboardPanelMode = 'none' | 'detail' | 'edit' | 'template';
 
 export interface TaskCategoryOption {
@@ -63,7 +64,7 @@ export interface TaskKPIs {
                         <!-- View Toggle -->
                         <div class="mjt-view-toggle">
                             <button type="button" class="mjt-view-btn" [class.active]="ViewMode === 'gantt'" (click)="SetView('gantt')">
-                                <i class="fa-solid fa-chart-gantt"></i> Gantt
+                                <i class="fa-solid fa-chart-gantt"></i> Timeline
                             </button>
                             <button type="button" class="mjt-view-btn" [class.active]="ViewMode === 'kanban'" (click)="SetView('kanban')">
                                 <i class="fa-solid fa-columns"></i> Board

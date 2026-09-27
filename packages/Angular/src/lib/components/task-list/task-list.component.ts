@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, in
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Metadata, RunView, CompositeKey } from '@memberjunction/core';
+import type { mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
 
 /**
  * Minimal shape of a Person row as queried by {@link TaskListComponent}
@@ -140,7 +141,7 @@ export class BeforeStatusChangeEvent {
             }
 
             <!-- Bulk actions -->
-            @if (selectedIDs.length > 0) {
+            @if (!ReadOnly && selectedIDs.length > 0) {
                 <div class="bulk-bar">
                     <span class="bulk-count">{{ selectedIDs.length }} selected</span>
                     <select [(ngModel)]="bulkStatus" class="bulk-select">
@@ -634,6 +635,12 @@ export class TaskListComponent implements OnInit, OnChanges {
      * When `null`, all people in BizAppsCommon are shown.
      */
     @Input() AssigneeScope: string | string[] | null = null;
+ 
+    /**
+     * When true, disables editing operations including hiding the bulk actions bar.
+     * @default false
+     */
+    @Input() ReadOnly = false;
 
     // ── Outputs ─────────────────────────────────────────────
 
@@ -1109,7 +1116,7 @@ export class TaskListComponent implements OnInit, OnChanges {
     }
 
     async applyBulkStatus(): Promise<void> {
-        if (!this.bulkStatus || this.selectedIDs.length === 0) return;
+        if (this.ReadOnly || !this.bulkStatus || this.selectedIDs.length === 0) return;
         const status = this.bulkStatus;
         const pct = this.bulkPercent;
         const ids = [...this.selectedIDs];
@@ -1117,20 +1124,42 @@ export class TaskListComponent implements OnInit, OnChanges {
         this.cdr.markForCheck();
 
         const refused: string[] = [];
+        const processedIDs: string[] = [];
+
         for (const id of ids) {
+            const task = this.tasks.find(t => t.ID === id);
+            if (task) {
+                const before = new BeforeStatusChangeEvent(task, status);
+                this.BeforeStatusChange.emit(before);
+                if (before.Cancel) continue;
+            }
+
             try {
-                const entity = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Tasks');
+                const entity = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
                 const pk = new CompositeKey([{ FieldName: 'ID', Value: id }]);
                 await entity.InnerLoad(pk);
-                entity.Set('Status', status);
+                entity.Status = status as mjBizAppsTasksTaskEntity['Status'];
                 if (status === 'InProgress' && pct != null) {
-                    entity.Set('PercentComplete', Math.min(100, Math.max(0, pct)));
+                    entity.PercentComplete = Math.min(100, Math.max(0, pct));
                 }
                 if (status === 'Completed') {
-                    entity.Set('PercentComplete', 100);
+                    entity.PercentComplete = 100;
                 }
                 const saved = await entity.Save();
-                if (!saved) refused.push(entity.LatestResult?.CompleteMessage || 'The status change was refused.');
+                if (!saved) {
+                    refused.push(entity.LatestResult?.CompleteMessage || 'The status change was refused.');
+                } else {
+                    processedIDs.push(id);
+                    if (task) {
+                        task.Status = status;
+                        if (status === 'InProgress' && pct != null) {
+                            task.PercentComplete = Math.min(100, Math.max(0, pct));
+                        } else if (status === 'Completed') {
+                            task.PercentComplete = 100;
+                        }
+                        this.AfterStatusChange.emit(task);
+                    }
+                }
             } catch (e) {
                 refused.push(e instanceof Error ? e.message : 'The status change was refused.');
             }
@@ -1140,6 +1169,7 @@ export class TaskListComponent implements OnInit, OnChanges {
             this.bulkStatus = '';
             this.bulkPercent = null;
         } else {
+            this.selectedIDs = this.selectedIDs.filter(id => !processedIDs.includes(id));
             this.bulkError = refused[0];
         }
         await this.loadTasks(true);

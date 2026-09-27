@@ -13,7 +13,8 @@ export class BeforeKanbanStatusChangeEvent {
     constructor(
         public TaskID: string,
         public OldStatus: string,
-        public NewStatus: string
+        public NewStatus: string,
+        public Card?: KanbanCardData
     ) {}
 }
 
@@ -104,7 +105,7 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
     /** @internal Shown when a drag's status save is refused. The card snaps back. */
     moveError = '';
 
-    constructor(private cdr: ChangeDetectorRef) {}
+    private cdr = inject(ChangeDetectorRef);
 
     ngOnInit(): void { this.LoadTasks(); }
 
@@ -154,7 +155,7 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
     }
 
     async onCardMoved(event: KanbanCardMovedEvent): Promise<void> {
-        const before = new BeforeKanbanStatusChangeEvent(event.Card.ID, event.FromColumn, event.ToColumn);
+        const before = new BeforeKanbanStatusChangeEvent(event.Card.ID, event.FromColumn, event.ToColumn, event.Card);
         this.BeforeStatusChange.emit(before);
         if (before.Cancel) return;
 

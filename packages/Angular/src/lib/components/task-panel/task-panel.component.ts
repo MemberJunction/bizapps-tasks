@@ -6,8 +6,10 @@ import { TaskKanbanComponent, BeforeKanbanStatusChangeEvent, AfterKanbanStatusCh
 import { TaskGanttComponent } from '../task-gantt/task-gantt.component';
 import { TaskDetailPanelComponent, BeforeCommentPostedEvent } from '../task-detail-panel/task-detail-panel.component';
 import { TaskEditPanelComponent, BeforeTaskSaveEvent } from '../task-edit-panel/task-edit-panel.component';
+import { MJViewToggleComponent, ViewToggleOption } from '@memberjunction/ng-ui-components';
 
-import { TaskViewMode } from '../../pages/tasks-dashboard.page';
+/** The available view modes for the task panel. */
+export type TaskViewMode = 'list' | 'kanban' | 'gantt';
 
 /** The current mode of the slide-in side panel. */
 export type TaskPanelMode = 'none' | 'detail' | 'edit';
@@ -98,53 +100,26 @@ export class BeforePanelCloseEvent {
  * </bizapps-task-panel>
  * ```
  */
+const ALL_VIEW_OPTIONS: Record<TaskViewMode, ViewToggleOption> = {
+    list: { key: 'list', icon: 'fa-solid fa-list', label: 'List', title: 'List View' },
+    kanban: { key: 'kanban', icon: 'fa-solid fa-table-columns', label: 'Board', title: 'Board View' },
+    gantt: { key: 'gantt', icon: 'fa-solid fa-chart-gantt', label: 'Timeline', title: 'Timeline View' },
+};
+
 @Component({
     selector: 'bizapps-task-panel',
     standalone: true,
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [CommonModule, TaskListComponent, TaskKanbanComponent, TaskGanttComponent, TaskDetailPanelComponent, TaskEditPanelComponent],
+    imports: [CommonModule, TaskListComponent, TaskKanbanComponent, TaskGanttComponent, TaskDetailPanelComponent, TaskEditPanelComponent, MJViewToggleComponent],
     template: `
         <div class="task-panel-host">
             @if (AllowedViewModes && AllowedViewModes.length > 1) {
                 <div class="task-panel-toolbar">
-                    <div class="view-switch-group" role="group" aria-label="Task view mode">
-                        @if (AllowedViewModes.includes('list')) {
-                            <button
-                                type="button"
-                                class="view-switch-btn"
-                                [class.active]="ViewMode === 'list'"
-                                (click)="setViewMode('list')"
-                                title="List View"
-                            >
-                                <i class="fa-solid fa-list"></i>
-                                <span>List</span>
-                            </button>
-                        }
-                        @if (AllowedViewModes.includes('kanban')) {
-                            <button
-                                type="button"
-                                class="view-switch-btn"
-                                [class.active]="ViewMode === 'kanban'"
-                                (click)="setViewMode('kanban')"
-                                title="Board View"
-                            >
-                                <i class="fa-solid fa-table-columns"></i>
-                                <span>Board</span>
-                            </button>
-                        }
-                        @if (AllowedViewModes.includes('gantt')) {
-                            <button
-                                type="button"
-                                class="view-switch-btn"
-                                [class.active]="ViewMode === 'gantt'"
-                                (click)="setViewMode('gantt')"
-                                title="Timeline View"
-                            >
-                                <i class="fa-solid fa-chart-gantt"></i>
-                                <span>Timeline</span>
-                            </button>
-                        }
-                    </div>
+                    <mj-view-toggle
+                        [Options]="viewToggleOptions"
+                        [ActiveKey]="ViewMode"
+                        (KeyChange)="onViewToggleChange($event)">
+                    </mj-view-toggle>
                 </div>
             }
 
@@ -162,6 +137,7 @@ export class BeforePanelCloseEvent {
                                 [QuickAddDefaultTypeID]="DefaultTypeID"
                                 [AssigneeScope]="AssigneeScope"
                                 [Compact]="Compact"
+                                [ReadOnly]="ReadOnly"
                                 (BeforeTaskSelected)="onBeforeTaskSelected($event)"
                                 (AfterTaskSelected)="onAfterTaskSelected($event)"
                                 (BeforeStatusChange)="BeforeStatusChange.emit($event)"
@@ -181,7 +157,7 @@ export class BeforePanelCloseEvent {
                                 [ReadOnly]="ReadOnly"
                                 (TaskClicked)="onTaskClicked($event)"
                                 (TaskDoubleClicked)="onOpenFullRecord($event)"
-                                (BeforeStatusChange)="BeforeKanbanStatusChange.emit($event)"
+                                (BeforeStatusChange)="onKanbanBeforeStatusChange($event)"
                                 (AfterStatusChange)="onKanbanStatusChange($event)">
                             </bizapps-task-kanban>
                         </div>
@@ -193,7 +169,7 @@ export class BeforePanelCloseEvent {
                                 [CategoryID]="CategoryID"
                                 [ExtraFilter]="ExtraFilter"
                                 [Height]="GanttHeight"
-                                [ReadOnly]="ReadOnly"
+                                [ReadOnly]="true"
                                 (TaskClicked)="onTaskClicked($event)"
                                 (TaskDoubleClicked)="onOpenFullRecord($event)">
                             </bizapps-task-gantt>
@@ -249,34 +225,6 @@ export class BeforePanelCloseEvent {
             margin-bottom: 8px;
             border-bottom: 1px solid var(--mj-border-default, #e2e8f0);
             background: var(--mj-bg-surface, #ffffff);
-        }
-        .view-switch-group {
-            display: inline-flex;
-            border: 1px solid var(--mj-border-default, #cbd5e1);
-            border-radius: 6px;
-            overflow: hidden;
-            background: var(--mj-bg-surface-sunken, #f8fafc);
-        }
-        .view-switch-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 5px 12px;
-            border: none;
-            background: transparent;
-            font-size: 12.5px;
-            font-weight: 500;
-            color: var(--mj-text-secondary, #64748b);
-            cursor: pointer;
-            transition: all 0.12s ease;
-        }
-        .view-switch-btn:hover {
-            color: var(--mj-text-primary, #0f172a);
-            background: var(--mj-bg-surface-hover, #f1f5f9);
-        }
-        .view-switch-btn.active {
-            background: var(--mj-brand-primary, #0076b6);
-            color: #ffffff;
         }
         .task-panel-body {
             position: relative;
@@ -378,22 +326,53 @@ export class TaskPanelComponent {
     @Input() ParentTaskFilter: string | null = null;
 
     /**
-     * Hides Edit, the comment box, and the edit panel's save.
+     * Hides Edit, the comment box, the list bulk actions, and the edit panel's save.
      * @default false
      */
     @Input() ReadOnly = false;
 
+    private _allowedViewModes: TaskViewMode[] = ['list'];
+    private _viewMode: TaskViewMode = 'list';
+
     /**
      * Allowed view modes. If more than 1 mode is provided, a view-mode toggle toolbar is rendered.
-     * @default ['list', 'kanban', 'gantt']
+     * @default ['list']
      */
-    @Input() AllowedViewModes: TaskViewMode[] = ['list', 'kanban', 'gantt'];
+    @Input()
+    public get AllowedViewModes(): TaskViewMode[] {
+        return this._allowedViewModes;
+    }
+    public set AllowedViewModes(modes: TaskViewMode[]) {
+        this._allowedViewModes = Array.isArray(modes) && modes.length > 0 ? modes : ['list'];
+        this.ensureValidViewMode();
+    }
 
     /**
      * The active view mode ('list' | 'kanban' | 'gantt').
+     * Defaults to the first allowed view mode if the requested mode is not in AllowedViewModes.
      * @default 'list'
      */
-    @Input() ViewMode: TaskViewMode = 'list';
+    @Input()
+    public get ViewMode(): TaskViewMode {
+        return this._viewMode;
+    }
+    public set ViewMode(mode: TaskViewMode) {
+        this._viewMode = mode;
+        this.ensureValidViewMode();
+    }
+
+    private ensureValidViewMode(): void {
+        if (this._allowedViewModes.length > 0 && !this._allowedViewModes.includes(this._viewMode)) {
+            this._viewMode = this._allowedViewModes[0];
+        }
+    }
+
+    /** @internal */
+    public get viewToggleOptions(): ViewToggleOption[] {
+        return this.AllowedViewModes
+            .filter((m): m is TaskViewMode => ALL_VIEW_OPTIONS[m] != null)
+            .map(m => ALL_VIEW_OPTIONS[m]);
+    }
 
     /**
      * Height for the Gantt chart when in 'gantt' view mode.
@@ -496,7 +475,10 @@ export class TaskPanelComponent {
      */
     @Output() OpenRecordRequested = new EventEmitter<string>();
 
-
+    /**
+     * Emitted when a task is selected (clicked) in any view. Payload is the task ID.
+     */
+    @Output() TaskSelected = new EventEmitter<string>();
 
     // ── View References ─────────────────────────────────────
 
@@ -518,7 +500,7 @@ export class TaskPanelComponent {
     /** @internal */
     selectedTaskID: string | null = null;
 
-    constructor(private cdr: ChangeDetectorRef) {}
+    private cdr = inject(ChangeDetectorRef);
 
     // ── Public Methods ──────────────────────────────────────
 
@@ -560,10 +542,16 @@ export class TaskPanelComponent {
     /**
      * Switch view mode and emit change event.
      */
-    setViewMode(mode: TaskViewMode): void {
-        this.ViewMode = mode;
+    SetViewMode(mode: TaskViewMode): void {
+        if (!this._allowedViewModes.includes(mode)) return;
+        this._viewMode = mode;
         this.ViewModeChange.emit(mode);
         this.cdr.markForCheck();
+    }
+
+    /** @internal */
+    onViewToggleChange(key: string): void {
+        this.SetViewMode(key as TaskViewMode);
     }
 
     // ── Internal Event Handlers ─────────────────────────────
@@ -575,19 +563,67 @@ export class TaskPanelComponent {
 
     /** @internal */
     onAfterTaskSelected(task: TaskRow): void {
+        this.TaskSelected.emit(task.ID);
         this.AfterTaskSelected.emit(task);
         this.tryOpenPanel('detail', task.ID);
     }
 
     /** @internal */
     onTaskClicked(taskID: string): void {
+        this.TaskSelected.emit(taskID);
         this.tryOpenPanel('detail', taskID);
+    }
+
+    /** @internal */
+    onKanbanBeforeStatusChange(event: BeforeKanbanStatusChangeEvent): void {
+        this.BeforeKanbanStatusChange.emit(event);
+        if (event.Cancel) return;
+
+        const row: TaskRow = {
+            ID: event.TaskID,
+            Name: event.Card?.Title ?? '',
+            Description: event.Card?.Subtitle ?? null,
+            Status: event.OldStatus,
+            Priority: event.Card?.BadgeText ?? 'Medium',
+            DueAt: null,
+            PercentComplete: event.OldStatus === 'Completed' ? 100 : 0,
+            HoursEstimated: null,
+            ParentID: null,
+            Depth: 0,
+            Assignees: [],
+            Tags: [],
+            IsOverdue: false,
+            IsDueSoon: false,
+            ChildCount: 0,
+        };
+        const before = new BeforeStatusChangeEvent(row, event.NewStatus);
+        this.BeforeStatusChange.emit(before);
+        if (before.Cancel) {
+            event.Cancel = true;
+        }
     }
 
     /** @internal */
     onKanbanStatusChange(event: AfterKanbanStatusChangeEvent): void {
         this.AfterKanbanStatusChange.emit(event);
-        this.taskList?.Refresh();
+        const row: TaskRow = {
+            ID: event.TaskID,
+            Name: '',
+            Description: null,
+            Status: event.NewStatus,
+            Priority: 'Medium',
+            DueAt: null,
+            PercentComplete: event.NewStatus === 'Completed' ? 100 : 0,
+            HoursEstimated: null,
+            ParentID: null,
+            Depth: 0,
+            Assignees: [],
+            Tags: [],
+            IsOverdue: false,
+            IsDueSoon: false,
+            ChildCount: 0,
+        };
+        this.AfterStatusChange.emit(row);
     }
 
     /** @internal */

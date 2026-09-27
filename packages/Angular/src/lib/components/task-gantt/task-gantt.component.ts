@@ -178,7 +178,7 @@ export class TaskGanttComponent implements OnInit, OnChanges {
     public ZoomLevel: GanttZoomLevelName = TASKS_GANTT_DEFAULT_ZOOM;
     public Pref: TasksGanttPref = DefaultTasksGanttPref();
 
-    constructor(private cdr: ChangeDetectorRef) {}
+    private cdr = inject(ChangeDetectorRef);
 
     public get ZoomPercent(): number {
         return this.chart?.CurrentZoomPercent ?? GanttZoomPercent(this.ZoomLevel);
