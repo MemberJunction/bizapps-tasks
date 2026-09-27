@@ -1,7 +1,7 @@
 import '@angular/compiler';
 import { describe, expect, it, vi } from 'vitest';
 import { ChangeDetectorRef, Injector, runInInjectionContext } from '@angular/core';
-import { TaskListComponent, TaskRow, BeforeStatusChangeEvent } from '../components/task-list/task-list.component';
+import { TaskListComponent, TaskRow, BeforeStatusChangeEvent, computeDueStatus } from '../components/task-list/task-list.component';
 
 describe('TaskListComponent Selection and Bulk Status', () => {
     function createTaskList(cdr?: Partial<ChangeDetectorRef>): TaskListComponent {
@@ -71,5 +71,35 @@ describe('TaskListComponent Selection and Bulk Status', () => {
         expect(emittedBefore.length).toBe(1);
         expect(emittedBefore[0].Task.ID).toBe('A1111111-1111-1111-1111-111111111111');
         expect(emittedBefore[0].NewStatus).toBe('Completed');
+    });
+});
+
+describe('computeDueStatus helper', () => {
+    it('marks active task overdue when due date has passed', () => {
+        const now = new Date('2026-10-01T12:00:00Z');
+        const past = new Date('2026-09-30T12:00:00Z');
+        const res = computeDueStatus(past, 'In Progress', now);
+        expect(res.isOverdue).toBe(true);
+        expect(res.isDueSoon).toBe(false);
+    });
+
+    it('marks active task due soon when within 48 hours', () => {
+        const now = new Date('2026-10-01T12:00:00Z');
+        const soon = new Date('2026-10-02T12:00:00Z');
+        const res = computeDueStatus(soon, 'In Progress', now);
+        expect(res.isOverdue).toBe(false);
+        expect(res.isDueSoon).toBe(true);
+    });
+
+    it('does not mark completed or cancelled tasks overdue or due soon', () => {
+        const now = new Date('2026-10-01T12:00:00Z');
+        const past = new Date('2026-09-30T12:00:00Z');
+        const completedRes = computeDueStatus(past, 'Completed', now);
+        expect(completedRes.isOverdue).toBe(false);
+        expect(completedRes.isDueSoon).toBe(false);
+
+        const cancelledRes = computeDueStatus(past, 'Cancelled', now);
+        expect(cancelledRes.isOverdue).toBe(false);
+        expect(cancelledRes.isDueSoon).toBe(false);
     });
 });

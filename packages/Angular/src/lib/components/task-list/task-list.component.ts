@@ -57,6 +57,21 @@ export interface TaskRow {
 }
 
 /**
+ * Computes overdue and due-soon flags for a task based on its due date and current status.
+ * Due soon is defined as within 48 hours.
+ */
+export function computeDueStatus(
+    dueAt: Date | null,
+    status: string,
+    now: Date = new Date()
+): { isOverdue: boolean; isDueSoon: boolean } {
+    const isActive = status !== 'Completed' && status !== 'Cancelled';
+    const isOverdue = isActive && dueAt != null && dueAt < now;
+    const isDueSoon = isActive && dueAt != null && dueAt >= now && (dueAt.getTime() - now.getTime() <= 48 * 60 * 60 * 1000);
+    return { isOverdue, isDueSoon };
+}
+
+/**
  * Cancellable event emitted before a task is selected in the list.
  * Set `Cancel = true` in a handler to prevent the selection from proceeding.
  *
@@ -959,7 +974,7 @@ export class TaskListComponent implements OnInit, OnChanges {
 
         this.tasks = sorted.map(r => {
             const dueAt = r.DueAt ? new Date(r.DueAt) : null;
-            const isActive = r.Status !== 'Completed' && r.Status !== 'Cancelled';
+            const { isOverdue, isDueSoon } = computeDueStatus(dueAt, r.Status, now);
             return {
                 ID: r.ID,
                 Name: r.Name,
@@ -973,8 +988,8 @@ export class TaskListComponent implements OnInit, OnChanges {
                 Depth: depthMap.get(r.ID) ?? 0,
                 Assignees: [],
                 Tags: [],
-                IsOverdue: isActive && dueAt != null && dueAt < now,
-                IsDueSoon: isActive && dueAt != null && dueAt >= now && dueAt <= soon,
+                IsOverdue: isOverdue,
+                IsDueSoon: isDueSoon,
                 ChildCount: childCounts.get(r.ID) ?? 0,
             } as TaskRow;
         });
@@ -1118,6 +1133,7 @@ export class TaskListComponent implements OnInit, OnChanges {
     }
 
     // -- Selection + Bulk --
+    /** @internal */
     toggleSelect(taskID: string): void {
         const idx = this.selectedIDs.findIndex(id => UUIDsEqual(id, taskID));
         if (idx >= 0) this.selectedIDs.splice(idx, 1);
@@ -1125,6 +1141,7 @@ export class TaskListComponent implements OnInit, OnChanges {
         this.cdr.markForCheck();
     }
 
+    /** @internal */
     isSelected(taskID: string): boolean {
         return this.selectedIDs.some(id => UUIDsEqual(id, taskID));
     }

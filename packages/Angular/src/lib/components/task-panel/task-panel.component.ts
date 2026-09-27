@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, inject, Input, Output, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { OpenTaskRecord } from '../../open-task-record';
-import { TaskListComponent, TaskRow, BeforeTaskSelectedEvent, BeforeStatusChangeEvent } from '../task-list/task-list.component';
+import { TaskListComponent, TaskRow, BeforeTaskSelectedEvent, BeforeStatusChangeEvent, computeDueStatus } from '../task-list/task-list.component';
 import { TaskKanbanComponent, BeforeKanbanStatusChangeEvent, AfterKanbanStatusChangeEvent, KanbanTaskData } from '../task-kanban/task-kanban.component';
 import { TaskGanttComponent } from '../task-gantt/task-gantt.component';
 import { TaskDetailPanelComponent, BeforeCommentPostedEvent } from '../task-detail-panel/task-detail-panel.component';
@@ -581,9 +581,7 @@ export class TaskPanelComponent {
 
         const data = event.Card?.Data as KanbanTaskData | undefined;
         const dueAt = data?.DueAt ? new Date(data.DueAt) : null;
-        const now = new Date();
-        const isOverdue = dueAt != null && dueAt < now && event.OldStatus !== 'Completed' && event.OldStatus !== 'Cancelled';
-        const isDueSoon = dueAt != null && dueAt >= now && (dueAt.getTime() - now.getTime() <= 48 * 60 * 60 * 1000) && event.OldStatus !== 'Completed' && event.OldStatus !== 'Cancelled';
+        const { isOverdue, isDueSoon } = computeDueStatus(dueAt, event.OldStatus);
 
         const row: TaskRow = {
             ID: event.TaskID,
@@ -614,9 +612,7 @@ export class TaskPanelComponent {
         this.AfterKanbanStatusChange.emit(event);
         const data = event.Card?.Data as KanbanTaskData | undefined;
         const dueAt = data?.DueAt ? new Date(data.DueAt) : null;
-        const now = new Date();
-        const isOverdue = dueAt != null && dueAt < now && event.NewStatus !== 'Completed' && event.NewStatus !== 'Cancelled';
-        const isDueSoon = dueAt != null && dueAt >= now && (dueAt.getTime() - now.getTime() <= 48 * 60 * 60 * 1000) && event.NewStatus !== 'Completed' && event.NewStatus !== 'Cancelled';
+        const { isOverdue, isDueSoon } = computeDueStatus(dueAt, event.NewStatus);
 
         const row: TaskRow = {
             ID: event.TaskID,

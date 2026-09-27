@@ -390,6 +390,7 @@ export class TasksDashboardPageComponent implements OnInit {
         this.cdr.markForCheck();
     }
 
+    /** @internal */
     public onViewToggleChange(key: string): void {
         this.SetView(key as TaskViewMode);
     }
