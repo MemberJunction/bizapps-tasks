@@ -249,10 +249,10 @@ export class ApprovalInboxComponent implements OnInit {
         const typeName = this.ApprovalTypeName.replace(/'/g, "''");
         const personID = this._approverPersonID.replace(/'/g, "''");
         return [
-            `TypeID IN (SELECT ID FROM __mj_BizAppsTasks.TaskType WHERE Name = '${typeName}')`,
+            `TypeID IN (SELECT ID FROM __mj_BizAppsTasks.vwTaskTypes WHERE Name = '${typeName}')`,
             `Status NOT IN ('Completed', 'Cancelled')`,
-            `ID IN (SELECT TaskID FROM __mj_BizAppsTasks.TaskAssignment WHERE AssigneeRecordID = '${personID}')`,
-            `ID NOT IN (SELECT d.TaskID FROM __mj_BizAppsTasks.TaskDecision d INNER JOIN __mj_BizAppsTasks.TaskDecisionOutcome o ON d.OutcomeID = o.ID WHERE o.IsTerminal = 1)`,
+            `ID IN (SELECT TaskID FROM __mj_BizAppsTasks.vwTaskAssignments WHERE AssigneeRecordID = '${personID}')`,
+            `ID NOT IN (SELECT d.TaskID FROM __mj_BizAppsTasks.vwTaskDecisions d INNER JOIN __mj_BizAppsTasks.vwTaskDecisionOutcomes o ON d.OutcomeID = o.ID WHERE o.IsTerminal = 1)`,
         ].join(' AND ');
     }
 }
