@@ -1,9 +1,15 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, inject, Input, Output, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { OpenTaskRecord } from '../../open-task-record';
-import { TaskListComponent, TaskRow, BeforeTaskSelectedEvent, BeforeStatusChangeEvent } from '../task-list/task-list.component';
+import { TaskListComponent, TaskRow, BeforeTaskSelectedEvent, BeforeStatusChangeEvent, computeDueStatus } from '../task-list/task-list.component';
+import { TaskKanbanComponent, BeforeKanbanStatusChangeEvent, AfterKanbanStatusChangeEvent, KanbanTaskData } from '../task-kanban/task-kanban.component';
+import { TaskGanttComponent } from '../task-gantt/task-gantt.component';
 import { TaskDetailPanelComponent, BeforeCommentPostedEvent } from '../task-detail-panel/task-detail-panel.component';
 import { TaskEditPanelComponent, BeforeTaskSaveEvent } from '../task-edit-panel/task-edit-panel.component';
+import { MJViewToggleComponent, ViewToggleOption } from '@memberjunction/ng-ui-components';
+
+/** The available view modes for the task panel. */
+export type TaskViewMode = 'list' | 'kanban' | 'gantt';
 
 /** The current mode of the slide-in side panel. */
 export type TaskPanelMode = 'none' | 'detail' | 'edit';
@@ -94,32 +100,82 @@ export class BeforePanelCloseEvent {
  * </bizapps-task-panel>
  * ```
  */
+const ALL_VIEW_OPTIONS: Record<TaskViewMode, ViewToggleOption> = {
+    list: { key: 'list', icon: 'fa-solid fa-list', label: 'List', title: 'List View' },
+    kanban: { key: 'kanban', icon: 'fa-solid fa-table-columns', label: 'Board', title: 'Board View' },
+    gantt: { key: 'gantt', icon: 'fa-solid fa-chart-gantt', label: 'Timeline', title: 'Timeline View' },
+};
+
 @Component({
     selector: 'bizapps-task-panel',
     standalone: true,
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [CommonModule, TaskListComponent, TaskDetailPanelComponent, TaskEditPanelComponent],
+    imports: [CommonModule, TaskListComponent, TaskKanbanComponent, TaskGanttComponent, TaskDetailPanelComponent, TaskEditPanelComponent, MJViewToggleComponent],
     template: `
         <div class="task-panel-host">
-            <div class="task-panel-list">
-                <bizapps-task-list
-                    #taskList
-                    [CategoryID]="CategoryID"
-                    [ExtraFilter]="ExtraFilter"
-                    [StatusFilter]="StatusFilter"
-                    [ShowCreateButton]="ShowCreateButton"
-                    [ShowQuickAdd]="ShowQuickAdd"
-                    [QuickAddDefaultTypeID]="DefaultTypeID"
-                    [AssigneeScope]="AssigneeScope"
-                    [Compact]="Compact"
-                    (BeforeTaskSelected)="onBeforeTaskSelected($event)"
-                    (AfterTaskSelected)="onAfterTaskSelected($event)"
-                    (BeforeStatusChange)="BeforeStatusChange.emit($event)"
-                    (AfterStatusChange)="AfterStatusChange.emit($event)"
-                    (AfterTaskCreated)="AfterTaskCreated.emit($event)"
-                    (TaskDoubleClicked)="onOpenFullRecord($event.ID)"
-                    (CreateTask)="onCreateTask()">
-                </bizapps-task-list>
+            @if (AllowedViewModes && AllowedViewModes.length > 1) {
+                <div class="task-panel-toolbar">
+                    <mj-view-toggle
+                        [Options]="viewToggleOptions"
+                        [ActiveKey]="ViewMode"
+                        (KeyChange)="onViewToggleChange($event)">
+                    </mj-view-toggle>
+                </div>
+            }
+
+            <div class="task-panel-body">
+                @switch (ViewMode) {
+                    @case ('list') {
+                        <div class="task-panel-list">
+                            <bizapps-task-list
+                                #taskList
+                                [CategoryID]="CategoryID"
+                                [ExtraFilter]="ExtraFilter"
+                                [StatusFilter]="StatusFilter"
+                                [ShowCreateButton]="ShowCreateButton"
+                                [ShowQuickAdd]="ShowQuickAdd"
+                                [QuickAddDefaultTypeID]="DefaultTypeID"
+                                [AssigneeScope]="AssigneeScope"
+                                [Compact]="Compact"
+                                [ReadOnly]="ReadOnly"
+                                (BeforeTaskSelected)="onBeforeTaskSelected($event)"
+                                (AfterTaskSelected)="onAfterTaskSelected($event)"
+                                (BeforeStatusChange)="BeforeStatusChange.emit($event)"
+                                (AfterStatusChange)="AfterStatusChange.emit($event)"
+                                (AfterTaskCreated)="onAfterTaskCreated($event)"
+                                (TaskDoubleClicked)="onOpenFullRecord($event.ID)"
+                                (CreateTask)="onCreateTask()">
+                            </bizapps-task-list>
+                        </div>
+                    }
+                    @case ('kanban') {
+                        <div class="task-panel-kanban">
+                            <bizapps-task-kanban
+                                #taskKanban
+                                [CategoryID]="CategoryID"
+                                [ExtraFilter]="ExtraFilter"
+                                [ReadOnly]="ReadOnly"
+                                (TaskClicked)="onTaskClicked($event)"
+                                (TaskDoubleClicked)="onOpenFullRecord($event)"
+                                (BeforeStatusChange)="onKanbanBeforeStatusChange($event)"
+                                (AfterStatusChange)="onKanbanStatusChange($event)">
+                            </bizapps-task-kanban>
+                        </div>
+                    }
+                    @case ('gantt') {
+                        <div class="task-panel-gantt">
+                            <bizapps-task-gantt
+                                #taskGantt
+                                [CategoryID]="CategoryID"
+                                [ExtraFilter]="ExtraFilter"
+                                [Height]="GanttHeight"
+                                [ReadOnly]="true"
+                                (TaskClicked)="onTaskClicked($event)"
+                                (TaskDoubleClicked)="onOpenFullRecord($event)">
+                            </bizapps-task-gantt>
+                        </div>
+                    }
+                }
             </div>
 
             @if (panelMode !== 'none') {
@@ -160,8 +216,27 @@ export class BeforePanelCloseEvent {
     `,
     styles: [`
         :host { display: block; position: relative; }
-        .task-panel-host { position: relative; }
+        .task-panel-host { position: relative; display: flex; flex-direction: column; width: 100%; }
+        .task-panel-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid var(--mj-border-default, #e2e8f0);
+            background: var(--mj-bg-surface, #ffffff);
+        }
+        .task-panel-body {
+            position: relative;
+            flex: 1 1 auto;
+            min-height: 0;
+            width: 100%;
+        }
         .task-panel-list { position: relative; z-index: 1; }
+        .task-panel-kanban, .task-panel-gantt {
+            width: 100%;
+            min-height: 450px;
+        }
 
         .task-panel-backdrop {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -251,10 +326,64 @@ export class TaskPanelComponent {
     @Input() ParentTaskFilter: string | null = null;
 
     /**
-     * Hides Edit, the comment box, and the edit panel's save.
+     * Hides Edit, the comment box, the list bulk actions, and the edit panel's save.
      * @default false
      */
     @Input() ReadOnly = false;
+
+    private _allowedViewModes: TaskViewMode[] = ['list'];
+    private _viewMode: TaskViewMode = 'list';
+
+    /**
+     * Allowed view modes. If more than 1 mode is provided, a view-mode toggle toolbar is rendered.
+     * @default ['list']
+     */
+    @Input()
+    public get AllowedViewModes(): TaskViewMode[] {
+        return this._allowedViewModes;
+    }
+    public set AllowedViewModes(modes: TaskViewMode[]) {
+        this._allowedViewModes = Array.isArray(modes) && modes.length > 0 ? modes : ['list'];
+        this.ensureValidViewMode();
+    }
+
+    /**
+     * The active view mode ('list' | 'kanban' | 'gantt').
+     * Defaults to the first allowed view mode if the requested mode is not in AllowedViewModes.
+     * @default 'list'
+     */
+    @Input()
+    public get ViewMode(): TaskViewMode {
+        return this._viewMode;
+    }
+    public set ViewMode(mode: TaskViewMode) {
+        this._viewMode = mode;
+        this.ensureValidViewMode();
+    }
+
+    private ensureValidViewMode(): void {
+        if (this._allowedViewModes.length > 0 && !this._allowedViewModes.includes(this._viewMode)) {
+            this._viewMode = this._allowedViewModes[0];
+        }
+    }
+
+    /** @internal */
+    public get viewToggleOptions(): ViewToggleOption[] {
+        return this.AllowedViewModes
+            .filter((m): m is TaskViewMode => ALL_VIEW_OPTIONS[m] != null)
+            .map(m => ALL_VIEW_OPTIONS[m]);
+    }
+
+    /**
+     * Height for the Gantt chart when in 'gantt' view mode.
+     * @default '600px'
+     */
+    @Input() GanttHeight = '600px';
+
+    /**
+     * Emitted when the user toggles the view mode.
+     */
+    @Output() ViewModeChange = new EventEmitter<TaskViewMode>();
 
     // ── Outputs (Before — cancellable) ──────────────────────
 
@@ -280,6 +409,16 @@ export class TaskPanelComponent {
      * Re-emitted from the inner {@link TaskListComponent}. Cancellable.
      */
     @Output() BeforeStatusChange = new EventEmitter<BeforeStatusChangeEvent>();
+
+    /**
+     * Re-emitted from the inner {@link TaskKanbanComponent}. Cancellable.
+     */
+    @Output() BeforeKanbanStatusChange = new EventEmitter<BeforeKanbanStatusChangeEvent>();
+
+    /**
+     * Emitted after a status change is persisted from the kanban board.
+     */
+    @Output() AfterKanbanStatusChange = new EventEmitter<AfterKanbanStatusChangeEvent>();
 
     /**
      * Re-emitted from the inner {@link TaskDetailPanelComponent}. Cancellable.
@@ -336,12 +475,19 @@ export class TaskPanelComponent {
      */
     @Output() OpenRecordRequested = new EventEmitter<string>();
 
-
+    /**
+     * Emitted when a task is selected (clicked) in any view. Payload is the task ID.
+     */
+    @Output() TaskSelected = new EventEmitter<string>();
 
     // ── View References ─────────────────────────────────────
 
     /** @internal */
     @ViewChild('taskList') taskList?: TaskListComponent;
+    /** @internal */
+    @ViewChild('taskKanban') taskKanban?: TaskKanbanComponent;
+    /** @internal */
+    @ViewChild('taskGantt') taskGantt?: TaskGanttComponent;
     /** @internal */
     @ViewChild('detailPanel') detailPanel?: TaskDetailPanelComponent;
     /** @internal */
@@ -353,16 +499,18 @@ export class TaskPanelComponent {
     panelMode: TaskPanelMode = 'none';
     /** @internal */
     selectedTaskID: string | null = null;
-    /** @internal */
+
     private cdr = inject(ChangeDetectorRef);
 
     // ── Public Methods ──────────────────────────────────────
 
     /**
-     * Refreshes the task list from the server.
+     * Refreshes the task views from the server.
      */
     Refresh(): void {
         this.taskList?.Refresh();
+        this.taskKanban?.Refresh();
+        this.taskGantt?.Refresh();
     }
 
     /**
@@ -391,6 +539,21 @@ export class TaskPanelComponent {
         this.closePanel();
     }
 
+    /**
+     * Switch view mode and emit change event.
+     */
+    SetViewMode(mode: TaskViewMode): void {
+        if (!this._allowedViewModes.includes(mode)) return;
+        this._viewMode = mode;
+        this.ViewModeChange.emit(mode);
+        this.cdr.markForCheck();
+    }
+
+    /** @internal */
+    onViewToggleChange(key: string): void {
+        this.SetViewMode(key as TaskViewMode);
+    }
+
     // ── Internal Event Handlers ─────────────────────────────
 
     /** @internal */
@@ -400,8 +563,82 @@ export class TaskPanelComponent {
 
     /** @internal */
     onAfterTaskSelected(task: TaskRow): void {
+        this.TaskSelected.emit(task.ID);
         this.AfterTaskSelected.emit(task);
         this.tryOpenPanel('detail', task.ID);
+    }
+
+    /** @internal */
+    onTaskClicked(taskID: string): void {
+        this.TaskSelected.emit(taskID);
+        this.tryOpenPanel('detail', taskID);
+    }
+
+    /** @internal */
+    onKanbanBeforeStatusChange(event: BeforeKanbanStatusChangeEvent): void {
+        this.BeforeKanbanStatusChange.emit(event);
+        if (event.Cancel) return;
+
+        const data = event.Card?.Data as KanbanTaskData | undefined;
+        const dueAt = data?.DueAt ? new Date(data.DueAt) : null;
+        const { isOverdue, isDueSoon } = computeDueStatus(dueAt, event.OldStatus);
+
+        const row: TaskRow = {
+            ID: event.TaskID,
+            Name: data?.Name ?? event.Card?.Title ?? '',
+            Description: data?.Description ?? (event.Card?.Subtitle || null),
+            Status: event.OldStatus,
+            Priority: data?.Priority ?? event.Card?.BadgeText ?? 'Medium',
+            DueAt: dueAt,
+            PercentComplete: data?.PercentComplete ?? (event.OldStatus === 'Completed' ? 100 : 0),
+            HoursEstimated: data?.HoursEstimated ?? null,
+            ParentID: data?.ParentID ?? null,
+            Depth: 0,
+            Assignees: undefined,
+            Tags: undefined,
+            ChildCount: undefined,
+            IsOverdue: isOverdue,
+            IsDueSoon: isDueSoon,
+        };
+        const before = new BeforeStatusChangeEvent(row, event.NewStatus, ['Assignees', 'Tags', 'Subtasks']);
+        this.BeforeStatusChange.emit(before);
+        if (before.Cancel) {
+            event.Cancel = true;
+        }
+    }
+
+    /** @internal */
+    onKanbanStatusChange(event: AfterKanbanStatusChangeEvent): void {
+        this.AfterKanbanStatusChange.emit(event);
+        const data = event.Card?.Data as KanbanTaskData | undefined;
+        const dueAt = data?.DueAt ? new Date(data.DueAt) : null;
+        const { isOverdue, isDueSoon } = computeDueStatus(dueAt, event.NewStatus);
+
+        const row: TaskRow = {
+            ID: event.TaskID,
+            Name: data?.Name ?? event.Card?.Title ?? '',
+            Description: data?.Description ?? (event.Card?.Subtitle || null),
+            Status: event.NewStatus,
+            Priority: data?.Priority ?? event.Card?.BadgeText ?? 'Medium',
+            DueAt: dueAt,
+            PercentComplete: event.NewStatus === 'Completed' ? 100 : (data?.PercentComplete ?? 0),
+            HoursEstimated: data?.HoursEstimated ?? null,
+            ParentID: data?.ParentID ?? null,
+            Depth: 0,
+            Assignees: undefined,
+            Tags: undefined,
+            ChildCount: undefined,
+            IsOverdue: isOverdue,
+            IsDueSoon: isDueSoon,
+        };
+        this.AfterStatusChange.emit(row);
+    }
+
+    /** @internal */
+    onAfterTaskCreated(taskID: string): void {
+        this.AfterTaskCreated.emit(taskID);
+        this.taskKanban?.Refresh();
+        this.taskGantt?.Refresh();
     }
 
     /** @internal */
@@ -420,6 +657,8 @@ export class TaskPanelComponent {
         this.selectedTaskID = null;
         this.cdr.markForCheck();
         await this.taskList?.Refresh();
+        this.taskKanban?.Refresh();
+        this.taskGantt?.Refresh();
         this.cdr.markForCheck();
     }
 
@@ -430,6 +669,8 @@ export class TaskPanelComponent {
         this.selectedTaskID = null;
         this.AfterPanelClosed.emit();
         this.taskList?.Refresh();
+        this.taskKanban?.Refresh();
+        this.taskGantt?.Refresh();
         this.cdr.markForCheck();
     }
 

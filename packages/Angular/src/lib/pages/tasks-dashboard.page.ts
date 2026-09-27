@@ -9,8 +9,10 @@ import { TaskGanttComponent } from '../components/task-gantt/task-gantt.componen
 import { TaskDetailPanelComponent } from '../components/task-detail-panel/task-detail-panel.component';
 import { TaskEditPanelComponent } from '../components/task-edit-panel/task-edit-panel.component';
 import { TaskTemplateWizardComponent } from '../components/task-template-wizard/task-template-wizard.component';
+import { TaskViewMode } from '../components/task-panel/task-panel.component';
+import { MJViewToggleComponent, ViewToggleOption } from '@memberjunction/ng-ui-components';
 
-export type TaskViewMode = 'list' | 'kanban' | 'gantt';
+export type { TaskViewMode };
 export type TasksDashboardPanelMode = 'none' | 'detail' | 'edit' | 'template';
 
 export interface TaskCategoryOption {
@@ -42,6 +44,7 @@ export interface TaskKPIs {
         TaskDetailPanelComponent,
         TaskEditPanelComponent,
         TaskTemplateWizardComponent,
+        MJViewToggleComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
@@ -61,17 +64,11 @@ export interface TaskKPIs {
 
                     <div class="mjt-actions-strip">
                         <!-- View Toggle -->
-                        <div class="mjt-view-toggle">
-                            <button type="button" class="mjt-view-btn" [class.active]="ViewMode === 'gantt'" (click)="SetView('gantt')">
-                                <i class="fa-solid fa-chart-gantt"></i> Gantt
-                            </button>
-                            <button type="button" class="mjt-view-btn" [class.active]="ViewMode === 'kanban'" (click)="SetView('kanban')">
-                                <i class="fa-solid fa-columns"></i> Board
-                            </button>
-                            <button type="button" class="mjt-view-btn" [class.active]="ViewMode === 'list'" (click)="SetView('list')">
-                                <i class="fa-solid fa-list"></i> List
-                            </button>
-                        </div>
+                        <mj-view-toggle
+                            [Options]="ViewToggleOptions"
+                            [ActiveKey]="ViewMode"
+                            (KeyChange)="onViewToggleChange($event)">
+                        </mj-view-toggle>
 
                         <button type="button" class="mjt-btn-secondary" (click)="OpenPanel('template')">
                             <i class="fa-solid fa-copy"></i> From Template
@@ -240,37 +237,6 @@ export interface TaskKPIs {
 
         .mjt-actions-strip { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
-        /* 3-Way View Switcher */
-        .mjt-view-toggle {
-            display: inline-flex;
-            border: 1px solid var(--mj-border-default, #cbd5e1);
-            border-radius: var(--mj-radius-md, 6px);
-            overflow: hidden;
-            background: var(--mj-bg-surface-card, #ffffff);
-        }
-
-        .mjt-view-btn {
-            padding: 6px 13px;
-            border: none;
-            border-right: 1px solid var(--mj-border-default, #cbd5e1);
-            background: transparent;
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--mj-text-secondary, #475569);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            transition: all 0.15s ease;
-        }
-
-        .mjt-view-btn:last-child { border-right: none; }
-        .mjt-view-btn:hover { background: var(--mj-bg-surface-sunken, #f1f5f9); color: var(--mj-text-primary, #0f172a); }
-        .mjt-view-btn.active {
-            background: var(--mj-brand-primary, #0076b6);
-            color: #ffffff !important;
-        }
-
         .mjt-btn-primary {
             padding: 6px 14px;
             border-radius: var(--mj-radius-sm, 6px);
@@ -379,6 +345,11 @@ export interface TaskKPIs {
     `]
 })
 export class TasksDashboardPageComponent implements OnInit {
+    public ViewToggleOptions: ViewToggleOption[] = [
+        { key: 'gantt', icon: 'fa-solid fa-chart-gantt', label: 'Timeline', title: 'Timeline View' },
+        { key: 'kanban', icon: 'fa-solid fa-table-columns', label: 'Board', title: 'Board View' },
+        { key: 'list', icon: 'fa-solid fa-list', label: 'List', title: 'List View' },
+    ];
     public ViewMode: TaskViewMode = 'gantt';
     public PanelMode: TasksDashboardPanelMode = 'none';
     public SelectedTaskID: string | null = null;
@@ -417,6 +388,11 @@ export class TasksDashboardPageComponent implements OnInit {
     public SetView(mode: TaskViewMode): void {
         this.ViewMode = mode;
         this.cdr.markForCheck();
+    }
+
+    /** @internal */
+    public onViewToggleChange(key: string): void {
+        this.SetView(key as TaskViewMode);
     }
 
     public async LoadCategories(): Promise<void> {
