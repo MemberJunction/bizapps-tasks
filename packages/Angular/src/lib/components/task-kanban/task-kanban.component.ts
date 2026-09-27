@@ -103,7 +103,8 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
     cards: KanbanCardData[] = [];
     /** @internal Shown when a drag's status save is refused. The card snaps back. */
     moveError = '';
-    private cdr = inject(ChangeDetectorRef);
+
+    constructor(private cdr: ChangeDetectorRef) {}
 
     ngOnInit(): void { this.LoadTasks(); }
 
