@@ -38,7 +38,7 @@ export class TaskTemplateService {
         // 2. Load all template items
         const itemsResult = await rv.RunView<BaseEntity>({
             EntityName: 'MJ_BizApps_Tasks: Task Template Items',
-            ExtraFilter: `TemplateID = '${templateID}'`,
+            ExtraFilter: `TemplateID = '${templateID.replace(/'/g, "''")}'`,
             OrderBy: 'Sequence ASC',
             ResultType: 'simple',
         });
@@ -144,7 +144,7 @@ export class TaskTemplateService {
         const rv = new RunView();
         const rolesResult = await rv.RunView<BaseEntity>({
             EntityName: 'MJ_BizApps_Tasks: Task Template Item Roles',
-            ExtraFilter: `ItemID = '${templateItemID}'`,
+            ExtraFilter: `ItemID = '${templateItemID.replace(/'/g, "''")}'`,
             ResultType: 'simple',
         });
 
@@ -176,7 +176,7 @@ export class TaskTemplateService {
         // Get all template items for this template (we need their IDs to filter deps)
         const itemsResult = await rv.RunView<BaseEntity>({
             EntityName: 'MJ_BizApps_Tasks: Task Template Items',
-            ExtraFilter: `TemplateID = '${templateID}'`,
+            ExtraFilter: `TemplateID = '${templateID.replace(/'/g, "''")}'`,
             ResultType: 'simple',
         });
         const itemIDs = (itemsResult?.Results ?? []).map((i: any) => `'${i.ID}'`).join(',');
