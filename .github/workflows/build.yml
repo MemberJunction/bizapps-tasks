@@ -28,6 +28,9 @@ on:
       - 'turbo.json'
       - '.github/workflows/build.yml'
 
+permissions:
+  contents: read
+
 concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
