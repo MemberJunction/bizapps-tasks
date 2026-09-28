@@ -1,5 +1,13 @@
 # @mj-biz-apps/tasks-ng
 
+## 1.6.1
+
+### Patch Changes
+
+- c568933: Support multi-view modes (list, kanban, gantt) in TaskPanelComponent via mj-view-toggle, unify status change hooks and read-only switches across all views. TaskRow's Assignees, Tags, and ChildCount are now optional to handle board moves where full sub-entities are not queried.
+  - @mj-biz-apps/tasks-core@1.6.1
+  - @mj-biz-apps/tasks-entities@1.6.1
+
 ## 1.6.0
 
 ### Minor Changes

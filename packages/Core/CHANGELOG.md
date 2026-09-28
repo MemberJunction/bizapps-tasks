@@ -1,5 +1,11 @@
 # @mj-biz-apps/tasks-core
 
+## 1.6.1
+
+### Patch Changes
+
+- @mj-biz-apps/tasks-entities@1.6.1
+
 ## 1.6.0
 
 ### Minor Changes
