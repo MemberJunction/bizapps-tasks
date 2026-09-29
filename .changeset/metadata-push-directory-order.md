@@ -8,3 +8,5 @@
 - The SLA-breach model no longer carries `ArtifactFileID`. It pointed at a `__mj.File` row that nothing ships, so the push failed on `FK_MLModel_ArtifactFile`. The key is removed rather than set to null because push writes every key it finds, nulls included, so a null would clear the link on the host where the model was trained. `ml-models/.mj-sync.json` now excludes `ArtifactFileID` on pull so the next pull does not write it back. The trained artifact's bytes live on the machine that trained it, so shipping the File row would not make the model scorable either.
 
 On a database where the model has not been trained, scoring it fails with `has no ArtifactFileID`. The daily scoring Record Process ships `Active` with a nightly schedule, so each run marks every task `Failed` and logs an error per record until the model is trained on that host.
+
+The `Validate Changes` workflow now fails when a folder under `metadata/` is missing from `directoryOrder` in `metadata/.mj-sync.json`.
