@@ -4,7 +4,6 @@
       "PipelineID": "FD3C2552-07C0-492D-8219-042DBE57B2AA",
       "Version": 1,
       "AlgorithmID": "B2FD5E4A-75D4-401A-A1DA-F223A5234FDA",
-      "ArtifactFileID": "330C63F5-BF48-487E-B534-0FF5D1BAD692",
       "FittedPreprocessing": "{\"ops\":[{\"op\":\"onehot\",\"col\":\"Priority\",\"vocabulary\":[\"Critical\",\"High\",\"Low\",\"Medium\"]},{\"op\":\"onehot\",\"col\":\"Category\",\"vocabulary\":[]}],\"output_columns\":[\"Priority=Critical\",\"Priority=High\",\"Priority=Low\",\"Priority=Medium\",\"LeadDays\",\"AssignmentsCount\",\"CommentsCount\"]}",
       "FeatureSchema": "[{\"Name\":\"LeadDays\",\"Kind\":\"numeric\"},{\"Name\":\"AssignmentsCount\",\"Kind\":\"numeric\"},{\"Name\":\"CommentsCount\",\"Kind\":\"numeric\"},{\"Name\":\"Priority\",\"Kind\":\"numeric\"},{\"Name\":\"Category\",\"Kind\":\"numeric\"}]",
       "TargetVariable": "IsSLABreached",
