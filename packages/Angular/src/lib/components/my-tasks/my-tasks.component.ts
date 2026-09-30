@@ -118,6 +118,6 @@ export class MyTasksComponent {
     /** @internal Builds the ExtraFilter to scope tasks by assignee PersonID. */
     get assigneeFilter(): string {
         if (!this.PersonID) return '';
-        return `ID IN (SELECT TaskID FROM __mj_BizAppsTasks.TaskAssignment WHERE AssigneeRecordID = '${this.PersonID}')`;
+        return `ID IN (SELECT TaskID FROM __mj_BizAppsTasks.vwTaskAssignments WHERE AssigneeRecordID = '${this.PersonID}')`;
     }
 }

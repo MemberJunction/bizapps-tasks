@@ -4,11 +4,17 @@
     "autoCreateMissingRecords": true
   },
   "directoryOrder": [
+    "entities",
     "applications",
+    "entity-relationships",
     "task-types",
     "task-roles",
     "task-decision-outcomes",
-    "task-notification-configs"
+    "task-notification-configs",
+    "record-processes",
+    "ml-training-pipelines",
+    "ml-models",
+    "ml-model-scoring-bindings"
   ],
   "emitSyncNotes": false,
   "sqlLogging": {
