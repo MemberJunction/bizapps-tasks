@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, in
 import { CommonModule } from '@angular/common';
 import { RunView } from '@memberjunction/core';
 import { ApprovalDecisionPanelComponent, DecisionRecordedEvent } from '../approval-decision-panel/approval-decision-panel.component';
+import { ApprovalTypePredicate } from './approval-type-predicate';
 
 /** A pending approval-request task shown in the inbox. */
 export interface ApprovalRow {
@@ -18,8 +19,8 @@ export interface ApprovalRow {
  * given approver and embeds the {@link ApprovalDecisionPanelComponent} for
  * recording the outcome. Once a decision is recorded the row clears from the inbox.
  *
- * "Pending" = a task of the "Approval Request" type, assigned to the approver,
- * still in an open state (not Completed/Cancelled) and without a terminal decision.
+ * "Pending" = a task of an approval type (`TaskType.IsApproval`), assigned to the
+ * approver, still in an open state (not Completed/Cancelled) and without a terminal decision.
  *
  * Standalone and Router-free so any Explorer or app can embed it.
  *
@@ -164,8 +165,11 @@ export class ApprovalInboxComponent implements OnInit {
     }
     private _approverPersonID = '';
 
-    /** Name of the TaskType used for approval requests. @default 'Approval Request' */
-    @Input() ApprovalTypeName = 'Approval Request';
+    /**
+     * Name of a single TaskType to list. When null (the default), every task type flagged
+     * `IsApproval` is listed, so an app's own approval type appears without configuring the inbox.
+     */
+    @Input() ApprovalTypeName: string | null = null;
 
     // ── Outputs ─────────────────────────────────────────────
 
@@ -242,14 +246,13 @@ export class ApprovalInboxComponent implements OnInit {
     }
 
     /**
-     * Builds the ExtraFilter for pending approvals: tasks of the approval TaskType,
+     * Builds the ExtraFilter for pending approvals: tasks of an approval TaskType,
      * assigned to this approver, still open, and without any terminal decision yet.
      */
     private async buildPendingFilter(): Promise<string> {
-        const typeName = this.ApprovalTypeName.replace(/'/g, "''");
         const personID = this._approverPersonID.replace(/'/g, "''");
         return [
-            `TypeID IN (SELECT ID FROM __mj_BizAppsTasks.vwTaskTypes WHERE Name = '${typeName}')`,
+            `TypeID IN (SELECT ID FROM __mj_BizAppsTasks.vwTaskTypes WHERE ${ApprovalTypePredicate(this.ApprovalTypeName)})`,
             `Status NOT IN ('Completed', 'Cancelled')`,
             `ID IN (SELECT TaskID FROM __mj_BizAppsTasks.vwTaskAssignments WHERE AssigneeRecordID = '${personID}')`,
             `ID NOT IN (SELECT d.TaskID FROM __mj_BizAppsTasks.vwTaskDecisions d INNER JOIN __mj_BizAppsTasks.vwTaskDecisionOutcomes o ON d.OutcomeID = o.ID WHERE o.IsTerminal = 1)`,
