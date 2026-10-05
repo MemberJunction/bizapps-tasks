@@ -7,8 +7,10 @@
  * server-side subclasses win over the client-safe ones.
  */
 import { TaskEntityServer } from './TaskEntityServer.js';
+import { TaskAssignmentEntityServer } from './TaskAssignmentEntityServer.js';
 
 export { TaskEntityServer } from './TaskEntityServer.js';
+export { TaskAssignmentEntityServer } from './TaskAssignmentEntityServer.js';
 
 /**
  * Bootstrap / anti-tree-shaking anchor. Call once from MJAPI bootstrap.
@@ -17,7 +19,7 @@ export { TaskEntityServer } from './TaskEntityServer.js';
  */
 export function LoadBizAppsTasksEntitiesServer(): void {
     // Reference the class so bundlers cannot tree-shake the registration away.
-    const anchor = [TaskEntityServer];
+    const anchor = [TaskEntityServer, TaskAssignmentEntityServer];
     if (!anchor.length) {
         throw new Error('TaskEntityServer anchor missing');
     }

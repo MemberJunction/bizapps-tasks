@@ -16,7 +16,7 @@ import {
     mjBizAppsTasksTaskTypeEntity,
     mjBizAppsTasksTaskTypeStatusEntity,
 } from '@mj-biz-apps/tasks-entities';
-import { TaskService } from '@mj-biz-apps/tasks-core';
+import { IsUUID, TaskService } from '@mj-biz-apps/tasks-core';
 
 /**
  * Action hook trigger types supported on TaskType and TaskTypeStatus.
@@ -116,6 +116,15 @@ export class TaskEntityServer extends TaskEntity {
         const isNew = !this.IsSaved;
         const typeStatusField = this.Fields.find(f => f.CodeName === 'TaskTypeStatusID');
         const typeStatusDirty = typeStatusField?.Dirty ?? false;
+
+        // This hook runs BEFORE super.Save(), i.e. before the FK constraint can
+        // reject a malformed TypeID/TaskTypeStatusID — so a non-UUID value must
+        // never reach the lookup filters below. Skip the sync and let the save
+        // itself fail with the proper FK error.
+        if ((this.TaskTypeStatusID && !IsUUID(this.TaskTypeStatusID)) || (this.TypeID && !IsUUID(this.TypeID))) {
+            LogError(`TaskEntityServer: skipping status sync — non-UUID TypeID/TaskTypeStatusID on task save`);
+            return;
+        }
 
         if (this.TaskTypeStatusID && (typeStatusDirty || isNew)) {
             const statusRecord = await this.loadTaskTypeStatus(this.TaskTypeStatusID);

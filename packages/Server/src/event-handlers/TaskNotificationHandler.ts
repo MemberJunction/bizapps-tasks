@@ -20,6 +20,7 @@ import {
     UserInfo,
 } from '@memberjunction/core';
 import { MJEventType, MJGlobal, MJEvent } from '@memberjunction/global';
+import { IsUUID, UuidInList } from '@mj-biz-apps/tasks-core';
 import { Subscription } from 'rxjs';
 
 /** Entity names we listen for */
@@ -458,8 +459,10 @@ async function getTaskAssigneeUserIDs(taskID: string, contextUser: UserInfo): Pr
         return [];
     }
 
+    // AssigneeRecordID is a FK-less polymorphic column — stored values are not
+    // shape-validated by the database, so only well-formed UUIDs may reach SQL.
     const personIDs = assignments.Results.map(a => a.AssigneeRecordID);
-    const inClause = personIDs.map((id: string) => `'${id}'`).join(',');
+    const inClause = UuidInList(personIDs);
 
     const people = await rv.RunView<PersonLinkRow>({
         EntityName: 'MJ_BizApps_Common: People',
@@ -481,6 +484,10 @@ async function getTaskAssigneeUserIDs(taskID: string, contextUser: UserInfo): Pr
  * Resolves a PersonID to their linked MJ UserID (if any).
  */
 async function getPersonLinkedUserID(personID: string, contextUser: UserInfo): Promise<string | null> {
+    if (!IsUUID(personID)) {
+        LogError(`TaskNotificationHandler: refusing non-UUID PersonID in lookup: ${JSON.stringify(personID)}`);
+        return null;
+    }
     const rv = new RunView();
     const result = await rv.RunView<PersonLinkRow>({
         EntityName: 'MJ_BizApps_Common: People',

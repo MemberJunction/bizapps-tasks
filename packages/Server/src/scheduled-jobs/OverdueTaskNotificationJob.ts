@@ -16,7 +16,8 @@
  * 3. TaskNotificationConfig global default → OverdueActionID
  * 4. Built-in: create MJ: User Notifications (in-app only)
  */
-import { Metadata, RunView, UserInfo, ValidationResult } from '@memberjunction/core';
+import { LogError, Metadata, RunView, UserInfo, ValidationResult } from '@memberjunction/core';
+import { IsUUID } from '@mj-biz-apps/tasks-core';
 import { MJScheduledJobEntity } from '@memberjunction/core-entities';
 import { RegisterClass } from '@memberjunction/global';
 import { BaseScheduledJob, ScheduledJobExecutionContext } from '@memberjunction/scheduling-engine';
@@ -237,6 +238,12 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
     }
 
     private async getLinkedUserID(personID: string, contextUser: UserInfo): Promise<string | null> {
+        // AssigneeRecordID/CreatedByPersonID land here; the former is a FK-less
+        // polymorphic column, so stored values are not shape-validated by the DB.
+        if (!IsUUID(personID)) {
+            LogError(`OverdueTaskNotificationJob: refusing non-UUID PersonID in lookup: ${JSON.stringify(personID)}`);
+            return null;
+        }
         const rv = new RunView();
         const result = await rv.RunView<{ ID: string; LinkedUserID: string | null }>({
             EntityName: 'MJ_BizApps_Common: People',
