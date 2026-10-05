@@ -50,6 +50,9 @@ importers:
       '@memberjunction/core-entities':
         specifier: ^6.1.0-edge.5
         version: 6.1.0-edge.5
+      '@memberjunction/credentials':
+        specifier: ^6.1.0-edge.5
+        version: 6.1.0-edge.5
       '@memberjunction/global':
         specifier: ^6.1.0-edge.5
         version: 6.1.0-edge.5

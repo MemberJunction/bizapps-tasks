@@ -42,6 +42,12 @@ interface PersonLinkRow {
     LinkedUserID: string | null;
 }
 
+/** An extra input param passed to a TaskType action hook. */
+type ActionHookInput = {
+    Name: string;
+    Value: string | null;
+};
+
 /** Outcome of invoking a TaskType action hook (post-commit, non-blocking). */
 type ActionHookResult = {
     /** True when an action was configured and actually invoked. */
@@ -214,9 +220,12 @@ async function taskHasRejectedDecision(taskID: string, contextUser: UserInfo): P
  * When a NEW task assignment is created, notify the assignee:
  * "You've been assigned: {task name}"
  *
- * Also invokes OnAssign action if configured on the task's TaskType.
+ * Also invokes the OnAssign action if configured on the task's TaskType, passing the
+ * assignee's Person ID and name, whether or not the assignee has a linked MJ user.
+ *
+ * Exported for unit testing.
  */
-async function handleAssignmentSave(event: BaseEntityEvent): Promise<void> {
+export async function handleAssignmentSave(event: BaseEntityEvent): Promise<void> {
     if (event.saveSubType !== 'create') {
         return;
     }
@@ -227,7 +236,21 @@ async function handleAssignmentSave(event: BaseEntityEvent): Promise<void> {
 
     const assigneeRecordID = assignment.Get('AssigneeRecordID') as string;
     const taskID = assignment.Get('TaskID') as string;
+    const roleID = assignment.Get('RoleID') as string | null;
 
+    // The in-app notification needs a linked MJ user; the OnAssign hook does not. An external
+    // channel such as Teams is how an assignee without a linked user learns of the task.
+    await notifyAssignee(assigneeRecordID, taskID, roleID, contextUser);
+
+    const hookParams = await buildAssignHookParams(assigneeRecordID, taskID, contextUser);
+    await invokeTaskTypeActionByTaskID(taskID, 'OnAssignActionID', contextUser, hookParams);
+}
+
+/**
+ * Sends the "You've been assigned" notification to the assignee's linked MJ user, if any.
+ * Skips assignees that have no linked user.
+ */
+async function notifyAssignee(assigneeRecordID: string, taskID: string, roleID: string | null, contextUser: UserInfo): Promise<void> {
     // Resolve the assignee's linked MJ UserID
     const userID = await getPersonLinkedUserID(assigneeRecordID, contextUser);
     if (!userID) return;
@@ -250,7 +273,6 @@ async function handleAssignmentSave(event: BaseEntityEvent): Promise<void> {
     const dueStr = dueAt ? ` Due: ${dueAt}.` : '';
 
     // Resolve role name if present
-    const roleID = assignment.Get('RoleID') as string | null;
     let roleStr = '';
     if (roleID) {
         const roleResult = await new RunView().RunView<{ Name: string }>({
@@ -270,9 +292,18 @@ async function handleAssignmentSave(event: BaseEntityEvent): Promise<void> {
         contextUser
     );
     LogStatus(`[BizAppsTasks] Sent assignment notification for "${taskName}"`);
+}
 
-    // Invoke OnAssign action if configured on the task's TaskType
-    await invokeTaskTypeActionByTaskID(taskID, 'OnAssignActionID', contextUser);
+/**
+ * Inputs an OnAssign action receives beyond the task's own: who was assigned, so an action
+ * such as a Teams post can name them.
+ */
+async function buildAssignHookParams(assigneeRecordID: string, taskID: string, contextUser: UserInfo): Promise<ActionHookInput[]> {
+    const assigneeName = await getPersonName(assigneeRecordID, contextUser);
+    return [
+        { Name: 'AssigneePersonID', Value: assigneeRecordID },
+        { Name: 'AssigneeName', Value: assigneeName },
+    ];
 }
 
 // ---------------------------------------------------------------------------
@@ -342,6 +373,7 @@ async function invokeTaskTypeAction(
     task: BaseEntity,
     actionColumn: TaskTypeActionColumn,
     contextUser: UserInfo,
+    extraParams: ActionHookInput[] = [],
 ): Promise<ActionHookResult> {
     const typeID = task.Get('TypeID') as string | null;
     if (!typeID) return { Invoked: false };
@@ -379,6 +411,8 @@ async function invokeTaskTypeAction(
                 { Name: 'TaskID', Value: task.Get('ID'), Type: 'Input' },
                 { Name: 'TaskName', Value: taskName, Type: 'Input' },
                 { Name: 'Status', Value: task.Get('Status'), Type: 'Input' },
+                { Name: 'TaskTypeID', Value: typeID, Type: 'Input' },
+                ...extraParams.map((p) => ({ ...p, Type: 'Input' as const })),
             ],
             Filters: [],
         });
@@ -423,6 +457,7 @@ async function invokeTaskTypeActionByTaskID(
     taskID: string,
     actionColumn: TaskTypeActionColumn,
     contextUser: UserInfo,
+    extraParams: ActionHookInput[] = [],
 ): Promise<void> {
     const rv = new RunView();
     const result = await rv.RunView<BaseEntity>({
@@ -433,7 +468,7 @@ async function invokeTaskTypeActionByTaskID(
     }, contextUser);
     const task = result?.Results?.[0];
     if (task) {
-        await invokeTaskTypeAction(task, actionColumn, contextUser);
+        await invokeTaskTypeAction(task, actionColumn, contextUser, extraParams);
     }
 }
 
