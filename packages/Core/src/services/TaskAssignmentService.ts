@@ -72,7 +72,9 @@ export class TaskAssignmentService {
         const rv = new RunView();
         const result = await rv.RunView<BaseEntity>({
             EntityName: 'MJ_BizApps_Tasks: Task Assignments',
-            ExtraFilter: `TaskID = '${taskID}'`,
+            // Escape embedded quotes: this is a public method, so harden the
+            // caller-supplied ID before interpolating it into the filter.
+            ExtraFilter: `TaskID = '${taskID.replace(/'/g, "''")}'`,
             ResultType: 'entity_object',
         });
         return result?.Results ?? [];
