@@ -1,6 +1,6 @@
 import { Component, ChangeDetectionStrategy, inject, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Metadata } from '@memberjunction/core';
+import { ResolveCurrentPersonID, NO_PERSON_MESSAGE } from '../current-person';
 import { OpenTaskRecord } from '../open-task-record';
 import { MyTasksComponent } from '../components/my-tasks/my-tasks.component';
 import { TaskDetailPanelComponent } from '../components/task-detail-panel/task-detail-panel.component';
@@ -29,11 +29,15 @@ import { TaskRow } from '../components/task-list/task-list.component';
             </div>
 
             <div class="mjt-body-card">
-                <bizapps-my-tasks
-                    [PersonID]="PersonID || ''"
-                    (AfterTaskSelected)="OnTaskSelected($event)"
-                    (TaskDoubleClicked)="OpenFullRecord($event.ID)">
-                </bizapps-my-tasks>
+                @if (PersonID) {
+                    <bizapps-my-tasks
+                        [PersonID]="PersonID"
+                        (AfterTaskSelected)="OnTaskSelected($event)"
+                        (TaskDoubleClicked)="OpenFullRecord($event.ID)">
+                    </bizapps-my-tasks>
+                } @else if (PersonResolved) {
+                    <p class="mjt-empty">{{ NoPersonMessage }}</p>
+                }
             </div>
 
             @if (PanelMode !== 'none') {
@@ -77,6 +81,7 @@ import { TaskRow } from '../components/task-list/task-list.component';
         .mjt-title-area { display: flex; flex-direction: column; gap: 2px; }
         .mjt-title { margin: 0; font-size: 18px; font-weight: 700; color: var(--mj-text-primary, #0f172a); }
         .mjt-subtitle { margin: 0; font-size: 12px; color: var(--mj-text-muted, #64748b); }
+        .mjt-empty { margin: 0; font-size: 13px; color: var(--mj-text-secondary, #475569); }
         .mjt-body-card {
             background: var(--mj-bg-surface-card, #ffffff); border: 1px solid var(--mj-border-default, #e2e8f0);
             border-radius: var(--mj-radius-lg, 12px); padding: 16px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
@@ -91,6 +96,8 @@ import { TaskRow } from '../components/task-list/task-list.component';
 })
 export class MyTasksPageComponent implements OnInit {
     public PersonID: string | null = null;
+    public PersonResolved = false;
+    public readonly NoPersonMessage = NO_PERSON_MESSAGE;
     public SelectedTaskID: string | null = null;
     public PanelMode: 'none' | 'detail' | 'edit' = 'none';
 
@@ -100,9 +107,9 @@ export class MyTasksPageComponent implements OnInit {
         OpenTaskRecord(taskID);
     }
 
-    ngOnInit(): void {
-        const md = new Metadata();
-        this.PersonID = md.CurrentUser?.Email ?? null;
+    async ngOnInit(): Promise<void> {
+        this.PersonID = await ResolveCurrentPersonID();
+        this.PersonResolved = true;
         this.cdr.markForCheck();
     }
 

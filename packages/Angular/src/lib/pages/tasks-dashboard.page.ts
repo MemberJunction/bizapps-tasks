@@ -1,7 +1,8 @@
 import { Component, EventEmitter, Input, Output, OnInit, ViewChild, ChangeDetectionStrategy, ChangeDetectorRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RunView, Metadata } from '@memberjunction/core';
+import { RunView } from '@memberjunction/core';
+import { ResolveCurrentPersonID } from '../current-person';
 import { OpenTaskRecord } from '../open-task-record';
 import { TaskListComponent } from '../components/task-list/task-list.component';
 import { TaskKanbanComponent } from '../components/task-kanban/task-kanban.component';
@@ -376,12 +377,12 @@ export class TasksDashboardPageComponent implements OnInit {
     }
 
     async ngOnInit(): Promise<void> {
-        const md = new Metadata();
-        this.CurrentPersonID = md.CurrentUser?.Email ?? null;
-        await Promise.all([
+        const [personID] = await Promise.all([
+            ResolveCurrentPersonID(),
             this.LoadCategories(),
             this.LoadKPIs(),
         ]);
+        this.CurrentPersonID = personID;
         this.cdr.markForCheck();
     }
 
