@@ -1,0 +1,13 @@
+{
+  "entity": "MJ: Credential Types",
+  "filePattern": "**/.*.json",
+  "pull": {
+    "createNewFileIfNotFound": true,
+    "newFileName": ".tasks-credential-types.json",
+    "appendRecordsToExistingFile": true,
+    "updateExistingRecords": true,
+    "ignoreNullFields": true,
+    "ignoreVirtualFields": true,
+    "filter": "Name = 'Teams Channel Webhook'"
+  }
+}

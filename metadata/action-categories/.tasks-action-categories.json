@@ -1,0 +1,9 @@
+[
+  {
+    "fields": {
+      "Name": "Tasks",
+      "Description": "Actions provided by BizApps Tasks, such as task type hooks that notify assignees outside the app.",
+      "Status": "Active"
+    }
+  }
+]

@@ -5,6 +5,9 @@
   },
   "directoryOrder": [
     "entities",
+    "credential-types",
+    "action-categories",
+    "actions",
     "applications",
     "entity-relationships",
     "task-types",
