@@ -3588,6 +3588,9 @@ export class mjBizAppsTasksTaskType_ {
     @MaxLength(36)
     OnStatusChangeActionID?: string;
         
+    @Field(() => Boolean, {description: `When true, tasks of this type are approvals: they appear in the approvals inbox of each assignee, who records a decision on them.`}) 
+    IsApproval: boolean;
+        
     @Field({nullable: true}) 
     @MaxLength(425)
     OnAssignAction?: string;
@@ -3675,6 +3678,9 @@ export class CreatemjBizAppsTasksTaskTypeInput {
     @Field({ nullable: true })
     OnStatusChangeActionID: string | null;
 
+    @Field(() => Boolean, { nullable: true })
+    IsApproval?: boolean;
+
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
 }
@@ -3729,6 +3735,9 @@ export class UpdatemjBizAppsTasksTaskTypeInput {
 
     @Field({ nullable: true })
     OnStatusChangeActionID?: string | null;
+
+    @Field(() => Boolean, { nullable: true })
+    IsApproval?: boolean;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];
