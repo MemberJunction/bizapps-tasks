@@ -2,9 +2,24 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { UserInfo } from '@memberjunction/core';
 
 const { runView } = vi.hoisted(() => ({ runView: vi.fn() }));
+
+const PEOPLE_ID = 'a1a1a1a1-0000-4000-8000-000000000001';
+const BC_PEOPLE_ID = 'b2b2b2b2-0000-4000-8000-000000000002';
+const OTHER_ENTITY_ID = 'c3c3c3c3-0000-4000-8000-000000000003';
+const PERSON_ID = 'd4d4d4d4-0000-4000-8000-000000000004';
+const people = { Name: 'MJ_BizApps_Common: People', ParentChain: [] };
+const entities: Record<string, unknown> = {
+    [PEOPLE_ID]: people,
+    [BC_PEOPLE_ID]: { Name: 'BC: People', ParentChain: [people] },
+    [OTHER_ENTITY_ID]: { Name: 'Employees', ParentChain: [] },
+};
+
 vi.mock('@memberjunction/core', () => ({
     Metadata: class {
         CurrentUser = { ID: 'current-user', Email: 'current@example.com' };
+        EntityByID(id: string) {
+            return entities[id];
+        }
     },
     RunView: class {
         RunView = runView;
@@ -13,7 +28,8 @@ vi.mock('@memberjunction/core', () => ({
 
 import { ResolveCurrentPersonID, PEOPLE_ENTITY } from '../current-person';
 
-const user = (id: string): UserInfo => ({ ID: id, Email: `${id}@example.com` }) as UserInfo;
+const user = (id: string, link?: { entityID: string; recordID: string }): UserInfo =>
+    ({ ID: id, Email: `${id}@example.com`, LinkedEntityID: link?.entityID, LinkedEntityRecordID: link?.recordID }) as unknown as UserInfo;
 
 describe('ResolveCurrentPersonID', () => {
     beforeEach(() => {
@@ -29,6 +45,33 @@ describe('ResolveCurrentPersonID', () => {
         expect(params.EntityName).toBe(PEOPLE_ENTITY);
         expect(params.ExtraFilter).toBe(`LinkedUserID = 'user-1' AND Status = 'Active'`);
         expect(params.MaxRows).toBe(1);
+    });
+
+    it('uses the user record\'s link to a People subtype, as BC binds users', async () => {
+        runView.mockResolvedValue({ Success: true, Results: [{ ID: PERSON_ID }] });
+
+        await expect(ResolveCurrentPersonID(user('user-1', { entityID: BC_PEOPLE_ID, recordID: PERSON_ID }))).resolves.toBe(PERSON_ID);
+        expect(runView.mock.calls[0][0].ExtraFilter).toBe(`ID = '${PERSON_ID}' AND Status = 'Active'`);
+    });
+
+    it('uses the user record\'s link to People itself', async () => {
+        runView.mockResolvedValue({ Success: true, Results: [{ ID: PERSON_ID }] });
+
+        await ResolveCurrentPersonID(user('user-1', { entityID: PEOPLE_ID, recordID: PERSON_ID }));
+        expect(runView.mock.calls[0][0].ExtraFilter).toBe(`ID = '${PERSON_ID}' AND Status = 'Active'`);
+    });
+
+    it('falls back to LinkedUserID when the user links to another entity', async () => {
+        runView.mockResolvedValue({ Success: true, Results: [{ ID: 'person-1' }] });
+
+        await ResolveCurrentPersonID(user('user-1', { entityID: OTHER_ENTITY_ID, recordID: PERSON_ID }));
+        expect(runView.mock.calls[0][0].ExtraFilter).toBe(`LinkedUserID = 'user-1' AND Status = 'Active'`);
+    });
+
+    it('returns null when the linked Person is not active', async () => {
+        runView.mockResolvedValue({ Success: true, Results: [] });
+
+        await expect(ResolveCurrentPersonID(user('user-1', { entityID: BC_PEOPLE_ID, recordID: PERSON_ID }))).resolves.toBeNull();
     });
 
     it('never uses the email address as the Person ID', async () => {
