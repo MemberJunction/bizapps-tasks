@@ -99,6 +99,15 @@ describe('handleAssignmentSave', () => {
     expect(paramsPassed().AssigneePersonID).toBe('person-1');
   });
 
+  it('still invokes the OnAssign action when the notification throws', async () => {
+    mockViews('user-1');
+    saveNotification.mockRejectedValue(new Error('notification store down'));
+
+    await handleAssignmentSave(assignmentCreated());
+
+    expect(runAction).toHaveBeenCalledOnce();
+  });
+
   it('ignores updates to an existing assignment', async () => {
     mockViews('user-1');
     const event = { ...assignmentCreated(), saveSubType: 'update' } as Parameters<typeof handleAssignmentSave>[0];

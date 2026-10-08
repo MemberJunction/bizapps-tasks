@@ -111,6 +111,14 @@
         {
           "fields": {
             "ActionID": "@parent:ID",
+            "ResultCode": "INVALID_TASK_TYPE",
+            "IsSuccess": false,
+            "Description": "TaskTypeID was supplied but is not a valid ID."
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
             "ResultCode": "MISSING_CREDENTIAL",
             "IsSuccess": false,
             "Description": "No 'Teams Channel Webhook' credential matched and the type has no default."

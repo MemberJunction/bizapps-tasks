@@ -53,10 +53,16 @@ describe('ResolveCurrentPersonID', () => {
         await expect(ResolveCurrentPersonID(user('user-1'))).resolves.toBeNull();
     });
 
-    it('returns null when the lookup fails', async () => {
+    it('throws when the lookup fails, rather than reporting no linked Person', async () => {
         runView.mockResolvedValue({ Success: false, ErrorMessage: 'boom', Results: [] });
 
-        await expect(ResolveCurrentPersonID(user('user-1'))).resolves.toBeNull();
+        await expect(ResolveCurrentPersonID(user('user-1'))).rejects.toThrow('boom');
+    });
+
+    it('lets a transport error through', async () => {
+        runView.mockRejectedValue(new Error('network down'));
+
+        await expect(ResolveCurrentPersonID(user('user-1'))).rejects.toThrow('network down');
     });
 
     it('returns null without querying when the user has no ID', async () => {

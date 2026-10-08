@@ -1,8 +1,8 @@
-import { RunView, UserInfo } from '@memberjunction/core';
+import { LogStatus, RunView, UserInfo } from '@memberjunction/core';
 import { ActionResultSimple, RunActionParams } from '@memberjunction/actions-base';
 import { BaseAction } from '@memberjunction/actions';
 import { CredentialEngine } from '@memberjunction/credentials';
-import { RegisterClass } from '@memberjunction/global';
+import { IsValidUUID, RegisterClass } from '@memberjunction/global';
 import {
     BuildAssignmentCardPayload,
     BuildTaskLink,
@@ -32,7 +32,11 @@ export class PostTaskAssignmentToTeamsAction extends BaseAction {
         const taskName = paramValue(params, 'TaskName');
         if (!taskID || !taskName) return fail('MISSING_TASK', 'TaskID and TaskName are required');
 
-        const taskType = await loadTaskType(paramValue(params, 'TaskTypeID'), user);
+        const taskTypeID = paramValue(params, 'TaskTypeID');
+        // The ID goes into a view filter, and an unrecognized type must not fall through to the default channel.
+        if (taskTypeID && !IsValidUUID(taskTypeID)) return fail('INVALID_TASK_TYPE', 'TaskTypeID is not a valid ID');
+
+        const taskType = await loadTaskType(taskTypeID, user);
         const credential = await resolveWebhookCredential(paramValue(params, 'CredentialName') ?? taskType?.Code ?? null, user);
         if (!credential) {
             return fail('MISSING_CREDENTIAL', `No "${TEAMS_WEBHOOK_CREDENTIAL_TYPE}" credential found for task type ${taskType?.Code ?? '(none)'}`);
@@ -76,9 +80,13 @@ async function loadTaskType(taskTypeID: string | null, user: UserInfo): Promise<
 async function resolveWebhookCredential(name: string | null, user: UserInfo): Promise<TeamsWebhookCredentialValues | null> {
     const engine = CredentialEngine.Instance;
     await engine.Config(false, user);
-    const credential = (name ? engine.getCredentialByName(TEAMS_WEBHOOK_CREDENTIAL_TYPE, name) : undefined)
-        ?? engine.getDefaultCredentialForType(TEAMS_WEBHOOK_CREDENTIAL_TYPE);
+    const named = name ? engine.getCredentialByName(TEAMS_WEBHOOK_CREDENTIAL_TYPE, name) : undefined;
+    const credential = named ?? engine.getDefaultCredentialForType(TEAMS_WEBHOOK_CREDENTIAL_TYPE);
     if (!credential) return null;
+    if (!named) {
+        // A mistyped CredentialName or type Code posts to the default channel, so say which one was used.
+        LogStatus(`[BizAppsTasks] No "${TEAMS_WEBHOOK_CREDENTIAL_TYPE}" credential named "${name ?? '(none)'}"; using the default credential "${credential.Name}"`);
+    }
     const resolved = await engine.getCredential<TeamsWebhookCredentialValues>(credential.Name, {
         credentialId: credential.ID,
         contextUser: user,

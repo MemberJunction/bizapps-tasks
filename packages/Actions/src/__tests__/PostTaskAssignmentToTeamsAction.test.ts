@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-const { runView, engine } = vi.hoisted(() => ({
+const { runView, logStatus, engine } = vi.hoisted(() => ({
     runView: vi.fn(),
+    logStatus: vi.fn(),
     engine: {
         Config: vi.fn(),
         getCredentialByName: vi.fn(),
@@ -12,12 +13,16 @@ const { runView, engine } = vi.hoisted(() => ({
 
 vi.mock('@memberjunction/actions-base', () => ({}));
 vi.mock('@memberjunction/actions', () => ({ BaseAction: class {} }));
-vi.mock('@memberjunction/global', () => ({ RegisterClass: () => () => {} }));
-vi.mock('@memberjunction/core', () => ({ RunView: class { RunView = runView; } }));
+vi.mock('@memberjunction/global', () => ({
+    RegisterClass: () => () => {},
+    IsValidUUID: (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
+}));
+vi.mock('@memberjunction/core', () => ({ RunView: class { RunView = runView; }, LogStatus: logStatus }));
 vi.mock('@memberjunction/credentials', () => ({ CredentialEngine: { Instance: engine } }));
 
 import { PostTaskAssignmentToTeamsAction } from '../custom/PostTaskAssignmentToTeamsAction.js';
 
+const TYPE_ID = '3a1f0c52-7d4e-4b8a-9c6e-2f5d8b1e4a70';
 const WEBHOOK = 'https://tenant.environment.api.powerplatform.com/powerautomate/workflows/x/invoke?sig=secret';
 const fetchMock = vi.fn();
 
@@ -30,12 +35,12 @@ async function run(params: Record<string, string>): Promise<Result> {
     });
 }
 
-const baseParams = { TaskID: 'task-1', TaskName: 'Approve discount', TaskTypeID: 'type-1', AssigneeName: 'Pat Doe' };
+const baseParams = { TaskID: 'task-1', TaskName: 'Approve discount', TaskTypeID: TYPE_ID, AssigneeName: 'Pat Doe' };
 
 beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal('fetch', fetchMock);
-    runView.mockResolvedValue({ Success: true, Results: [{ ID: 'type-1', Name: 'Concession Approval', Code: 'CONCESSION_APPROVAL' }] });
+    runView.mockResolvedValue({ Success: true, Results: [{ ID: TYPE_ID, Name: 'Concession Approval', Code: 'CONCESSION_APPROVAL' }] });
     engine.getCredentialByName.mockReturnValue({ ID: 'cred-1', Name: 'CONCESSION_APPROVAL' });
     engine.getCredential.mockResolvedValue({ values: { webhookUrl: WEBHOOK, explorerUrl: 'https://app.example.com' } });
     fetchMock.mockResolvedValue({ ok: true, status: 202, text: async () => '' });
@@ -69,6 +74,15 @@ describe('PostTaskAssignmentToTeamsAction', () => {
 
         expect(result.Success).toBe(true);
         expect(engine.getCredential).toHaveBeenCalledWith('Default', expect.objectContaining({ credentialId: 'cred-default' }));
+        expect(logStatus).toHaveBeenCalledWith(expect.stringContaining('using the default credential "Default"'));
+    });
+
+    it('rejects a TaskTypeID that is not a UUID before querying', async () => {
+        const result = await run({ ...baseParams, TaskTypeID: "x' OR '1'='1" });
+
+        expect(result).toMatchObject({ Success: false, ResultCode: 'INVALID_TASK_TYPE' });
+        expect(runView).not.toHaveBeenCalled();
+        expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it('fails without posting when no credential exists', async () => {
@@ -101,7 +115,7 @@ describe('PostTaskAssignmentToTeamsAction', () => {
     });
 
     it('requires the task ID and name', async () => {
-        const result = await run({ TaskTypeID: 'type-1' });
+        const result = await run({ TaskTypeID: TYPE_ID });
         expect(result.ResultCode).toBe('MISSING_TASK');
     });
 });

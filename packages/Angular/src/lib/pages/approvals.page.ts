@@ -1,6 +1,7 @@
 import { Component, ChangeDetectionStrategy, inject, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ResolveCurrentPersonID, NO_PERSON_MESSAGE } from '../current-person';
+import { LogError } from '@memberjunction/core';
+import { ResolveCurrentPersonID, NO_PERSON_MESSAGE, PERSON_LOOKUP_FAILED_MESSAGE } from '../current-person';
 import { ApprovalInboxComponent } from '../components/approval-inbox/approval-inbox.component';
 import { DecisionRecordedEvent } from '../components/approval-decision-panel/approval-decision-panel.component';
 
@@ -31,6 +32,8 @@ import { DecisionRecordedEvent } from '../components/approval-decision-panel/app
                         [ApproverPersonID]="PersonID"
                         (DecisionRecorded)="OnDecisionRecorded($event)">
                     </bizapps-approval-inbox>
+                } @else if (PersonLookupFailed) {
+                    <p class="mjt-empty">{{ LookupFailedMessage }}</p>
                 } @else if (PersonResolved) {
                     <p class="mjt-empty">{{ NoPersonMessage }}</p>
                 }
@@ -65,12 +68,19 @@ import { DecisionRecordedEvent } from '../components/approval-decision-panel/app
 export class ApprovalsPageComponent implements OnInit {
     public PersonID: string | null = null;
     public PersonResolved = false;
+    public PersonLookupFailed = false;
     public readonly NoPersonMessage = NO_PERSON_MESSAGE;
+    public readonly LookupFailedMessage = PERSON_LOOKUP_FAILED_MESSAGE;
 
     private cdr = inject(ChangeDetectorRef);
 
     async ngOnInit(): Promise<void> {
-        this.PersonID = await ResolveCurrentPersonID();
+        try {
+            this.PersonID = await ResolveCurrentPersonID();
+        } catch (err) {
+            LogError(err);
+            this.PersonLookupFailed = true;
+        }
         this.PersonResolved = true;
         this.cdr.markForCheck();
     }

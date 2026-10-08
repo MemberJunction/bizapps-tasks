@@ -40,6 +40,14 @@ export function BuildTaskLink(explorerUrl: string | undefined, taskID: string): 
     return `${base}/resource/record/${encodeURIComponent('MJ_BizApps_Tasks: Tasks')}/${encodeURIComponent(taskID)}`;
 }
 
+/**
+ * Escapes the characters Teams reads as markdown in a TextBlock or fact value, so a task or
+ * person name such as `[click](http://evil)` shows as typed instead of becoming a link.
+ */
+export function EscapeTeamsMarkdown(text: string): string {
+    return text.replace(/[\\*_[\]]/g, (ch) => `\\${ch}`);
+}
+
 /** What the card says about the assignment. */
 export type AssignmentCardInput = {
     TaskName: string;
@@ -53,10 +61,10 @@ export type AssignmentCardInput = {
  * accept this `message` + `attachments` shape.
  */
 export function BuildAssignmentCardPayload(input: AssignmentCardInput): Record<string, unknown> {
-    const heading = input.TaskTypeName ? `New ${input.TaskTypeName.toLowerCase()}` : 'New task assigned';
+    const heading = input.TaskTypeName ? `New ${EscapeTeamsMarkdown(input.TaskTypeName.toLowerCase())}` : 'New task assigned';
     const facts = [
-        { title: 'Task', value: input.TaskName },
-        ...(input.AssigneeName ? [{ title: 'Assigned to', value: input.AssigneeName }] : []),
+        { title: 'Task', value: EscapeTeamsMarkdown(input.TaskName) },
+        ...(input.AssigneeName ? [{ title: 'Assigned to', value: EscapeTeamsMarkdown(input.AssigneeName) }] : []),
     ];
     const card: Record<string, unknown> = {
         $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { BuildAssignmentCardPayload, BuildTaskLink, IsSupportedTeamsWebhookURL } from '../custom/teams-assignment-card.js';
+import { BuildAssignmentCardPayload, BuildTaskLink, EscapeTeamsMarkdown, IsSupportedTeamsWebhookURL } from '../custom/teams-assignment-card.js';
 
 type Card = { body: Array<{ type: string; text?: string; facts?: Array<{ title: string; value: string }> }>; actions?: Array<{ url: string }> };
 const cardOf = (payload: Record<string, unknown>): Card =>
@@ -59,5 +59,22 @@ describe('BuildAssignmentCardPayload', () => {
         expect(card.body[0].text).toBe('New task assigned');
         expect(card.body[1].facts).toEqual([{ title: 'Task', value: 'T' }]);
         expect(card.actions).toBeUndefined();
+    });
+});
+
+describe('EscapeTeamsMarkdown', () => {
+    it('escapes link and emphasis characters so names show as typed', () => {
+        expect(EscapeTeamsMarkdown('[click](http://evil)')).toBe('\\[click\\](http://evil)');
+        expect(EscapeTeamsMarkdown('*bold* _it_ a\\b')).toBe('\\*bold\\* \\_it\\_ a\\\\b');
+        expect(EscapeTeamsMarkdown('Pat Doe-Smith')).toBe('Pat Doe-Smith');
+    });
+
+    it('is applied to the task and assignee names on the card', () => {
+        const card = cardOf(BuildAssignmentCardPayload({ TaskName: '[click](http://evil)', TaskTypeName: null, AssigneeName: '*Pat*', TaskLink: null }));
+        const facts = card.body.find((b) => b.type === 'FactSet')!.facts!;
+        expect(facts).toEqual([
+            { title: 'Task', value: '\\[click\\](http://evil)' },
+            { title: 'Assigned to', value: '\\*Pat\\*' },
+        ]);
     });
 });

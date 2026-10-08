@@ -239,8 +239,13 @@ export async function handleAssignmentSave(event: BaseEntityEvent): Promise<void
     const roleID = assignment.Get('RoleID') as string | null;
 
     // The in-app notification needs a linked MJ user; the OnAssign hook does not. An external
-    // channel such as Teams is how an assignee without a linked user learns of the task.
-    await notifyAssignee(assigneeRecordID, taskID, roleID, contextUser);
+    // channel such as Teams is how an assignee without a linked user learns of the task, so a
+    // failed notification must not skip the hook.
+    try {
+        await notifyAssignee(assigneeRecordID, taskID, roleID, contextUser);
+    } catch (err) {
+        LogError(`[BizAppsTasks] Assignment notification error: ${err instanceof Error ? err.message : String(err)}`);
+    }
 
     const hookParams = await buildAssignHookParams(assigneeRecordID, taskID, contextUser);
     await invokeTaskTypeActionByTaskID(taskID, 'OnAssignActionID', contextUser, hookParams);
