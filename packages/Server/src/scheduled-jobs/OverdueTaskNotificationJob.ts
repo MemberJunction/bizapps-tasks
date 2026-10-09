@@ -21,6 +21,7 @@ import { MJScheduledJobEntity } from '@memberjunction/core-entities';
 import { RegisterClass } from '@memberjunction/global';
 import { BaseScheduledJob, ScheduledJobExecutionContext } from '@memberjunction/scheduling-engine';
 import { ScheduledJobResult, NotificationContent } from '@memberjunction/scheduling-base-types';
+import { ResolveUserIDsForPeople } from '../person-user-link.js';
 
 /** Shape of the TaskNotificationConfig rows loaded from the DB. */
 interface NotificationConfig {
@@ -209,7 +210,7 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
         config: NotificationConfig,
         contextUser: UserInfo,
     ): Promise<string[]> {
-        const userIDs = new Set<string>();
+        const personIDs: string[] = [];
         const rv = new RunView();
 
         // Assignees
@@ -219,33 +220,26 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
                 ExtraFilter: `TaskID='${task.ID}'`,
                 ResultType: 'simple',
             }, contextUser);
-
-            const personIDs = (assignments?.Results ?? []).map(a => a.AssigneeRecordID);
-            for (const personID of personIDs) {
-                const uid = await this.getLinkedUserID(personID, contextUser);
-                if (uid) userIDs.add(uid);
-            }
+            personIDs.push(...(assignments?.Results ?? []).map(a => a.AssigneeRecordID));
         }
 
         // Creator
         if (config.NotifyCreator && task.CreatedByPersonID) {
-            const uid = await this.getLinkedUserID(task.CreatedByPersonID, contextUser);
-            if (uid) userIDs.add(uid);
+            personIDs.push(task.CreatedByPersonID);
         }
 
-        return [...userIDs];
+        return this.getLinkedUserIDs(personIDs, task.ID, contextUser);
     }
 
-    private async getLinkedUserID(personID: string, contextUser: UserInfo): Promise<string | null> {
-        const rv = new RunView();
-        const result = await rv.RunView<{ ID: string; LinkedUserID: string | null }>({
-            EntityName: 'MJ_BizApps_Common: People',
-            ExtraFilter: `ID='${personID}'`,
-            Fields: ['ID', 'LinkedUserID'],
-            ResultType: 'simple',
-            MaxRows: 1,
-        }, contextUser);
-        return result?.Results?.[0]?.LinkedUserID ?? null;
+    /** The users bound to these Persons: each user's People link, else People.LinkedUserID. */
+    private async getLinkedUserIDs(personIDs: string[], taskID: string, contextUser: UserInfo): Promise<string[]> {
+        if (personIDs.length === 0) return [];
+        try {
+            return [...new Set((await ResolveUserIDsForPeople(personIDs, Metadata.Provider, contextUser)).values())];
+        } catch (error) {
+            this.logError(`Could not resolve the recipients of task ${taskID}`, error);
+            return [];
+        }
     }
 
     // ---------------------------------------------------------------
