@@ -18,7 +18,7 @@
  */
 import { Metadata, RunView, UserInfo, ValidationResult } from '@memberjunction/core';
 import { MJScheduledJobEntity } from '@memberjunction/core-entities';
-import { RegisterClass } from '@memberjunction/global';
+import { IsValidUUID, RegisterClass } from '@memberjunction/global';
 import { BaseScheduledJob, ScheduledJobExecutionContext } from '@memberjunction/scheduling-engine';
 import { ScheduledJobResult, NotificationContent } from '@memberjunction/scheduling-base-types';
 
@@ -237,6 +237,10 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
     }
 
     private async getLinkedUserID(personID: string, contextUser: UserInfo): Promise<string | null> {
+        // Assignee IDs come from TaskAssignment.AssigneeRecordID, a polymorphic NVARCHAR(450)
+        // column holding client-supplied free text — and this job runs under the scheduler's
+        // privileged context user. Refuse anything that is not a UUID before interpolating it.
+        if (!IsValidUUID(personID)) return null;
         const rv = new RunView();
         const result = await rv.RunView<{ ID: string; LinkedUserID: string | null }>({
             EntityName: 'MJ_BizApps_Common: People',
