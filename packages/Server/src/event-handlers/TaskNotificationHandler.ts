@@ -19,7 +19,7 @@ import {
     RunView,
     UserInfo,
 } from '@memberjunction/core';
-import { MJEventType, MJGlobal, MJEvent } from '@memberjunction/global';
+import { IsValidUUID, MJEventType, MJGlobal, MJEvent } from '@memberjunction/global';
 import { Subscription } from 'rxjs';
 
 /** Entity names we listen for */
@@ -498,7 +498,15 @@ async function getTaskAssigneeUserIDs(taskID: string, contextUser: UserInfo): Pr
         return [];
     }
 
-    const personIDs = assignments.Results.map(a => a.AssigneeRecordID);
+    // AssigneeRecordID is a polymorphic NVARCHAR(450) column (not a GUID FK), so a stored
+    // value is attacker-controllable free text. Only interpolate values proven to be UUIDs —
+    // anything else cannot be a People.ID and would be a SQL injection vector here.
+    const personIDs = assignments.Results
+        .map(a => a.AssigneeRecordID)
+        .filter((id: string) => IsValidUUID(id));
+    if (personIDs.length === 0) {
+        return [];
+    }
     const inClause = personIDs.map((id: string) => `'${id}'`).join(',');
 
     const people = await rv.RunView<PersonLinkRow>({
@@ -521,6 +529,10 @@ async function getTaskAssigneeUserIDs(taskID: string, contextUser: UserInfo): Pr
  * Resolves a PersonID to their linked MJ UserID (if any).
  */
 async function getPersonLinkedUserID(personID: string, contextUser: UserInfo): Promise<string | null> {
+    // Callers pass TaskAssignment.AssigneeRecordID, a polymorphic NVARCHAR(450) column whose
+    // value is client-supplied free text. Refuse anything that is not a UUID before it reaches
+    // the interpolated filter below.
+    if (!IsValidUUID(personID)) return null;
     const rv = new RunView();
     const result = await rv.RunView<PersonLinkRow>({
         EntityName: 'MJ_BizApps_Common: People',
@@ -537,6 +549,8 @@ async function getPersonLinkedUserID(personID: string, contextUser: UserInfo): P
  * Resolves a PersonID to their display name.
  */
 async function getPersonName(personID: string, contextUser: UserInfo): Promise<string | null> {
+    // Same trust boundary as getPersonLinkedUserID: AssigneeRecordID is NVARCHAR, not a GUID FK.
+    if (!IsValidUUID(personID)) return null;
     const rv = new RunView();
     const result = await rv.RunView<{ FirstName: string; LastName: string }>({
         EntityName: 'MJ_BizApps_Common: People',

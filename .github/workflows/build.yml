@@ -28,6 +28,10 @@ on:
       - 'turbo.json'
       - '.github/workflows/build.yml'
 
+# Build/validate only — never needs to write to the repo.
+permissions:
+  contents: read
+
 concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
