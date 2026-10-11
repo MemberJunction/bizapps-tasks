@@ -1,5 +1,15 @@
 # @mj-biz-apps/tasks-core
 
+## 1.7.0
+
+### Patch Changes
+
+- 209989d: MemberJunction and other BizApps packages are peer dependencies with caret ranges (nothing in `dependencies`), so a host keeps one copy of each. `@memberjunction/ng-hierarchy-tree` moved from `tasks-ng`'s `dependencies` to `peerDependencies`; every MemberJunction peer has an exact `devDependencies` anchor for local builds. Adds `check-dependency-model` to CI.
+- Updated dependencies [884b8bc]
+- Updated dependencies [209989d]
+- Updated dependencies [6a8c054]
+  - @mj-biz-apps/tasks-entities@1.7.0
+
 ## 1.6.2
 
 ### Patch Changes

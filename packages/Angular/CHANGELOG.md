@@ -1,5 +1,22 @@
 # @mj-biz-apps/tasks-ng
 
+## 1.7.0
+
+### Minor Changes
+
+- 884b8bc: The approvals inbox lists tasks of every task type flagged `IsApproval`, so an app's own approval type appears on the Approvals page. `ApprovalTypeName` now defaults to null; set it to list a single named type, as before. The seeded Approval Request type is flagged `IsApproval` in `metadata/task-types/`.
+- 6a8c054: Collected migrations: `TaskType.IsApproval` (`BIT NOT NULL`, default 0) marks the task types whose tasks are approvals, so the approvals inbox can list every such type instead of only the seeded Approval Request. Includes the CodeGen output for the column: entity field, `vwTaskTypes`, the TaskType CRUD procedures, the entity class, GraphQL types and the TaskType form.
+
+### Patch Changes
+
+- adcf37d: The Approvals, My Tasks and dashboard pages now find the signed-in user's active People record and pass its ID. The user's own link is read first (`LinkedEntityRecordID`, when `LinkedEntityID` is People or an IS-A subtype such as BCSaaS's `BC: People`), then `People.LinkedUserID`, which bizapps-common has deprecated and BCSaaS leaves empty. They passed the user's email address, which never matches an assignment's `AssigneeRecordID`, so both lists were empty for every user and comments added from the dashboard's detail panel stored the email as their `PersonID`. A user with no active linked People record sees a message saying so instead of an empty list. If the lookup itself fails, Approvals and My Tasks say the lookup failed rather than that the user is not linked, and the dashboard loads without a Person ID.
+- 209989d: MemberJunction and other BizApps packages are peer dependencies with caret ranges (nothing in `dependencies`), so a host keeps one copy of each. `@memberjunction/ng-hierarchy-tree` moved from `tasks-ng`'s `dependencies` to `peerDependencies`; every MemberJunction peer has an exact `devDependencies` anchor for local builds. Adds `check-dependency-model` to CI.
+- Updated dependencies [884b8bc]
+- Updated dependencies [209989d]
+- Updated dependencies [6a8c054]
+  - @mj-biz-apps/tasks-entities@1.7.0
+  - @mj-biz-apps/tasks-core@1.7.0
+
 ## 1.6.2
 
 ### Patch Changes

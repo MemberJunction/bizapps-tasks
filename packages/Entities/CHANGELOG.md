@@ -1,5 +1,16 @@
 # @mj-biz-apps/tasks-entities
 
+## 1.7.0
+
+### Minor Changes
+
+- 884b8bc: The approvals inbox lists tasks of every task type flagged `IsApproval`, so an app's own approval type appears on the Approvals page. `ApprovalTypeName` now defaults to null; set it to list a single named type, as before. The seeded Approval Request type is flagged `IsApproval` in `metadata/task-types/`.
+- 6a8c054: Collected migrations: `TaskType.IsApproval` (`BIT NOT NULL`, default 0) marks the task types whose tasks are approvals, so the approvals inbox can list every such type instead of only the seeded Approval Request. Includes the CodeGen output for the column: entity field, `vwTaskTypes`, the TaskType CRUD procedures, the entity class, GraphQL types and the TaskType form.
+
+### Patch Changes
+
+- 209989d: MemberJunction and other BizApps packages are peer dependencies with caret ranges (nothing in `dependencies`), so a host keeps one copy of each. `@memberjunction/ng-hierarchy-tree` moved from `tasks-ng`'s `dependencies` to `peerDependencies`; every MemberJunction peer has an exact `devDependencies` anchor for local builds. Adds `check-dependency-model` to CI.
+
 ## 1.6.2
 
 ### Patch Changes
