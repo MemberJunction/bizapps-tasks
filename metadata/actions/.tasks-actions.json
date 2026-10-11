@@ -1,0 +1,154 @@
+[
+  {
+    "fields": {
+      "Name": "Post Task Assignment to Teams",
+      "CategoryID": "@lookup:MJ: Action Categories.Name=Tasks",
+      "Description": "Posts a card naming a newly assigned task and its assignee to a Microsoft Teams channel. Set it as a Task Type's OnAssign action. The channel's webhook URL comes from a 'Teams Channel Webhook' credential: the one named in CredentialName, else the one named after the task type's Code, else the credential type's default. Accepts Office 365 connector and Power Automate Workflows webhook URLs.",
+      "Type": "Custom",
+      "DriverClass": "Tasks.PostAssignmentToTeams",
+      "IconClass": "fa-solid fa-comments",
+      "UserPrompt": "Post a task assignment to a Teams channel.",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "relatedEntities": {
+      "MJ: Action Params": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "TaskID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": true,
+            "Description": "ID of the assigned task. Passed by the OnAssign hook."
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "TaskName",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": true,
+            "Description": "Name of the assigned task. Passed by the OnAssign hook."
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "TaskTypeID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "ID of the task's type, used to find the credential named after its Code. Passed by the OnAssign hook."
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "AssigneePersonID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "People record ID of the assignee. Passed by the OnAssign hook."
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "AssigneeName",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Display name of the assignee, shown on the card. Passed by the OnAssign hook."
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Status",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Status of the task. Passed by the OnAssign hook; not used."
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "CredentialName",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Name of the 'Teams Channel Webhook' credential to use. Optional; defaults to the task type's Code."
+          }
+        }
+      ],
+      "MJ: Action Result Codes": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "SUCCESS",
+            "IsSuccess": true,
+            "Description": "The card was posted."
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "MISSING_TASK",
+            "IsSuccess": false,
+            "Description": "TaskID or TaskName was not supplied."
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "INVALID_TASK_TYPE",
+            "IsSuccess": false,
+            "Description": "TaskTypeID was supplied but is not a valid ID."
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "MISSING_CREDENTIAL",
+            "IsSuccess": false,
+            "Description": "No 'Teams Channel Webhook' credential matched and the type has no default."
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "INVALID_WEBHOOK_URL",
+            "IsSuccess": false,
+            "Description": "The credential's webhookUrl is not an https Teams connector or Power Automate webhook URL."
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "TEAMS_ERROR",
+            "IsSuccess": false,
+            "Description": "The webhook rejected the post or could not be reached."
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "ERROR",
+            "IsSuccess": false,
+            "Description": "No context user."
+          }
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "entity": "MJ: Action Categories",
+  "filePattern": "**/.*.json",
+  "pull": {
+    "createNewFileIfNotFound": true,
+    "newFileName": ".tasks-action-categories.json",
+    "appendRecordsToExistingFile": true,
+    "updateExistingRecords": true,
+    "ignoreNullFields": true,
+    "ignoreVirtualFields": true,
+    "filter": "Name = 'Tasks'"
+  }
+}

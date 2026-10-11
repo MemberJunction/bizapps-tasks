@@ -69,7 +69,8 @@
       "Code": "APPROVAL_REQUEST",
       "Description": "An approval/decision workflow request routed to one or more approvers. Consumers wire OnReject/OnCancel/OnComplete actions to feed the decision back to the source record.",
       "IconClass": "fa-solid fa-stamp",
-      "DefaultPriority": "High"
+      "DefaultPriority": "High",
+      "IsApproval": true
     },
     "primaryKey": {
       "ID": "5961EDE5-B996-4083-BE48-64634B4D8D1C"

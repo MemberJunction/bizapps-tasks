@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "webhookUrl": {
+      "type": "string",
+      "title": "Webhook URL",
+      "description": "The channel's webhook URL. It carries a signature that grants posting rights.",
+      "format": "uri",
+      "isSecret": true,
+      "order": 0
+    },
+    "explorerUrl": {
+      "type": "string",
+      "title": "Explorer URL",
+      "description": "Base URL of MJ Explorer for this environment, used to link the card to the task. Leave empty to post without a link.",
+      "format": "uri",
+      "isSecret": false,
+      "order": 1
+    }
+  },
+  "required": ["webhookUrl"]
+}

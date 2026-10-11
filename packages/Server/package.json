@@ -18,6 +18,14 @@
   "author": "MemberJunction.com",
   "license": "BUSL-1.1",
   "devDependencies": {
+    "@memberjunction/actions": "6.1.0-edge.5",
+    "@memberjunction/core": "6.1.0-edge.5",
+    "@memberjunction/core-entities": "6.1.0-edge.5",
+    "@memberjunction/global": "6.1.0-edge.5",
+    "@memberjunction/scheduling-base-types": "6.1.0-edge.5",
+    "@memberjunction/scheduling-engine": "6.1.0-edge.5",
+    "@memberjunction/server": "6.1.0-edge.5",
+    "@memberjunction/sqlserver-dataprovider": "6.1.0-edge.5",
     "typescript": "^5.9.3",
     "vitest": "1.6.1"
   },

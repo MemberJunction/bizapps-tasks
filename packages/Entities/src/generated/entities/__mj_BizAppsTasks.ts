@@ -1209,6 +1209,12 @@ export const mjBizAppsTasksTaskTypeSchema = z.object({
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ: Actions (vwActions.ID)
         * * Description: Action invoked whenever a task of this type changes status.`),
+    IsApproval: z.boolean().describe(`
+        * * Field Name: IsApproval
+        * * Display Name: Is Approval
+        * * SQL Data Type: bit
+        * * Default Value: 0
+        * * Description: When true, tasks of this type are approvals: they appear in the approvals inbox of each assignee, who records a decision on them.`),
     OnAssignAction: z.string().nullable().describe(`
         * * Field Name: OnAssignAction
         * * Display Name: On Assign Action
@@ -4518,6 +4524,20 @@ export class mjBizAppsTasksTaskTypeEntity extends BaseEntity<mjBizAppsTasksTaskT
     */
     get __mj_UpdatedAt(): Date {
         return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: IsApproval
+    * * Display Name: Is Approval
+    * * SQL Data Type: bit
+    * * Default Value: 0
+    * * Description: When true, tasks of this type are approvals: they appear in the approvals inbox of each assignee, who records a decision on them.
+    */
+    get IsApproval(): boolean {
+        return this.Get('IsApproval');
+    }
+    set IsApproval(value: boolean) {
+        this.Set('IsApproval', value);
     }
 
     /**
