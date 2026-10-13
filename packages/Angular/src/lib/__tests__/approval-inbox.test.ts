@@ -2,11 +2,17 @@ import '@angular/compiler';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { ChangeDetectorRef, Injector, runInInjectionContext } from '@angular/core';
 
-const { runView } = vi.hoisted(() => ({ runView: vi.fn() }));
+const { runView, entityByName } = vi.hoisted(() => ({
+    runView: vi.fn(),
+    entityByName: vi.fn((name: string) => ({ SchemaName: '__mj_bizappstasks', BaseView: `vw${name.split(': ')[1].replace(/ /g, '')}` })),
+}));
 vi.mock('@memberjunction/core', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@memberjunction/core')>()),
     RunView: class {
         RunView = runView;
+    },
+    Metadata: class {
+        static Provider = { EntityByName: entityByName };
     },
 }));
 
@@ -35,15 +41,15 @@ describe('ApprovalInboxComponent filter', () => {
     it('lists every IsApproval task type by default', async () => {
         const filter = await filterFor();
 
-        expect(filter).toContain('vwTaskTypes WHERE IsApproval = 1');
+        expect(filter).toContain('[__mj_bizappstasks].[vwTaskTypes] WHERE CAST([IsApproval] AS INT) = 1');
         expect(filter).not.toContain('Approval Request');
-        expect(filter).toContain(`AssigneeRecordID = 'person-1'`);
+        expect(filter).toContain(`[AssigneeRecordID] = 'person-1'`);
     });
 
     it('lists only the named type when ApprovalTypeName is set', async () => {
         const filter = await filterFor('Concession Approval');
 
-        expect(filter).toContain(`vwTaskTypes WHERE Name = 'Concession Approval'`);
+        expect(filter).toContain(`[vwTaskTypes] WHERE [Name] = 'Concession Approval'`);
         expect(filter).not.toContain('IsApproval');
     });
 });
