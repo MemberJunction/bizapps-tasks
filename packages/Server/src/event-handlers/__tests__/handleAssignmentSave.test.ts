@@ -28,7 +28,7 @@ vi.mock('@memberjunction/actions', () => ({
   ActionEngineServer: { Instance: { Config: vi.fn(), Actions: [{ ID: 'assign-action' }], RunAction: runAction } },
 }));
 
-import { handleAssignmentSave } from '../TaskNotificationHandler.js';
+import { handleAssignmentSave, handleEntityEvent } from '../TaskNotificationHandler.js';
 
 const task = {
   Get: (field: string) => ({ ID: 'task-1', Name: 'Approve discount', Status: 'Open', TypeID: 'type-1' } as Record<string, string>)[field],
@@ -115,5 +115,41 @@ describe('handleAssignmentSave', () => {
     await handleAssignmentSave(event);
 
     expect(runAction).not.toHaveBeenCalled();
+  });
+
+  it('queues assignment notifications and OnAssign hooks via RunAfterCommit when saved inside a transaction', async () => {
+    mockViews('user-1');
+    const token = { frame: 'tx-1' };
+    const runAfterCommit = vi.fn();
+    const capturePostCommitToken = vi.fn(() => token);
+    const fields: Record<string, string | null> = { AssigneeRecordID: 'person-1', TaskID: 'task-1', RoleID: null };
+    const event = {
+      type: 'save',
+      saveSubType: 'create',
+      baseEntity: {
+        EntityInfo: { Name: 'MJ_BizApps_Tasks: Task Assignments' },
+        ContextCurrentUser: { ID: 'user-ctx' },
+        ProviderToUse: {
+          CapturePostCommitToken: capturePostCommitToken,
+          RunAfterCommit: runAfterCommit,
+        },
+        Get: (f: string) => fields[f],
+      },
+    } as unknown as Parameters<typeof handleEntityEvent>[0];
+
+    handleEntityEvent(event);
+
+    expect(capturePostCommitToken).toHaveBeenCalledOnce();
+    expect(runAfterCommit).toHaveBeenCalledOnce();
+    expect(runAction).not.toHaveBeenCalled();
+    expect(saveNotification).not.toHaveBeenCalled();
+
+    const [queuedTask, description, passedToken] = runAfterCommit.mock.calls[0];
+    expect(description).toBe('Task assignment notification and OnAssign hook');
+    expect(passedToken).toBe(token);
+
+    await (queuedTask as () => Promise<void>)();
+    expect(saveNotification).toHaveBeenCalledOnce();
+    expect(runAction).toHaveBeenCalledOnce();
   });
 });

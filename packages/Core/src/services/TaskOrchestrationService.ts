@@ -1,4 +1,4 @@
-import { CompositeKey, LogError, Metadata, RunView, UserInfo } from "@memberjunction/core";
+import { CompositeKey, IMetadataProvider, IRunViewProvider, LogError, Metadata, RunView, UserInfo } from "@memberjunction/core";
 import type {
     mjBizAppsTasksTaskEntity,
     mjBizAppsTasksTaskDecisionEntity,
@@ -7,6 +7,9 @@ import type {
 } from "@mj-biz-apps/tasks-entities";
 import { TaskService } from "./TaskService.js";
 import { TaskAssignmentService } from "./TaskAssignmentService.js";
+
+/** A provider that can both instantiate entities and run views. */
+export type TaskOrchestrationProvider = IMetadataProvider & IRunViewProvider;
 
 const TASKS_ENTITY = 'MJ_BizApps_Tasks: Tasks';
 const TASK_DECISIONS_ENTITY = 'MJ_BizApps_Tasks: Task Decisions';
@@ -116,9 +119,18 @@ export class TaskOrchestrationService {
     // Create
     // ---------------------------------------------------------------
 
-    /** Creates a new task and returns the saved entity. */
-    async CreateTask(params: CreateTaskParams, contextUser?: UserInfo): Promise<mjBizAppsTasksTaskEntity> {
-        const md = new Metadata();
+    /**
+     * Creates a new task and returns the saved entity.
+     *
+     * Pass `provider` to create and save the task on the caller's transactional provider
+     * instead of the process-global provider.
+     */
+    async CreateTask(
+        params: CreateTaskParams,
+        contextUser?: UserInfo,
+        provider?: IMetadataProvider,
+    ): Promise<mjBizAppsTasksTaskEntity> {
+        const md = provider ?? new Metadata();
         const task = await md.GetEntityObject<mjBizAppsTasksTaskEntity>(TASKS_ENTITY, contextUser);
         task.NewRecord();
         task.Name = params.Name;
@@ -146,8 +158,13 @@ export class TaskOrchestrationService {
      * applies status side-effects (StartedAt/CompletedAt) and the server save-event
      * handler fires any configured action hooks.
      */
-    async TransitionStatus(taskID: string, newStatus: TaskStatus, contextUser?: UserInfo): Promise<mjBizAppsTasksTaskEntity> {
-        const task = await this.loadTask(taskID, contextUser);
+    async TransitionStatus(
+        taskID: string,
+        newStatus: TaskStatus,
+        contextUser?: UserInfo,
+        provider?: IMetadataProvider,
+    ): Promise<mjBizAppsTasksTaskEntity> {
+        const task = await this.loadTask(taskID, contextUser, provider);
         if (task.Status === newStatus) {
             return task; // no-op; avoid a redundant save + hook fire
         }
@@ -170,10 +187,14 @@ export class TaskOrchestrationService {
      * The status transition fires the existing server hook seam, so consumers' OnReject /
      * OnCancel / OnComplete actions run as a side-effect of recording the decision.
      */
-    async RecordDecision(params: RecordDecisionParams, contextUser?: UserInfo): Promise<RecordDecisionResult> {
-        const outcome = await this.resolveOutcome(params.OutcomeCode, contextUser);
+    async RecordDecision(
+        params: RecordDecisionParams,
+        contextUser?: UserInfo,
+        provider?: TaskOrchestrationProvider,
+    ): Promise<RecordDecisionResult> {
+        const outcome = await this.resolveOutcome(params.OutcomeCode, contextUser, provider);
 
-        const md = new Metadata();
+        const md = provider ?? new Metadata();
         const decision = await md.GetEntityObject<mjBizAppsTasksTaskDecisionEntity>(TASK_DECISIONS_ENTITY, contextUser);
         decision.NewRecord();
         decision.TaskID = params.TaskID;
@@ -192,16 +213,16 @@ export class TaskOrchestrationService {
             activityType: 'DecisionRecorded',
             newValue: outcome.Code,
             description: `Decision recorded: ${outcome.Name}`,
-        }, contextUser);
+        }, contextUser, provider);
 
         // Only terminal outcomes drive a status transition. Interim outcomes leave the task open.
         let task: mjBizAppsTasksTaskEntity;
         let newStatus: TaskStatus | null = null;
         if (outcome.IsTerminal) {
             newStatus = this.statusForOutcome(params.OutcomeCode);
-            task = await this.TransitionStatus(params.TaskID, newStatus, contextUser);
+            task = await this.TransitionStatus(params.TaskID, newStatus, contextUser, provider);
         } else {
-            task = await this.loadTask(params.TaskID, contextUser);
+            task = await this.loadTask(params.TaskID, contextUser, provider);
         }
 
         return { Decision: decision, Task: task, NewStatus: newStatus };
@@ -214,8 +235,16 @@ export class TaskOrchestrationService {
     /**
      * Creates an approval-request task, optionally links it to a source record,
      * and assigns the named approvers. Returns the created task.
+     *
+     * Pass `provider` so the task, source-record link, and assignments all write on the
+     * caller's transactional provider (rolling back together if any step fails) rather than
+     * on the process-global provider.
      */
-    async CreateApprovalRequest(params: CreateApprovalRequestParams, contextUser?: UserInfo): Promise<mjBizAppsTasksTaskEntity> {
+    async CreateApprovalRequest(
+        params: CreateApprovalRequestParams,
+        contextUser?: UserInfo,
+        provider?: IMetadataProvider,
+    ): Promise<mjBizAppsTasksTaskEntity> {
         const task = await this.CreateTask({
             Name: params.Name,
             TypeID: params.TypeID,
@@ -224,10 +253,10 @@ export class TaskOrchestrationService {
             DueAt: params.DueAt,
             CreatedByPersonID: params.CreatedByPersonID,
             Status: 'Open',
-        }, contextUser);
+        }, contextUser, provider);
 
         if (params.LinkEntityID && params.LinkRecordID) {
-            await this.linkSourceRecord(task.ID, params.LinkEntityID, params.LinkRecordID, contextUser);
+            await this.linkSourceRecord(task.ID, params.LinkEntityID, params.LinkRecordID, contextUser, provider);
         }
 
         if (params.ApproverPersonEntityID && params.ApproverPersonRecordIDs?.length) {
@@ -238,7 +267,7 @@ export class TaskOrchestrationService {
                     assigneeRecordID: recordID,
                     roleID: params.RoleID,
                     assignedByPersonID: params.CreatedByPersonID,
-                }, contextUser);
+                }, contextUser, provider);
             }
         }
 
@@ -249,8 +278,12 @@ export class TaskOrchestrationService {
     // Helpers
     // ---------------------------------------------------------------
 
-    private async loadTask(taskID: string, contextUser?: UserInfo): Promise<mjBizAppsTasksTaskEntity> {
-        const md = new Metadata();
+    private async loadTask(
+        taskID: string,
+        contextUser?: UserInfo,
+        provider?: IMetadataProvider,
+    ): Promise<mjBizAppsTasksTaskEntity> {
+        const md = provider ?? new Metadata();
         const task = await md.GetEntityObject<mjBizAppsTasksTaskEntity>(TASKS_ENTITY, contextUser);
         const loaded = await task.InnerLoad(new CompositeKey([{ FieldName: 'ID', Value: taskID }]));
         if (!loaded) {
@@ -267,8 +300,12 @@ export class TaskOrchestrationService {
         return TaskDecisionOutcomes[code].Status;
     }
 
-    private async resolveOutcome(code: TaskDecisionOutcomeCode, contextUser?: UserInfo): Promise<mjBizAppsTasksTaskDecisionOutcomeEntity> {
-        const rv = new RunView();
+    private async resolveOutcome(
+        code: TaskDecisionOutcomeCode,
+        contextUser?: UserInfo,
+        provider?: IRunViewProvider,
+    ): Promise<mjBizAppsTasksTaskDecisionOutcomeEntity> {
+        const rv = new RunView(provider);
         const result = await rv.RunView<mjBizAppsTasksTaskDecisionOutcomeEntity>({
             EntityName: TASK_DECISION_OUTCOMES_ENTITY,
             ExtraFilter: `Code = '${code.replace(/'/g, "''")}'`,
@@ -283,8 +320,14 @@ export class TaskOrchestrationService {
         return outcome;
     }
 
-    private async linkSourceRecord(taskID: string, entityID: string, recordID: string, contextUser?: UserInfo): Promise<void> {
-        const md = new Metadata();
+    private async linkSourceRecord(
+        taskID: string,
+        entityID: string,
+        recordID: string,
+        contextUser?: UserInfo,
+        provider?: IMetadataProvider,
+    ): Promise<void> {
+        const md = provider ?? new Metadata();
         const link = await md.GetEntityObject<mjBizAppsTasksTaskLinkEntity>(TASK_LINKS_ENTITY, contextUser);
         link.NewRecord();
         link.TaskID = taskID;
