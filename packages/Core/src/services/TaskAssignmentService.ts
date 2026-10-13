@@ -1,4 +1,4 @@
-import { BaseEntity, CompositeKey, Metadata, RunView, UserInfo } from "@memberjunction/core";
+import { BaseEntity, CompositeKey, IMetadataProvider, IRunViewProvider, Metadata, RunView, UserInfo } from "@memberjunction/core";
 import { TaskService } from "./TaskService.js";
 
 /**
@@ -13,6 +13,9 @@ export class TaskAssignmentService {
      * Assigns an entity record (Person or Agent) to a task with an optional role.
      * Logs an activity entry after successful assignment.
      *
+     * Pass `provider` to create the assignment and activity on the caller's transactional
+     * provider instead of the process-global provider.
+     *
      * @throws when the assignment does not save. A refused save used to return the unsaved entity
      * with an ID already on it, so the caller recorded an assignment with no row behind it and the
      * task was assigned to no one. No activity is logged for a refused assignment.
@@ -24,8 +27,8 @@ export class TaskAssignmentService {
         roleID?: string;
         roleNotes?: string;
         assignedByPersonID?: string;
-    }, contextUser?: UserInfo): Promise<BaseEntity> {
-        const assignment = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Assignments', contextUser);
+    }, contextUser?: UserInfo, provider?: IMetadataProvider): Promise<BaseEntity> {
+        const assignment = await (provider ?? Metadata.Provider).GetEntityObject('MJ_BizApps_Tasks: Task Assignments', contextUser);
         assignment.NewRecord();
         assignment.Set('TaskID', params.taskID);
         assignment.Set('AssigneeEntityID', params.assigneeEntityID);
@@ -46,7 +49,7 @@ export class TaskAssignmentService {
             activityType: 'AssignmentAdded',
             newValue: params.assigneeRecordID,
             description: `Assignee added to task`,
-        }, contextUser);
+        }, contextUser, provider);
 
         return assignment;
     }
@@ -54,8 +57,13 @@ export class TaskAssignmentService {
     /**
      * Removes an assignment and logs the removal.
      */
-    async removeAssignment(assignmentID: string, removedByPersonID?: string): Promise<void> {
-        const assignment = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Assignments');
+    async removeAssignment(
+        assignmentID: string,
+        removedByPersonID?: string,
+        contextUser?: UserInfo,
+        provider?: IMetadataProvider,
+    ): Promise<void> {
+        const assignment = await (provider ?? Metadata.Provider).GetEntityObject('MJ_BizApps_Tasks: Task Assignments', contextUser);
         const pk = new CompositeKey([{ FieldName: 'ID', Value: assignmentID }]);
         await assignment.InnerLoad(pk);
 
@@ -70,19 +78,23 @@ export class TaskAssignmentService {
             activityType: 'AssignmentRemoved',
             previousValue: assigneeRecordID,
             description: `Assignee removed from task`,
-        });
+        }, contextUser, provider);
     }
 
     /**
      * Returns all assignments for a given task.
      */
-    async getAssignmentsForTask(taskID: string): Promise<BaseEntity[]> {
-        const rv = new RunView();
+    async getAssignmentsForTask(
+        taskID: string,
+        contextUser?: UserInfo,
+        provider?: IRunViewProvider,
+    ): Promise<BaseEntity[]> {
+        const rv = new RunView(provider);
         const result = await rv.RunView<BaseEntity>({
             EntityName: 'MJ_BizApps_Tasks: Task Assignments',
             ExtraFilter: `TaskID = '${taskID}'`,
             ResultType: 'entity_object',
-        });
+        }, contextUser);
         return result?.Results ?? [];
     }
 }

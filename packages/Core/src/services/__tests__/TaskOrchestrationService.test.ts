@@ -199,3 +199,38 @@ describe('TaskOrchestrationService.RecordDecision', () => {
     ).rejects.toThrow(/not found/);
   });
 });
+
+describe('TaskOrchestrationService provider threading', () => {
+  it('CreateApprovalRequest creates the task, source-record link, assignment, and activity on the supplied provider', async () => {
+    const task = makeFakeEntity({ ID: 'task-tx-1' });
+    const link = makeFakeEntity();
+    const assignment = makeFakeEntity();
+    const activity = makeFakeEntity();
+    const provider = {
+      GetEntityObject: vi.fn()
+        .mockResolvedValueOnce(task)
+        .mockResolvedValueOnce(link)
+        .mockResolvedValueOnce(assignment)
+        .mockResolvedValueOnce(activity),
+    };
+
+    const svc = new TaskOrchestrationService();
+    const created = await svc.CreateApprovalRequest({
+      Name: 'Approve concession',
+      TypeID: 'type-approval',
+      LinkEntityID: 'ent-order',
+      LinkRecordID: 'order-1',
+      ApproverPersonEntityID: 'ent-person',
+      ApproverPersonRecordIDs: ['person-1'],
+      RoleID: 'role-approver',
+    }, user, provider as never);
+
+    expect(created).toBe(task);
+    expect(provider.GetEntityObject).toHaveBeenCalledTimes(4);
+    expect(provider.GetEntityObject).toHaveBeenNthCalledWith(1, 'MJ_BizApps_Tasks: Tasks', user);
+    expect(provider.GetEntityObject).toHaveBeenNthCalledWith(2, 'MJ_BizApps_Tasks: Task Links', user);
+    expect(provider.GetEntityObject).toHaveBeenNthCalledWith(3, 'MJ_BizApps_Tasks: Task Assignments', user);
+    expect(provider.GetEntityObject).toHaveBeenNthCalledWith(4, 'MJ_BizApps_Tasks: Task Activities', user);
+    expect(getEntityObjectMock).not.toHaveBeenCalled();
+  });
+});
