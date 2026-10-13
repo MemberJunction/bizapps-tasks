@@ -1,4 +1,4 @@
-import { BaseEntity, CompositeKey, Metadata, RunView, UserInfo } from "@memberjunction/core";
+import { BaseEntity, CompositeKey, IMetadataProvider, IRunViewProvider, Metadata, RunView, UserInfo } from "@memberjunction/core";
 
 /**
  * Core task management service.
@@ -20,9 +20,16 @@ export class TaskService {
      * Recurses up the tree so grandparent tasks also update.
      *
      * Call this after saving a child task whose PercentComplete or Status changed.
+     *
+     * Pass `provider` to read and write on the provider the child task was saved on; without it
+     * the process-global provider is used.
      */
-    async rollupParentProgress(parentTaskID: string, contextUser?: UserInfo): Promise<void> {
-        const rv = new RunView();
+    async rollupParentProgress(
+        parentTaskID: string,
+        contextUser?: UserInfo,
+        provider?: IMetadataProvider & IRunViewProvider,
+    ): Promise<void> {
+        const rv = new RunView(provider);
         const children = await rv.RunView<BaseEntity>({
             EntityName: 'MJ_BizApps_Tasks: Tasks',
             ExtraFilter: `ParentID = '${parentTaskID}'`,
@@ -51,7 +58,7 @@ export class TaskService {
         const newPct = totalWeight > 0 ? Math.round(weightedSum / totalWeight) : 0;
 
         // Load the parent task as an entity to trigger subclass validation
-        const parentTask = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Tasks', contextUser);
+        const parentTask = await (provider ?? Metadata.Provider).GetEntityObject('MJ_BizApps_Tasks: Tasks', contextUser);
         const pk = new CompositeKey([{ FieldName: 'ID', Value: parentTaskID }]);
         await parentTask.InnerLoad(pk);
 
@@ -74,7 +81,7 @@ export class TaskService {
         // Recurse up the tree
         const grandParentID = parentTask.Get('ParentID') as string | null;
         if (grandParentID) {
-            await this.rollupParentProgress(grandParentID, contextUser);
+            await this.rollupParentProgress(grandParentID, contextUser, provider);
         }
     }
 
