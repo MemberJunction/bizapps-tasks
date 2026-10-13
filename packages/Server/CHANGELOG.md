@@ -1,5 +1,15 @@
 # @mj-biz-apps/tasks-server
 
+## 1.7.1
+
+### Patch Changes
+
+- Updated dependencies [cbdce43]
+  - @mj-biz-apps/tasks-entities@1.7.1
+  - @mj-biz-apps/tasks-core@1.7.1
+  - @mj-biz-apps/tasks-entities-server@1.7.1
+  - @mj-biz-apps/tasks-actions@1.7.1
+
 ## 1.7.0
 
 ### Minor Changes
