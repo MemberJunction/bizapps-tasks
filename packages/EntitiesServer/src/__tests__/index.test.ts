@@ -36,14 +36,25 @@ vi.mock('@mj-biz-apps/tasks-entities', () => ({
   mjBizAppsTasksTaskEntity: class {},
   mjBizAppsTasksTaskTypeEntity: class {},
   mjBizAppsTasksTaskTypeStatusEntity: class {},
+  mjBizAppsTasksMeetingEntity: class {},
+  mjBizAppsTasksMeetingSeriesEntity: class {},
+  mjBizAppsTasksMeetingAttendeeEntity: class {},
+  mjBizAppsTasksMeetingSeriesAttendeeEntity: class {},
+  mjBizAppsTasksMeetingAgendaItemEntity: class {},
+  mjBizAppsTasksMeetingLinkEntity: class {},
+  mjBizAppsTasksVideoProviderEntity: class {},
 }));
-vi.mock('@mj-biz-apps/tasks-core', () => ({ TaskService: class {} }));
+vi.mock('@mj-biz-apps/common-entities', () => ({
+  BusinessTimeZoneEngine: { Instance: { Config: async () => undefined, Zone: 'UTC' } },
+}));
 
 describe('@mj-biz-apps/tasks-entities-server', () => {
   it('imports the entry point and exposes the bootstrap + subclass', async () => {
     const mod = await import('../index.js');
     expect(mod.LoadBizAppsTasksEntitiesServer).toBeTypeOf('function');
     expect(mod.TaskEntityServer).toBeDefined();
+    expect(mod.MeetingEntityServer).toBeDefined();
+    expect(mod.MeetingSeriesEntityServer).toBeDefined();
   });
 
   it('LoadBizAppsTasksEntitiesServer runs without throwing', async () => {

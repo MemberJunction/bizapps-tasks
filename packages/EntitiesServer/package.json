@@ -21,6 +21,7 @@
     "@memberjunction/actions": "6.1.0-edge.5",
     "@memberjunction/core": "6.1.0-edge.5",
     "@memberjunction/global": "6.1.0-edge.5",
+    "@mj-biz-apps/common-entities": "5.52.0",
     "typescript": "^5.9.3",
     "vitest": "1.6.1"
   },
@@ -31,7 +32,8 @@
   "peerDependencies": {
     "@memberjunction/actions": "^6.1.0-edge.5",
     "@memberjunction/core": "^6.1.0-edge.5",
-    "@memberjunction/global": "^6.1.0-edge.5"
+    "@memberjunction/global": "^6.1.0-edge.5",
+    "@mj-biz-apps/common-entities": "^5.47.0"
   },
   "repository": {
     "type": "git",
