@@ -23,6 +23,10 @@ import { TasksDashboardPageComponent } from './pages/tasks-dashboard.page';
 import { MyTasksPageComponent } from './pages/my-tasks.page';
 import { ApprovalsPageComponent } from './pages/approvals.page';
 import { TemplatesPageComponent } from './pages/templates.page';
+import { MyMeetingsPageComponent } from './pages/my-meetings.page';
+import { MeetingsPageComponent } from './pages/meetings.page';
+import { MeetingSeriesPageComponent } from './pages/meeting-series.page';
+import { MyMeetingsSectionResource, MeetingsSectionResource, MeetingSeriesSectionResource, LoadMeetingsSectionResources } from './sections/meetings-sections.component';
 
 // Section Resources (DriverClasses)
 import {
@@ -60,6 +64,12 @@ import {
         MyTasksSectionResource,
         ApprovalsSectionResource,
         TemplatesSectionResource,
+        MyMeetingsPageComponent,
+        MeetingsPageComponent,
+        MeetingSeriesPageComponent,
+        MyMeetingsSectionResource,
+        MeetingsSectionResource,
+        MeetingSeriesSectionResource,
     ],
     exports: [
         TaskPriorityBadgeComponent,
@@ -84,6 +94,12 @@ import {
         MyTasksSectionResource,
         ApprovalsSectionResource,
         TemplatesSectionResource,
+        MyMeetingsPageComponent,
+        MeetingsPageComponent,
+        MeetingSeriesPageComponent,
+        MyMeetingsSectionResource,
+        MeetingsSectionResource,
+        MeetingSeriesSectionResource,
     ]
 })
 export class BizAppsTasksModule { }
@@ -91,4 +107,5 @@ export class BizAppsTasksModule { }
 /** Tree-shaking prevention — call from consuming app bootstrap */
 export function LoadBizAppsTasksClient() {
     LoadTasksSectionResources();
+    LoadMeetingsSectionResources();
 }

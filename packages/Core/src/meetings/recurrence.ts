@@ -1,8 +1,11 @@
 import { DateTime } from 'luxon';
-import rrule from 'rrule';
+import * as rruleModule from 'rrule';
 
-// rrule ships a CommonJS main whose named exports Node's ESM loader cannot see: take them off the default export
-const { RRule, rrulestr } = rrule;
+type RRuleModule = typeof import('rrule');
+// Node loads rrule's CommonJS main, whose named exports its ESM loader cannot see (they sit on the default export);
+// bundlers load the ES build, which has them by name. Take them from wherever they are.
+const rruleExports: RRuleModule = 'RRule' in rruleModule && rruleModule.RRule ? rruleModule : (rruleModule as unknown as { default: RRuleModule }).default;
+const { RRule, rrulestr } = rruleExports;
 import { isValidTimeZone } from './meeting-times.js';
 
 /**
