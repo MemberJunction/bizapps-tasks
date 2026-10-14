@@ -16503,8 +16503,7 @@ GRANT EXECUTE ON [${flyway:defaultSchema}].[spDeleteVideoProvider] TO [cdp_Devel
 
 GRANT EXECUTE ON [${flyway:defaultSchema}].[spDeleteVideoProvider] TO [cdp_Developer], [cdp_Integration];
 
-/* SQL text to delete unneeded entity fields (10 scoped entities) */
-EXEC [${mjSchema}].[spDeleteUnneededEntityFields] @ExcludedSchemaNames='', @EntityIDs='2B15A5D4-9E91-4322-9B82-D58F6E08399E,11DB0B1F-A42F-4DF2-8540-6EB46D7618FB,6751908A-D102-49B0-AE57-A987496CA8E7,7967EB2A-B969-41DC-A71D-0591C1E57353,D0563DA6-BF5B-45EA-93C9-A9678CB303DA,9ECAC4DF-039C-4B96-84D4-0BE2BD481269,83BB5923-29C9-4CBB-94C4-35601DA29DDD,CF246E72-7BC1-4285-8F37-7C8D89E7A23C,69A03D0B-F654-40B6-9B90-94DEC8948AA2,E089FA02-A8AA-485F-A002-870F5C248E38', @IncludedSchemaNames='${flyway:defaultSchema}';
+/* spDeleteUnneededEntityFields is a live reconciler and is not replayed: CodeGen's call was left out of this versioned migration */
 
 /* SQL text to insert 31 new entity field(s) */
 
@@ -21737,8 +21736,7 @@ GRANT EXECUTE ON [${flyway:defaultSchema}].[spDeleteMeeting] TO [cdp_Developer],
 
 GRANT EXECUTE ON [${flyway:defaultSchema}].[spDeleteMeeting] TO [cdp_Developer], [cdp_Integration];
 
-/* SQL text to delete unneeded entity fields (2 scoped entities) */
-EXEC [${mjSchema}].[spDeleteUnneededEntityFields] @ExcludedSchemaNames='', @EntityIDs='9ECAC4DF-039C-4B96-84D4-0BE2BD481269,83BB5923-29C9-4CBB-94C4-35601DA29DDD', @IncludedSchemaNames='${flyway:defaultSchema}';
+/* spDeleteUnneededEntityFields is a live reconciler and is not replayed: CodeGen's call was left out of this versioned migration */
 
 /* SQL text to insert 4 new entity field(s) */
 
