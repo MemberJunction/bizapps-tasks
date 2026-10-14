@@ -1,5 +1,7 @@
 # @mj-biz-apps/tasks-actions
 
+## 1.8.0
+
 ## 1.7.2
 
 ## 1.7.1
