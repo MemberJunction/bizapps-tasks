@@ -45,12 +45,15 @@ import { OpenTaskRecord } from '../open-task-record';
                 }
                 @if (error) { <div class="error" role="alert">{{ error }}</div> }
             </div>
-            <mj-slide-panel [Visible]="liveOpen" Mode="dialog" Title="Live meeting" [Resizable]="false" (Closed)="liveOpen = false">
-                @if (liveOpen) {
-                    <bizapps-meeting-live [Meeting]="d.row" [Items]="d.agenda" [Attendees]="d.attendees" [StartedAt]="d.startedAt" [CanRun]="d.permissions.canRun" [Busy]="busy" [ErrorMessage]="error"
-                        (ItemChanged)="liveItem($event)" (AttendanceChanged)="liveAttendance($event)" (NoteRequested)="liveNote($event)" (FollowUpRequested)="liveFollowUp($event)" (EndRequested)="end()" (CloseRequested)="liveOpen = false">
-                    </bizapps-meeting-live>
-                }
+            <mj-slide-panel [Visible]="liveOpen" Mode="dialog" Title="Live meeting" [Resizable]="false" [WidthPx]="960" (Closed)="liveOpen = false">
+                <!-- the panel's dialog mode projects only what is marked dialog-content -->
+                <div dialog-content class="live-body">
+                    @if (liveOpen) {
+                        <bizapps-meeting-live [Meeting]="d.row" [Items]="d.agenda" [Attendees]="d.attendees" [StartedAt]="d.startedAt" [CanRun]="d.permissions.canRun" [Busy]="busy" [ErrorMessage]="error"
+                            (ItemChanged)="liveItem($event)" (AttendanceChanged)="liveAttendance($event)" (NoteRequested)="liveNote($event)" (FollowUpRequested)="liveFollowUp($event)" (EndRequested)="end()" (CloseRequested)="liveOpen = false">
+                        </bizapps-meeting-live>
+                    }
+                </div>
             </mj-slide-panel>
         } @else if (loadError) {
             <div class="error" role="alert">{{ loadError }}</div>
@@ -58,6 +61,7 @@ import { OpenTaskRecord } from '../open-task-record';
     `,
     styles: [`
         :host { display: block; }
+        .live-body { padding: 4px 0; }
         .hero-wrap { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
         .cancel-box { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--mj-status-error-text, #b91c1c); border-radius: var(--mj-radius-lg, 12px); background: var(--mj-status-error-bg, #fef2f2); color: var(--mj-text-primary, #0f172a); }
         .strong { font-weight: 700; }

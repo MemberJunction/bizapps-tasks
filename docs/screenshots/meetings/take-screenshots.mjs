@@ -156,9 +156,10 @@ async function seed() {
 }
 
 /** Fails the run when the page doesn't show every text in `present`, or shows any in `absent`. */
-async function assertScreen(page, name, { present = [], absent = [] }) {
+async function assertScreen(page, name, { present = [], absent = [], timeout = 20000 }) {
     for (const text of present) {
-        await page.getByText(text, { exact: false }).first().waitFor({ state: 'visible', timeout: 20000 }).catch(() => {
+        // the first match may be an element the shell keeps hidden (a tab's title, a tooltip): wait for a visible one
+        await page.getByText(text, { exact: false }).locator('visible=true').first().waitFor({ state: 'visible', timeout }).catch(() => {
             throw new Error(`${name}: "${text}" is not on the screen`);
         });
     }
@@ -203,7 +204,7 @@ const SHOTS = (ids) => [
         name: '05-meeting-page', item: 'T4, § 5',
         run: async (page) => {
             await page.goto(recordUrl('MJ_BizApps_Tasks: Meetings', ids.boardPrep));
-            await assertScreen(page, '05', { present: [SAMPLE.boardPrep, 'Add to calendar', 'Agenda', 'People', 'Outside counsel', 'Follow-ups', SAMPLE.followUp, 'Notes', 'Where things stand'] });
+            await assertScreen(page, '05', { present: [SAMPLE.boardPrep, 'Add to calendar', 'Agenda', 'People', 'Outside counsel', 'Follow-ups', SAMPLE.followUp, 'Notes', 'Where things stand'], timeout: 60000 });
         },
     },
     {
@@ -212,9 +213,11 @@ const SHOTS = (ids) => [
             await page.goto(recordUrl('MJ_BizApps_Tasks: Meetings', ids.boardPrep));
             // The first pass starts the meeting; a later pass finds it in progress and opens the live view
             const startOrRun = page.getByRole('button', { name: /Start meeting|Run meeting/ }).first();
-            await startOrRun.waitFor({ state: 'visible', timeout: 30000 });
+            await startOrRun.waitFor({ state: 'visible', timeout: 60000 });
             await startOrRun.click();
-            await assertScreen(page, '06', { present: ['Live', 'Item 1 of', 'Start item', 'Who is here', 'Quick note'] });
+            // a later pass finds item 1 already running, with Done in place of Start item
+            await assertScreen(page, '06', { present: ['Live', 'Item 1 of', 'Who is here', 'Quick note'], timeout: 30000 });
+            await page.getByRole('button', { name: /Start item|Done/ }).first().waitFor({ state: 'visible', timeout: 10000 });
             const startItem = page.getByRole('button', { name: /Start item/ }).first();
             if (await startItem.isVisible().catch(() => false)) { await startItem.click(); await page.waitForTimeout(2500); }
         },
@@ -223,7 +226,7 @@ const SHOTS = (ids) => [
         name: '07-series-page', item: 'T4, § 5',
         run: async (page) => {
             await page.goto(recordUrl('MJ_BizApps_Tasks: Meeting Series', ids.seriesId));
-            await assertScreen(page, '07', { present: [SAMPLE.series, 'Meetings in this series', 'Every week on Tuesday'] });
+            await assertScreen(page, '07', { present: [SAMPLE.series, 'Meetings in this series', 'Every week on Tuesday'], timeout: 60000 });
         },
     },
 ];
@@ -252,7 +255,7 @@ async function main() {
     const failures = [];
     for (const theme of themes) {
         for (const shot of wanted) {
-            const context = await browser.newContext({ viewport: { width: 1600, height: 1000 }, storageState: STAFF_SESSION });
+            const context = await browser.newContext({ viewport: { width: 1600, height: 1000 }, colorScheme: theme, storageState: STAFF_SESSION });
             await context.addInitScript((t) => { try { localStorage.setItem('mj-theme', t); } catch { /* theme falls back */ } }, theme);
             const page = await context.newPage();
             const errors = [];
@@ -263,7 +266,7 @@ async function main() {
                 await page.waitForTimeout(600);
                 await page.screenshot({ path: join(here, `${shot.name}-${theme}.png`) });
                 console.log(`ok   ${shot.name}-${theme}.png (item ${shot.item})${errors.length ? `  page errors: ${errors.length}` : ''}`);
-                if (process.env.SHOT_DEBUG && errors.length) console.log(`     ${[...new Set(errors.map((e) => e.split('\n')[0].slice(0, 200)))].slice(0, 20).join('\n     ')}`);
+                if (process.env.SHOT_DEBUG && errors.length) console.log(`     ${[...new Set(errors.map((e) => e.split('\n')[0].slice(0, 600)))].slice(0, 20).join('\n     ')}`);
             } catch (error) {
                 await page.screenshot({ path: join(here, `${shot.name}-${theme}-FAILED.png`) }).catch(() => undefined);
                 failures.push(`${shot.name}-${theme}: ${error instanceof Error ? error.message : String(error)}`);

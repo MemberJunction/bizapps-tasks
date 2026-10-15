@@ -21,6 +21,8 @@ export function runAfterCommit(provider: unknown, description: string, task: () 
             LogError(`${description} failed after the commit: ${error instanceof Error ? error.message : String(error)}`);
         }
     };
+    // Only a database provider (the server's) has RunAfterCommit. Without it the caller is a client that loaded these
+    // subclasses beside its GraphQL provider, as the integration harness does: the server does this work when it saves
+    // the same row, so here it is left alone rather than done a second time.
     if (hasRunAfterCommit(provider)) provider.RunAfterCommit(guarded, description);
-    else void guarded();
 }

@@ -16,4 +16,4 @@ Authoritative server-side entity subclasses for BizApps Tasks.
 - `MeetingAgendaItemEntityServer`: the parent is on the same meeting and the tree has no cycle; a duration is 0 or more; an item is deferred to another meeting.
 - `MeetingLinkEntityServer`: a link belongs to a meeting or a series, one of the two.
 - `VideoProviderBase` (`src/video`): the contract a video provider's driver implements and registers under `VideoProvider.DriverClass`; `resolveVideoProviderDriver` finds it. The drivers land with the Video step.
-- `runAfterCommit`: work that runs once the save's transaction committed, through the provider's `RunAfterCommit` where it has one.
+- `runAfterCommit`: work that runs once the save's transaction committed, through the database provider's `RunAfterCommit`. A provider without one is a client that loaded these subclasses beside its GraphQL provider (the integration harness does): the work is skipped there, since the server does it when it saves the same row.

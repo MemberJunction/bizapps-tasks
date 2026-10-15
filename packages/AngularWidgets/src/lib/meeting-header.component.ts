@@ -63,8 +63,10 @@ import type { MeetingPermissions, MeetingRow, ResponseStatus } from './types';
     `,
     styles: [MEETING_TOKENS_CSS, `
         :host { display: block; }
-        .hero { display: flex; gap: 16px; align-items: flex-start; padding: 16px 20px; background: var(--mjt-surface); border: 1px solid var(--mjt-border); border-radius: var(--mjt-radius-lg); color: var(--mjt-text); }
+        .hero { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; padding: 16px 20px; background: var(--mjt-surface); border: 1px solid var(--mjt-border); border-radius: var(--mjt-radius-lg); color: var(--mjt-text); }
         .icon { width: 48px; height: 48px; border-radius: var(--mjt-radius); display: grid; place-items: center; background: var(--mjt-brand); color: var(--mjt-on-brand); font-size: 20px; flex: none; }
+        /* the title keeps room to read; the actions drop below it when the row is too narrow for both */
+        .hero > .mjt-grow { flex: 1 1 380px; }
         .title-row { flex-wrap: wrap; }
         .title { margin: 0; font-size: 20px; font-weight: 700; }
         .when { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 6px; font-size: 14px; }
