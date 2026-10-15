@@ -1,7 +1,7 @@
 {
   "name": "@mj-biz-apps/tasks-ng-widgets",
   "type": "module",
-  "version": "1.7.1",
+  "version": "1.9.0",
   "description": "BizApps Tasks meeting widgets: the meeting list, card, page sections, agenda builder, live meeting, answer control, notes editor and series editor, with no Explorer dependency, so other apps compose them",
   "main": "dist/public-api.js",
   "types": "dist/public-api.d.ts",
@@ -19,8 +19,8 @@
   "author": "MemberJunction.com",
   "license": "BUSL-1.1",
   "dependencies": {
-    "@mj-biz-apps/tasks-core": "1.7.1",
-    "@mj-biz-apps/tasks-entities": "1.7.1"
+    "@mj-biz-apps/tasks-core": "^1.9.0",
+    "@mj-biz-apps/tasks-entities": "^1.9.0"
   },
   "peerDependencies": {
     "@angular/common": "^21.1.3",
