@@ -2,6 +2,32 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TaskEntityServer, TaskLifecycleContext } from '../TaskEntityServer.js';
 import { ActionEngineServer } from '@memberjunction/actions';
 
+// The provider each test Task was "created on". Tests swap fields to observe routing.
+const H = vi.hoisted(() => {
+  const makeEntityObject = () => ({
+    NewRecord: vi.fn(),
+    Save: vi.fn().mockResolvedValue(true),
+    Load: vi.fn().mockResolvedValue(true),
+  });
+  return {
+    makeEntityObject,
+    provider: {} as Record<string, unknown>,
+    globalGetEntityObject: vi.fn(),
+    rollupParentProgress: vi.fn(async () => undefined),
+    runViewProviders: [] as unknown[],
+  };
+});
+
+function resetProvider(withScheduler: boolean) {
+  for (const key of Object.keys(H.provider)) delete H.provider[key];
+  H.provider.GetEntityObject = vi.fn(async () => H.makeEntityObject());
+  H.provider.RunView = vi.fn(async () => ({ Success: true, Results: [] }));
+  if (withScheduler) {
+    H.provider.CapturePostCommitToken = vi.fn(() => ({ frame: 'caller-tx' }));
+    H.provider.RunAfterCommit = vi.fn();
+  }
+}
+
 // Mock MJ runtime
 vi.mock('@memberjunction/global', () => ({
   RegisterClass: () => () => {},
@@ -29,6 +55,12 @@ vi.mock('@memberjunction/core', () => {
       public GetAll() {
         return { ...this._fieldValues };
       }
+      public get ProviderToUse() {
+        return H.provider;
+      }
+      public get RunViewProviderToUse() {
+        return H.provider;
+      }
       public RegisterEventHandler() {}
       public async Save() {
         return true;
@@ -43,14 +75,14 @@ vi.mock('@memberjunction/core', () => {
     LogStatus: vi.fn(),
     Metadata: class {
       public async GetEntityObject() {
-        return {
-          NewRecord: vi.fn(),
-          Save: vi.fn().mockResolvedValue(true),
-          Load: vi.fn().mockResolvedValue(true),
-        };
+        H.globalGetEntityObject();
+        return H.makeEntityObject();
       }
     },
     RunView: class {
+      constructor(provider?: unknown) {
+        H.runViewProviders.push(provider);
+      }
       public async RunView() {
         return { Success: true, Results: [] };
       }
@@ -79,15 +111,15 @@ vi.mock('@memberjunction/actions', () => ({
 
 vi.mock('@mj-biz-apps/tasks-core', () => ({
   TaskService: class {
-    public async rollupParentProgress() {
-      return true;
-    }
+    public rollupParentProgress = H.rollupParentProgress;
   },
 }));
 
 describe('TaskEntityServer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    H.runViewProviders.length = 0;
+    resetProvider(true);
   });
 
   describe('invokeAction', () => {
@@ -314,6 +346,118 @@ describe('TaskEntityServer', () => {
         'LEGAL',
         'InProgress'
       );
+    });
+  });
+  describe('provider routing (#78)', () => {
+    it('loads the task type and statuses through the provider the Task was created on', async () => {
+      const server = new TaskEntityServer();
+      const loader = server as unknown as {
+        loadTaskType: (id: string) => Promise<unknown>;
+        loadTaskTypeStatus: (id: string) => Promise<unknown>;
+        loadDefaultTaskTypeStatus: (id: string) => Promise<unknown>;
+      };
+
+      await loader.loadTaskType('TYPE-1');
+      await loader.loadTaskTypeStatus('STATUS-1');
+      await loader.loadDefaultTaskTypeStatus('TYPE-1');
+
+      expect(H.provider.GetEntityObject).toHaveBeenCalledTimes(2);
+      expect(H.runViewProviders).toEqual([H.provider]);
+      expect(H.globalGetEntityObject).not.toHaveBeenCalled();
+    });
+
+    it('runs hook actions on the Task\'s provider', async () => {
+      const server = new TaskEntityServer();
+      server.ID = 'TASK-1';
+      server.Name = 'Task';
+
+      await server.invokeAction('ACTION-CREATE', 'OnCreate', 'TYPE', null, null);
+
+      const callArgs = (ActionEngineServer.Instance.RunAction as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      expect(callArgs.Provider).toBe(H.provider);
+    });
+
+    it('writes activity rows on the Task\'s provider and queues the hooks until the caller commits', async () => {
+      const server = new TaskEntityServer();
+      server.ID = 'TASK-2';
+      server.Name = 'New task';
+      server.TypeID = 'TYPE-1';
+      const dispatchSpy = vi.spyOn(server, 'dispatchLifecycleActionHooks').mockResolvedValue(undefined);
+
+      const saved = await server.Save();
+
+      expect(saved).toBe(true);
+      expect(H.provider.GetEntityObject).toHaveBeenCalledWith('MJ_BizApps_Tasks: Task Activities', server.ContextCurrentUser);
+      expect(H.globalGetEntityObject).not.toHaveBeenCalled();
+
+      // Queued against the transaction open when Save began, not started yet.
+      const runAfterCommit = H.provider.RunAfterCommit as ReturnType<typeof vi.fn>;
+      expect(runAfterCommit).toHaveBeenCalledTimes(1);
+      const [task, description, token] = runAfterCommit.mock.calls[0];
+      expect(description).toBe('Task lifecycle action hooks');
+      expect(token).toEqual({ frame: 'caller-tx' });
+      expect(dispatchSpy).not.toHaveBeenCalled();
+
+      // The provider runs it on commit (and never calls it on rollback).
+      await (task as () => Promise<void>)();
+      expect(dispatchSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('queues the parent rollup after commit and runs it on the Task\'s provider', async () => {
+      const server = new TaskEntityServer();
+      server.ID = 'TASK-5';
+      server.ParentID = 'PARENT-1';
+      let saveHandler: ((event: { type: string }) => void) | undefined;
+      vi.spyOn(server, 'RegisterEventHandler').mockImplementation((handler) => {
+        saveHandler = handler as unknown as (event: { type: string }) => void;
+      });
+      vi.spyOn(server, 'dispatchLifecycleActionHooks').mockResolvedValue(undefined);
+
+      await server.Save();
+      saveHandler?.({ type: 'save' });
+
+      const runAfterCommit = H.provider.RunAfterCommit as ReturnType<typeof vi.fn>;
+      const rollupCall = runAfterCommit.mock.calls.find(([, description]) => description === 'Task parent-progress rollup');
+      expect(rollupCall).toBeDefined();
+      expect(H.rollupParentProgress).not.toHaveBeenCalled();
+
+      await (rollupCall?.[0] as () => Promise<void>)();
+      expect(H.rollupParentProgress).toHaveBeenCalledWith('PARENT-1', server.ContextCurrentUser, H.provider);
+    });
+
+    it('a failed dispatch is logged and does not reject the post-commit task', async () => {
+      const { LogError } = await import('@memberjunction/core');
+      const server = new TaskEntityServer();
+      server.ID = 'TASK-3';
+      server.TypeID = 'TYPE-1';
+      vi.spyOn(server, 'dispatchLifecycleActionHooks').mockRejectedValue(new Error('read failed'));
+
+      await server.Save();
+      const task = (H.provider.RunAfterCommit as ReturnType<typeof vi.fn>).mock.calls[0][0] as () => Promise<void>;
+
+      await expect(task()).resolves.toBeUndefined();
+      expect(LogError).toHaveBeenCalledWith('TaskEntityServer: action hook dispatch error for task TASK-3: read failed');
+    });
+
+    it('starts the hooks right away on a provider without a post-commit scheduler', async () => {
+      resetProvider(false);
+      const server = new TaskEntityServer();
+      server.ID = 'TASK-4';
+      server.TypeID = 'TYPE-1';
+      const dispatchSpy = vi.spyOn(server, 'dispatchLifecycleActionHooks').mockResolvedValue(undefined);
+
+      await server.Save();
+
+      expect(dispatchSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('refuses a provider that cannot load entities instead of falling back to the global one', async () => {
+      delete H.provider.GetEntityObject;
+      const server = new TaskEntityServer();
+      const loader = server as unknown as { loadTaskType: (id: string) => Promise<unknown> };
+
+      await expect(loader.loadTaskType('TYPE-1')).rejects.toThrow(/server-only/);
+      expect(H.globalGetEntityObject).not.toHaveBeenCalled();
     });
   });
 });

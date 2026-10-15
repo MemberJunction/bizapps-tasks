@@ -10,10 +10,14 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 const runViewMock = vi.fn();
 const getEntityObjectMock = vi.fn();
+const runViewProviders: unknown[] = [];
 
 vi.mock('@memberjunction/core', () => {
   return {
     RunView: class {
+      constructor(provider?: unknown) {
+        runViewProviders.push(provider);
+      }
       RunView(...args: any[]) {
         return runViewMock(...args);
       }
@@ -47,9 +51,27 @@ function makeFakeEntity(initial: Record<string, any> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  runViewProviders.length = 0;
 });
 
 describe('TaskService.rollupParentProgress', () => {
+  it('reads and writes on a supplied provider, including up the tree', async () => {
+    const provider = { GetEntityObject: vi.fn(), RunView: vi.fn() };
+    const parent = makeFakeEntity({ PercentComplete: 0, Status: 'InProgress', ParentID: 'grand-1' });
+    const grandParent = makeFakeEntity({ PercentComplete: 50, Status: 'InProgress', ParentID: null });
+    provider.GetEntityObject.mockResolvedValueOnce(parent).mockResolvedValueOnce(grandParent);
+    runViewMock
+      .mockResolvedValueOnce({ Results: [{ PercentComplete: 100, Status: 'Completed' }] })
+      .mockResolvedValueOnce({ Results: [{ PercentComplete: 100, Status: 'Completed' }] });
+    const svc = new TaskService();
+
+    await svc.rollupParentProgress('parent-1', undefined, provider as never);
+
+    expect(runViewProviders).toEqual([provider, provider]);
+    expect(provider.GetEntityObject).toHaveBeenCalledTimes(2);
+    expect(getEntityObjectMock).not.toHaveBeenCalled();
+  });
+
   it('returns early and does not load the parent when there are no children', async () => {
     runViewMock.mockResolvedValueOnce({ Results: [] });
     const svc = new TaskService();

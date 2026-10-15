@@ -2,9 +2,11 @@ import {
     BaseEntity,
     BaseEntityEvent,
     EntitySaveOptions,
+    IEntityDataProvider,
+    IMetadataProvider,
+    IRunViewProvider,
     LogError,
     LogStatus,
-    Metadata,
     RunView,
 } from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
@@ -64,6 +66,31 @@ export interface TaskActionHookResult {
 }
 
 /**
+ * A provider that can create entities and run views: what every server-side MJ data provider is.
+ */
+type TaskSaveProvider = IEntityDataProvider & IMetadataProvider & IRunViewProvider;
+
+/**
+ * The post-commit scheduling surface of MJ's `DatabaseProviderBase` (MJ 6.1.3 and later). Declared
+ * here so this package keeps building against older MJ versions, where the provider has no
+ * scheduler and post-save work starts right away as before.
+ */
+interface PostCommitScheduler {
+    RunAfterCommit(task: () => Promise<void>, description?: string, token?: object): void;
+    CapturePostCommitToken(): object | undefined;
+}
+
+function isTaskSaveProvider(provider: IEntityDataProvider): provider is TaskSaveProvider {
+    const candidate = provider as Partial<TaskSaveProvider>;
+    return typeof candidate.GetEntityObject === 'function' && typeof candidate.RunView === 'function';
+}
+
+function isPostCommitScheduler(provider: IEntityDataProvider): provider is IEntityDataProvider & PostCommitScheduler {
+    const candidate = provider as Partial<PostCommitScheduler>;
+    return typeof candidate.RunAfterCommit === 'function' && typeof candidate.CapturePostCommitToken === 'function';
+}
+
+/**
  * Server-side subclass of {@link TaskEntity}.
  *
  * Holds the SERVER-ONLY task side-effects that must run exactly once and
@@ -80,6 +107,9 @@ export class TaskEntityServer extends TaskEntity {
     private _rollupHandlerRegistered = false;
 
     public override async Save(options?: EntitySaveOptions): Promise<boolean> {
+        // Captured before the first await so the post-commit hooks follow the caller's
+        // transaction, if one is open on this Task's provider.
+        const postCommitToken = this.capturePostCommitToken();
         this.ensureRollupHandler();
 
         // 1. Pre-Save Sync: Synchronize TaskTypeStatusID <-> Status and defaults
@@ -100,11 +130,15 @@ export class TaskEntityServer extends TaskEntity {
             LogError(`TaskEntityServer: activity logging failed for task ${this.ID}: ${msg}`);
         }
 
-        // 5. Post-Save Lifecycle Action & Workflow Dispatcher (asynchronous, non-blocking)
-        this.dispatchLifecycleActionHooks(lifecycleContext).catch((err: unknown) => {
-            const msg = err instanceof Error ? err.message : String(err);
-            LogError(`TaskEntityServer: action hook dispatch error for task ${this.ID}: ${msg}`);
-        });
+        // 5. Post-Save Lifecycle Action & Workflow Dispatcher (asynchronous, non-blocking). Runs
+        // once the caller's transaction commits and is dropped if it rolls back: a detached query
+        // issued into an open transaction races its other requests on the same connection.
+        this.runAfterCommit('Task lifecycle action hooks', postCommitToken, () =>
+            this.dispatchLifecycleActionHooks(lifecycleContext).catch((err: unknown) => {
+                const msg = err instanceof Error ? err.message : String(err);
+                LogError(`TaskEntityServer: action hook dispatch error for task ${this.ID}: ${msg}`);
+            })
+        );
 
         return true;
     }
@@ -244,8 +278,7 @@ export class TaskEntityServer extends TaskEntity {
         previousValue?: string,
         newValue?: string,
     ): Promise<void> {
-        const md = new Metadata();
-        const activity = await md.GetEntityObject<mjBizAppsTasksTaskActivityEntity>(
+        const activity = await this.saveProvider.GetEntityObject<mjBizAppsTasksTaskActivityEntity>(
             'MJ_BizApps_Tasks: Task Activities',
             this.ContextCurrentUser
         );
@@ -409,6 +442,7 @@ export class TaskEntityServer extends TaskEntity {
             const result = await ActionEngineServer.Instance.RunAction({
                 Action: action,
                 ContextUser: contextUser,
+                Provider: this.saveProvider,
                 Params: [
                     { Name: 'TaskID', Value: this.ID, Type: 'Input' },
                     { Name: 'RecordID', Value: this.ID, Type: 'Input' },
@@ -452,8 +486,7 @@ export class TaskEntityServer extends TaskEntity {
      * Loads a TaskTypeStatus entity by ID.
      */
     protected async loadTaskTypeStatus(statusID: string): Promise<mjBizAppsTasksTaskTypeStatusEntity | null> {
-        const md = new Metadata();
-        const statusEntity = await md.GetEntityObject<mjBizAppsTasksTaskTypeStatusEntity>(
+        const statusEntity = await this.saveProvider.GetEntityObject<mjBizAppsTasksTaskTypeStatusEntity>(
             'MJ_BizApps_Tasks: Task Type Status',
             this.ContextCurrentUser
         );
@@ -465,7 +498,7 @@ export class TaskEntityServer extends TaskEntity {
      * Loads the default TaskTypeStatus for a given TaskType.
      */
     protected async loadDefaultTaskTypeStatus(typeID: string): Promise<mjBizAppsTasksTaskTypeStatusEntity | null> {
-        const rv = new RunView();
+        const rv = new RunView(this.RunViewProviderToUse);
         const result = await rv.RunView<mjBizAppsTasksTaskTypeStatusEntity>({
             EntityName: 'MJ_BizApps_Tasks: Task Type Status',
             ExtraFilter: `TaskTypeID='${typeID}' AND IsDefault=1 AND IsActive=1`,
@@ -479,8 +512,7 @@ export class TaskEntityServer extends TaskEntity {
      * Loads a TaskType entity by ID.
      */
     protected async loadTaskType(typeID: string): Promise<mjBizAppsTasksTaskTypeEntity | null> {
-        const md = new Metadata();
-        const typeEntity = await md.GetEntityObject<mjBizAppsTasksTaskTypeEntity>(
+        const typeEntity = await this.saveProvider.GetEntityObject<mjBizAppsTasksTaskTypeEntity>(
             'MJ_BizApps_Tasks: Task Types',
             this.ContextCurrentUser
         );
@@ -512,12 +544,48 @@ export class TaskEntityServer extends TaskEntity {
             // Idempotent reconcile: recomputes parent's weighted progress (and
             // auto-completes it when all children are done); no-ops when nothing
             // changed, which prevents the save it raises from looping back here.
-            new TaskService()
-                .rollupParentProgress(parentID, this.ContextCurrentUser)
-                .catch((err: unknown) => {
-                    const msg = err instanceof Error ? err.message : String(err);
-                    LogError(`TaskEntityServer: parent-progress rollup failed for parent ${parentID}: ${msg}`);
-                });
+            // Runs after commit on this Task's provider, like the action hooks.
+            const provider = this.saveProvider;
+            this.runAfterCommit('Task parent-progress rollup', this.capturePostCommitToken(), () =>
+                new TaskService()
+                    .rollupParentProgress(parentID, this.ContextCurrentUser, provider)
+                    .catch((err: unknown) => {
+                        const msg = err instanceof Error ? err.message : String(err);
+                        LogError(`TaskEntityServer: parent-progress rollup failed for parent ${parentID}: ${msg}`);
+                    })
+            );
         });
+    }
+
+    /**
+     * The provider this Task was created on. Every Save-time read and write goes through it, so a
+     * Task saved on an isolated or transactional provider never touches the process-global one,
+     * where another caller's open transaction would capture these queries.
+     */
+    protected get saveProvider(): TaskSaveProvider {
+        const provider = this.ProviderToUse;
+        if (!isTaskSaveProvider(provider)) {
+            throw new Error('TaskEntityServer: the Task\'s provider cannot load entities or run views; this class is server-only.');
+        }
+        return provider;
+    }
+
+    private capturePostCommitToken(): object | undefined {
+        const provider = this.ProviderToUse;
+        return isPostCommitScheduler(provider) ? provider.CapturePostCommitToken() : undefined;
+    }
+
+    /**
+     * Runs `task` once the transaction `token` names commits (now, when none was open), and drops
+     * it on rollback. Starts it right away on a provider without a post-commit scheduler.
+     * `task` must handle its own errors.
+     */
+    private runAfterCommit(description: string, token: object | undefined, task: () => Promise<void>): void {
+        const provider = this.ProviderToUse;
+        if (isPostCommitScheduler(provider)) {
+            provider.RunAfterCommit(task, description, token);
+        } else {
+            void task();
+        }
     }
 }
