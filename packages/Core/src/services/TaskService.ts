@@ -25,7 +25,9 @@ export class TaskService {
         const rv = new RunView();
         const children = await rv.RunView<BaseEntity>({
             EntityName: 'MJ_BizApps_Tasks: Tasks',
-            ExtraFilter: `ParentID = '${parentTaskID}'`,
+            // Escape embedded quotes: this is a public method, so harden the
+            // caller-supplied ID before interpolating it into the filter.
+            ExtraFilter: `ParentID = '${parentTaskID.replace(/'/g, "''")}'`,
             ResultType: 'simple',
         }, contextUser);
 

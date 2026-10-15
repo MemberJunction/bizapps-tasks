@@ -21,6 +21,7 @@ import { MJScheduledJobEntity } from '@memberjunction/core-entities';
 import { RegisterClass } from '@memberjunction/global';
 import { BaseScheduledJob, ScheduledJobExecutionContext } from '@memberjunction/scheduling-engine';
 import { ScheduledJobResult, NotificationContent } from '@memberjunction/scheduling-base-types';
+import { escapeSqlLiteral } from '../util/sql-literal.js';
 
 /** Shape of the TaskNotificationConfig rows loaded from the DB. */
 interface NotificationConfig {
@@ -240,7 +241,10 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
         const rv = new RunView();
         const result = await rv.RunView<{ ID: string; LinkedUserID: string | null }>({
             EntityName: 'MJ_BizApps_Common: People',
-            ExtraFilter: `ID='${personID}'`,
+            // personID can originate from the user-writable NVARCHAR AssigneeRecordID, and this
+            // job runs under the scheduled job's context user — escape to block second-order
+            // SQL injection with an elevated context.
+            ExtraFilter: `ID='${escapeSqlLiteral(personID)}'`,
             Fields: ['ID', 'LinkedUserID'],
             ResultType: 'simple',
             MaxRows: 1,

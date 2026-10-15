@@ -21,6 +21,7 @@ import {
 } from '@memberjunction/core';
 import { MJEventType, MJGlobal, MJEvent } from '@memberjunction/global';
 import { Subscription } from 'rxjs';
+import { escapeSqlLiteral } from '../util/sql-literal.js';
 
 /** Entity names we listen for */
 const TASKS_ENTITY = 'MJ_BizApps_Tasks: Tasks';
@@ -498,8 +499,10 @@ async function getTaskAssigneeUserIDs(taskID: string, contextUser: UserInfo): Pr
         return [];
     }
 
+    // AssigneeRecordID is a user-writable NVARCHAR (polymorphic) column — escape
+    // before interpolating to prevent second-order SQL injection via stored values.
     const personIDs = assignments.Results.map(a => a.AssigneeRecordID);
-    const inClause = personIDs.map((id: string) => `'${id}'`).join(',');
+    const inClause = personIDs.map((id: string) => `'${escapeSqlLiteral(id)}'`).join(',');
 
     const people = await rv.RunView<PersonLinkRow>({
         EntityName: 'MJ_BizApps_Common: People',
@@ -524,7 +527,8 @@ async function getPersonLinkedUserID(personID: string, contextUser: UserInfo): P
     const rv = new RunView();
     const result = await rv.RunView<PersonLinkRow>({
         EntityName: 'MJ_BizApps_Common: People',
-        ExtraFilter: `ID='${personID}'`,
+        // personID can originate from the user-writable NVARCHAR AssigneeRecordID — escape it.
+        ExtraFilter: `ID='${escapeSqlLiteral(personID)}'`,
         Fields: ['ID', 'LinkedUserID'],
         ResultType: 'simple',
         MaxRows: 1,
@@ -540,7 +544,7 @@ async function getPersonName(personID: string, contextUser: UserInfo): Promise<s
     const rv = new RunView();
     const result = await rv.RunView<{ FirstName: string; LastName: string }>({
         EntityName: 'MJ_BizApps_Common: People',
-        ExtraFilter: `ID='${personID}'`,
+        ExtraFilter: `ID='${escapeSqlLiteral(personID)}'`,
         Fields: ['ID', 'FirstName', 'LastName'],
         ResultType: 'simple',
         MaxRows: 1,
