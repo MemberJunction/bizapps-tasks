@@ -36,7 +36,7 @@ vi.mock('@memberjunction/core', () => {
   };
 });
 
-import { TaskOrchestrationService } from '../TaskOrchestrationService.js';
+import { TaskClosedError, TaskOrchestrationService } from '../TaskOrchestrationService.js';
 
 /**
  * A fake entity supporting BOTH access styles used across the services:
@@ -132,9 +132,9 @@ describe('TaskOrchestrationService.RecordDecision', () => {
     const activity = makeFakeEntity();
     const task = makeFakeEntity({ Status: 'Open' });
     getEntityObjectMock
+      .mockResolvedValueOnce(task)       // load Task (closed-status check)
       .mockResolvedValueOnce(decision)   // TaskDecision
-      .mockResolvedValueOnce(activity)   // logActivity → Task Activities
-      .mockResolvedValueOnce(task);      // TransitionStatus → load Task
+      .mockResolvedValueOnce(activity);  // logActivity → Task Activities
 
     const svc = new TaskOrchestrationService();
     const result = await svc.RecordDecision(
@@ -159,9 +159,9 @@ describe('TaskOrchestrationService.RecordDecision', () => {
     const activity = makeFakeEntity();
     const task = makeFakeEntity({ Status: 'Open' });
     getEntityObjectMock
+      .mockResolvedValueOnce(task)
       .mockResolvedValueOnce(decision)
-      .mockResolvedValueOnce(activity)
-      .mockResolvedValueOnce(task);
+      .mockResolvedValueOnce(activity);
 
     const svc = new TaskOrchestrationService();
     const result = await svc.RecordDecision({ TaskID: 'task-1', OutcomeCode: 'Rejected' }, user);
@@ -179,14 +179,37 @@ describe('TaskOrchestrationService.RecordDecision', () => {
     const activity = makeFakeEntity();
     const task = makeFakeEntity({ Status: 'Open' });
     getEntityObjectMock
+      .mockResolvedValueOnce(task)  // loadTask (no transition)
       .mockResolvedValueOnce(decision)
-      .mockResolvedValueOnce(activity)
-      .mockResolvedValueOnce(task);  // loadTask (no transition)
+      .mockResolvedValueOnce(activity);
 
     const svc = new TaskOrchestrationService();
     const result = await svc.RecordDecision({ TaskID: 'task-1', OutcomeCode: 'Approved' }, user);
 
     expect(result.NewStatus).toBeNull();
+    expect(task.Save).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['Approved', 'Cancelled', 'outcome-approved', true],
+    ['Rejected', 'Completed', 'outcome-rejected', true],
+    ['Approved', 'Completed', 'outcome-interim', false],
+  ] as const)('%s on a %s task → refused before any decision row is written (terminal=%s)', async (code, status, outcomeID, isTerminal) => {
+    runViewMock.mockResolvedValueOnce({
+      Success: true,
+      Results: [{ ID: outcomeID, Name: code, Code: code, IsTerminal: isTerminal }],
+    });
+    const task = makeFakeEntity({ ID: 'task-1', Status: status });
+    getEntityObjectMock.mockResolvedValueOnce(task);
+
+    const svc = new TaskOrchestrationService();
+    const attempt = svc.RecordDecision({ TaskID: 'task-1', OutcomeCode: code }, user);
+
+    await expect(attempt).rejects.toBeInstanceOf(TaskClosedError);
+    await expect(attempt).rejects.toMatchObject({ TaskID: 'task-1', Status: status });
+    // Only the Task was loaded: no TaskDecision or activity entity was created.
+    expect(getEntityObjectMock).toHaveBeenCalledOnce();
+    expect(task.Status).toBe(status);
     expect(task.Save).not.toHaveBeenCalled();
   });
 

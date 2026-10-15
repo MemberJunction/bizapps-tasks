@@ -16,6 +16,22 @@ const TASK_LINKS_ENTITY = 'MJ_BizApps_Tasks: Task Links';
 /** The closed set of task statuses (mirrors the generated Task.Status union). */
 export type TaskStatus = 'Open' | 'InProgress' | 'Blocked' | 'Completed' | 'Cancelled';
 
+/** Statuses that close a task. A closed task takes no further decisions. */
+export const ClosedTaskStatuses: readonly TaskStatus[] = ['Completed', 'Cancelled'];
+
+/** Thrown by `RecordDecision` when the task was closed before the decision arrived. */
+export class TaskClosedError extends Error {
+    constructor(public readonly TaskID: string, public readonly Status: TaskStatus) {
+        super(`This task is already ${Status}; no decision can be recorded on it.`);
+        this.name = 'TaskClosedError';
+    }
+}
+
+/** True when the task is Completed or Cancelled. */
+export function IsClosedTaskStatus(status: TaskStatus | null | undefined): boolean {
+    return status != null && ClosedTaskStatuses.includes(status);
+}
+
 /**
  * The seeded TaskDecisionOutcome rows, and what each one MEANS.
  *
@@ -148,14 +164,7 @@ export class TaskOrchestrationService {
      */
     async TransitionStatus(taskID: string, newStatus: TaskStatus, contextUser?: UserInfo): Promise<mjBizAppsTasksTaskEntity> {
         const task = await this.loadTask(taskID, contextUser);
-        if (task.Status === newStatus) {
-            return task; // no-op; avoid a redundant save + hook fire
-        }
-        task.Status = newStatus;
-        if (!(await task.Save())) {
-            throw new Error(`Failed to transition task ${taskID} to ${newStatus}: ${task.LatestResult?.CompleteMessage ?? 'unknown error'}`);
-        }
-        return task;
+        return this.applyStatus(task, newStatus);
     }
 
     // ---------------------------------------------------------------
@@ -169,9 +178,16 @@ export class TaskOrchestrationService {
      *
      * The status transition fires the existing server hook seam, so consumers' OnReject /
      * OnCancel / OnComplete actions run as a side-effect of recording the decision.
+     *
+     * Throws, before any row is written, when the task is already Completed or Cancelled:
+     * a panel or caller holding a stale view of the task must not reopen or re-close it.
      */
     async RecordDecision(params: RecordDecisionParams, contextUser?: UserInfo): Promise<RecordDecisionResult> {
         const outcome = await this.resolveOutcome(params.OutcomeCode, contextUser);
+        const task = await this.loadTask(params.TaskID, contextUser);
+        if (IsClosedTaskStatus(task.Status)) {
+            throw new TaskClosedError(params.TaskID, task.Status);
+        }
 
         const md = new Metadata();
         const decision = await md.GetEntityObject<mjBizAppsTasksTaskDecisionEntity>(TASK_DECISIONS_ENTITY, contextUser);
@@ -195,13 +211,10 @@ export class TaskOrchestrationService {
         }, contextUser);
 
         // Only terminal outcomes drive a status transition. Interim outcomes leave the task open.
-        let task: mjBizAppsTasksTaskEntity;
         let newStatus: TaskStatus | null = null;
         if (outcome.IsTerminal) {
             newStatus = this.statusForOutcome(params.OutcomeCode);
-            task = await this.TransitionStatus(params.TaskID, newStatus, contextUser);
-        } else {
-            task = await this.loadTask(params.TaskID, contextUser);
+            await this.applyStatus(task, newStatus);
         }
 
         return { Decision: decision, Task: task, NewStatus: newStatus };
@@ -255,6 +268,18 @@ export class TaskOrchestrationService {
         const loaded = await task.InnerLoad(new CompositeKey([{ FieldName: 'ID', Value: taskID }]));
         if (!loaded) {
             throw new Error(`Task ${taskID} not found`);
+        }
+        return task;
+    }
+
+    /** Sets and saves a loaded task's status; no-op when it already has that status. */
+    private async applyStatus(task: mjBizAppsTasksTaskEntity, newStatus: TaskStatus): Promise<mjBizAppsTasksTaskEntity> {
+        if (task.Status === newStatus) {
+            return task; // no-op; avoid a redundant save + hook fire
+        }
+        task.Status = newStatus;
+        if (!(await task.Save())) {
+            throw new Error(`Failed to transition task ${task.ID} to ${newStatus}: ${task.LatestResult?.CompleteMessage ?? 'unknown error'}`);
         }
         return task;
     }
