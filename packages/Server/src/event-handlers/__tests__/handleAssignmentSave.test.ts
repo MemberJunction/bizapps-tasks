@@ -24,6 +24,23 @@ vi.mock('@memberjunction/global', () => ({
   MJEventType: { ComponentEvent: 'ComponentEvent' },
   MJGlobal: { Instance: { GetGlobalObjectStore: () => ({}), GetEventListener: () => ({ subscribe: () => ({ unsubscribe() {} }) }) } },
 }));
+// The resolver answers from the mocked People rows' LinkedUserID here; its own rules (the user's
+// People link first) are covered in src/__tests__/person-user-link.test.ts.
+vi.mock('../../person-user-link.js', () => {
+  const linkedUsers = async (personIDs: string[]): Promise<Map<string, string>> => {
+    const found = new Map<string, string>();
+    for (const personID of personIDs) {
+      const res = await runView({ EntityName: 'MJ_BizApps_Common: People', ExtraFilter: `ID='${personID}'`, Fields: ['ID', 'LinkedUserID'] });
+      const userID = res?.Results?.[0]?.LinkedUserID;
+      if (userID) found.set(personID.toLowerCase(), userID);
+    }
+    return found;
+  };
+  return {
+    ResolveUserIDsForPeople: linkedUsers,
+    ResolveUserIDForPerson: async (personID: string) => (await linkedUsers([personID])).get(personID.toLowerCase()) ?? null,
+  };
+});
 vi.mock('@memberjunction/actions', () => ({
   ActionEngineServer: { Instance: { Config: vi.fn(), Actions: [{ ID: 'assign-action' }], RunAction: runAction } },
 }));
