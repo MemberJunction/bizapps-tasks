@@ -1,5 +1,30 @@
 # @mj-biz-apps/tasks-entities-server
 
+## 1.8.0
+
+### Patch Changes
+
+- Updated dependencies [4fa9ceb]
+  - @mj-biz-apps/tasks-entities@1.8.0
+  - @mj-biz-apps/tasks-core@1.8.0
+
+## 1.7.2
+
+### Patch Changes
+
+- a4ad11a: The packages' dependencies on each other are caret ranges (`^1.7.1`) instead of exact versions. A host that pins or overrides one package of this app at a later compatible version no longer forces an exact-match copy of its siblings. Changesets keeps the caret and moves its floor on each release.
+- Updated dependencies [a4ad11a]
+  - @mj-biz-apps/tasks-core@1.7.2
+  - @mj-biz-apps/tasks-entities@1.7.2
+
+## 1.7.1
+
+### Patch Changes
+
+- Updated dependencies [cbdce43]
+  - @mj-biz-apps/tasks-entities@1.7.1
+  - @mj-biz-apps/tasks-core@1.7.1
+
 ## 1.7.0
 
 ### Patch Changes
