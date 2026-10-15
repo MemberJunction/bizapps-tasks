@@ -11,6 +11,9 @@ The Meetings app's screens in MJ Explorer, taken with Playwright as a signed-in 
 | `05-meeting-page-*.png` | A meeting's page: the hero with the organizer's actions, then agenda, people, notes, follow-ups, links | the Meetings record form |
 | `06-live-meeting-*.png` | Running a meeting: the agenda item clock, who is here, quick notes and follow-ups | Start meeting on the page |
 | `07-series-page-*.png` | A series' page: its rule and the meetings made from it | the Meeting Series record form |
+| `08-scheduled-from-form-*.png` | The page of a meeting scheduled through the New meeting form | Schedule meeting on My meetings |
+
+Three of the screens act as well as look, so the pass is an end-to-end test of the browser path: 01 answers Ivy's invitation with Going and checks the answer is still pressed after a reload; 06 starts the meeting (first pass), starts its first agenda item, saves a quick note from the live view and checks the note is in the page's Notes section after a reload; 08 schedules "Pricing review (sample)" from the form (first pass) and checks the new meeting's page opens with the viewer as organizer. Each acts once; later passes find what the first made.
 
 ## Taking them
 
@@ -26,4 +29,4 @@ SCREENSHOT_STAFF_EMAIL=<staff email> node --env-file=<env with MJAPI_URL and MJ_
 
 ## The sample rows
 
-The runner seeds, once and by name, as the harness user over GraphQL: a Person for the staff account and the user's link to it, then three meetings ("Board prep (sample)" with the TEAM agenda, a note and a follow-up task; "Client kickoff (sample)" organized by the Ivy persona with the staff user invited; a completed "Sprint retro (sample)") and one series ("Weekly staff sync (sample)", every Tuesday). The personas come from the integration tests' meeting world. The rows stay in place between runs; screen 06 starts "Board prep", so after the first pass it is In progress and the live view opens through Run meeting.
+The runner seeds, once and by name, as the harness user over GraphQL: a Person for the staff account and the user's link to it, then three meetings ("Board prep (sample)" with the TEAM agenda, a note and a follow-up task; "Client kickoff (sample)" organized by the Ivy persona with the staff user invited; a completed "Sprint retro (sample)") and one series ("Weekly staff sync (sample)", every Tuesday). The personas come from the integration tests' meeting world. The rows stay in place between runs; screen 06 starts "Board prep", so after the first pass it is In progress and the live view opens through Run meeting. The console errors the runner prints on a host whose database is behind its MJ build (`Entity MJ: Entity Form Contributions not found in metadata`) are the host's, not the app's.

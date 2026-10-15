@@ -33,6 +33,8 @@ const SAMPLE = {
     series: 'Weekly staff sync (sample)',
     note: 'The roadmap slides are ready; the numbers wait on finance.',
     followUp: 'Send the revised roadmap to the board',
+    pricing: 'Pricing review (sample)',
+    liveNote: 'Numbers wait on finance (sample)',
 };
 
 /** The rows the screens need, made over GraphQL as the harness user, once. Returns the sample meeting's id. */
@@ -152,7 +154,7 @@ async function seed() {
         await it.RequireSave(invite, 'the sample series attendee');
     }
     const [seriesRow] = await it.FindRows(ctx, core.MEETING_SERIES_ENTITY, `Name = '${it.Quote(SAMPLE.series)}'`, ['ID']);
-    return { boardPrep, seriesId: seriesRow?.ID ?? null };
+    return { boardPrep, seriesId: seriesRow?.ID ?? null, pricing: await existing(SAMPLE.pricing) };
 }
 
 /** Fails the run when the page doesn't show every text in `present`, or shows any in `absent`. */
@@ -175,6 +177,18 @@ const SHOTS = (ids) => [
         run: async (page) => {
             await page.goto(`${APP}/${encodeURIComponent('My meetings')}`);
             await assertScreen(page, '01', { present: ['My meetings', SAMPLE.boardPrep, SAMPLE.kickoff, 'Organizer'] });
+            // Answer Ivy's invitation (the only row with the answer control: the others are the viewer's own); the answer
+            // must still be pressed after a reload, which proves the server kept it
+            const going = page.getByRole('button', { name: /Going/ }).first();
+            await going.waitFor({ state: 'visible', timeout: 20000 });
+            if ((await going.getAttribute('aria-pressed')) !== 'true') {
+                await going.click();
+                await page.waitForTimeout(1500);
+            }
+            await page.reload();
+            await assertScreen(page, '01', { present: [SAMPLE.kickoff] });
+            const pressed = await page.getByRole('button', { name: /Going/ }).first().getAttribute('aria-pressed');
+            if (pressed !== 'true') throw new Error('01: the answer Going was not kept after a reload');
         },
     },
     {
@@ -220,6 +234,40 @@ const SHOTS = (ids) => [
             await page.getByRole('button', { name: /Start item|Done/ }).first().waitFor({ state: 'visible', timeout: 10000 });
             const startItem = page.getByRole('button', { name: /Start item/ }).first();
             if (await startItem.isVisible().catch(() => false)) { await startItem.click(); await page.waitForTimeout(2500); }
+            // A quick note on the running item, once: it must show in the page's Notes section after a reload
+            const already = (await page.locator('body').innerText()).includes(SAMPLE.liveNote);
+            if (!already) {
+                await page.locator('input[name="quickNote"]').first().fill(SAMPLE.liveNote);
+                await page.locator('input[name="quickNote"]').first().press('Enter');
+                await page.locator('input[name="quickNote"]').first().evaluate((el) => new Promise((resolve, reject) => {
+                    const started = Date.now();
+                    const tick = () => (el.value === '' ? resolve(true) : Date.now() - started > 15000 ? reject(new Error('the quick note was not sent')) : setTimeout(tick, 100));
+                    tick();
+                }));
+                await page.waitForTimeout(1500);
+            }
+            await page.screenshot({ path: join(here, `06-live-meeting-${await page.evaluate(() => localStorage.getItem('mj-theme'))}.png`) });
+            page.__captured = true;
+            await page.reload();
+            await assertScreen(page, '06', { present: ['Notes', SAMPLE.liveNote], timeout: 60000 });
+        },
+    },
+    {
+        name: '08-scheduled-from-form', item: 'T4, § 5',
+        run: async (page) => {
+            if (!ids.pricing) {
+                await page.goto(`${APP}/${encodeURIComponent('My meetings')}`);
+                await page.getByRole('button', { name: /New meeting/ }).first().click();
+                await assertScreen(page, '08', { present: ['Schedule meeting'] });
+                await page.locator('input[name="name"]').first().fill(SAMPLE.pricing);
+                await page.getByRole('button', { name: /Schedule meeting/ }).first().click();
+                // the page opens the new meeting's record once it is saved
+                await assertScreen(page, '08', { present: [SAMPLE.pricing, 'Add to calendar', 'Organized by you', 'Agenda'], timeout: 60000 });
+                ids.pricing = page.url().split('/').pop();
+            } else {
+                await page.goto(recordUrl('MJ_BizApps_Tasks: Meetings', ids.pricing));
+                await assertScreen(page, '08', { present: [SAMPLE.pricing, 'Add to calendar', 'Organized by you', 'Agenda'], timeout: 60000 });
+            }
         },
     },
     {
@@ -264,7 +312,7 @@ async function main() {
             try {
                 await shot.run(page);
                 await page.waitForTimeout(600);
-                await page.screenshot({ path: join(here, `${shot.name}-${theme}.png`) });
+                if (!page.__captured) await page.screenshot({ path: join(here, `${shot.name}-${theme}.png`) });
                 console.log(`ok   ${shot.name}-${theme}.png (item ${shot.item})${errors.length ? `  page errors: ${errors.length}` : ''}`);
                 if (process.env.SHOT_DEBUG && errors.length) console.log(`     ${[...new Set(errors.map((e) => e.split('\n')[0].slice(0, 600)))].slice(0, 20).join('\n     ')}`);
             } catch (error) {
