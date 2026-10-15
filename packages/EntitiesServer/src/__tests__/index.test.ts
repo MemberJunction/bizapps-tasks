@@ -17,6 +17,8 @@ vi.mock('@memberjunction/core', () => ({
     }
   },
   LogError: () => {},
+  ValidationErrorInfo: class {},
+  ValidationErrorType: { Failure: 'Failure', Warning: 'Warning' },
   LogStatus: () => {},
   Metadata: class {},
   RunView: class {},
@@ -36,14 +38,23 @@ vi.mock('@mj-biz-apps/tasks-entities', () => ({
   mjBizAppsTasksTaskEntity: class {},
   mjBizAppsTasksTaskTypeEntity: class {},
   mjBizAppsTasksTaskTypeStatusEntity: class {},
+  mjBizAppsTasksTaskAssignmentEntity: class {
+    public Validate() {
+      return { Success: true, Errors: [] };
+    }
+  },
 }));
-vi.mock('@mj-biz-apps/tasks-core', () => ({ TaskService: class {} }));
+vi.mock('@mj-biz-apps/tasks-core', () => ({
+  TaskService: class {},
+  IsUUID: (v: unknown) => typeof v === 'string' && /^[0-9a-fA-F-]{36}$/.test(v),
+}));
 
 describe('@mj-biz-apps/tasks-entities-server', () => {
   it('imports the entry point and exposes the bootstrap + subclass', async () => {
     const mod = await import('../index.js');
     expect(mod.LoadBizAppsTasksEntitiesServer).toBeTypeOf('function');
     expect(mod.TaskEntityServer).toBeDefined();
+    expect(mod.TaskAssignmentEntityServer).toBeDefined();
   });
 
   it('LoadBizAppsTasksEntitiesServer runs without throwing', async () => {

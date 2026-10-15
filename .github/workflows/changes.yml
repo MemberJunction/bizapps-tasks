@@ -25,6 +25,9 @@ on:
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
     branches: [next]
 
+permissions:
+  contents: read
+
 concurrency:
   group: changes-${{ github.ref }}
   cancel-in-progress: true

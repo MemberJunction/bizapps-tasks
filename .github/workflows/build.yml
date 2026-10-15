@@ -21,6 +21,9 @@ on:
     # merge that most needs a build: it is what publishes to npm.
     branches: [next, main]
 
+permissions:
+  contents: read
+
 concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
