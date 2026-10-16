@@ -14,6 +14,7 @@ Comprehensive integration check bundles for BizApps Tasks dispatched by `mj test
 | `task-templates` | `TSK-05` | Evaluates task template instantiation with category and schedule offsets. |
 | `task-statuses` | `TSK-06` | Tests dynamic `TaskTypeStatus` defaulting on task creation, stage transitions across `MacroStatus` values, and terminal auto-completion. |
 | `task-action-hooks` | `TSK-07` | Validates non-blocking event-driven Action hook dispatch (`OnCreate`, `OnStatusChange`, `OnEnterStatus`, `OnExitStatus`) with universal task payload. |
+| `meetings` | `M1`–`M5` | Meetings over the wire: a meeting from the Team type with its agenda, the organizer's row and its `.ics` (M1); a weekly series' occurrences, with the series' attendees, a change reaching the untouched ones (M2); the status moves, the organizer starting the meeting as a UI-only user and someone else refused (M3); a Private meeting read by its attendees only (M4); a cancellation telling the fake video driver after the commit (M5). M3 and M4 sign in as two UI-only people (`ivy.meets@`, `jun.meets@task-world.test`) with keys minted for the run (`persona-provider.ts`); M5 needs MJAPI started with `--import <this package>/dist/video-stub.js`. |
 
 ## Running Tests
 

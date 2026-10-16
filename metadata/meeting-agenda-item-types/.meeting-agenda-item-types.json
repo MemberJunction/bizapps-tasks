@@ -1,0 +1,104 @@
+[
+  {
+    "fields": {
+      "Name": "Information",
+      "Code": "INFORMATION",
+      "Description": "Something the meeting is told, with no decision asked.",
+      "IconClass": "fa-solid fa-circle-info",
+      "DefaultDurationMinutes": 5,
+      "IsActive": true,
+      "Sequence": 100
+    },
+    "primaryKey": {
+      "ID": "CA657C84-DF86-47A0-B096-9294E9E5689A"
+    },
+    "_comments": [
+      "The agenda item types Tasks ships: a lookup rather than a fixed list, so an app adds its own (Committees adds Vote).",
+      "These rows are metadata. Push them with mj sync push."
+    ]
+  },
+  {
+    "fields": {
+      "Name": "Discussion",
+      "Code": "DISCUSSION",
+      "Description": "Something the meeting talks through.",
+      "IconClass": "fa-solid fa-comments",
+      "DefaultDurationMinutes": 15,
+      "IsActive": true,
+      "Sequence": 200
+    },
+    "primaryKey": {
+      "ID": "C9B934EA-D3B7-4C57-B514-ADA190D23EA0"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Decision",
+      "Code": "DECISION",
+      "Description": "Something the meeting settles; its outcome is recorded on the item.",
+      "IconClass": "fa-solid fa-gavel",
+      "DefaultDurationMinutes": 10,
+      "IsActive": true,
+      "Sequence": 300
+    },
+    "primaryKey": {
+      "ID": "D3613068-B072-447B-B487-3F9BE27BCD25"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Report",
+      "Code": "REPORT",
+      "Description": "A report given to the meeting.",
+      "IconClass": "fa-solid fa-file-lines",
+      "DefaultDurationMinutes": 10,
+      "IsActive": true,
+      "Sequence": 400
+    },
+    "primaryKey": {
+      "ID": "64177922-416C-41E9-991E-C50AF765C81E"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Presentation",
+      "Code": "PRESENTATION",
+      "Description": "Something shown to the meeting.",
+      "IconClass": "fa-solid fa-chalkboard-user",
+      "DefaultDurationMinutes": 20,
+      "IsActive": true,
+      "Sequence": 500
+    },
+    "primaryKey": {
+      "ID": "18F5F490-D474-43BF-92EF-036E32C7A9C8"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Action review",
+      "Code": "ACTION_REVIEW",
+      "Description": "The follow-ups from last time and the ones captured today.",
+      "IconClass": "fa-solid fa-list-check",
+      "DefaultDurationMinutes": 10,
+      "IsActive": true,
+      "Sequence": 600
+    },
+    "primaryKey": {
+      "ID": "59B4E080-8DE4-41EF-ABA2-1EDA4A4B0E86"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Break",
+      "Code": "BREAK",
+      "Description": "A pause.",
+      "IconClass": "fa-solid fa-mug-hot",
+      "DefaultDurationMinutes": 10,
+      "IsActive": true,
+      "Sequence": 700
+    },
+    "primaryKey": {
+      "ID": "8A326396-C37C-4A80-8D1F-D74128AC4114"
+    }
+  }
+]

@@ -1,0 +1,91 @@
+[
+  {
+    "fields": {
+      "Name": "General",
+      "Code": "GENERAL",
+      "Description": "A meeting with no particular shape: a title, a time, the people and an agenda.",
+      "IconClass": "fa-solid fa-calendar-day",
+      "DefaultDurationMinutes": 30,
+      "DefaultLocationType": "Virtual",
+      "DefaultVisibility": "Standard",
+      "AgendaTemplate": "{\"items\": [{\"title\": \"Purpose\", \"typeCode\": \"INFORMATION\", \"durationMinutes\": 5}, {\"title\": \"Discussion\", \"typeCode\": \"DISCUSSION\", \"durationMinutes\": 20}, {\"title\": \"Next steps\", \"typeCode\": \"ACTION_REVIEW\", \"durationMinutes\": 5}]}",
+      "IsActive": true,
+      "Sequence": 100
+    },
+    "primaryKey": {
+      "ID": "712D5318-E123-49AE-918A-1BA0901DACFC"
+    },
+    "_comments": [
+      "The meeting types Tasks ships (the meetings plan, § 10). Each carries the defaults a new meeting of the type starts with and its agenda template: items with a title, an agenda item type code, a duration in minutes and sub-items.",
+      "These rows are metadata. Push them with mj sync push. Do not copy them into a SQL migration."
+    ]
+  },
+  {
+    "fields": {
+      "Name": "One-on-one",
+      "Code": "ONE_ON_ONE",
+      "Description": "Two people, in private: the meeting and its notes are seen by its attendees only.",
+      "IconClass": "fa-solid fa-user-group",
+      "DefaultDurationMinutes": 30,
+      "DefaultLocationType": "Virtual",
+      "DefaultVisibility": "Private",
+      "AgendaTemplate": "{\"items\": [{\"title\": \"How things are going\", \"typeCode\": \"DISCUSSION\", \"durationMinutes\": 10}, {\"title\": \"Priorities\", \"typeCode\": \"DISCUSSION\", \"durationMinutes\": 10}, {\"title\": \"Follow-ups\", \"typeCode\": \"ACTION_REVIEW\", \"durationMinutes\": 10}]}",
+      "IsActive": true,
+      "Sequence": 200
+    },
+    "primaryKey": {
+      "ID": "6294489D-D3BF-4E9D-84C1-DD75B70D0E4A"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Team",
+      "Code": "TEAM",
+      "Description": "A team's regular meeting: what moved, what is blocked, what is next.",
+      "IconClass": "fa-solid fa-people-group",
+      "DefaultDurationMinutes": 60,
+      "DefaultLocationType": "Virtual",
+      "DefaultVisibility": "Standard",
+      "AgendaTemplate": "{\"items\": [{\"title\": \"Updates\", \"typeCode\": \"REPORT\", \"durationMinutes\": 15}, {\"title\": \"Blockers\", \"typeCode\": \"DISCUSSION\", \"durationMinutes\": 20}, {\"title\": \"Decisions\", \"typeCode\": \"DECISION\", \"durationMinutes\": 15}, {\"title\": \"Action items\", \"typeCode\": \"ACTION_REVIEW\", \"durationMinutes\": 10}]}",
+      "IsActive": true,
+      "Sequence": 300
+    },
+    "primaryKey": {
+      "ID": "6A15935E-7BE8-4703-9A24-FA099818B318"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Client",
+      "Code": "CLIENT",
+      "Description": "A meeting with a client or a partner, with the record it belongs to linked.",
+      "IconClass": "fa-solid fa-handshake",
+      "DefaultDurationMinutes": 60,
+      "DefaultLocationType": "Virtual",
+      "DefaultVisibility": "Standard",
+      "AgendaTemplate": "{\"items\": [{\"title\": \"Welcome and goals\", \"typeCode\": \"INFORMATION\", \"durationMinutes\": 5}, {\"title\": \"Review\", \"typeCode\": \"PRESENTATION\", \"durationMinutes\": 25}, {\"title\": \"Questions\", \"typeCode\": \"DISCUSSION\", \"durationMinutes\": 20}, {\"title\": \"Next steps\", \"typeCode\": \"ACTION_REVIEW\", \"durationMinutes\": 10}]}",
+      "IsActive": true,
+      "Sequence": 400
+    },
+    "primaryKey": {
+      "ID": "A66B95B4-20AF-4E42-915F-94BC1FB6E2D5"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Review",
+      "Code": "REVIEW",
+      "Description": "A review of work done: what was delivered, what was learned, what changes.",
+      "IconClass": "fa-solid fa-magnifying-glass-chart",
+      "DefaultDurationMinutes": 60,
+      "DefaultLocationType": "Virtual",
+      "DefaultVisibility": "Standard",
+      "AgendaTemplate": "{\"items\": [{\"title\": \"What was delivered\", \"typeCode\": \"PRESENTATION\", \"durationMinutes\": 20}, {\"title\": \"What we learned\", \"typeCode\": \"DISCUSSION\", \"durationMinutes\": 25}, {\"title\": \"What changes\", \"typeCode\": \"DECISION\", \"durationMinutes\": 15}]}",
+      "IsActive": true,
+      "Sequence": 500
+    },
+    "primaryKey": {
+      "ID": "69917FB5-3B5F-4397-81E2-99A9732E25BB"
+    }
+  }
+]
