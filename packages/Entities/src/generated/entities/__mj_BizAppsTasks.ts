@@ -69,7 +69,7 @@ export const mjBizAppsTasksTaskActivitySchema = z.object({
     Person: z.string().nullable().describe(`
         * * Field Name: Person
         * * Display Name: Person
-        * * SQL Data Type: nvarchar(201)`),
+        * * SQL Data Type: nvarchar(250)`),
 });
 
 export type mjBizAppsTasksTaskActivityEntityType = z.infer<typeof mjBizAppsTasksTaskActivitySchema>;
@@ -151,7 +151,7 @@ export const mjBizAppsTasksTaskAssignmentSchema = z.object({
     AssignedByPerson: z.string().nullable().describe(`
         * * Field Name: AssignedByPerson
         * * Display Name: Assigned By Person
-        * * SQL Data Type: nvarchar(201)`),
+        * * SQL Data Type: nvarchar(250)`),
 });
 
 export type mjBizAppsTasksTaskAssignmentEntityType = z.infer<typeof mjBizAppsTasksTaskAssignmentSchema>;
@@ -231,6 +231,123 @@ export const mjBizAppsTasksTaskCategorySchema = z.object({
 export type mjBizAppsTasksTaskCategoryEntityType = z.infer<typeof mjBizAppsTasksTaskCategorySchema>;
 
 /**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Task Check Ins
+ */
+export const mjBizAppsTasksTaskCheckInSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()`),
+    TaskID: z.string().describe(`
+        * * Field Name: TaskID
+        * * Display Name: Task
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
+        * * Description: The task, priority objective, or key result this check-in updates.`),
+    AuthorPersonID: z.string().nullable().describe(`
+        * * Field Name: AuthorPersonID
+        * * Display Name: Author Person
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: Optional Person record who authored or approved the check-in.`),
+    AuthorUserID: z.string().nullable().describe(`
+        * * Field Name: AuthorUserID
+        * * Display Name: Author User
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: Users (vwUsers.ID)
+        * * Description: Optional MemberJunction User who authored or submitted the check-in.`),
+    ReportedByAIAgentID: z.string().nullable().describe(`
+        * * Field Name: ReportedByAIAgentID
+        * * Display Name: Reported By AI Agent
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: AI Agents (vwAIAgents.ID)
+        * * Description: Optional AI Agent (e.g., Chief of Staff) that synthesized and recorded this check-in.`),
+    CheckInAt: z.date().describe(`
+        * * Field Name: CheckInAt
+        * * Display Name: Check-In At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: sysdatetimeoffset()
+        * * Description: Timestamp when the check-in occurred.`),
+    HealthStatus: z.union([z.literal('AtRisk'), z.literal('Completed'), z.literal('OffTrack'), z.literal('OnTrack'), z.literal('Paused')]).describe(`
+        * * Field Name: HealthStatus
+        * * Display Name: Health Status
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: OnTrack
+    * * Value List Type: List
+    * * Possible Values 
+    *   * AtRisk
+    *   * Completed
+    *   * OffTrack
+    *   * OnTrack
+    *   * Paused
+        * * Description: Health status reported at check-in: OnTrack, AtRisk, OffTrack, Completed, or Paused.`),
+    ConfidenceScore: z.number().nullable().describe(`
+        * * Field Name: ConfidenceScore
+        * * Display Name: Confidence Score
+        * * SQL Data Type: int
+        * * Description: Confidence score (0-100) reported at the time of check-in.`),
+    PreviousValue: z.number().nullable().describe(`
+        * * Field Name: PreviousValue
+        * * Display Name: Previous Value
+        * * SQL Data Type: decimal(18, 4)
+        * * Description: Metric value prior to this check-in.`),
+    NewValue: z.number().nullable().describe(`
+        * * Field Name: NewValue
+        * * Display Name: New Value
+        * * SQL Data Type: decimal(18, 4)
+        * * Description: Updated metric value reported in this check-in.`),
+    PercentComplete: z.number().nullable().describe(`
+        * * Field Name: PercentComplete
+        * * Display Name: Percent Complete
+        * * SQL Data Type: int
+        * * Description: Percent complete (0-100) reported or computed in this check-in.`),
+    Summary: z.string().describe(`
+        * * Field Name: Summary
+        * * Display Name: Summary
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: Narrative summary of accomplishments and status since the last check-in.`),
+    Blockers: z.string().nullable().describe(`
+        * * Field Name: Blockers
+        * * Display Name: Blockers
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: Risks, impediments, or cross-team blockers surfaced during the check-in.`),
+    NextSteps: z.string().nullable().describe(`
+        * * Field Name: NextSteps
+        * * Display Name: Next Steps
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: Planned next steps and commitments before the next check-in.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Task: z.string().describe(`
+        * * Field Name: Task
+        * * Display Name: Task Name
+        * * SQL Data Type: nvarchar(255)`),
+    AuthorPerson: z.string().nullable().describe(`
+        * * Field Name: AuthorPerson
+        * * Display Name: Author Person Name
+        * * SQL Data Type: nvarchar(250)`),
+    AuthorUser: z.string().nullable().describe(`
+        * * Field Name: AuthorUser
+        * * Display Name: Author User Name
+        * * SQL Data Type: nvarchar(100)`),
+    ReportedByAIAgent: z.string().nullable().describe(`
+        * * Field Name: ReportedByAIAgent
+        * * Display Name: Reported By AI Agent Name
+        * * SQL Data Type: nvarchar(255)`),
+});
+
+export type mjBizAppsTasksTaskCheckInEntityType = z.infer<typeof mjBizAppsTasksTaskCheckInSchema>;
+
+/**
  * zod schema definition for the entity MJ_BizApps_Tasks: Task Comments
  */
 export const mjBizAppsTasksTaskCommentSchema = z.object({
@@ -280,7 +397,7 @@ export const mjBizAppsTasksTaskCommentSchema = z.object({
     Person: z.string().describe(`
         * * Field Name: Person
         * * Display Name: Person
-        * * SQL Data Type: nvarchar(201)`),
+        * * SQL Data Type: nvarchar(250)`),
     RootParentID: z.string().nullable().describe(`
         * * Field Name: RootParentID
         * * Display Name: Root Parent ID
@@ -425,7 +542,7 @@ export const mjBizAppsTasksTaskDecisionSchema = z.object({
     DecidedByPerson: z.string().nullable().describe(`
         * * Field Name: DecidedByPerson
         * * Display Name: Decided By Person
-        * * SQL Data Type: nvarchar(201)`),
+        * * SQL Data Type: nvarchar(250)`),
 });
 
 export type mjBizAppsTasksTaskDecisionEntityType = z.infer<typeof mjBizAppsTasksTaskDecisionSchema>;
@@ -1390,6 +1507,87 @@ export const mjBizAppsTasksTaskSchema = z.object({
         * * Display Name: SLA Scored At
         * * SQL Data Type: datetimeoffset
         * * Description: Timestamp when this task was last scored by the predictive SLA breach model.`),
+    HealthStatus: z.union([z.literal('AtRisk'), z.literal('Completed'), z.literal('OffTrack'), z.literal('OnTrack'), z.literal('Paused')]).nullable().describe(`
+        * * Field Name: HealthStatus
+        * * Display Name: Health Status
+        * * SQL Data Type: nvarchar(20)
+    * * Value List Type: List
+    * * Possible Values 
+    *   * AtRisk
+    *   * Completed
+    *   * OffTrack
+    *   * OnTrack
+    *   * Paused
+        * * Description: Qualitative health status for priority/OKR tracking: OnTrack, AtRisk, OffTrack, Completed, or Paused.`),
+    ConfidenceScore: z.number().nullable().describe(`
+        * * Field Name: ConfidenceScore
+        * * Display Name: Confidence Score
+        * * SQL Data Type: int
+        * * Description: Owner confidence score (0-100) that this task, key result, or objective will hit its target on time.`),
+    BaselineValue: z.number().nullable().describe(`
+        * * Field Name: BaselineValue
+        * * Display Name: Baseline Value
+        * * SQL Data Type: decimal(18, 4)
+        * * Description: Starting baseline value for measurable key results or quantitative deliverables.`),
+    TargetValue: z.number().nullable().describe(`
+        * * Field Name: TargetValue
+        * * Display Name: Target Value
+        * * SQL Data Type: decimal(18, 4)
+        * * Description: Target goal value for measurable key results or quantitative deliverables.`),
+    CurrentValue: z.number().nullable().describe(`
+        * * Field Name: CurrentValue
+        * * Display Name: Current Value
+        * * SQL Data Type: decimal(18, 4)
+        * * Description: Latest actual measured value for this key result or deliverable, updated automatically by TaskCheckIn records.`),
+    UnitOfMeasure: z.string().nullable().describe(`
+        * * Field Name: UnitOfMeasure
+        * * Display Name: Unit of Measure
+        * * SQL Data Type: nvarchar(50)
+        * * Description: Unit of measure for BaselineValue, TargetValue, and CurrentValue (e.g., %, USD, Days, Customers, NPS).`),
+    MetricDirection: z.union([z.literal('Decrease'), z.literal('Increase'), z.literal('Maintain')]).nullable().describe(`
+        * * Field Name: MetricDirection
+        * * Display Name: Metric Direction
+        * * SQL Data Type: nvarchar(20)
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Decrease
+    *   * Increase
+    *   * Maintain
+        * * Description: Direction of improvement for quantitative metrics: Increase, Decrease, or Maintain.`),
+    RollupWeight: z.number().describe(`
+        * * Field Name: RollupWeight
+        * * Display Name: Rollup Weight
+        * * SQL Data Type: decimal(8, 2)
+        * * Default Value: 1.00
+        * * Description: Relative weight (default 1.00) when rolling up child task or key result progress into a parent objective.`),
+    PlanningPeriod: z.string().nullable().describe(`
+        * * Field Name: PlanningPeriod
+        * * Display Name: Planning Period
+        * * SQL Data Type: nvarchar(50)
+        * * Description: Planning horizon or OKR cycle identifier (e.g., 2026-Q4, FY2027, H1-2026).`),
+    CheckInCadence: z.union([z.literal('BiWeekly'), z.literal('Daily'), z.literal('Monthly'), z.literal('None'), z.literal('Quarterly'), z.literal('Weekly')]).nullable().describe(`
+        * * Field Name: CheckInCadence
+        * * Display Name: Check-In Cadence
+        * * SQL Data Type: nvarchar(20)
+    * * Value List Type: List
+    * * Possible Values 
+    *   * BiWeekly
+    *   * Daily
+    *   * Monthly
+    *   * None
+    *   * Quarterly
+    *   * Weekly
+        * * Description: Expected progress check-in frequency: Daily, Weekly, BiWeekly, Monthly, Quarterly, or None.`),
+    LastCheckInAt: z.date().nullable().describe(`
+        * * Field Name: LastCheckInAt
+        * * Display Name: Last Check-In At
+        * * SQL Data Type: datetimeoffset
+        * * Description: Timestamp when the most recent TaskCheckIn was recorded for this task.`),
+    NextCheckInDueAt: z.date().nullable().describe(`
+        * * Field Name: NextCheckInDueAt
+        * * Display Name: Next Check-In Due At
+        * * SQL Data Type: datetimeoffset
+        * * Description: Timestamp when the next progress check-in is due based on CheckInCadence; used by Chief of Staff to nudge owners.`),
     Type: z.string().describe(`
         * * Field Name: Type
         * * Display Name: Type
@@ -1405,35 +1603,31 @@ export const mjBizAppsTasksTaskSchema = z.object({
     CreatedByPerson: z.string().nullable().describe(`
         * * Field Name: CreatedByPerson
         * * Display Name: Created By Person
-        * * SQL Data Type: nvarchar(201)`),
+        * * SQL Data Type: nvarchar(250)`),
     TaskTypeStatus: z.string().nullable().describe(`
         * * Field Name: TaskTypeStatus
         * * Display Name: Task Type Status Name
         * * SQL Data Type: nvarchar(100)`),
     RootParentID: z.string().nullable().describe(`
         * * Field Name: RootParentID
-        * * Display Name: Root Parent
+        * * Display Name: Root Parent ID
         * * SQL Data Type: uniqueidentifier`),
     IsSLABreached: z.string().nullable().describe(`
         * * Field Name: IsSLABreached
         * * Display Name: Is SLA Breached
-        * * SQL Data Type: varchar(8)
-        * * Description: Indicates whether the task breached its SLA (Met vs. Breached). Ground truth target for predictive models.`),
+        * * SQL Data Type: varchar(8)`),
     LeadDays: z.number().nullable().describe(`
         * * Field Name: LeadDays
         * * Display Name: Lead Days
-        * * SQL Data Type: int
-        * * Description: Number of days between task start/creation and SLA target due date.`),
+        * * SQL Data Type: int`),
     AssignmentsCount: z.number().describe(`
         * * Field Name: AssignmentsCount
         * * Display Name: Assignments Count
-        * * SQL Data Type: int
-        * * Description: Total number of team members assigned to this task.`),
+        * * SQL Data Type: int`),
     CommentsCount: z.number().describe(`
         * * Field Name: CommentsCount
         * * Display Name: Comments Count
-        * * SQL Data Type: int
-        * * Description: Total number of comments recorded on this task.`),
+        * * SQL Data Type: int`),
 });
 
 export type mjBizAppsTasksTaskEntityType = z.infer<typeof mjBizAppsTasksTaskSchema>;
@@ -1601,7 +1795,7 @@ export class mjBizAppsTasksTaskActivityEntity extends BaseEntity<mjBizAppsTasksT
     /**
     * * Field Name: Person
     * * Display Name: Person
-    * * SQL Data Type: nvarchar(201)
+    * * SQL Data Type: nvarchar(250)
     */
     get Person(): string | null {
         return this.Get('Person');
@@ -1808,7 +2002,7 @@ export class mjBizAppsTasksTaskAssignmentEntity extends BaseEntity<mjBizAppsTask
     /**
     * * Field Name: AssignedByPerson
     * * Display Name: Assigned By Person
-    * * SQL Data Type: nvarchar(201)
+    * * SQL Data Type: nvarchar(250)
     */
     get AssignedByPerson(): string | null {
         return this.Get('AssignedByPerson');
@@ -2010,6 +2204,340 @@ export class mjBizAppsTasksTaskCategoryEntity extends BaseEntity<mjBizAppsTasksT
 
 
 /**
+ * MJ_BizApps_Tasks: Task Check Ins - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: TaskCheckIn
+ * * Base View: vwTaskCheckIns
+ * * @description Structured periodic progress check-ins for tasks, priorities, and OKRs, authored by users or AI agents such as Chief of Staff.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Task Check Ins')
+export class mjBizAppsTasksTaskCheckInEntity extends BaseEntity<mjBizAppsTasksTaskCheckInEntityType> {
+    /**
+    * Loads the MJ_BizApps_Tasks: Task Check Ins record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Task Check Ins record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksTaskCheckInEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * Validate() method override for MJ_BizApps_Tasks: Task Check Ins entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
+    * * ConfidenceScore: Confidence score must be between 0 and 100 if specified.
+    * * PercentComplete: Percent complete must be between 0 and 100 when provided.
+    * @public
+    * @method
+    * @override
+    */
+    public override Validate(): ValidationResult {
+        const result = super.Validate();
+        this.ValidateConfidenceScoreRange(result);
+        this.ValidatePercentCompleteRange(result);
+        result.Success = result.Success && (result.Errors.length === 0);
+
+        return result;
+    }
+
+    /**
+    * Confidence score must be between 0 and 100 if specified.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateConfidenceScoreRange(result: ValidationResult) {
+    	if (this.ConfidenceScore != null && (this.ConfidenceScore < 0 || this.ConfidenceScore > 100)) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"ConfidenceScore",
+    			"Confidence score must be between 0 and 100.",
+    			this.ConfidenceScore,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    }
+
+    /**
+    * Percent complete must be between 0 and 100 when provided.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidatePercentCompleteRange(result: ValidationResult) {
+    	if (this.PercentComplete != null && (this.PercentComplete < 0 || this.PercentComplete > 100)) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"PercentComplete",
+    			"Percent complete must be between 0 and 100.",
+    			this.PercentComplete,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: TaskID
+    * * Display Name: Task
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
+    * * Description: The task, priority objective, or key result this check-in updates.
+    */
+    get TaskID(): string {
+        return this.Get('TaskID');
+    }
+    set TaskID(value: string) {
+        this.Set('TaskID', value);
+    }
+
+    /**
+    * * Field Name: AuthorPersonID
+    * * Display Name: Author Person
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+    * * Description: Optional Person record who authored or approved the check-in.
+    */
+    get AuthorPersonID(): string | null {
+        return this.Get('AuthorPersonID');
+    }
+    set AuthorPersonID(value: string | null) {
+        this.Set('AuthorPersonID', value);
+    }
+
+    /**
+    * * Field Name: AuthorUserID
+    * * Display Name: Author User
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ: Users (vwUsers.ID)
+    * * Description: Optional MemberJunction User who authored or submitted the check-in.
+    */
+    get AuthorUserID(): string | null {
+        return this.Get('AuthorUserID');
+    }
+    set AuthorUserID(value: string | null) {
+        this.Set('AuthorUserID', value);
+    }
+
+    /**
+    * * Field Name: ReportedByAIAgentID
+    * * Display Name: Reported By AI Agent
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ: AI Agents (vwAIAgents.ID)
+    * * Description: Optional AI Agent (e.g., Chief of Staff) that synthesized and recorded this check-in.
+    */
+    get ReportedByAIAgentID(): string | null {
+        return this.Get('ReportedByAIAgentID');
+    }
+    set ReportedByAIAgentID(value: string | null) {
+        this.Set('ReportedByAIAgentID', value);
+    }
+
+    /**
+    * * Field Name: CheckInAt
+    * * Display Name: Check-In At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: sysdatetimeoffset()
+    * * Description: Timestamp when the check-in occurred.
+    */
+    get CheckInAt(): Date {
+        return this.Get('CheckInAt');
+    }
+    set CheckInAt(value: Date) {
+        this.Set('CheckInAt', value);
+    }
+
+    /**
+    * * Field Name: HealthStatus
+    * * Display Name: Health Status
+    * * SQL Data Type: nvarchar(20)
+    * * Default Value: OnTrack
+    * * Value List Type: List
+    * * Possible Values 
+    *   * AtRisk
+    *   * Completed
+    *   * OffTrack
+    *   * OnTrack
+    *   * Paused
+    * * Description: Health status reported at check-in: OnTrack, AtRisk, OffTrack, Completed, or Paused.
+    */
+    get HealthStatus(): 'AtRisk' | 'Completed' | 'OffTrack' | 'OnTrack' | 'Paused' {
+        return this.Get('HealthStatus');
+    }
+    set HealthStatus(value: 'AtRisk' | 'Completed' | 'OffTrack' | 'OnTrack' | 'Paused') {
+        this.Set('HealthStatus', value);
+    }
+
+    /**
+    * * Field Name: ConfidenceScore
+    * * Display Name: Confidence Score
+    * * SQL Data Type: int
+    * * Description: Confidence score (0-100) reported at the time of check-in.
+    */
+    get ConfidenceScore(): number | null {
+        return this.Get('ConfidenceScore');
+    }
+    set ConfidenceScore(value: number | null) {
+        this.Set('ConfidenceScore', value);
+    }
+
+    /**
+    * * Field Name: PreviousValue
+    * * Display Name: Previous Value
+    * * SQL Data Type: decimal(18, 4)
+    * * Description: Metric value prior to this check-in.
+    */
+    get PreviousValue(): number | null {
+        return this.Get('PreviousValue');
+    }
+    set PreviousValue(value: number | null) {
+        this.Set('PreviousValue', value);
+    }
+
+    /**
+    * * Field Name: NewValue
+    * * Display Name: New Value
+    * * SQL Data Type: decimal(18, 4)
+    * * Description: Updated metric value reported in this check-in.
+    */
+    get NewValue(): number | null {
+        return this.Get('NewValue');
+    }
+    set NewValue(value: number | null) {
+        this.Set('NewValue', value);
+    }
+
+    /**
+    * * Field Name: PercentComplete
+    * * Display Name: Percent Complete
+    * * SQL Data Type: int
+    * * Description: Percent complete (0-100) reported or computed in this check-in.
+    */
+    get PercentComplete(): number | null {
+        return this.Get('PercentComplete');
+    }
+    set PercentComplete(value: number | null) {
+        this.Set('PercentComplete', value);
+    }
+
+    /**
+    * * Field Name: Summary
+    * * Display Name: Summary
+    * * SQL Data Type: nvarchar(MAX)
+    * * Description: Narrative summary of accomplishments and status since the last check-in.
+    */
+    get Summary(): string {
+        return this.Get('Summary');
+    }
+    set Summary(value: string) {
+        this.Set('Summary', value);
+    }
+
+    /**
+    * * Field Name: Blockers
+    * * Display Name: Blockers
+    * * SQL Data Type: nvarchar(MAX)
+    * * Description: Risks, impediments, or cross-team blockers surfaced during the check-in.
+    */
+    get Blockers(): string | null {
+        return this.Get('Blockers');
+    }
+    set Blockers(value: string | null) {
+        this.Set('Blockers', value);
+    }
+
+    /**
+    * * Field Name: NextSteps
+    * * Display Name: Next Steps
+    * * SQL Data Type: nvarchar(MAX)
+    * * Description: Planned next steps and commitments before the next check-in.
+    */
+    get NextSteps(): string | null {
+        return this.Get('NextSteps');
+    }
+    set NextSteps(value: string | null) {
+        this.Set('NextSteps', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: Task
+    * * Display Name: Task Name
+    * * SQL Data Type: nvarchar(255)
+    */
+    get Task(): string {
+        return this.Get('Task');
+    }
+
+    /**
+    * * Field Name: AuthorPerson
+    * * Display Name: Author Person Name
+    * * SQL Data Type: nvarchar(250)
+    */
+    get AuthorPerson(): string | null {
+        return this.Get('AuthorPerson');
+    }
+
+    /**
+    * * Field Name: AuthorUser
+    * * Display Name: Author User Name
+    * * SQL Data Type: nvarchar(100)
+    */
+    get AuthorUser(): string | null {
+        return this.Get('AuthorUser');
+    }
+
+    /**
+    * * Field Name: ReportedByAIAgent
+    * * Display Name: Reported By AI Agent Name
+    * * SQL Data Type: nvarchar(255)
+    */
+    get ReportedByAIAgent(): string | null {
+        return this.Get('ReportedByAIAgent');
+    }
+}
+
+
+/**
  * MJ_BizApps_Tasks: Task Comments - strongly typed entity sub-class
  * * Schema: __mj_BizAppsTasks
  * * Base Table: TaskComment
@@ -2147,7 +2675,7 @@ export class mjBizAppsTasksTaskCommentEntity extends BaseEntity<mjBizAppsTasksTa
     /**
     * * Field Name: Person
     * * Display Name: Person
-    * * SQL Data Type: nvarchar(201)
+    * * SQL Data Type: nvarchar(250)
     */
     get Person(): string {
         return this.Get('Person');
@@ -2510,7 +3038,7 @@ export class mjBizAppsTasksTaskDecisionEntity extends BaseEntity<mjBizAppsTasksT
     /**
     * * Field Name: DecidedByPerson
     * * Display Name: Decided By Person
-    * * SQL Data Type: nvarchar(201)
+    * * SQL Data Type: nvarchar(250)
     */
     get DecidedByPerson(): string | null {
         return this.Get('DecidedByPerson');
@@ -2549,7 +3077,7 @@ export class mjBizAppsTasksTaskDependencyEntity extends BaseEntity<mjBizAppsTask
 
     /**
     * Validate() method override for MJ_BizApps_Tasks: Task Dependencies entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
-    * * Table-Level: A task cannot depend on itself. This prevents circular dependencies and ensures that a task can only have a dependency on a different task.
+    * * Table-Level: A task cannot depend on itself.
     * @public
     * @method
     * @override
@@ -2563,7 +3091,7 @@ export class mjBizAppsTasksTaskDependencyEntity extends BaseEntity<mjBizAppsTask
     }
 
     /**
-    * A task cannot depend on itself. This prevents circular dependencies and ensures that a task can only have a dependency on a different task.
+    * A task cannot depend on itself.
     * @param result - the ValidationResult object to add any errors or warnings to
     * @public
     * @method
@@ -2572,7 +3100,7 @@ export class mjBizAppsTasksTaskDependencyEntity extends BaseEntity<mjBizAppsTask
     	if (this.TaskID != null && this.DependsOnTaskID != null && this.TaskID === this.DependsOnTaskID) {
     		result.Errors.push(new ValidationErrorInfo(
     			"DependsOnTaskID",
-    			"A task cannot depend on itself. The Task ID and Depends On Task ID must be different.",
+    			"A task cannot depend on itself. TaskID and DependsOnTaskID must be different.",
     			this.DependsOnTaskID,
     			ValidationErrorType.Failure
     		));
@@ -3458,30 +3986,30 @@ export class mjBizAppsTasksTaskTemplateItemDependencyEntity extends BaseEntity<m
 
     /**
     * Validate() method override for MJ_BizApps_Tasks: Task Template Item Dependencies entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
-    * * Table-Level: An item cannot depend on itself. The item and its dependency must be different items to prevent self-referential relationships.
+    * * Table-Level: An item cannot depend on itself, preventing circular self-dependencies.
     * @public
     * @method
     * @override
     */
     public override Validate(): ValidationResult {
         const result = super.Validate();
-        this.ValidateItemNotDependentOnSelf(result);
+        this.ValidateItemIDNotEqualToDependsOnItemID(result);
         result.Success = result.Success && (result.Errors.length === 0);
 
         return result;
     }
 
     /**
-    * An item cannot depend on itself. The item and its dependency must be different items to prevent self-referential relationships.
+    * An item cannot depend on itself, preventing circular self-dependencies.
     * @param result - the ValidationResult object to add any errors or warnings to
     * @public
     * @method
     */
-    public ValidateItemNotDependentOnSelf(result: ValidationResult) {
+    public ValidateItemIDNotEqualToDependsOnItemID(result: ValidationResult) {
     	if (this.ItemID != null && this.DependsOnItemID != null && this.ItemID === this.DependsOnItemID) {
     		result.Errors.push(new ValidationErrorInfo(
     			"DependsOnItemID",
-    			"An item cannot depend on itself. The Item ID and Depends On Item ID must be different.",
+    			"An item cannot depend on itself. ItemID and DependsOnItemID must be different.",
     			this.DependsOnItemID,
     			ValidationErrorType.Failure
     		));
@@ -4527,20 +5055,6 @@ export class mjBizAppsTasksTaskTypeEntity extends BaseEntity<mjBizAppsTasksTaskT
     }
 
     /**
-    * * Field Name: IsApproval
-    * * Display Name: Is Approval
-    * * SQL Data Type: bit
-    * * Default Value: 0
-    * * Description: When true, tasks of this type are approvals: they appear in the approvals inbox of each assignee, who records a decision on them.
-    */
-    get IsApproval(): boolean {
-        return this.Get('IsApproval');
-    }
-    set IsApproval(value: boolean) {
-        this.Set('IsApproval', value);
-    }
-
-    /**
     * * Field Name: OnRejectActionID
     * * Display Name: On Reject Action ID
     * * SQL Data Type: uniqueidentifier
@@ -4607,6 +5121,20 @@ export class mjBizAppsTasksTaskTypeEntity extends BaseEntity<mjBizAppsTasksTaskT
     }
     set OnStatusChangeActionID(value: string | null) {
         this.Set('OnStatusChangeActionID', value);
+    }
+
+    /**
+    * * Field Name: IsApproval
+    * * Display Name: Is Approval
+    * * SQL Data Type: bit
+    * * Default Value: 0
+    * * Description: When true, tasks of this type are approvals: they appear in the approvals inbox of each assignee, who records a decision on them.
+    */
+    get IsApproval(): boolean {
+        return this.Get('IsApproval');
+    }
+    set IsApproval(value: boolean) {
+        this.Set('IsApproval', value);
     }
 
     /**
@@ -4714,13 +5242,15 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
 
     /**
     * Validate() method override for MJ_BizApps_Tasks: Tasks entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
-    * * PercentComplete: Percent complete must be a value between 0 and 100 percent.
+    * * ConfidenceScore: Confidence score must be between 0 and 100 if specified.
+    * * PercentComplete: Percent complete must be a valid percentage between 0 and 100
     * @public
     * @method
     * @override
     */
     public override Validate(): ValidationResult {
         const result = super.Validate();
+        this.ValidateConfidenceScoreRange(result);
         this.ValidatePercentCompleteRange(result);
         result.Success = result.Success && (result.Errors.length === 0);
 
@@ -4728,21 +5258,36 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     }
 
     /**
-    * Percent complete must be a value between 0 and 100 percent.
+    * Confidence score must be between 0 and 100 if specified.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateConfidenceScoreRange(result: ValidationResult) {
+    	if (this.ConfidenceScore != null && (this.ConfidenceScore < 0 || this.ConfidenceScore > 100)) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"ConfidenceScore",
+    			"Confidence score must be between 0 and 100.",
+    			this.ConfidenceScore,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    }
+
+    /**
+    * Percent complete must be a valid percentage between 0 and 100
     * @param result - the ValidationResult object to add any errors or warnings to
     * @public
     * @method
     */
     public ValidatePercentCompleteRange(result: ValidationResult) {
-    	if (this.PercentComplete !== undefined && this.PercentComplete !== null) {
-    		if (this.PercentComplete < 0 || this.PercentComplete > 100) {
-    			result.Errors.push(new ValidationErrorInfo(
-    				"PercentComplete",
-    				"Percent complete must be between 0 and 100.",
-    				this.PercentComplete,
-    				ValidationErrorType.Failure
-    			));
-    		}
+    	if (this.PercentComplete < 0 || this.PercentComplete > 100) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"PercentComplete",
+    			"Percent complete must be between 0 and 100.",
+    			this.PercentComplete,
+    			ValidationErrorType.Failure
+    		));
     	}
     }
 
@@ -5076,6 +5621,183 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     }
 
     /**
+    * * Field Name: HealthStatus
+    * * Display Name: Health Status
+    * * SQL Data Type: nvarchar(20)
+    * * Value List Type: List
+    * * Possible Values 
+    *   * AtRisk
+    *   * Completed
+    *   * OffTrack
+    *   * OnTrack
+    *   * Paused
+    * * Description: Qualitative health status for priority/OKR tracking: OnTrack, AtRisk, OffTrack, Completed, or Paused.
+    */
+    get HealthStatus(): 'AtRisk' | 'Completed' | 'OffTrack' | 'OnTrack' | 'Paused' | null {
+        return this.Get('HealthStatus');
+    }
+    set HealthStatus(value: 'AtRisk' | 'Completed' | 'OffTrack' | 'OnTrack' | 'Paused' | null) {
+        this.Set('HealthStatus', value);
+    }
+
+    /**
+    * * Field Name: ConfidenceScore
+    * * Display Name: Confidence Score
+    * * SQL Data Type: int
+    * * Description: Owner confidence score (0-100) that this task, key result, or objective will hit its target on time.
+    */
+    get ConfidenceScore(): number | null {
+        return this.Get('ConfidenceScore');
+    }
+    set ConfidenceScore(value: number | null) {
+        this.Set('ConfidenceScore', value);
+    }
+
+    /**
+    * * Field Name: BaselineValue
+    * * Display Name: Baseline Value
+    * * SQL Data Type: decimal(18, 4)
+    * * Description: Starting baseline value for measurable key results or quantitative deliverables.
+    */
+    get BaselineValue(): number | null {
+        return this.Get('BaselineValue');
+    }
+    set BaselineValue(value: number | null) {
+        this.Set('BaselineValue', value);
+    }
+
+    /**
+    * * Field Name: TargetValue
+    * * Display Name: Target Value
+    * * SQL Data Type: decimal(18, 4)
+    * * Description: Target goal value for measurable key results or quantitative deliverables.
+    */
+    get TargetValue(): number | null {
+        return this.Get('TargetValue');
+    }
+    set TargetValue(value: number | null) {
+        this.Set('TargetValue', value);
+    }
+
+    /**
+    * * Field Name: CurrentValue
+    * * Display Name: Current Value
+    * * SQL Data Type: decimal(18, 4)
+    * * Description: Latest actual measured value for this key result or deliverable, updated automatically by TaskCheckIn records.
+    */
+    get CurrentValue(): number | null {
+        return this.Get('CurrentValue');
+    }
+    set CurrentValue(value: number | null) {
+        this.Set('CurrentValue', value);
+    }
+
+    /**
+    * * Field Name: UnitOfMeasure
+    * * Display Name: Unit of Measure
+    * * SQL Data Type: nvarchar(50)
+    * * Description: Unit of measure for BaselineValue, TargetValue, and CurrentValue (e.g., %, USD, Days, Customers, NPS).
+    */
+    get UnitOfMeasure(): string | null {
+        return this.Get('UnitOfMeasure');
+    }
+    set UnitOfMeasure(value: string | null) {
+        this.Set('UnitOfMeasure', value);
+    }
+
+    /**
+    * * Field Name: MetricDirection
+    * * Display Name: Metric Direction
+    * * SQL Data Type: nvarchar(20)
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Decrease
+    *   * Increase
+    *   * Maintain
+    * * Description: Direction of improvement for quantitative metrics: Increase, Decrease, or Maintain.
+    */
+    get MetricDirection(): 'Decrease' | 'Increase' | 'Maintain' | null {
+        return this.Get('MetricDirection');
+    }
+    set MetricDirection(value: 'Decrease' | 'Increase' | 'Maintain' | null) {
+        this.Set('MetricDirection', value);
+    }
+
+    /**
+    * * Field Name: RollupWeight
+    * * Display Name: Rollup Weight
+    * * SQL Data Type: decimal(8, 2)
+    * * Default Value: 1.00
+    * * Description: Relative weight (default 1.00) when rolling up child task or key result progress into a parent objective.
+    */
+    get RollupWeight(): number {
+        return this.Get('RollupWeight');
+    }
+    set RollupWeight(value: number) {
+        this.Set('RollupWeight', value);
+    }
+
+    /**
+    * * Field Name: PlanningPeriod
+    * * Display Name: Planning Period
+    * * SQL Data Type: nvarchar(50)
+    * * Description: Planning horizon or OKR cycle identifier (e.g., 2026-Q4, FY2027, H1-2026).
+    */
+    get PlanningPeriod(): string | null {
+        return this.Get('PlanningPeriod');
+    }
+    set PlanningPeriod(value: string | null) {
+        this.Set('PlanningPeriod', value);
+    }
+
+    /**
+    * * Field Name: CheckInCadence
+    * * Display Name: Check-In Cadence
+    * * SQL Data Type: nvarchar(20)
+    * * Value List Type: List
+    * * Possible Values 
+    *   * BiWeekly
+    *   * Daily
+    *   * Monthly
+    *   * None
+    *   * Quarterly
+    *   * Weekly
+    * * Description: Expected progress check-in frequency: Daily, Weekly, BiWeekly, Monthly, Quarterly, or None.
+    */
+    get CheckInCadence(): 'BiWeekly' | 'Daily' | 'Monthly' | 'None' | 'Quarterly' | 'Weekly' | null {
+        return this.Get('CheckInCadence');
+    }
+    set CheckInCadence(value: 'BiWeekly' | 'Daily' | 'Monthly' | 'None' | 'Quarterly' | 'Weekly' | null) {
+        this.Set('CheckInCadence', value);
+    }
+
+    /**
+    * * Field Name: LastCheckInAt
+    * * Display Name: Last Check-In At
+    * * SQL Data Type: datetimeoffset
+    * * Description: Timestamp when the most recent TaskCheckIn was recorded for this task.
+    */
+    get LastCheckInAt(): Date | null {
+        return this.Get('LastCheckInAt');
+    }
+    set LastCheckInAt(value: Date | null) {
+        this.Set('LastCheckInAt', value);
+    }
+
+    /**
+    * * Field Name: NextCheckInDueAt
+    * * Display Name: Next Check-In Due At
+    * * SQL Data Type: datetimeoffset
+    * * Description: Timestamp when the next progress check-in is due based on CheckInCadence; used by Chief of Staff to nudge owners.
+    */
+    get NextCheckInDueAt(): Date | null {
+        return this.Get('NextCheckInDueAt');
+    }
+    set NextCheckInDueAt(value: Date | null) {
+        this.Set('NextCheckInDueAt', value);
+    }
+
+    /**
     * * Field Name: Type
     * * Display Name: Type
     * * SQL Data Type: nvarchar(100)
@@ -5105,7 +5827,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     /**
     * * Field Name: CreatedByPerson
     * * Display Name: Created By Person
-    * * SQL Data Type: nvarchar(201)
+    * * SQL Data Type: nvarchar(250)
     */
     get CreatedByPerson(): string | null {
         return this.Get('CreatedByPerson');
@@ -5122,7 +5844,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
 
     /**
     * * Field Name: RootParentID
-    * * Display Name: Root Parent
+    * * Display Name: Root Parent ID
     * * SQL Data Type: uniqueidentifier
     */
     get RootParentID(): string | null {
@@ -5133,7 +5855,6 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     * * Field Name: IsSLABreached
     * * Display Name: Is SLA Breached
     * * SQL Data Type: varchar(8)
-    * * Description: Indicates whether the task breached its SLA (Met vs. Breached). Ground truth target for predictive models.
     */
     get IsSLABreached(): string | null {
         return this.Get('IsSLABreached');
@@ -5143,7 +5864,6 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     * * Field Name: LeadDays
     * * Display Name: Lead Days
     * * SQL Data Type: int
-    * * Description: Number of days between task start/creation and SLA target due date.
     */
     get LeadDays(): number | null {
         return this.Get('LeadDays');
@@ -5153,7 +5873,6 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     * * Field Name: AssignmentsCount
     * * Display Name: Assignments Count
     * * SQL Data Type: int
-    * * Description: Total number of team members assigned to this task.
     */
     get AssignmentsCount(): number {
         return this.Get('AssignmentsCount');
@@ -5163,7 +5882,6 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     * * Field Name: CommentsCount
     * * Display Name: Comments Count
     * * SQL Data Type: int
-    * * Description: Total number of comments recorded on this task.
     */
     get CommentsCount(): number {
         return this.Get('CommentsCount');
