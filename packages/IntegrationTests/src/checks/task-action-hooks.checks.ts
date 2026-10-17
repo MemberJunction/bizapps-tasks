@@ -86,6 +86,13 @@ const checks: NamedCheck[] = [
             const { performance } = await import('node:perf_hooks');
             const { fileURLToPath } = await import('node:url');
 
+            const getSaveReturnMode = (info: { Configuration?: string | null } & Record<string, unknown>): string => {
+                if (typeof info.SaveReturnMode === 'string') return info.SaveReturnMode;
+                if (typeof info.Configuration === 'string' && info.Configuration.trim()) {
+                    return (JSON.parse(info.Configuration) as { SaveReturnMode?: string }).SaveReturnMode ?? 'full';
+                }
+                return 'full';
+            };
             const expectedEntities = [
                 'MJ_BizApps_Tasks: Task Activities',
                 'MJ_BizApps_Tasks: Task Notification Logs',
@@ -93,7 +100,8 @@ const checks: NamedCheck[] = [
             for (const name of expectedEntities) {
                 const info = ctx.Provider.EntityByName(name);
                 Assert(!!info, `${name} entity metadata present`);
-                Assert(info!.SaveReturnMode === 'datestamps_only', `${name} SaveReturnMode is datestamps_only (got ${info!.SaveReturnMode})`);
+                const mode = getSaveReturnMode(info! as unknown as { Configuration?: string | null } & Record<string, unknown>);
+                Assert(mode === 'datestamps_only', `${name} SaveReturnMode is datestamps_only (got ${mode})`);
             }
 
             const world = await GetOrLoadWorld(ctx);
