@@ -21,6 +21,7 @@ vi.mock('@memberjunction/core', () => ({
   UserInfo: class {},
 }));
 vi.mock('@memberjunction/global', () => ({
+  IsValidUUID: (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
   MJEventType: { ComponentEvent: 'ComponentEvent' },
   MJGlobal: { Instance: { GetGlobalObjectStore: () => ({}), GetEventListener: () => ({ subscribe: () => ({ unsubscribe() {} }) }) } },
 }));
@@ -29,6 +30,9 @@ vi.mock('@memberjunction/actions', () => ({
 }));
 
 import { handleAssignmentSave } from '../TaskNotificationHandler.js';
+
+// AssigneeRecordID must be a valid UUID — the handler now rejects anything else.
+const PERSON_ID = '0f0e0d0c-0b0a-4000-8000-000000000001';
 
 const task = {
   Get: (field: string) => ({ ID: 'task-1', Name: 'Approve discount', Status: 'Open', TypeID: 'type-1' } as Record<string, string>)[field],
@@ -41,8 +45,8 @@ function mockViews(linkedUserID: string | null): void {
         return Promise.resolve({
           Success: true,
           Results: params.Fields?.includes('LinkedUserID')
-            ? [{ ID: 'person-1', LinkedUserID: linkedUserID }]
-            : [{ ID: 'person-1', FirstName: 'Pat', LastName: 'Doe' }],
+            ? [{ ID: PERSON_ID, LinkedUserID: linkedUserID }]
+            : [{ ID: PERSON_ID, FirstName: 'Pat', LastName: 'Doe' }],
         });
       case 'MJ_BizApps_Tasks: Tasks':
         return Promise.resolve({ Success: true, Results: params.ExtraFilter ? [task] : [] });
@@ -55,7 +59,7 @@ function mockViews(linkedUserID: string | null): void {
 }
 
 function assignmentCreated() {
-  const fields: Record<string, string | null> = { AssigneeRecordID: 'person-1', TaskID: 'task-1', RoleID: null };
+  const fields: Record<string, string | null> = { AssigneeRecordID: PERSON_ID, TaskID: 'task-1', RoleID: null };
   return {
     type: 'save',
     saveSubType: 'create',
@@ -83,7 +87,7 @@ describe('handleAssignmentSave', () => {
       TaskID: 'task-1',
       TaskName: 'Approve discount',
       TaskTypeID: 'type-1',
-      AssigneePersonID: 'person-1',
+      AssigneePersonID: PERSON_ID,
       AssigneeName: 'Pat Doe',
     });
     expect(saveNotification).toHaveBeenCalledOnce();
@@ -96,7 +100,7 @@ describe('handleAssignmentSave', () => {
 
     expect(saveNotification).not.toHaveBeenCalled();
     expect(runAction).toHaveBeenCalledOnce();
-    expect(paramsPassed().AssigneePersonID).toBe('person-1');
+    expect(paramsPassed().AssigneePersonID).toBe(PERSON_ID);
   });
 
   it('still invokes the OnAssign action when the notification throws', async () => {

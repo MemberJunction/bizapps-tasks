@@ -19,7 +19,7 @@ import {
     RunView,
     UserInfo,
 } from '@memberjunction/core';
-import { MJEventType, MJGlobal, MJEvent } from '@memberjunction/global';
+import { IsValidUUID, MJEventType, MJGlobal, MJEvent } from '@memberjunction/global';
 import { Subscription } from 'rxjs';
 
 /** Entity names we listen for */
@@ -498,7 +498,18 @@ async function getTaskAssigneeUserIDs(taskID: string, contextUser: UserInfo): Pr
         return [];
     }
 
-    const personIDs = assignments.Results.map(a => a.AssigneeRecordID);
+    // AssigneeRecordID is NVARCHAR with no FK — validate each stored value before
+    // interpolating into the filter (notifications are best-effort: skip bad rows).
+    const personIDs = assignments.Results
+        .map(a => a.AssigneeRecordID)
+        .filter((id: string) => {
+            if (IsValidUUID(id)) return true;
+            LogError(`[BizAppsTasks] Skipping assignee with invalid AssigneeRecordID '${id}' on task ${taskID}`);
+            return false;
+        });
+    if (personIDs.length === 0) {
+        return [];
+    }
     const inClause = personIDs.map((id: string) => `'${id}'`).join(',');
 
     const people = await rv.RunView<PersonLinkRow>({
@@ -521,6 +532,11 @@ async function getTaskAssigneeUserIDs(taskID: string, contextUser: UserInfo): Pr
  * Resolves a PersonID to their linked MJ UserID (if any).
  */
 async function getPersonLinkedUserID(personID: string, contextUser: UserInfo): Promise<string | null> {
+    // personID may come from NVARCHAR AssigneeRecordID (no FK) — validate before interpolation
+    if (!IsValidUUID(personID)) {
+        LogError(`[BizAppsTasks] Skipping person lookup for invalid ID '${personID}'`);
+        return null;
+    }
     const rv = new RunView();
     const result = await rv.RunView<PersonLinkRow>({
         EntityName: 'MJ_BizApps_Common: People',
@@ -537,6 +553,11 @@ async function getPersonLinkedUserID(personID: string, contextUser: UserInfo): P
  * Resolves a PersonID to their display name.
  */
 async function getPersonName(personID: string, contextUser: UserInfo): Promise<string | null> {
+    // personID may come from NVARCHAR AssigneeRecordID (no FK) — validate before interpolation
+    if (!IsValidUUID(personID)) {
+        LogError(`[BizAppsTasks] Skipping person name lookup for invalid ID '${personID}'`);
+        return null;
+    }
     const rv = new RunView();
     const result = await rv.RunView<{ FirstName: string; LastName: string }>({
         EntityName: 'MJ_BizApps_Common: People',

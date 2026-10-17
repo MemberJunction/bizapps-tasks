@@ -1,4 +1,5 @@
 import { BaseEntity, CompositeKey, Metadata, RunView } from "@memberjunction/core";
+import { IsValidUUID } from "@memberjunction/global";
 
 /**
  * Service for instantiating tasks from templates.
@@ -28,6 +29,10 @@ export class TaskTemplateService {
         assigneeMap?: Map<string, { entityID: string; recordID: string }>;
     }): Promise<BaseEntity[]> {
         const { templateID, startDate, categoryID, assigneeMap } = params;
+        // templateID is caller-supplied and interpolated into filters below — validate up front
+        if (!IsValidUUID(templateID)) {
+            throw new Error(`TaskTemplateService: templateID '${templateID}' is not a valid UUID`);
+        }
         const rv = new RunView();
 
         // 1. Load the template
@@ -140,6 +145,7 @@ export class TaskTemplateService {
         assigneeMap?: Map<string, { entityID: string; recordID: string }>,
     ): Promise<void> {
         if (!assigneeMap || assigneeMap.size === 0) return;
+        if (!IsValidUUID(templateItemID)) return;
 
         const rv = new RunView();
         const rolesResult = await rv.RunView<BaseEntity>({
@@ -179,7 +185,11 @@ export class TaskTemplateService {
             ExtraFilter: `TemplateID = '${templateID}'`,
             ResultType: 'simple',
         });
-        const itemIDs = (itemsResult?.Results ?? []).map((i: any) => `'${i.ID}'`).join(',');
+        const itemIDs = (itemsResult?.Results ?? [])
+            .map((i: any) => i.ID as string)
+            .filter((id: string) => IsValidUUID(id))
+            .map((id: string) => `'${id}'`)
+            .join(',');
         if (!itemIDs) return;
 
         const depsResult = await rv.RunView<BaseEntity>({

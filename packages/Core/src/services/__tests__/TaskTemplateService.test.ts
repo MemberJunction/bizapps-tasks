@@ -16,6 +16,15 @@ vi.mock('@memberjunction/core', () => ({
 
 import { TaskTemplateService } from '../TaskTemplateService.js';
 
+// instantiateTemplate now requires a valid UUID templateID, and template item IDs
+// are UUID-validated before interpolation into filters.
+const TMPL_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const ITEM_1 = '11111111-1111-4111-8111-111111111111';
+const ITEM_PARENT = '22222222-2222-4222-8222-222222222222';
+const ITEM_CHILD = '33333333-3333-4333-8333-333333333333';
+const ITEM_A = '44444444-4444-4444-8444-444444444444';
+const ITEM_B = '55555555-5555-4555-8555-555555555555';
+
 /** Fake entity that auto-assigns an ID on NewRecord so item→task mapping works. */
 function makeFakeTask(id: string, initial: Record<string, any> = {}) {
   const data: Record<string, any> = { ID: id, ...initial };
@@ -33,13 +42,13 @@ beforeEach(() => vi.clearAllMocks());
 
 describe('TaskTemplateService.instantiateTemplate', () => {
   it('returns empty array when the template has no items', async () => {
-    const template = makeFakeTask('tmpl-1', { TypeID: 'type-1' });
+    const template = makeFakeTask(TMPL_ID, { TypeID: 'type-1' });
     getEntityObjectMock.mockResolvedValueOnce(template); // template load
     runViewMock.mockResolvedValueOnce({ Results: [] });   // items query → none
 
     const svc = new TaskTemplateService();
     const result = await svc.instantiateTemplate({
-      templateID: 'tmpl-1',
+      templateID: TMPL_ID,
       startDate: new Date('2026-06-01T00:00:00Z'),
     });
 
@@ -47,10 +56,10 @@ describe('TaskTemplateService.instantiateTemplate', () => {
   });
 
   it('creates a task per item, applies template TypeID, and computes DueAt from DaysFromStart', async () => {
-    const template = makeFakeTask('tmpl-1', { TypeID: 'type-1' });
+    const template = makeFakeTask(TMPL_ID, { TypeID: 'type-1' });
     // one root item, due 5 days after start
     const items = [
-      { ID: 'item-1', Name: 'Kickoff', Description: 'd', Priority: 'High', HoursEstimated: 4, Sequence: 1, DaysFromStart: 5, ParentItemID: null },
+      { ID: ITEM_1, Name: 'Kickoff', Description: 'd', Priority: 'High', HoursEstimated: 4, Sequence: 1, DaysFromStart: 5, ParentItemID: null },
     ];
 
     getEntityObjectMock.mockResolvedValueOnce(template); // template load
@@ -67,7 +76,7 @@ describe('TaskTemplateService.instantiateTemplate', () => {
 
     const svc = new TaskTemplateService();
     const start = new Date('2026-06-01T00:00:00Z');
-    const result = await svc.instantiateTemplate({ templateID: 'tmpl-1', startDate: start });
+    const result = await svc.instantiateTemplate({ templateID: TMPL_ID, startDate: start });
 
     expect(result).toHaveLength(1);
     expect(createdTask.Set).toHaveBeenCalledWith('Name', 'Kickoff');
@@ -84,11 +93,11 @@ describe('TaskTemplateService.instantiateTemplate', () => {
   });
 
   it('creates parent tasks before children and wires ParentID via the item→task map', async () => {
-    const template = makeFakeTask('tmpl-1', { TypeID: 'type-1' });
+    const template = makeFakeTask(TMPL_ID, { TypeID: 'type-1' });
     // child listed BEFORE parent to exercise topological sort
     const items = [
-      { ID: 'child', Name: 'Child', Sequence: 2, ParentItemID: 'parent', DaysFromStart: null },
-      { ID: 'parent', Name: 'Parent', Sequence: 1, ParentItemID: null, DaysFromStart: null },
+      { ID: ITEM_CHILD, Name: 'Child', Sequence: 2, ParentItemID: ITEM_PARENT, DaysFromStart: null },
+      { ID: ITEM_PARENT, Name: 'Parent', Sequence: 1, ParentItemID: null, DaysFromStart: null },
     ];
 
     getEntityObjectMock.mockResolvedValueOnce(template);
@@ -107,7 +116,7 @@ describe('TaskTemplateService.instantiateTemplate', () => {
 
     const svc = new TaskTemplateService();
     const result = await svc.instantiateTemplate({
-      templateID: 'tmpl-1',
+      templateID: TMPL_ID,
       startDate: new Date('2026-06-01T00:00:00Z'),
     });
 
@@ -119,10 +128,10 @@ describe('TaskTemplateService.instantiateTemplate', () => {
   });
 
   it('recreates dependencies between newly created tasks', async () => {
-    const template = makeFakeTask('tmpl-1', { TypeID: 'type-1' });
+    const template = makeFakeTask(TMPL_ID, { TypeID: 'type-1' });
     const items = [
-      { ID: 'item-a', Name: 'A', Sequence: 1, ParentItemID: null, DaysFromStart: null },
-      { ID: 'item-b', Name: 'B', Sequence: 2, ParentItemID: null, DaysFromStart: null },
+      { ID: ITEM_A, Name: 'A', Sequence: 1, ParentItemID: null, DaysFromStart: null },
+      { ID: ITEM_B, Name: 'B', Sequence: 2, ParentItemID: null, DaysFromStart: null },
     ];
 
     getEntityObjectMock.mockResolvedValueOnce(template);
@@ -137,14 +146,14 @@ describe('TaskTemplateService.instantiateTemplate', () => {
     // createDependencies: items query, then deps query (B depends on A)
     runViewMock
       .mockResolvedValueOnce({ Results: items })
-      .mockResolvedValueOnce({ Results: [{ ItemID: 'item-b', DependsOnItemID: 'item-a', DependencyType: 'FinishToStart' }] });
+      .mockResolvedValueOnce({ Results: [{ ItemID: ITEM_B, DependsOnItemID: ITEM_A, DependencyType: 'FinishToStart' }] });
 
     const taskDep = makeFakeTask('dep-1');
     getEntityObjectMock.mockResolvedValueOnce(taskDep); // dependency creation
 
     const svc = new TaskTemplateService();
     await svc.instantiateTemplate({
-      templateID: 'tmpl-1',
+      templateID: TMPL_ID,
       startDate: new Date('2026-06-01T00:00:00Z'),
     });
 
@@ -155,9 +164,9 @@ describe('TaskTemplateService.instantiateTemplate', () => {
   });
 
   it('creates role-based assignments when an assigneeMap is supplied', async () => {
-    const template = makeFakeTask('tmpl-1', { TypeID: 'type-1' });
+    const template = makeFakeTask(TMPL_ID, { TypeID: 'type-1' });
     const items = [
-      { ID: 'item-1', Name: 'Task', Sequence: 1, ParentItemID: null, DaysFromStart: null },
+      { ID: ITEM_1, Name: 'Task', Sequence: 1, ParentItemID: null, DaysFromStart: null },
     ];
 
     getEntityObjectMock.mockResolvedValueOnce(template);
@@ -180,7 +189,7 @@ describe('TaskTemplateService.instantiateTemplate', () => {
 
     const svc = new TaskTemplateService();
     await svc.instantiateTemplate({
-      templateID: 'tmpl-1',
+      templateID: TMPL_ID,
       startDate: new Date('2026-06-01T00:00:00Z'),
       assigneeMap,
     });
@@ -188,5 +197,14 @@ describe('TaskTemplateService.instantiateTemplate', () => {
     expect(assignment.Set).toHaveBeenCalledWith('TaskID', 'task-1');
     expect(assignment.Set).toHaveBeenCalledWith('RoleID', 'role-1');
     expect(assignment.Set).toHaveBeenCalledWith('AssigneeRecordID', 'person-1');
+  });
+
+  it('throws when templateID is not a valid UUID', async () => {
+    const svc = new TaskTemplateService();
+    await expect(svc.instantiateTemplate({
+      templateID: "x' OR '1'='1",
+      startDate: new Date('2026-06-01T00:00:00Z'),
+    })).rejects.toThrow('not a valid UUID');
+    expect(runViewMock).not.toHaveBeenCalled();
   });
 });
