@@ -82,6 +82,23 @@ describe('TaskAssignmentService.assignToTask', () => {
   });
 });
 
+describe('TaskAssignmentService.assignToTask — a refused save', () => {
+  it('throws with the save message and logs no activity', async () => {
+    const assignment = makeFakeEntity();
+    assignment.Save.mockResolvedValueOnce(false);
+    (assignment as Record<string, unknown>).LatestResult = { CompleteMessage: 'Permission denied' };
+    getEntityObjectMock.mockResolvedValueOnce(assignment);
+
+    const svc = new TaskAssignmentService();
+    await expect(svc.assignToTask({
+      taskID: 'task-6',
+      assigneeEntityID: 'entity-1',
+      assigneeRecordID: 'person-6',
+    })).rejects.toThrow('Failed to assign person-6 to task task-6: Permission denied');
+    expect(getEntityObjectMock).toHaveBeenCalledOnce();
+  });
+});
+
 describe('TaskAssignmentService.removeAssignment', () => {
   it('loads, deletes, and logs an AssignmentRemoved activity', async () => {
     const assignment = makeFakeEntity({ TaskID: 'task-3', AssigneeRecordID: 'person-3' });
