@@ -79,5 +79,31 @@
       "lastModified": "2026-08-20T12:30:43.774Z",
       "checksum": "7b923fe7371b0fe260bbbe093e44d56e81b346b05ad5f650cfa49a291a0c9c73"
     }
+  },
+  {
+    "fields": {
+      "Name": "Priority Objective",
+      "Code": "PRIORITY_OBJECTIVE",
+      "Description": "Strategic quarterly or annual priority objective (OKR parent) tracked by the user and their Chief of Staff agent",
+      "IconClass": "fa-solid fa-bullseye",
+      "DefaultPriority": "High",
+      "IsApproval": false
+    },
+    "primaryKey": {
+      "ID": "8D42A1B9-3E71-4C5A-9F20-1B6E8D3A9C01"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Key Result",
+      "Code": "KEY_RESULT",
+      "Description": "Measurable key result with baseline, target, and actual values plus periodic check-in cadence",
+      "IconClass": "fa-solid fa-chart-line",
+      "DefaultPriority": "High",
+      "IsApproval": false
+    },
+    "primaryKey": {
+      "ID": "8D42A1B9-3E71-4C5A-9F20-1B6E8D3A9C02"
+    }
   }
 ]
