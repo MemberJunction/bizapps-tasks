@@ -3503,9 +3503,6 @@ REVOKE EXECUTE ON [${flyway:defaultSchema}].[spDeleteTask] FROM [cdp_Developer]
 REVOKE EXECUTE ON [${flyway:defaultSchema}].[spDeleteTask] FROM [cdp_Integration]
 GRANT EXECUTE ON [${flyway:defaultSchema}].[spDeleteTask] TO [cdp_Developer], [cdp_Integration];
 
-/* SQL text to delete unneeded entity fields (2 scoped entities) */
-EXEC [${mjSchema}].[spDeleteUnneededEntityFields] @ExcludedSchemaNames='', @EntityIDs='360CE0DB-7207-4D3C-A35F-2F45C22A5399,B348FFA2-B1A7-4AC2-B6FD-F4E0C0697466', @IncludedSchemaNames='${flyway:defaultSchema}';
-
 /* SQL text to insert 4 new entity field(s) */
 
       IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = 'f063969d-25e5-4e0d-95a6-94a16b756582' OR (EntityID = '360CE0DB-7207-4D3C-A35F-2F45C22A5399' AND Name = 'Task')) BEGIN
