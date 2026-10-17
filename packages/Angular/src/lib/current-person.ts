@@ -19,10 +19,11 @@ export const PEOPLE_ENTITY = 'MJ_BizApps_Common: People';
  */
 export async function ResolveCurrentPersonID(user: UserInfo | undefined = new Metadata().CurrentUser): Promise<string | null> {
     if (!user?.ID) return null;
-    const linkedPersonID = LinkedPersonRecordID(user);
+    const linkedPersonID = LinkedPersonRecordID(user)?.replace(/'/g, "''") ?? null;
+    const userID = user.ID.replace(/'/g, "''");
     const result = await new RunView().RunView<{ ID: string }>({
         EntityName: PEOPLE_ENTITY,
-        ExtraFilter: `${linkedPersonID ? `ID = '${linkedPersonID}'` : `LinkedUserID = '${user.ID}'`} AND Status = 'Active'`,
+        ExtraFilter: `${linkedPersonID ? `ID = '${linkedPersonID}'` : `LinkedUserID = '${userID}'`} AND Status = 'Active'`,
         Fields: ['ID'],
         ResultType: 'simple',
         MaxRows: 1,

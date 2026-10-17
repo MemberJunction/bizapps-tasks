@@ -7,7 +7,7 @@ import {
     Metadata,
     RunView,
 } from '@memberjunction/core';
-import { RegisterClass } from '@memberjunction/global';
+import { IsValidUUID, RegisterClass } from '@memberjunction/global';
 import { ActionEngineServer } from '@memberjunction/actions';
 import {
     TaskEntity,
@@ -465,6 +465,11 @@ export class TaskEntityServer extends TaskEntity {
      * Loads the default TaskTypeStatus for a given TaskType.
      */
     protected async loadDefaultTaskTypeStatus(typeID: string): Promise<mjBizAppsTasksTaskTypeStatusEntity | null> {
+        // TypeID is client-supplied and reaches this filter before the FK validates it —
+        // an invalid value is a no-op here (the subsequent save fails FK validation anyway).
+        if (!IsValidUUID(typeID)) {
+            return null;
+        }
         const rv = new RunView();
         const result = await rv.RunView<mjBizAppsTasksTaskTypeStatusEntity>({
             EntityName: 'MJ_BizApps_Tasks: Task Type Status',

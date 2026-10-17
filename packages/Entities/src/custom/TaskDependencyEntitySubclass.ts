@@ -1,5 +1,5 @@
 import { BaseEntity, Metadata, RunView, ValidationResult, ValidationErrorInfo, ValidationErrorType } from "@memberjunction/core";
-import { RegisterClass } from "@memberjunction/global";
+import { IsValidUUID, RegisterClass } from "@memberjunction/global";
 import { mjBizAppsTasksTaskDependencyEntity } from "../generated/entity_subclasses.js";
 
 /**
@@ -62,6 +62,27 @@ export class TaskDependencyEntity extends mjBizAppsTasksTaskDependencyEntity {
         const taskID = this.Get('TaskID') as string;
         const dependsOnTaskID = this.Get('DependsOnTaskID') as string;
         if (!taskID || !dependsOnTaskID) return;
+
+        // Both IDs are interpolated into the cycle-walk filter below before the FK
+        // validates them — reject non-UUID values as a normal validation error.
+        if (!IsValidUUID(taskID)) {
+            result.Errors.push(new ValidationErrorInfo(
+                'TaskID',
+                'TaskID must be a valid UUID.',
+                taskID,
+                ValidationErrorType.Failure,
+            ));
+            return;
+        }
+        if (!IsValidUUID(dependsOnTaskID)) {
+            result.Errors.push(new ValidationErrorInfo(
+                'DependsOnTaskID',
+                'DependsOnTaskID must be a valid UUID.',
+                dependsOnTaskID,
+                ValidationErrorType.Failure,
+            ));
+            return;
+        }
 
         const visited = new Set<string>();
         const queue: string[] = [dependsOnTaskID];

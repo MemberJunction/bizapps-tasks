@@ -18,7 +18,7 @@
  */
 import { Metadata, RunView, UserInfo, ValidationResult } from '@memberjunction/core';
 import { MJScheduledJobEntity } from '@memberjunction/core-entities';
-import { RegisterClass } from '@memberjunction/global';
+import { IsValidUUID, RegisterClass } from '@memberjunction/global';
 import { BaseScheduledJob, ScheduledJobExecutionContext } from '@memberjunction/scheduling-engine';
 import { ScheduledJobResult, NotificationContent } from '@memberjunction/scheduling-base-types';
 
@@ -237,6 +237,11 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
     }
 
     private async getLinkedUserID(personID: string, contextUser: UserInfo): Promise<string | null> {
+        // personID may come from NVARCHAR AssigneeRecordID (no FK) — validate before interpolation
+        if (!IsValidUUID(personID)) {
+            this.logError(`Skipping person lookup for invalid ID '${personID}'`);
+            return null;
+        }
         const rv = new RunView();
         const result = await rv.RunView<{ ID: string; LinkedUserID: string | null }>({
             EntityName: 'MJ_BizApps_Common: People',

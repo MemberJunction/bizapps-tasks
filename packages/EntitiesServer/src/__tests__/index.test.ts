@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 
 // Mock the heavy MJ runtime + sibling packages so the entry point imports cleanly
 vi.mock('@memberjunction/global', () => ({
+  IsValidUUID: (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
   RegisterClass: () => () => {},
   BaseSingleton: class {
     public static getInstance() {
