@@ -1,0 +1,38 @@
+[
+  {
+    "_comments": [
+      "Configures MJ_BizApps_Tasks: Task Activities to use SaveReturnMode = datestamps_only so spCreate/spUpdate return only [ID], [__mj_CreatedAt], [__mj_UpdatedAt] from BaseTable instead of re-reading BaseView."
+    ],
+    "fields": {
+      "Name": "MJ_BizApps_Tasks: Task Activities",
+      "Configuration": {
+        "SaveReturnMode": "datestamps_only"
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Activities"
+    },
+    "sync": {
+      "lastModified": "2026-10-17T20:27:53.038Z",
+      "checksum": "14fe6d9aba52148ca9bfb40429ffbc5ec9319ed563441347cb513b5215118fba"
+    }
+  },
+  {
+    "_comments": [
+      "Configures MJ_BizApps_Tasks: Task Notification Logs to use SaveReturnMode = datestamps_only so spCreate/spUpdate return only [ID], [__mj_CreatedAt], [__mj_UpdatedAt] from BaseTable instead of re-reading BaseView."
+    ],
+    "fields": {
+      "Name": "MJ_BizApps_Tasks: Task Notification Logs",
+      "Configuration": {
+        "SaveReturnMode": "datestamps_only"
+      }
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Notification Logs"
+    },
+    "sync": {
+      "lastModified": "2026-10-17T20:27:53.074Z",
+      "checksum": "97d01d91b1f73854bd580f947e6abfbfeaaf0e6acf03e6c15e2e843958265559"
+    }
+  }
+]
