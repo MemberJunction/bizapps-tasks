@@ -8,9 +8,13 @@
  */
 import { TaskEntityServer } from './TaskEntityServer.js';
 import { TaskCheckInEntityServer } from './TaskCheckInEntityServer.js';
+import { TaskDecisionEntityServer } from './TaskDecisionEntityServer.js';
 
 export { TaskEntityServer } from './TaskEntityServer.js';
 export { TaskCheckInEntityServer } from './TaskCheckInEntityServer.js';
+export { TaskDecisionEntityServer, TASK_DECISION_ENTITY } from './TaskDecisionEntityServer.js';
+export { TaskDecisionRefusal, DeciderAssignments, type TaskDecisionFacts, type DecisionAssignmentFact } from './TaskDecisionAuthority.js';
+export { TasksSettings, TASKS_SETTING, TASKS_APPLICATION_NAME, type TasksSettingKey } from './TasksSettings.js';
 
 /**
  * Bootstrap / anti-tree-shaking anchor. Call once from MJAPI bootstrap.
@@ -19,7 +23,7 @@ export { TaskCheckInEntityServer } from './TaskCheckInEntityServer.js';
  */
 export function LoadBizAppsTasksEntitiesServer(): void {
     // Reference the classes so bundlers cannot tree-shake the registrations away.
-    const anchor = [TaskEntityServer, TaskCheckInEntityServer];
+    const anchor = [TaskEntityServer, TaskCheckInEntityServer, TaskDecisionEntityServer];
     if (!anchor.length) {
         throw new Error('TaskEntityServer anchor missing');
     }
