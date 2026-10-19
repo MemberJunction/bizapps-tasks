@@ -33,6 +33,7 @@ vi.mock('@memberjunction/actions', () => ({
 vi.mock('@mj-biz-apps/tasks-entities', () => ({
   TaskEntity: class {},
   mjBizAppsTasksTaskActivityEntity: class {},
+  mjBizAppsTasksTaskCheckInEntity: class {},
   mjBizAppsTasksTaskEntity: class {},
   mjBizAppsTasksTaskTypeEntity: class {},
   mjBizAppsTasksTaskTypeStatusEntity: class {},
@@ -40,10 +41,11 @@ vi.mock('@mj-biz-apps/tasks-entities', () => ({
 vi.mock('@mj-biz-apps/tasks-core', () => ({ TaskService: class {} }));
 
 describe('@mj-biz-apps/tasks-entities-server', () => {
-  it('imports the entry point and exposes the bootstrap + subclass', async () => {
+  it('imports the entry point and exposes the bootstrap + subclasses', async () => {
     const mod = await import('../index.js');
     expect(mod.LoadBizAppsTasksEntitiesServer).toBeTypeOf('function');
     expect(mod.TaskEntityServer).toBeDefined();
+    expect(mod.TaskCheckInEntityServer).toBeDefined();
   });
 
   it('LoadBizAppsTasksEntitiesServer runs without throwing', async () => {
