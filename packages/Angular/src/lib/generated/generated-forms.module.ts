@@ -27,6 +27,7 @@ import { mjBizAppsTasksMeetingTypeFormComponent } from "./Entities/mjBizAppsTask
 import { mjBizAppsTasksTaskActivityFormComponent } from "./Entities/mjBizAppsTasksTaskActivity/mjbizappstaskstaskactivity.form.component";
 import { mjBizAppsTasksTaskAssignmentFormComponent } from "./Entities/mjBizAppsTasksTaskAssignment/mjbizappstaskstaskassignment.form.component";
 import { mjBizAppsTasksTaskCategoryFormComponent } from "./Entities/mjBizAppsTasksTaskCategory/mjbizappstaskstaskcategory.form.component";
+import { mjBizAppsTasksTaskCheckInFormComponent } from "./Entities/mjBizAppsTasksTaskCheckIn/mjbizappstaskstaskcheckin.form.component";
 import { mjBizAppsTasksTaskCommentFormComponent } from "./Entities/mjBizAppsTasksTaskComment/mjbizappstaskstaskcomment.form.component";
 import { mjBizAppsTasksTaskDecisionFormComponent } from "./Entities/mjBizAppsTasksTaskDecision/mjbizappstaskstaskdecision.form.component";
 import { mjBizAppsTasksTaskDecisionOutcomeFormComponent } from "./Entities/mjBizAppsTasksTaskDecisionOutcome/mjbizappstaskstaskdecisionoutcome.form.component";
@@ -220,6 +221,7 @@ export class GeneratedForms_SubModule_15 { }
 
 @NgModule({
 declarations: [
+    mjBizAppsTasksTaskCheckInFormComponent,
     mjBizAppsTasksTaskNotificationLogFormComponent
 ],
 imports: [

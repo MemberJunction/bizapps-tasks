@@ -2,17 +2,19 @@
  * BizApps Tasks — server-side entity subclasses.
  *
  * These subclasses add side-effects that must run server-only (e.g. sub-task
- * progress rollup, a meeting's organizer row and its video provider). Import this package and call
- * LoadBizAppsTasksEntitiesServer() from the API bootstrap so the @RegisterClass decorators fire and the
- * server-side subclasses win over the client-safe ones.
+ * progress rollup and OKR check-in propagation, a meeting's organizer row and its video provider). Import this
+ * package and call LoadBizAppsTasksEntitiesServer() from the API bootstrap so the @RegisterClass decorators fire and
+ * the server-side subclasses win over the client-safe ones.
  */
 import { TaskEntityServer } from './TaskEntityServer.js';
+import { TaskCheckInEntityServer } from './TaskCheckInEntityServer.js';
 import { MeetingEntityServer } from './MeetingEntityServer.js';
 import { MeetingSeriesEntityServer } from './MeetingSeriesEntityServer.js';
 import { MeetingAttendeeEntityServer, MeetingSeriesAttendeeEntityServer } from './MeetingAttendeeEntityServer.js';
 import { MeetingAgendaItemEntityServer, MeetingLinkEntityServer } from './MeetingAgendaItemEntityServer.js';
 
 export { TaskEntityServer } from './TaskEntityServer.js';
+export { TaskCheckInEntityServer } from './TaskCheckInEntityServer.js';
 export { MeetingEntityServer } from './MeetingEntityServer.js';
 export { MeetingSeriesEntityServer } from './MeetingSeriesEntityServer.js';
 export { MeetingAttendeeEntityServer, MeetingSeriesAttendeeEntityServer } from './MeetingAttendeeEntityServer.js';
@@ -29,6 +31,7 @@ export function LoadBizAppsTasksEntitiesServer(): void {
     // Reference the classes so bundlers cannot tree-shake the registrations away.
     const anchor = [
         TaskEntityServer,
+        TaskCheckInEntityServer,
         MeetingEntityServer,
         MeetingSeriesEntityServer,
         MeetingAttendeeEntityServer,
