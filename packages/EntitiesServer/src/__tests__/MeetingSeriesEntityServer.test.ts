@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const runViewMock = vi.fn();
 const runAfterCommitMock = vi.fn();
 const materializeMock = vi.fn();
+const cancelMock = vi.fn();
 
 vi.mock('@memberjunction/global', () => ({
     RegisterClass: () => () => {},
@@ -91,6 +92,9 @@ vi.mock('@mj-biz-apps/tasks-core', async () => {
             materialize(...args: unknown[]) {
                 return materializeMock(...args);
             }
+            cancelFutureOccurrences(...args: unknown[]) {
+                return cancelMock(...args);
+            }
         },
     };
 });
@@ -105,6 +109,8 @@ beforeEach(() => {
     runViewMock.mockReset();
     runAfterCommitMock.mockReset();
     materializeMock.mockReset();
+    cancelMock.mockReset();
+    cancelMock.mockResolvedValue({ cancelled: 0, failures: [] });
     callerPerson = 'P-ADA';
     runViewMock.mockImplementation(async () => ({ Success: true, Results: callerPerson ? [{ ID: callerPerson }] : [] }));
     runAfterCommitMock.mockImplementation((task: () => Promise<void>) => void task());
@@ -196,6 +202,15 @@ describe('after a series is saved', () => {
         expect(runAfterCommitMock).toHaveBeenCalledTimes(1);
         expect(runAfterCommitMock.mock.calls[0][1]).toBe('materialize series S1');
         expect(materializeMock).toHaveBeenCalledWith('S1', expect.anything());
+    });
+
+    it('cancels the occurrences not yet held once the series is cancelled, after the commit', async () => {
+        const series = weekly();
+        series.Status = 'Cancelled';
+        expect(await series.Save()).toBe(true);
+        expect(runAfterCommitMock.mock.calls[0][1]).toBe('cancel series S1');
+        expect(cancelMock).toHaveBeenCalledWith('S1', expect.anything());
+        expect(materializeMock).not.toHaveBeenCalled();
     });
 
     it('does nothing after a save that only advanced MaterializedThrough, or of a series that is not active', async () => {

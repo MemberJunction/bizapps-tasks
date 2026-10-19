@@ -121,7 +121,7 @@ const checks: NamedCheck[] = [
     },
     {
         Id: 'meetings.M2',
-        Name: 'M2 — a weekly series makes its occurrences after the commit, each with the series\' attendees; a change reaches the untouched ones and leaves a moved one alone',
+        Name: 'M2 — a weekly series makes its occurrences after the commit, each with the series\' attendees; a change reaches the untouched ones and leaves a moved one alone; cancelling the series cancels the ones not yet held',
         RequiresMutation: true,
         Fn: async (ctx: IntegrationCheckContext) => {
             const world = await LoadMeetingWorld(ctx);
@@ -186,6 +186,16 @@ const checks: NamedCheck[] = [
                 Assert(!!third && third.Name === `${MARK} weekly` && new Date(third.StartsAt).getTime() === moved.StartsAt.getTime(), 'the moved occurrence keeps its name and its time');
                 const reloaded = await ctx.Provider.GetEntityObject<mjBizAppsTasksMeetingSeriesEntity>(MEETING_SERIES_ENTITY, ctx.User);
                 Assert((await reloaded.Load(series.ID)) && !!reloaded.MaterializedThrough, 'the series records how far it is materialized');
+
+                // Cancelling the series cancels every occurrence not yet held, the moved one included
+                reloaded.Status = 'Cancelled';
+                await RequireSave(reloaded, 'the cancelled series');
+                const gone = await eventually(
+                    () => FindRows<{ ID: string; Status: string; CancellationReason: string | null }>(ctx, MEETING_ENTITY, `SeriesID = '${series.ID}'`, ['ID', 'Status', 'CancellationReason']),
+                    (rows) => rows.length === 4 && rows.every((r) => r.Status === 'Cancelled'),
+                    'the four occurrences are cancelled with the series',
+                );
+                Assert(gone.every((r) => r.CancellationReason === 'The series was cancelled.'), 'each names the series as the reason');
             } finally {
                 if (seriesId) await deleteSeries(ctx, seriesId);
             }

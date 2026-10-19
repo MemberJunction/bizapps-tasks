@@ -147,6 +147,42 @@ export class MeetingSeriesService {
         return result;
     }
 
+    /**
+     * The series was cancelled (Ian, 2026-10-19: a cancelled series cancels its future occurrences): every occurrence
+     * not yet held, moved or not, is cancelled with the series named as the reason; one already started, ended or
+     * cancelled is left as it is. One that cannot be cancelled is noted and skipped.
+     */
+    async cancelFutureOccurrences(seriesId: string, contextUser: UserInfo, options: { now?: Date } = {}): Promise<{ cancelled: number; failures: string[] }> {
+        const now = options.now ?? new Date();
+        const result = { cancelled: 0, failures: [] as string[] };
+        const rows = await RunView.FromMetadataProvider(this.provider).RunView<{ ID: string; Status: string }>(
+            {
+                EntityName: MEETING_ENTITY,
+                ExtraFilter: `SeriesID = '${seriesId}' AND StartsAt >= '${now.toISOString()}' AND Status IN ('Draft', 'Scheduled', 'Postponed')`,
+                Fields: ['ID', 'Status'],
+                ResultType: 'simple',
+                MaxRows: 2000,
+            },
+            contextUser,
+        );
+        if (!rows.Success) throw new Error(`The series' occurrences could not be read: ${rows.ErrorMessage}`);
+        for (const row of rows.Results) {
+            try {
+                const meeting = await this.provider.GetEntityObject<mjBizAppsTasksMeetingEntity>(MEETING_ENTITY, contextUser);
+                if (!(await meeting.Load(row.ID))) continue;
+                meeting.Status = 'Cancelled';
+                meeting.CancellationReason = 'The series was cancelled.';
+                if (!(await meeting.Save())) throw new Error(`not cancelled: ${entityFailure(meeting)}`);
+                result.cancelled += 1;
+            } catch (error) {
+                const message = `occurrence ${row.ID}: ${error instanceof Error ? error.message : String(error)}`;
+                result.failures.push(message);
+                LogError(`MeetingSeriesService: ${message}`);
+            }
+        }
+        return result;
+    }
+
     /** The series' meetings whose slot is at or after the instant. */
     async futureOccurrences(seriesId: string, from: Date, contextUser: UserInfo): Promise<OccurrenceRow[]> {
         const res = await RunView.FromMetadataProvider(this.provider).RunView<OccurrenceRow>(

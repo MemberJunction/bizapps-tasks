@@ -14,7 +14,8 @@ const fail = (result: ValidationResult, field: string, message: string): Validat
 /**
  * A series' rule parses before it is saved, in a real zone, with a length (the meetings plan, § 3); its organizer or an
  * administrator is the one who makes and changes it, since a change reaches every occurrence not yet held; and once the
- * save has committed, its occurrences are made or brought up to date, through MeetingSeriesService.
+ * save has committed, its occurrences are made or brought up to date, or, when the series was cancelled, the ones not
+ * yet held are cancelled, through MeetingSeriesService.
  */
 @RegisterClass(BaseEntity, MEETING_SERIES_ENTITY)
 export class MeetingSeriesEntityServer extends mjBizAppsTasksMeetingSeriesEntity {
@@ -44,13 +45,20 @@ export class MeetingSeriesEntityServer extends mjBizAppsTasksMeetingSeriesEntity
 
     public override async Save(options?: EntitySaveOptions): Promise<boolean> {
         const changed = !this.IsSaved || this.Fields.some((f) => f.Dirty && f.CodeName !== 'MaterializedThrough');
+        const statusField = this.Fields.find((f) => f.CodeName === 'Status');
+        const cancelling = this.IsSaved && !!statusField?.Dirty && this.Status === 'Cancelled' && statusField.OldValue !== 'Cancelled';
         if (!(await super.Save(options))) return false;
+        const provider = this.metadataProvider;
+        const user = this.ContextCurrentUser;
+        const seriesId = this.ID;
         if (changed && this.Status === 'Active') {
-            const provider = this.metadataProvider;
-            const user = this.ContextCurrentUser;
-            const seriesId = this.ID;
             runAfterCommit(this.ProviderToUse, `materialize series ${seriesId}`, async () => {
                 await new MeetingSeriesService(provider).materialize(seriesId, user);
+            });
+        } else if (cancelling) {
+            // A cancelled series cancels the occurrences not yet held (Ian, 2026-10-19)
+            runAfterCommit(this.ProviderToUse, `cancel series ${seriesId}`, async () => {
+                await new MeetingSeriesService(provider).cancelFutureOccurrences(seriesId, user);
             });
         }
         return true;

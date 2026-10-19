@@ -191,6 +191,20 @@ describe('a series\' occurrences', () => {
         expect(stores.get(SERIES)![0].Status).toBe('Ended');
     });
 
+    it('are all cancelled when the series is cancelled, the ones not yet held and not already over', async () => {
+        meetings().push(occurrence('M-1', '2026-10-20T14:00:00Z'));
+        meetings().push(occurrence('M-2', '2026-10-27T14:00:00Z', { StartsAt: slot('2026-10-28T14:00:00Z') })); // moved on its own: still cancelled
+        meetings().push(occurrence('M-3', '2026-11-03T15:00:00Z', { Status: 'Completed' }));
+        runViewMock.mockImplementation(async (params: { EntityName: string; ExtraFilter: string }) => {
+            const rows = meetings().filter((r) => ['Draft', 'Scheduled', 'Postponed'].includes(String(r.Status)) && (r.StartsAt as Date).getTime() >= options.now.getTime());
+            return { Success: true, Results: params.EntityName === MEETINGS ? rows.map((r) => ({ ID: r.ID, Status: r.Status })) : [] };
+        });
+        const result = await new MeetingSeriesService(provider as never).cancelFutureOccurrences('S1', user as never, { now: options.now });
+        expect(result.cancelled).toBe(2);
+        expect(meetings().map((m) => [m.ID, m.Status])).toEqual([['M-1', 'Cancelled'], ['M-2', 'Cancelled'], ['M-3', 'Completed']]);
+        expect(meetings()[0].CancellationReason).toBe('The series was cancelled.');
+    });
+
     it('do nothing for a series that is not active', async () => {
         stores.get(SERIES)![0].Status = 'Paused';
         const result = await new MeetingSeriesService(provider as never).materialize('S1', user as never, options);
