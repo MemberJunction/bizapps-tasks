@@ -77,6 +77,16 @@ async function seed() {
     const service = new core.MeetingService(provider);
     const existing = async (name) => (await it.FindRows(ctx, core.MEETING_ENTITY, `Name = '${it.Quote(name)}'`, ['ID']))[0]?.ID ?? null;
     const at = (daysAhead, hour) => { const d = new Date(); d.setUTCDate(d.getUTCDate() + daysAhead); d.setUTCHours(hour, 0, 0, 0); return d; };
+    /** A sample meeting that has slipped into the past since it was seeded is moved ahead again, so the Upcoming lists still show it. */
+    const keepAhead = async (name, daysAhead, hour, minutes) => {
+        const [row] = await it.FindRows(ctx, core.MEETING_ENTITY, `Name = '${it.Quote(name)}'`, ['ID', 'StartsAt']);
+        if (!row || new Date(row.StartsAt).getTime() > Date.now()) return;
+        const meeting = await provider.GetEntityObject(core.MEETING_ENTITY, user);
+        if (!(await meeting.Load(row.ID))) return;
+        meeting.StartsAt = at(daysAhead, hour);
+        meeting.EndsAt = new Date(meeting.StartsAt.getTime() + minutes * 60000);
+        await it.RequireSave(meeting, `${name}, moved ahead`);
+    };
 
     let boardPrep = await existing(SAMPLE.boardPrep);
     if (!boardPrep) {
@@ -154,6 +164,9 @@ async function seed() {
         await it.RequireSave(invite, 'the sample series attendee');
     }
     const [seriesRow] = await it.FindRows(ctx, core.MEETING_SERIES_ENTITY, `Name = '${it.Quote(SAMPLE.series)}'`, ['ID']);
+    await keepAhead(SAMPLE.boardPrep, 2, 15, 60);
+    await keepAhead(SAMPLE.kickoff, 3, 16, 60);
+    await keepAhead(SAMPLE.pricing, 5, 16, 60);
     return { boardPrep, seriesId: seriesRow?.ID ?? null, pricing: await existing(SAMPLE.pricing) };
 }
 

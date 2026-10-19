@@ -109,13 +109,23 @@ const scheduled = (): Seedable =>
         VideoMeetingID: null,
     }) as Seedable;
 
+/** Who the caller is (their Person, read through People.LinkedUserID) and the meeting's attendee rows, per test. */
+let callerPerson: string | null = 'P-ADA';
+let attendeeRows: Array<Record<string, unknown>> = [];
+
 beforeEach(() => {
     runViewMock.mockReset();
     getEntityObjectMock.mockReset();
     runAfterCommitMock.mockReset();
     configMock.mockReset();
+    callerPerson = 'P-ADA';
     // The organizer's attendee row is already there, unless a test says otherwise
-    runViewMock.mockResolvedValue({ Success: true, Results: [{ PersonID: 'P-ADA', Save: vi.fn() }] });
+    attendeeRows = [{ PersonID: 'P-ADA', Role: 'Organizer', Save: vi.fn(async () => true) }];
+    runViewMock.mockImplementation(async (params: { EntityName: string }) =>
+        params.EntityName === 'MJ_BizApps_Common: People'
+            ? { Success: true, Results: callerPerson ? [{ ID: callerPerson }] : [] }
+            : { Success: true, Results: attendeeRows },
+    );
 });
 
 describe('a meeting\'s times and slot', () => {
@@ -148,8 +158,6 @@ describe('a meeting\'s status', () => {
     it('lets the organizer start it, and stamps when it started', async () => {
         const meeting = scheduled();
         meeting.ContextCurrentUser = { ID: 'U-ADA', UserRoles: [], LinkedEntityID: null, LinkedEntityRecordID: null };
-        // personIdForUser falls back to People.LinkedUserID: the first read; the organizer row check is the second
-        runViewMock.mockResolvedValueOnce({ Success: true, Results: [{ ID: 'P-ADA' }] });
         meeting.Status = 'InProgress';
         expect((await meeting.ValidateAsync()).Success).toBe(true);
         expect(await meeting.Save()).toBe(true);
@@ -159,16 +167,42 @@ describe('a meeting\'s status', () => {
     it('refuses someone else starting it', async () => {
         const meeting = scheduled();
         meeting.ContextCurrentUser = { ID: 'U-SAM', UserRoles: [], LinkedEntityID: null, LinkedEntityRecordID: null };
-        runViewMock.mockResolvedValueOnce({ Success: true, Results: [{ ID: 'P-SAM' }] });
+        callerPerson = 'P-SAM';
         meeting.Status = 'InProgress';
         const result = await meeting.ValidateAsync();
         expect(result.Success).toBe(false);
         expect(result.Errors[0].Message).toBe('Only the organizer starts a meeting.');
     });
 
-    it('lets a postponement go either way without the organizer', async () => {
+    it('lets the organizer postpone it and put it back', async () => {
         const meeting = scheduled();
         meeting.Status = 'Postponed';
+        expect((await meeting.ValidateAsync()).Success).toBe(true);
+        expect(await meeting.Save()).toBe(true);
+        meeting.Status = 'Scheduled';
+        expect((await meeting.ValidateAsync()).Success).toBe(true);
+    });
+
+    it('refuses someone else changing the meeting at all, and leaves no stamp behind', async () => {
+        const meeting = scheduled();
+        callerPerson = 'P-SAM';
+        meeting.Name = 'Renamed by a stranger';
+        const result = await meeting.ValidateAsync();
+        expect(result.Success).toBe(false);
+        expect(result.Errors[0].Message).toBe('Only the organizer changes a meeting.');
+        meeting.Status = 'InProgress';
+        await meeting.Save();
+        expect(meeting.ActualStartedAt).toBeUndefined();
+    });
+
+    it('lets an administrator change any meeting', async () => {
+        const meeting = scheduled();
+        callerPerson = 'P-SAM';
+        const admin = meeting as unknown as { ProviderToUse: { Entities: unknown[]; Roles: unknown[] }; ContextCurrentUser: unknown };
+        admin.ProviderToUse.Entities = [{ Name: 'MJ_BizApps_Tasks: Meetings', Permissions: [{ RoleID: 'R-DEV', CanUpdate: true }] }];
+        admin.ProviderToUse.Roles = [{ ID: 'R-UI', Name: 'UI' }, { ID: 'R-DEV', Name: 'Developer' }];
+        admin.ContextCurrentUser = { ID: 'U-SAM', UserRoles: [{ RoleID: 'R-DEV' }], LinkedEntityID: null, LinkedEntityRecordID: null };
+        meeting.Name = 'Renamed by an administrator';
         expect((await meeting.ValidateAsync()).Success).toBe(true);
     });
 
@@ -201,7 +235,7 @@ describe('a new meeting', () => {
 
     it('makes the organizer\'s attendee row when none is there', async () => {
         const meeting = scheduled();
-        runViewMock.mockResolvedValueOnce({ Success: true, Results: [] });
+        attendeeRows = [];
         const row: Record<string, unknown> = { NewRecord: vi.fn(), Save: vi.fn(async () => true) };
         getEntityObjectMock.mockResolvedValueOnce(row);
         meeting.Name = 'Renamed';
@@ -210,15 +244,48 @@ describe('a new meeting', () => {
         expect(row.PersonID).toBe('P-ADA');
         expect(row.Role).toBe('Organizer');
         expect(row.ResponseStatus).toBe('Accepted');
+        expect(row.MaintainedByMeetingServer).toBe(true);
+    });
+
+    it('refuses a new meeting organized by someone else, unless an administrator schedules it', async () => {
+        const meeting = new MeetingEntityServer() as unknown as Seedable;
+        meeting.Name = 'For Nico';
+        meeting.Status = 'Scheduled';
+        meeting.StartsAt = new Date('2026-11-03T15:00:00Z');
+        meeting.EndsAt = new Date('2026-11-03T15:30:00Z');
+        meeting.TimeZone = 'America/Chicago';
+        meeting.OrganizerPersonID = 'P-NICO';
+        meeting.SeriesID = null;
+        meeting.OccurrenceStartsAt = null;
+        const result = await meeting.ValidateAsync();
+        expect(result.Success).toBe(false);
+        expect(result.Errors[0].Message).toBe('A meeting is organized by the person who schedules it.');
     });
 
     it('moves the organizer row to the new organizer', async () => {
         const meeting = scheduled();
-        const row: Record<string, unknown> = { PersonID: 'P-ADA', UserID: 'U-ADA', Save: vi.fn(async () => true) };
-        runViewMock.mockResolvedValueOnce({ Success: true, Results: [row] });
+        const row: Record<string, unknown> = { PersonID: 'P-ADA', Role: 'Organizer', UserID: 'U-ADA', Save: vi.fn(async () => true) };
+        attendeeRows = [row];
         meeting.OrganizerPersonID = 'P-NICO';
         expect(await meeting.Save()).toBe(true);
         expect(row.PersonID).toBe('P-NICO');
         expect(row.UserID).toBeNull();
+        expect(row.MaintainedByMeetingServer).toBe(true);
+    });
+
+    it('promotes the new organizer\'s own row and keeps the old organizer as an attendee', async () => {
+        const meeting = scheduled();
+        const old: Record<string, unknown> = { PersonID: 'P-ADA', Role: 'Organizer', Save: vi.fn(async () => true) };
+        const nico: Record<string, unknown> = { PersonID: 'P-NICO', Role: 'Required', ResponseStatus: 'None', RespondedAt: null, Save: vi.fn(async () => true) };
+        attendeeRows = [old, nico];
+        meeting.OrganizerPersonID = 'P-NICO';
+        expect(await meeting.Save()).toBe(true);
+        expect(old.Role).toBe('Required');
+        expect(old.PersonID).toBe('P-ADA');
+        expect(nico.Role).toBe('Organizer');
+        expect(nico.ResponseStatus).toBe('Accepted');
+        expect(nico.RespondedAt).toBeInstanceOf(Date);
+        expect(old.Save).toHaveBeenCalled();
+        expect(nico.Save).toHaveBeenCalled();
     });
 });

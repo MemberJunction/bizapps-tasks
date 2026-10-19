@@ -6,7 +6,9 @@
 import { Assert, IntegrationCheckRegistry, type IntegrationCheckContext, type NamedCheck } from '@memberjunction/testing-integration/registry';
 import { CompositeKey, type IMetadataProvider } from '@memberjunction/core';
 import type {
+    mjBizAppsTasksMeetingAgendaItemEntity,
     mjBizAppsTasksMeetingAttendeeEntity,
+    mjBizAppsTasksMeetingNoteEntity,
     mjBizAppsTasksMeetingEntity,
     mjBizAppsTasksMeetingSeriesAttendeeEntity,
     mjBizAppsTasksMeetingSeriesEntity,
@@ -157,7 +159,9 @@ const checks: NamedCheck[] = [
                 Assert(occurrences.every((o) => o.OccurrenceStartsAt && new Date(o.StartsAt).getTime() === new Date(o.OccurrenceStartsAt).getTime()), 'each occurrence sits in its slot');
                 const sorted = [...occurrences].sort((a, b) => new Date(a.StartsAt).getTime() - new Date(b.StartsAt).getTime());
                 Assert(new Date(sorted[0].StartsAt).getTime() === first.getTime(), 'the first occurrence is the first start');
-                Assert(new Date(sorted[1].StartsAt).getTime() - new Date(sorted[0].StartsAt).getTime() === 7 * 86400000, 'occurrences are a week apart');
+                // A week on the wall clock: the instants differ by an hour when daylight saving starts or ends between them
+                const gap = new Date(sorted[1].StartsAt).getTime() - new Date(sorted[0].StartsAt).getTime();
+                Assert(Math.abs(gap - 7 * 86400000) <= 3600000, `occurrences are a week apart on the wall clock (gap ${gap} ms)`);
                 const attendeesOfSecond = await eventually(
                     () => FindRows<{ PersonID: string | null; Role: string }>(ctx, MEETING_ATTENDEE_ENTITY, `MeetingID = '${sorted[1].ID}'`, ['PersonID', 'Role']),
                     (rows) => rows.length === 2,
@@ -244,8 +248,26 @@ const checks: NamedCheck[] = [
                 Assert(ivySees.length === 1, 'the organizer reads her private meeting');
                 const junBlind = await FindRows<{ ID: string }>(asJun, MEETING_ENTITY, `ID = '${privateMeeting.ID}'`, ['ID']);
                 Assert(junBlind.length === 0, 'a UI user who is not invited does not read it');
-                const junAgendaBlind = await FindRows<{ ID: string }>(asJun, MEETING_ATTENDEE_ENTITY, `MeetingID = '${privateMeeting.ID}'`, ['ID']);
-                Assert(junAgendaBlind.length === 0, 'nor its attendee rows');
+                const junAttendeesBlind = await FindRows<{ ID: string }>(asJun, MEETING_ATTENDEE_ENTITY, `MeetingID = '${privateMeeting.ID}'`, ['ID']);
+                Assert(junAttendeesBlind.length === 0, 'nor its attendee rows');
+                // Its agenda, notes and links are as private as the meeting: made as the harness user, unseen by Jun
+                const agendaItem = await provider(ctx).GetEntityObject<mjBizAppsTasksMeetingAgendaItemEntity>(MEETING_AGENDA_ITEM_ENTITY, ctx.User);
+                agendaItem.NewRecord();
+                agendaItem.MeetingID = privateMeeting.ID;
+                agendaItem.Name = 'Compensation';
+                agendaItem.Sequence = 100;
+                agendaItem.Status = 'Planned';
+                await RequireSave(agendaItem, 'the private agenda item');
+                const note = await provider(ctx).GetEntityObject<mjBizAppsTasksMeetingNoteEntity>(MEETING_NOTE_ENTITY, ctx.User);
+                note.NewRecord();
+                note.MeetingID = privateMeeting.ID;
+                note.Kind = 'Notes';
+                note.Body = 'Numbers for the two of us.';
+                note.Source = 'Manual';
+                note.Status = 'Draft';
+                await RequireSave(note, 'the private note');
+                Assert((await FindRows<{ ID: string }>(asJun, MEETING_AGENDA_ITEM_ENTITY, `MeetingID = '${privateMeeting.ID}'`, ['ID'])).length === 0, 'nor its agenda');
+                Assert((await FindRows<{ ID: string }>(asJun, MEETING_NOTE_ENTITY, `MeetingID = '${privateMeeting.ID}'`, ['ID'])).length === 0, 'nor its notes');
                 const junSeesStandard = await FindRows<{ ID: string }>(asJun, MEETING_ENTITY, `ID = '${standard.ID}'`, ['ID']);
                 Assert(junSeesStandard.length === 1, 'a Standard meeting is read by anyone who reads meetings');
 
@@ -254,10 +276,82 @@ const checks: NamedCheck[] = [
                 // empty result it cached a moment ago; the read bypasses the cache (an MJ finding, in the T1 note)
                 const junInvited = await FindRows<{ ID: string }>(asJun, MEETING_ENTITY, `ID = '${privateMeeting.ID}'`, ['ID'], { BypassCache: true });
                 Assert(junInvited.length === 1, 'once invited, he reads it');
+                Assert((await FindRows<{ ID: string }>(asJun, MEETING_AGENDA_ITEM_ENTITY, `MeetingID = '${privateMeeting.ID}'`, ['ID'], { BypassCache: true })).length === 1, 'and its agenda');
+                Assert((await FindRows<{ ID: string }>(asJun, MEETING_NOTE_ENTITY, `MeetingID = '${privateMeeting.ID}'`, ['ID'], { BypassCache: true })).length === 1, 'and its notes');
             } finally {
                 await cleanupPersonaProviders(ctx);
                 if (privateId) await deleteMeeting(ctx, privateId);
                 if (standardId) await deleteMeeting(ctx, standardId);
+            }
+        },
+    },
+    {
+        Id: 'meetings.M6',
+        Name: 'M6 — who writes an attendee, over the wire: a UI user cannot invite himself, answer for another, or remove an attendee; he answers his own row; the organizer invites and removes',
+        RequiresMutation: true,
+        Fn: async (ctx: IntegrationCheckContext) => {
+            const world = await LoadMeetingWorld(ctx);
+            const service = new MeetingService(provider(ctx));
+            let meetingId: string | null = null;
+            try {
+                const meeting = await service.createMeeting({ name: `${MARK} gated`, organizerPersonId: world.ivy.personId, startsAt: nextWeek(), visibility: 'Standard' }, ctx.User);
+                meetingId = meeting.ID;
+                const asIvy = await getPersonaContext(ctx, world.ivy.email);
+                const asJun = await getPersonaContext(ctx, world.jun.email);
+
+                // Jun, not invited, cannot put himself on the meeting
+                const selfInvite = await asJun.Provider.GetEntityObject<mjBizAppsTasksMeetingAttendeeEntity>(MEETING_ATTENDEE_ENTITY, asJun.User);
+                selfInvite.NewRecord();
+                selfInvite.MeetingID = meeting.ID;
+                selfInvite.PersonID = world.jun.personId;
+                selfInvite.Role = 'Required';
+                selfInvite.ResponseStatus = 'None';
+                selfInvite.AttendanceStatus = 'Unknown';
+                Assert(!(await selfInvite.Save()), 'a UI user who is not the organizer cannot invite himself');
+                Assert(/Only the organizer invites/.test(selfInvite.LatestResult?.CompleteMessage ?? selfInvite.LatestResult?.Message ?? ''), `the refusal says so: ${selfInvite.LatestResult?.CompleteMessage ?? ''}`);
+
+                // The organizer invites him, over the wire as a UI user
+                const invite = await asIvy.Provider.GetEntityObject<mjBizAppsTasksMeetingAttendeeEntity>(MEETING_ATTENDEE_ENTITY, asIvy.User);
+                invite.NewRecord();
+                invite.MeetingID = meeting.ID;
+                invite.PersonID = world.jun.personId;
+                invite.Role = 'Required';
+                invite.ResponseStatus = 'None';
+                invite.AttendanceStatus = 'Unknown';
+                await RequireSave(invite, 'the organizer\'s invitation');
+
+                // Jun answers his own row, and nothing else on it
+                const own = await asJun.Provider.GetEntityObject<mjBizAppsTasksMeetingAttendeeEntity>(MEETING_ATTENDEE_ENTITY, asJun.User);
+                Assert(await own.Load(invite.ID), 'Jun reads his own row');
+                own.ResponseStatus = 'Accepted';
+                await RequireSave(own, 'Jun\'s answer');
+                own.Role = 'Optional';
+                Assert(!(await own.Save()), 'Jun cannot change his role');
+
+                // Nor the organizer's row
+                const [ivyRow] = await FindRows<{ ID: string }>(ctx, MEETING_ATTENDEE_ENTITY, `MeetingID = '${meeting.ID}' AND Role = 'Organizer'`, ['ID']);
+                const other = await asJun.Provider.GetEntityObject<mjBizAppsTasksMeetingAttendeeEntity>(MEETING_ATTENDEE_ENTITY, asJun.User);
+                Assert(await other.Load(ivyRow.ID), 'Jun reads the organizer\'s row');
+                other.ResponseStatus = 'Declined';
+                Assert(!(await other.Save()), 'Jun cannot answer for the organizer');
+                Assert(/Only the organizer changes another attendee/.test(other.LatestResult?.CompleteMessage ?? other.LatestResult?.Message ?? ''), 'the refusal says so');
+
+                // Removal is the organizer's
+                const removal = await asJun.Provider.GetEntityObject<mjBizAppsTasksMeetingAttendeeEntity>(MEETING_ATTENDEE_ENTITY, asJun.User);
+                Assert(await removal.Load(invite.ID), 'Jun reads his row again');
+                let removed = false;
+                try {
+                    removed = await removal.Delete();
+                } catch {
+                    removed = false;
+                }
+                Assert(!removed, 'Jun cannot remove an attendee, himself included');
+                const byIvy = await asIvy.Provider.GetEntityObject<mjBizAppsTasksMeetingAttendeeEntity>(MEETING_ATTENDEE_ENTITY, asIvy.User);
+                Assert(await byIvy.Load(invite.ID), 'the organizer reads the row');
+                Assert(await byIvy.Delete(), 'the organizer removes him');
+            } finally {
+                await cleanupPersonaProviders(ctx);
+                if (meetingId) await deleteMeeting(ctx, meetingId);
             }
         },
     },
