@@ -128,16 +128,41 @@ describe('a series\' occurrences', () => {
         expect(meetings().find((m) => m.ID === 'M-B')?.Name).toBe('Old name');
     });
 
-    it('move with the series when its time changes, keeping their identity, rather than being cancelled and remade', async () => {
-        for (const [id, iso] of [['M-1', '2026-10-20T14:00:00Z'], ['M-2', '2026-10-27T14:00:00Z'], ['M-3', '2026-11-03T14:00:00Z']]) meetings().push(occurrence(id, iso));
+    it('move with the series when its time changes, each keeping its own day, its identity and its agenda', async () => {
+        for (const [id, iso] of [['M-1', '2026-10-20T14:00:00Z'], ['M-2', '2026-10-27T14:00:00Z'], ['M-3', '2026-11-03T15:00:00Z']]) meetings().push(occurrence(id, iso));
         stores.get(SERIES)![0].FirstStartsAt = new Date('2026-10-20T15:00:00Z'); // 10:00 instead of 9:00
         const result = await new MeetingSeriesService(provider as never).materialize('S1', user as never, options);
         expect(result.cancelled).toBe(0);
         expect(result.created).toBe(0);
         expect(result.updated).toBe(3);
-        expect(meetings().map((m) => m.ID).sort()).toEqual(['M-1', 'M-2', 'M-3']);
-        expect(slotsOf()).toEqual(['2026-10-20T15:00:00.000Z', '2026-10-27T15:00:00.000Z', '2026-11-03T16:00:00.000Z']);
+        const byId = (id: string) => (meetings().find((m) => m.ID === id)!.OccurrenceStartsAt as Date).toISOString();
+        expect(byId('M-1')).toBe('2026-10-20T15:00:00.000Z');
+        expect(byId('M-2')).toBe('2026-10-27T15:00:00.000Z');
+        expect(byId('M-3')).toBe('2026-11-03T16:00:00.000Z'); // 10:00 CST
         expect(meetings().every((m) => (m.StartsAt as Date).getTime() === (m.OccurrenceStartsAt as Date).getTime())).toBe(true);
+    });
+
+    it('keep a meeting on its own day across a gap: a cancelled week in between is not filled by the next meeting', async () => {
+        meetings().push(occurrence('M-1', '2026-10-20T14:00:00Z'));
+        meetings().push(occurrence('M-2', '2026-10-27T14:00:00Z', { Status: 'Cancelled' })); // cancelled on its own
+        meetings().push(occurrence('M-3', '2026-11-03T15:00:00Z', { Name: 'Budget review' }));
+        stores.get(SERIES)![0].FirstStartsAt = new Date('2026-10-20T15:00:00Z'); // 10:00 instead of 9:00
+        const result = await new MeetingSeriesService(provider as never).materialize('S1', user as never, options);
+        const byId = (id: string) => meetings().find((m) => m.ID === id)!;
+        expect((byId('M-3').OccurrenceStartsAt as Date).toISOString()).toBe('2026-11-03T16:00:00.000Z'); // still Nov 3, at 10:00
+        expect(byId('M-2').Status).toBe('Cancelled');
+        expect(result.created).toBe(1); // a new meeting for Oct 27 at 10:00: the cancelled one stays cancelled
+        expect(meetings().filter((m) => (m.OccurrenceStartsAt as Date).toISOString() === '2026-10-27T15:00:00.000Z' && m.Status === 'Scheduled')).toHaveLength(1);
+    });
+
+    it('move the meetings to the nearest new slots in order when the weekday changes', async () => {
+        for (const [id, iso] of [['M-1', '2026-10-20T14:00:00Z'], ['M-2', '2026-10-27T14:00:00Z'], ['M-3', '2026-11-03T15:00:00Z']]) meetings().push(occurrence(id, iso));
+        stores.get(SERIES)![0].RecurrenceRule = 'FREQ=WEEKLY;BYDAY=WE';
+        stores.get(SERIES)![0].FirstStartsAt = new Date('2026-10-21T14:00:00Z');
+        const result = await new MeetingSeriesService(provider as never).materialize('S1', user as never, options);
+        expect(result.created).toBe(0);
+        expect(result.cancelled).toBe(0);
+        expect(meetings().map((m) => [m.ID, (m.OccurrenceStartsAt as Date).toISOString()])).toEqual([['M-1', '2026-10-21T14:00:00.000Z'], ['M-2', '2026-10-28T14:00:00.000Z'], ['M-3', '2026-11-04T15:00:00.000Z']]);
     });
 
     it('cancel an untouched occurrence whose slot the rule no longer produces when no new slot takes it', async () => {

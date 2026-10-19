@@ -1,4 +1,5 @@
 import { LogError, Metadata, RunView, type IMetadataProvider, type UserInfo } from '@memberjunction/core';
+import { DateTime } from 'luxon';
 import type {
     mjBizAppsTasksMeetingAttendeeEntity,
     mjBizAppsTasksMeetingEntity,
@@ -37,9 +38,9 @@ const sameInstant = (a: Date | null | undefined, b: Date | null | undefined): bo
  * A series' occurrences (the meetings plan, § 3): real Meeting rows made ahead of time up to a horizon, each named by
  * its slot. Saving or changing a series calls this: a slot with no meeting gets one; a meeting that has not started and
  * was not moved or cancelled on its own takes the series' current values; one that was moved, started or cancelled is
- * left alone; a future meeting whose slot the rule no longer produces moves to the next slot that has none (the series'
- * time changed), keeping its agenda, attendees and answers; and one with no slot to move to is cancelled, unless it was
- * changed on its own.
+ * left alone; a future meeting whose slot the rule no longer produces moves to the new slot on its own day (the series'
+ * time changed) or, when the days no longer line up, to the next slot that has none, keeping its agenda, attendees and
+ * answers; and one with no slot to move to is cancelled, unless it was changed on its own.
  */
 /** The materialization in flight per series, so two saves close together run one after the other, never over each other. */
 const inFlight = new Map<string, Promise<MaterializeResult>>();
@@ -77,12 +78,27 @@ export class MeetingSeriesService {
         const attendees = await this.seriesAttendees(series.ID, contextUser);
         const links = await this.seriesLinks(series.ID, contextUser);
 
-        // A slot with no meeting of its own takes an untouched meeting whose slot the rule no longer produces, in order:
-        // the series' time moved, and the plan (§ 3) moves the meetings not yet held with it rather than cancelling them
+        // A slot with no meeting of its own takes an untouched meeting whose slot the rule no longer produces: the series'
+        // time moved, and the plan (§ 3) moves the meetings not yet held with it rather than cancelling them. A meeting
+        // keeps its date when the new slot falls on the same day in the series' zone (the time changed, Ian 2026-10-19);
+        // only when the days no longer line up (the weekday changed) do the remaining meetings take the new slots in order.
         const produced = new Set(slots.map((slot) => slot.occurrenceStartsAt.getTime()));
         const movable = existing
             .filter((row) => !produced.has(row.OccurrenceStartsAt?.getTime() ?? 0) && (row.OccurrenceStartsAt?.getTime() ?? 0) <= through.getTime() && this.isUntouched(row, series))
             .sort((a, b) => (a.OccurrenceStartsAt?.getTime() ?? 0) - (b.OccurrenceStartsAt?.getTime() ?? 0));
+        const dayOf = (instant: Date): string => DateTime.fromJSDate(instant, { zone: series.TimeZone }).toISODate() ?? instant.toISOString().slice(0, 10);
+        const sameDayAs = (slotStart: Date): OccurrenceRow | null => {
+            const day = dayOf(slotStart);
+            const index = movable.findIndex((row) => row.OccurrenceStartsAt && dayOf(row.OccurrenceStartsAt) === day);
+            return index < 0 ? null : movable.splice(index, 1)[0];
+        };
+        // Pair by day first, over every slot, so a same-day meeting is never handed to an earlier slot by the in-order fallback
+        const paired = new Map<number, OccurrenceRow>();
+        for (const slot of slots) {
+            if (bySlot.has(slot.occurrenceStartsAt.getTime())) continue;
+            const row = sameDayAs(slot.occurrenceStartsAt);
+            if (row) paired.set(slot.occurrenceStartsAt.getTime(), row);
+        }
         const moved = new Set<string>();
 
         // One occurrence that cannot be changed is noted and skipped; the rest of the series is still brought up to date
@@ -97,7 +113,7 @@ export class MeetingSeriesService {
         };
 
         for (const slot of slots) {
-            const found = bySlot.get(slot.occurrenceStartsAt.getTime()) ?? movable.shift() ?? null;
+            const found = bySlot.get(slot.occurrenceStartsAt.getTime()) ?? paired.get(slot.occurrenceStartsAt.getTime()) ?? movable.shift() ?? null;
             if (!found) {
                 await attempt(`the occurrence at ${slot.startsAt.toISOString()}`, async () => {
                     if (await this.createOccurrence(series, slot, attendees, links, contextUser)) result.created += 1;
