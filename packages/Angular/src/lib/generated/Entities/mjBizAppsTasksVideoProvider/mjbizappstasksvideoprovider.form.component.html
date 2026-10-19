@@ -10,11 +10,11 @@
     <!-- ========================================
          FIELD PANELS
          ======================================== -->
-    <!-- Provider Details Section -->
+    <!-- Details Section -->
     <mj-collapsible-panel
-        SectionKey="providerDetails"
-        SectionName="Provider Details"
-        Icon="fa fa-info-circle"
+        SectionKey="details"
+        SectionName="Details"
+        Icon="fa fa-align-left"
         [Form]="this"
         [FormContext]="formContext">
         <mj-form-field 
@@ -57,16 +57,6 @@
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
-
-    </mj-collapsible-panel>
-
-    <!-- Configuration and Secrets Section -->
-    <mj-collapsible-panel
-        SectionKey="configurationAndSecrets"
-        SectionName="Configuration and Secrets"
-        Icon="fa fa-key"
-        [Form]="this"
-        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -84,16 +74,6 @@
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
-
-    </mj-collapsible-panel>
-
-    <!-- Capabilities and Status Section -->
-    <mj-collapsible-panel
-        SectionKey="capabilitiesAndStatus"
-        SectionName="Capabilities and Status"
-        Icon="fa fa-sliders-h"
-        [Form]="this"
-        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -118,16 +98,6 @@
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
-
-    </mj-collapsible-panel>
-
-    <!-- System Metadata Section -->
-    <mj-collapsible-panel
-        SectionKey="systemMetadata"
-        SectionName="System Metadata"
-        Icon="fa fa-cog"
-        [Form]="this"
-        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -153,36 +123,11 @@
          RELATED ENTITY PANELS
          ======================================== -->
 
-    <!-- Meeting Types Section -->
-    <mj-collapsible-panel
-        SectionKey="mJBizAppsTasksMeetingTypes"
-        SectionName="Meeting Types"
-        Icon="fa fa-calendar-alt"
-        Variant="related-entity"
-        [Form]="this"
-        [FormContext]="formContext"
-        [BadgeCount]="GetSectionRowCount('mJBizAppsTasksMeetingTypes')"
-        [DefaultExpanded]="false">
-        @if (record.IsSaved) {
-        <div>
-            <mj-explorer-entity-data-grid
-                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Meeting Types','DefaultVideoProviderID')"
-                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Meeting Types','DefaultVideoProviderID')"
-                [AllowLoad]="IsSectionExpanded('mJBizAppsTasksMeetingTypes')"
-                [ShowToolbar]="true"
-                (Navigate)="OnFormNavigate($event)"
-                (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksMeetingTypes', $event.totalRowCount)"
-                >
-            </mj-explorer-entity-data-grid>
-        </div>
-        }
-    </mj-collapsible-panel>
-
     <!-- Meeting Series Section -->
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksMeetingSeries"
         SectionName="Meeting Series"
-        Icon="fa fa-calendar-alt"
+        Icon="fa fa-table"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"
@@ -207,7 +152,7 @@
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksMeetings"
         SectionName="Meetings"
-        Icon="fa fa-calendar-alt"
+        Icon="fa fa-table"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"
@@ -222,6 +167,31 @@
                 [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksMeetings', $event.totalRowCount)"
+                >
+            </mj-explorer-entity-data-grid>
+        </div>
+        }
+    </mj-collapsible-panel>
+
+    <!-- Meeting Types Section -->
+    <mj-collapsible-panel
+        SectionKey="mJBizAppsTasksMeetingTypes"
+        SectionName="Meeting Types"
+        Icon="fa fa-table"
+        Variant="related-entity"
+        [Form]="this"
+        [FormContext]="formContext"
+        [BadgeCount]="GetSectionRowCount('mJBizAppsTasksMeetingTypes')"
+        [DefaultExpanded]="false">
+        @if (record.IsSaved) {
+        <div>
+            <mj-explorer-entity-data-grid
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Meeting Types','DefaultVideoProviderID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Meeting Types','DefaultVideoProviderID')"
+                [AllowLoad]="IsSectionExpanded('mJBizAppsTasksMeetingTypes')"
+                [ShowToolbar]="true"
+                (Navigate)="OnFormNavigate($event)"
+                (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksMeetingTypes', $event.totalRowCount)"
                 >
             </mj-explorer-entity-data-grid>
         </div>

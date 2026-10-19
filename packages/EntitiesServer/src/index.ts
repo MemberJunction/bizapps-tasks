@@ -12,6 +12,7 @@ import { MeetingEntityServer } from './MeetingEntityServer.js';
 import { MeetingSeriesEntityServer } from './MeetingSeriesEntityServer.js';
 import { MeetingAttendeeEntityServer, MeetingSeriesAttendeeEntityServer } from './MeetingAttendeeEntityServer.js';
 import { MeetingAgendaItemEntityServer, MeetingLinkEntityServer } from './MeetingAgendaItemEntityServer.js';
+import { MeetingNoteEntityServer } from './MeetingNoteEntityServer.js';
 
 export { TaskEntityServer } from './TaskEntityServer.js';
 export { TaskCheckInEntityServer } from './TaskCheckInEntityServer.js';
@@ -19,6 +20,7 @@ export { MeetingEntityServer } from './MeetingEntityServer.js';
 export { MeetingSeriesEntityServer } from './MeetingSeriesEntityServer.js';
 export { MeetingAttendeeEntityServer, MeetingSeriesAttendeeEntityServer } from './MeetingAttendeeEntityServer.js';
 export { MeetingAgendaItemEntityServer, MeetingLinkEntityServer } from './MeetingAgendaItemEntityServer.js';
+export { MeetingNoteEntityServer } from './MeetingNoteEntityServer.js';
 export * from './video/VideoProviderBase.js';
 export { runAfterCommit } from './after-commit.js';
 
@@ -38,6 +40,7 @@ export function LoadBizAppsTasksEntitiesServer(): void {
         MeetingSeriesAttendeeEntityServer,
         MeetingAgendaItemEntityServer,
         MeetingLinkEntityServer,
+        MeetingNoteEntityServer,
     ];
     if (!anchor.length) {
         throw new Error('TaskEntityServer anchor missing');

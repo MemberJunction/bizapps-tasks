@@ -22,6 +22,13 @@
             "IsArray": false,
             "IsRequired": true,
             "Description": "ID of the assigned task. Passed by the OnAssign hook."
+          },
+          "primaryKey": {
+            "ID": "08B383E8-A5B9-569A-AE95-B080003883A5"
+          },
+          "sync": {
+            "lastModified": "2026-10-19T21:11:19.649Z",
+            "checksum": "31ed76cac279feed984423654d1f38b10b19b3c4fe6acc13e628c12c0960503e"
           }
         },
         {
@@ -33,6 +40,13 @@
             "IsArray": false,
             "IsRequired": true,
             "Description": "Name of the assigned task. Passed by the OnAssign hook."
+          },
+          "primaryKey": {
+            "ID": "694296BC-D609-5277-A6F6-271A63875FC5"
+          },
+          "sync": {
+            "lastModified": "2026-10-19T21:11:19.664Z",
+            "checksum": "76051dd5674bc40e4f78961ff195c026768c5ccfbe5f21df91ffd1ca90997d25"
           }
         },
         {
@@ -44,6 +58,13 @@
             "IsArray": false,
             "IsRequired": false,
             "Description": "ID of the task's type, used to find the credential named after its Code. Passed by the OnAssign hook."
+          },
+          "primaryKey": {
+            "ID": "CDA58C2B-B830-5A71-B282-A0F35606E8FB"
+          },
+          "sync": {
+            "lastModified": "2026-10-19T21:11:19.680Z",
+            "checksum": "528e62b2c4c09b02eab1bc5073fed218810fde40c261ffa279fdb2d997721652"
           }
         },
         {
@@ -55,6 +76,13 @@
             "IsArray": false,
             "IsRequired": false,
             "Description": "People record ID of the assignee. Passed by the OnAssign hook."
+          },
+          "primaryKey": {
+            "ID": "F04F49B3-74F8-577D-966A-5FA7A9CC6A30"
+          },
+          "sync": {
+            "lastModified": "2026-10-19T21:11:19.697Z",
+            "checksum": "8e96016869074db981df67ae8a22cb9545241afc1768f9e6343988c8b27f643e"
           }
         },
         {
@@ -66,6 +94,13 @@
             "IsArray": false,
             "IsRequired": false,
             "Description": "Display name of the assignee, shown on the card. Passed by the OnAssign hook."
+          },
+          "primaryKey": {
+            "ID": "6731A8BE-488B-56D1-B72C-5A92D13DDF39"
+          },
+          "sync": {
+            "lastModified": "2026-10-19T21:11:19.713Z",
+            "checksum": "5f1db335ad584077c683a11167ee9b5fb4deddf42ec0aa268998597fed366519"
           }
         },
         {
@@ -77,6 +112,13 @@
             "IsArray": false,
             "IsRequired": false,
             "Description": "Status of the task. Passed by the OnAssign hook; not used."
+          },
+          "primaryKey": {
+            "ID": "83473794-15BD-52B3-9C96-919C4C192A78"
+          },
+          "sync": {
+            "lastModified": "2026-10-19T21:11:19.730Z",
+            "checksum": "aa3471e3b82d0243ec5f526161cfd14ee65def4ada2e2744dfd16aac8fefcc5c"
           }
         },
         {
@@ -88,6 +130,13 @@
             "IsArray": false,
             "IsRequired": false,
             "Description": "Name of the 'Teams Channel Webhook' credential to use. Optional; defaults to the task type's Code."
+          },
+          "primaryKey": {
+            "ID": "153CD39A-808F-55D0-A3E6-458AF56427C9"
+          },
+          "sync": {
+            "lastModified": "2026-10-19T21:11:19.745Z",
+            "checksum": "21b5c472f269adee92fb972426842882a125b0cca33deefdccecc4b9263f144c"
           }
         }
       ],
@@ -98,6 +147,13 @@
             "ResultCode": "SUCCESS",
             "IsSuccess": true,
             "Description": "The card was posted."
+          },
+          "primaryKey": {
+            "ID": "BC78F9BD-8CB7-56D9-9AE1-9C9C66B654B0"
+          },
+          "sync": {
+            "lastModified": "2026-10-19T21:11:19.766Z",
+            "checksum": "12bf7a59a1cb60f14dc75b36bc1071f21f7d5ddefa1307a5560ca7ec79401583"
           }
         },
         {
@@ -106,6 +162,13 @@
             "ResultCode": "MISSING_TASK",
             "IsSuccess": false,
             "Description": "TaskID or TaskName was not supplied."
+          },
+          "primaryKey": {
+            "ID": "82B4E5E1-83C9-5564-813C-C80BBBCC4E9E"
+          },
+          "sync": {
+            "lastModified": "2026-10-19T21:11:19.777Z",
+            "checksum": "3991cf47aef7e6bfc2ba7a0437f672696f4260b7460bafd88a6d35a38e8695de"
           }
         },
         {
@@ -114,6 +177,13 @@
             "ResultCode": "INVALID_TASK_TYPE",
             "IsSuccess": false,
             "Description": "TaskTypeID was supplied but is not a valid ID."
+          },
+          "primaryKey": {
+            "ID": "B4C2B470-D387-56E5-910C-A64F4F738062"
+          },
+          "sync": {
+            "lastModified": "2026-10-19T21:11:19.789Z",
+            "checksum": "7ce89d878267b11e53cd5188479c6f2bebb1284fe428f35e0f5654c111f92e33"
           }
         },
         {
@@ -122,6 +192,13 @@
             "ResultCode": "MISSING_CREDENTIAL",
             "IsSuccess": false,
             "Description": "No 'Teams Channel Webhook' credential matched and the type has no default."
+          },
+          "primaryKey": {
+            "ID": "FB9281EE-9E22-55B2-B771-37382694B059"
+          },
+          "sync": {
+            "lastModified": "2026-10-19T21:11:19.802Z",
+            "checksum": "5b6370240a207999c400d8f3f69636e31fd24a3b4eb647610bf03bd672888700"
           }
         },
         {
@@ -130,6 +207,13 @@
             "ResultCode": "INVALID_WEBHOOK_URL",
             "IsSuccess": false,
             "Description": "The credential's webhookUrl is not an https Teams connector or Power Automate webhook URL."
+          },
+          "primaryKey": {
+            "ID": "DDE27EF8-FF4E-5A0B-832F-FF90CBEFF423"
+          },
+          "sync": {
+            "lastModified": "2026-10-19T21:11:19.815Z",
+            "checksum": "667dcec7c23bec96db02d10627e6bcf5443ed743dbd9bf86344b754cf29ec7a2"
           }
         },
         {
@@ -138,6 +222,13 @@
             "ResultCode": "TEAMS_ERROR",
             "IsSuccess": false,
             "Description": "The webhook rejected the post or could not be reached."
+          },
+          "primaryKey": {
+            "ID": "ACA1E2EE-9A05-5A81-BF6C-7BB6F508C753"
+          },
+          "sync": {
+            "lastModified": "2026-10-19T21:11:19.827Z",
+            "checksum": "50789ec1f546a1ec9e6319e07994cd2e362c7988d48ff472a5b631262249756f"
           }
         },
         {
@@ -146,9 +237,26 @@
             "ResultCode": "ERROR",
             "IsSuccess": false,
             "Description": "No context user."
+          },
+          "primaryKey": {
+            "ID": "D176BEE7-B811-5E9D-9FE5-3ADB1F6362B3"
+          },
+          "sync": {
+            "lastModified": "2026-10-19T21:11:19.838Z",
+            "checksum": "ef1ead6a0622a398d9c630271c77f95367010eadda7b7bb8577fa553c293175d"
           }
         }
       ]
+    },
+    "primaryKey": {
+      "ID": "D034EC63-2013-5310-A388-FF077E4EA825"
+    },
+    "_comments": [
+      "Fixed ids on the action, its parameters and its result codes: a push updates what is there and inserts what is not, on any host."
+    ],
+    "sync": {
+      "lastModified": "2026-10-19T21:11:19.624Z",
+      "checksum": "d4c75e049b7b7dcfaa042127998aeb4ec2de580423c7b8e1a308c380495da92c"
     }
   }
 ]

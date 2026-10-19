@@ -15,11 +15,7 @@ export class mjBizAppsTasksMeetingNoteFormComponent extends BaseFormComponent {
     override async ngOnInit() {
         await super.ngOnInit();
         this.initSections([
-            { sectionKey: 'meetingContext', sectionName: 'Meeting Context', isExpanded: true },
-            { sectionKey: 'noteDetails', sectionName: 'Note Details', isExpanded: true },
-            { sectionKey: 'authorshipAndOrigin', sectionName: 'Authorship and Origin', isExpanded: true },
-            { sectionKey: 'actionItemsAndTasks', sectionName: 'Action Items and Tasks', isExpanded: true },
-            { sectionKey: 'systemMetadata', sectionName: 'System Metadata', isExpanded: false }
+            { sectionKey: 'details', sectionName: 'Details', isExpanded: true }
         ]);
     }
 }

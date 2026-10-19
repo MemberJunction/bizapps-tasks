@@ -10,11 +10,11 @@
     <!-- ========================================
          FIELD PANELS
          ======================================== -->
-    <!-- Meeting Context Section -->
+    <!-- Details Section -->
     <mj-collapsible-panel
-        SectionKey="meetingContext"
-        SectionName="Meeting Context"
-        Icon="fa fa-calendar"
+        SectionKey="details"
+        SectionName="Details"
+        Icon="fa fa-align-left"
         [Form]="this"
         [FormContext]="formContext">
         <mj-form-field 
@@ -35,16 +35,6 @@
             [FormContext]="formContext"
             LinkType="Record"
         ></mj-form-field>
-
-    </mj-collapsible-panel>
-
-    <!-- Note Details Section -->
-    <mj-collapsible-panel
-        SectionKey="noteDetails"
-        SectionName="Note Details"
-        Icon="fa fa-file-alt"
-        [Form]="this"
-        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -85,16 +75,6 @@
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
-
-    </mj-collapsible-panel>
-
-    <!-- Authorship and Origin Section -->
-    <mj-collapsible-panel
-        SectionKey="authorshipAndOrigin"
-        SectionName="Authorship and Origin"
-        Icon="fa fa-user-edit"
-        [Form]="this"
-        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -113,34 +93,14 @@
             [FormContext]="formContext"
             LinkType="Record"
         ></mj-form-field>
-
-    </mj-collapsible-panel>
-
-    <!-- Action Items and Tasks Section -->
-    <mj-collapsible-panel
-        SectionKey="actionItemsAndTasks"
-        SectionName="Action Items and Tasks"
-        Icon="fa fa-tasks"
-        [Form]="this"
-        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
-            [ShowLabel]="false"
+            [ShowLabel]="true"
             FieldName="ProposedTasks"
             Type="textarea"
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
-
-    </mj-collapsible-panel>
-
-    <!-- System Metadata Section -->
-    <mj-collapsible-panel
-        SectionKey="systemMetadata"
-        SectionName="System Metadata"
-        Icon="fa fa-cog"
-        [Form]="this"
-        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"

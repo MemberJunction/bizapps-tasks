@@ -43,6 +43,7 @@ vi.mock('@mj-biz-apps/tasks-entities', () => ({
   mjBizAppsTasksMeetingSeriesAttendeeEntity: class {},
   mjBizAppsTasksMeetingAgendaItemEntity: class {},
   mjBizAppsTasksMeetingLinkEntity: class {},
+  mjBizAppsTasksMeetingNoteEntity: class {},
   mjBizAppsTasksVideoProviderEntity: class {},
 }));
 vi.mock('@mj-biz-apps/common-entities', () => ({

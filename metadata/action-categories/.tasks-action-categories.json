@@ -4,6 +4,13 @@
       "Name": "Tasks",
       "Description": "Actions provided by BizApps Tasks, such as task type hooks that notify assignees outside the app.",
       "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "93D2C007-798D-5756-A730-477D6C72EACB"
+    },
+    "sync": {
+      "lastModified": "2026-10-19T21:11:19.346Z",
+      "checksum": "a5691a46377e70a5fff8f367612ed51c4291e30436b39905d9c355f3a423e77c"
     }
   }
 ]

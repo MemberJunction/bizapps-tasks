@@ -1,7 +1,9 @@
-import { BaseEntity, RunView, ValidationErrorInfo, ValidationErrorType, type IMetadataProvider, type ValidationResult } from '@memberjunction/core';
+import { BaseEntity, RunView, ValidationErrorInfo, ValidationErrorType, type EntityDeleteOptions, type IMetadataProvider, type ValidationResult } from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
 import { mjBizAppsTasksMeetingAgendaItemEntity, mjBizAppsTasksMeetingLinkEntity } from '@mj-biz-apps/tasks-entities';
-import { MEETING_AGENDA_ITEM_ENTITY, MEETING_LINK_ENTITY, agendaParentProblem, type AgendaNode } from '@mj-biz-apps/tasks-core';
+import { MEETING_AGENDA_ITEM_ENTITY, MEETING_LINK_ENTITY, MEETING_SERIES_ENTITY, agendaParentProblem, type AgendaNode } from '@mj-biz-apps/tasks-core';
+import { mjBizAppsTasksMeetingSeriesEntity } from '@mj-biz-apps/tasks-entities';
+import { callerAndMeeting, callerOwnsMeeting, meetingCaller } from './meeting-caller.js';
 
 const fail = (result: ValidationResult, field: string, message: string): ValidationResult => {
     result.Success = false;
@@ -22,6 +24,10 @@ export class MeetingAgendaItemEntityServer extends mjBizAppsTasksMeetingAgendaIt
             const value = this[field];
             if (value != null && value !== '' && !UUID.test(String(value))) return fail(result, field, `${field} is not an id.`);
         }
+        // The agenda is the organizer's to write (the meetings plan, § 3 and § 5), over the API as in the app
+        const access = await callerAndMeeting(this.ProviderToUse as unknown as IMetadataProvider, this.ContextCurrentUser, this.MeetingID);
+        if (!access.found) return fail(result, 'MeetingID', 'The meeting was not found, or you may not see it.');
+        if (!access.owns) return fail(result, 'MeetingID', 'Only the organizer changes the agenda.');
         if (this.DeferredToMeetingID && this.DeferredToMeetingID.toLowerCase() === this.MeetingID.toLowerCase()) {
             return fail(result, 'DeferredToMeetingID', 'An item is deferred to a later meeting, not to its own.');
         }
@@ -40,6 +46,12 @@ export class MeetingAgendaItemEntityServer extends mjBizAppsTasksMeetingAgendaIt
         return result;
     }
 
+    public override async Delete(options?: EntityDeleteOptions): Promise<boolean> {
+        const access = await callerAndMeeting(this.ProviderToUse as unknown as IMetadataProvider, this.ContextCurrentUser, this.MeetingID);
+        if (!access.found || !access.owns) throw new Error('Only the organizer changes the agenda.');
+        return super.Delete(options);
+    }
+
     private async parentElsewhere(provider: IMetadataProvider): Promise<AgendaNode[]> {
         const rows = await RunView.FromMetadataProvider(provider).RunView<AgendaNode>(
             { EntityName: MEETING_AGENDA_ITEM_ENTITY, ExtraFilter: `ID = '${this.ParentID}'`, Fields: ['ID', 'MeetingID', 'ParentID', 'Sequence'], ResultType: 'simple', MaxRows: 1 },
@@ -49,12 +61,41 @@ export class MeetingAgendaItemEntityServer extends mjBizAppsTasksMeetingAgendaIt
     }
 }
 
-/** A link belongs to exactly one of a meeting and a series. */
+/** A link belongs to exactly one of a meeting and a series, and is the organizer's (or an administrator's) to write. */
 @RegisterClass(BaseEntity, MEETING_LINK_ENTITY)
 export class MeetingLinkEntityServer extends mjBizAppsTasksMeetingLinkEntity {
+    private get metadataProvider(): IMetadataProvider {
+        return this.ProviderToUse as unknown as IMetadataProvider;
+    }
+
     public override async ValidateAsync(): Promise<ValidationResult> {
         const result = await super.ValidateAsync();
         if (!!this.MeetingID === !!this.SeriesID) return fail(result, 'MeetingID', 'A link belongs to a meeting or to a series, one of the two.');
+        for (const field of ['MeetingID', 'SeriesID'] as const) {
+            const value = this[field];
+            if (value != null && value !== '' && !UUID.test(String(value))) return fail(result, field, `${field} is not an id.`);
+        }
+        const refusal = await this.callerRefusal();
+        if (refusal) return fail(result, this.MeetingID ? 'MeetingID' : 'SeriesID', refusal);
         return result;
+    }
+
+    public override async Delete(options?: EntityDeleteOptions): Promise<boolean> {
+        const refusal = await this.callerRefusal();
+        if (refusal) throw new Error(refusal);
+        return super.Delete(options);
+    }
+
+    /** Why the caller may not write this link, or null. */
+    private async callerRefusal(): Promise<string | null> {
+        if (this.MeetingID) {
+            const access = await callerAndMeeting(this.metadataProvider, this.ContextCurrentUser, this.MeetingID);
+            if (!access.found) return 'The meeting was not found, or you may not see it.';
+            return access.owns ? null : 'Only the organizer changes what a meeting is linked to.';
+        }
+        const series = await this.metadataProvider.GetEntityObject<mjBizAppsTasksMeetingSeriesEntity>(MEETING_SERIES_ENTITY, this.ContextCurrentUser);
+        if (!this.SeriesID || !(await series.Load(this.SeriesID))) return 'The series was not found, or you may not see it.';
+        const caller = await meetingCaller(this.metadataProvider, this.ContextCurrentUser);
+        return callerOwnsMeeting(caller, series.OrganizerPersonID) ? null : 'Only the organizer changes what a series is linked to.';
     }
 }

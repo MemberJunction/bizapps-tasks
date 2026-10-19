@@ -83,7 +83,7 @@ vi.mock('@mj-biz-apps/tasks-entities', async () => {
             },
         });
     }
-    return { mjBizAppsTasksMeetingEntity, mjBizAppsTasksMeetingAttendeeEntity: class {}, mjBizAppsTasksVideoProviderEntity: class {} };
+    return { mjBizAppsTasksMeetingEntity, mjBizAppsTasksMeetingAttendeeEntity: class {}, mjBizAppsTasksMeetingSeriesEntity: class {}, mjBizAppsTasksVideoProviderEntity: class {} };
 });
 
 vi.mock('@mj-biz-apps/common-entities', () => ({
@@ -247,6 +247,18 @@ describe('a new meeting', () => {
         expect(row.MaintainedByMeetingServer).toBe(true);
     });
 
+    it('lets a meeting join a series only at the series organizer\'s hand', async () => {
+        const meeting = scheduled();
+        getEntityObjectMock.mockResolvedValueOnce({ OrganizerPersonID: 'P-NICO', Load: async () => true });
+        meeting.SeriesID = 'S-NICO';
+        meeting.OccurrenceStartsAt = new Date('2026-11-03T15:00:00Z');
+        const result = await meeting.ValidateAsync();
+        expect(result.Success).toBe(false);
+        expect(result.Errors[0].Message).toBe('Only the organizer of a series adds a meeting to it.');
+        getEntityObjectMock.mockResolvedValueOnce({ OrganizerPersonID: 'P-ADA', Load: async () => true });
+        expect((await meeting.ValidateAsync()).Success).toBe(true);
+    });
+
     it('refuses a new meeting organized by someone else, unless an administrator schedules it', async () => {
         const meeting = new MeetingEntityServer() as unknown as Seedable;
         meeting.Name = 'For Nico';
@@ -262,15 +274,20 @@ describe('a new meeting', () => {
         expect(result.Errors[0].Message).toBe('A meeting is organized by the person who schedules it.');
     });
 
-    it('moves the organizer row to the new organizer', async () => {
+    it('keeps the old organizer as an attendee and makes the new organizer a row of their own', async () => {
         const meeting = scheduled();
         const row: Record<string, unknown> = { PersonID: 'P-ADA', Role: 'Organizer', UserID: 'U-ADA', Save: vi.fn(async () => true) };
         attendeeRows = [row];
+        const made: Record<string, unknown> = { NewRecord: vi.fn(), Save: vi.fn(async () => true) };
+        getEntityObjectMock.mockResolvedValueOnce(made);
         meeting.OrganizerPersonID = 'P-NICO';
         expect(await meeting.Save()).toBe(true);
-        expect(row.PersonID).toBe('P-NICO');
-        expect(row.UserID).toBeNull();
+        expect(row.PersonID).toBe('P-ADA');
+        expect(row.Role).toBe('Required');
         expect(row.MaintainedByMeetingServer).toBe(true);
+        expect(made.PersonID).toBe('P-NICO');
+        expect(made.Role).toBe('Organizer');
+        expect(made.MaintainedByMeetingServer).toBe(true);
     });
 
     it('promotes the new organizer\'s own row and keeps the old organizer as an attendee', async () => {

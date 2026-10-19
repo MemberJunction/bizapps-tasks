@@ -18,7 +18,11 @@
     "_comments": [
       "The meeting types Tasks ships (the meetings plan, § 10). Each carries the defaults a new meeting of the type starts with and its agenda template: items with a title, an agenda item type code, a duration in minutes and sub-items.",
       "These rows are metadata. Push them with mj sync push. Do not copy them into a SQL migration."
-    ]
+    ],
+    "sync": {
+      "lastModified": "2026-10-19T21:11:22.465Z",
+      "checksum": "3b93692a0343223214c5415837098e4eafd3105afdd01f3b848e83d58c9b9e6c"
+    }
   },
   {
     "fields": {
@@ -35,6 +39,10 @@
     },
     "primaryKey": {
       "ID": "6294489D-D3BF-4E9D-84C1-DD75B70D0E4A"
+    },
+    "sync": {
+      "lastModified": "2026-10-19T21:11:22.478Z",
+      "checksum": "79e907023ed086b19384a0983d6dc82ea2344f48429931c757e1626251adbf5b"
     }
   },
   {
@@ -52,6 +60,10 @@
     },
     "primaryKey": {
       "ID": "6A15935E-7BE8-4703-9A24-FA099818B318"
+    },
+    "sync": {
+      "lastModified": "2026-10-19T21:11:22.490Z",
+      "checksum": "ed70b786768a64952623c92d9428c7dbb3a3bb1c6b01272c4c2afb0475e07690"
     }
   },
   {
@@ -69,6 +81,10 @@
     },
     "primaryKey": {
       "ID": "A66B95B4-20AF-4E42-915F-94BC1FB6E2D5"
+    },
+    "sync": {
+      "lastModified": "2026-10-19T21:11:22.503Z",
+      "checksum": "d5c0f4e98264e1d50df498acc1333aad9fe770ec2355b031d292026f62e7cfc4"
     }
   },
   {
@@ -86,6 +102,10 @@
     },
     "primaryKey": {
       "ID": "69917FB5-3B5F-4397-81E2-99A9732E25BB"
+    },
+    "sync": {
+      "lastModified": "2026-10-19T21:11:22.515Z",
+      "checksum": "82c1c287d58131c56711b66c44f1fd7d4a8926b63c44e291a0aee41ade0f2e3f"
     }
   }
 ]

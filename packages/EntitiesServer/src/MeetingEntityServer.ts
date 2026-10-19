@@ -1,9 +1,10 @@
 import { BaseEntity, LogError, RunView, ValidationErrorInfo, ValidationErrorType, type EntitySaveOptions, type IMetadataProvider, type ValidationResult } from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
-import { mjBizAppsTasksMeetingAttendeeEntity, mjBizAppsTasksMeetingEntity, mjBizAppsTasksVideoProviderEntity } from '@mj-biz-apps/tasks-entities';
+import { mjBizAppsTasksMeetingAttendeeEntity, mjBizAppsTasksMeetingEntity, mjBizAppsTasksMeetingSeriesEntity, mjBizAppsTasksVideoProviderEntity } from '@mj-biz-apps/tasks-entities';
 import {
     MEETING_ATTENDEE_ENTITY,
     MEETING_ENTITY,
+    MEETING_SERIES_ENTITY,
     VIDEO_PROVIDER_ENTITY,
     callerAdministersMeetings,
     callerIsOrganizer,
@@ -69,6 +70,13 @@ export class MeetingEntityServer extends mjBizAppsTasksMeetingEntity {
             } else if (!callerOwnsMeeting(caller, this.organizerBefore)) {
                 return fail(result, 'OrganizerPersonID', 'Only the organizer changes a meeting.');
             }
+        }
+        // An occurrence joins a series only at its organizer's hand: nobody slips a meeting of their own into someone else's series
+        const seriesField = this.Fields.find((f) => f.CodeName === 'SeriesID');
+        if (this.SeriesID && (!this.IsSaved || seriesField?.Dirty)) {
+            const series = await this.metadataProvider.GetEntityObject<mjBizAppsTasksMeetingSeriesEntity>(MEETING_SERIES_ENTITY, this.ContextCurrentUser);
+            if (!(await series.Load(this.SeriesID))) return fail(result, 'SeriesID', 'The series was not found, or you may not see it.');
+            if (!callerOwnsMeeting(caller, series.OrganizerPersonID)) return fail(result, 'SeriesID', 'Only the organizer of a series adds a meeting to it.');
         }
         return result;
     }
@@ -139,8 +147,9 @@ export class MeetingEntityServer extends mjBizAppsTasksMeetingEntity {
 
     /**
      * The organizer's attendee row, kept in step with OrganizerPersonID: made when missing; when the organizer changed,
-     * the new organizer's existing row is promoted and the old organizer's row becomes a Required attendee, so the
-     * database's one-row-per-person index is never crossed. These saves are the server's own, marked so.
+     * the old organizer's row becomes a Required attendee and the new organizer's row (their existing one, promoted, or
+     * a new one) is the Organizer row, so the database's one-row-per-person index is never crossed. These saves are the
+     * server's own, marked so.
      */
     private async ensureOrganizerAttendee(): Promise<void> {
         const user = this.ContextCurrentUser;
@@ -155,19 +164,10 @@ export class MeetingEntityServer extends mjBizAppsTasksMeetingEntity {
         if (organizerRow && (organizerRow.PersonID ?? '').toLowerCase() === organizerId) return;
 
         if (organizerRow) {
-            // The old organizer stays on the meeting as an ordinary attendee
+            // The old organizer stays on the meeting as an ordinary attendee; the new organizer gets a row of their own
             this.maintain(organizerRow);
-            if (newOrganizerRow) {
-                organizerRow.Role = 'Required';
-                if (!(await organizerRow.Save())) throw new Error(organizerRow.LatestResult?.Message ?? 'the former organizer\'s row was not updated');
-            } else {
-                organizerRow.PersonID = this.OrganizerPersonID;
-                organizerRow.UserID = null; // the attendee server fills it from the new person
-                organizerRow.Email = null;
-                organizerRow.DisplayName = null;
-                if (!(await organizerRow.Save())) throw new Error(organizerRow.LatestResult?.Message ?? 'the organizer row was not updated');
-                return;
-            }
+            organizerRow.Role = 'Required';
+            if (!(await organizerRow.Save())) throw new Error(organizerRow.LatestResult?.Message ?? 'the former organizer\'s row was not updated');
         }
         if (newOrganizerRow) {
             this.maintain(newOrganizerRow);

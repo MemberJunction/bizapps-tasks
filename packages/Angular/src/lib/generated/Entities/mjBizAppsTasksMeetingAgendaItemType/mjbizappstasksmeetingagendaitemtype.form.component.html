@@ -10,11 +10,11 @@
     <!-- ========================================
          FIELD PANELS
          ======================================== -->
-    <!-- Item Type Configuration Section -->
+    <!-- Details Section -->
     <mj-collapsible-panel
-        SectionKey="itemTypeConfiguration"
-        SectionName="Item Type Configuration"
-        Icon="fa fa-tag"
+        SectionKey="details"
+        SectionName="Details"
+        Icon="fa fa-align-left"
         [Form]="this"
         [FormContext]="formContext">
         <mj-form-field 
@@ -41,16 +41,6 @@
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
-
-    </mj-collapsible-panel>
-
-    <!-- Display and Behavior Section -->
-    <mj-collapsible-panel
-        SectionKey="displayAndBehavior"
-        SectionName="Display and Behavior"
-        Icon="fa fa-sliders-h"
-        [Form]="this"
-        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -83,16 +73,6 @@
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
-
-    </mj-collapsible-panel>
-
-    <!-- System Metadata Section -->
-    <mj-collapsible-panel
-        SectionKey="systemMetadata"
-        SectionName="System Metadata"
-        Icon="fa fa-cog"
-        [Form]="this"
-        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -122,7 +102,7 @@
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksMeetingAgendaItems"
         SectionName="Meeting Agenda Items"
-        Icon="fa fa-tasks"
+        Icon="fa fa-table"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"

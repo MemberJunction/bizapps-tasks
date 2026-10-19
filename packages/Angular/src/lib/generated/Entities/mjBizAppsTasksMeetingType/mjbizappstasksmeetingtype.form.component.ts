@@ -16,10 +16,7 @@ export class mjBizAppsTasksMeetingTypeFormComponent extends BaseFormComponent {
     override async ngOnInit() {
         await super.ngOnInit();
         this.initSections([
-            { sectionKey: 'meetingTypeDetails', sectionName: 'Meeting Type Details', isExpanded: true },
-            { sectionKey: 'defaultMeetingSettings', sectionName: 'Default Meeting Settings', isExpanded: true },
-            { sectionKey: 'templatesAndPrompts', sectionName: 'Templates and Prompts', isExpanded: true },
-            { sectionKey: 'systemMetadata', sectionName: 'System Metadata', isExpanded: false },
+            { sectionKey: 'details', sectionName: 'Details', isExpanded: true },
             { sectionKey: 'mJBizAppsTasksMeetingSeries', sectionName: 'Meeting Series', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksMeetings', sectionName: 'Meetings', isExpanded: false }
         ]);

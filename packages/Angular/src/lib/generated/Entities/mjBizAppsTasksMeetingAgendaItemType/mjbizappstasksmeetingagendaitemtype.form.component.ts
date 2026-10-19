@@ -16,9 +16,7 @@ export class mjBizAppsTasksMeetingAgendaItemTypeFormComponent extends BaseFormCo
     override async ngOnInit() {
         await super.ngOnInit();
         this.initSections([
-            { sectionKey: 'itemTypeConfiguration', sectionName: 'Item Type Configuration', isExpanded: true },
-            { sectionKey: 'displayAndBehavior', sectionName: 'Display and Behavior', isExpanded: true },
-            { sectionKey: 'systemMetadata', sectionName: 'System Metadata', isExpanded: false },
+            { sectionKey: 'details', sectionName: 'Details', isExpanded: true },
             { sectionKey: 'mJBizAppsTasksMeetingAgendaItems', sectionName: 'Meeting Agenda Items', isExpanded: false }
         ]);
     }

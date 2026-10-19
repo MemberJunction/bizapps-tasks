@@ -10,11 +10,11 @@
     <!-- ========================================
          FIELD PANELS
          ======================================== -->
-    <!-- Meeting Series Details Section -->
+    <!-- Details Section -->
     <mj-collapsible-panel
-        SectionKey="meetingSeriesDetails"
-        SectionName="Meeting Series Details"
-        Icon="fa fa-info-circle"
+        SectionKey="details"
+        SectionName="Details"
+        Icon="fa fa-align-left"
         [Form]="this"
         [FormContext]="formContext">
         <mj-form-field 
@@ -51,16 +51,6 @@
             [FormContext]="formContext"
             LinkType="Record"
         ></mj-form-field>
-
-    </mj-collapsible-panel>
-
-    <!-- Schedule and Recurrence Section -->
-    <mj-collapsible-panel
-        SectionKey="scheduleAndRecurrence"
-        SectionName="Schedule and Recurrence"
-        Icon="fa fa-clock"
-        [Form]="this"
-        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -96,24 +86,6 @@
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
-            FieldName="MaterializedThrough"
-            Type="datepicker"
-            [EditMode]="EditMode"
-            [FormContext]="formContext"
-        ></mj-form-field>
-
-    </mj-collapsible-panel>
-
-    <!-- Location and Logistics Section -->
-    <mj-collapsible-panel
-        SectionKey="locationAndLogistics"
-        SectionName="Location and Logistics"
-        Icon="fa fa-map-marker-alt"
-        [Form]="this"
-        [FormContext]="formContext">
-        <mj-form-field 
-            [Record]="record"
-            [ShowLabel]="true"
             FieldName="LocationType"
             Type="select"
             [EditMode]="EditMode"
@@ -136,16 +108,6 @@
             [FormContext]="formContext"
             LinkType="Record"
         ></mj-form-field>
-
-    </mj-collapsible-panel>
-
-    <!-- Settings and Status Section -->
-    <mj-collapsible-panel
-        SectionKey="settingsAndStatus"
-        SectionName="Settings and Status"
-        Icon="fa fa-sliders-h"
-        [Form]="this"
-        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -162,42 +124,14 @@
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
-
-    </mj-collapsible-panel>
-
-    <!-- Details Section -->
-    <mj-collapsible-panel
-        SectionKey="details"
-        SectionName="Details"
-        Icon="fa fa-align-left"
-        [Form]="this"
-        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
-            FieldName="__mj_Latitude"
-            Type="textbox"
+            FieldName="MaterializedThrough"
+            Type="datepicker"
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
-        <mj-form-field 
-            [Record]="record"
-            [ShowLabel]="true"
-            FieldName="__mj_Longitude"
-            Type="textbox"
-            [EditMode]="EditMode"
-            [FormContext]="formContext"
-        ></mj-form-field>
-
-    </mj-collapsible-panel>
-
-    <!-- System Metadata Section -->
-    <mj-collapsible-panel
-        SectionKey="systemMetadata"
-        SectionName="System Metadata"
-        Icon="fa fa-cog"
-        [Form]="this"
-        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -236,7 +170,7 @@
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksMeetings"
         SectionName="Meetings"
-        Icon="fa fa-calendar-alt"
+        Icon="fa fa-table"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"
@@ -261,7 +195,7 @@
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksMeetingLinks"
         SectionName="Meeting Links"
-        Icon="fa fa-link"
+        Icon="fa fa-table"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"
@@ -286,7 +220,7 @@
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksMeetingSeriesAttendees"
         SectionName="Meeting Series Attendees"
-        Icon="fa fa-users"
+        Icon="fa fa-table"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"

@@ -404,6 +404,64 @@ const checks: NamedCheck[] = [
         },
     },
     {
+        Id: 'meetings.M8',
+        Name: 'M8 — who writes a note and the agenda, over the wire: an invited UI user writes a note and changes only his own; a UI user not on the meeting writes nothing; the agenda is the organizer\'s',
+        RequiresMutation: true,
+        Fn: async (ctx: IntegrationCheckContext) => {
+            const world = await LoadMeetingWorld(ctx);
+            const service = new MeetingService(provider(ctx));
+            let meetingId: string | null = null;
+            try {
+                const meeting = await service.createMeeting({ name: `${MARK} noted`, organizerPersonId: world.ivy.personId, startsAt: nextWeek(), visibility: 'Standard' }, ctx.User);
+                meetingId = meeting.ID;
+                const asIvy = await getPersonaContext(ctx, world.ivy.email);
+                const asJun = await getPersonaContext(ctx, world.jun.email);
+                const noteBy = async (who: typeof asJun, body: string) => {
+                    const note = await who.Provider.GetEntityObject<mjBizAppsTasksMeetingNoteEntity>(MEETING_NOTE_ENTITY, who.User);
+                    note.NewRecord();
+                    note.MeetingID = meeting.ID;
+                    note.Kind = 'Notes';
+                    note.Body = body;
+                    note.Source = 'Manual';
+                    note.Status = 'Draft';
+                    return { note, ok: await note.Save() };
+                };
+                // Jun, not on the meeting, writes nothing
+                const stranger = await noteBy(asJun, 'I was not there.');
+                Assert(!stranger.ok, 'a UI user who is not on the meeting cannot write a note');
+                Assert(/Only someone on the meeting writes a note/.test(stranger.note.LatestResult?.CompleteMessage ?? stranger.note.LatestResult?.Message ?? ''), 'the refusal says so');
+                // Invited, he writes one, stamped as his
+                await service.addAttendee(meeting.ID, { personId: world.jun.personId }, ctx.User);
+                const own = await noteBy(asJun, 'The numbers wait on finance.');
+                Assert(own.ok, `once invited, he writes a note: ${own.note.LatestResult?.CompleteMessage ?? ''}`);
+                Assert((own.note.AuthorPersonID ?? '').toLowerCase() === world.jun.personId.toLowerCase(), 'the note is stamped with his Person');
+                // The organizer's note is not his to change; his own is
+                const ivys = await noteBy(asIvy, 'Agenda holds.');
+                Assert(ivys.ok, 'the organizer writes a note');
+                const tamper = await asJun.Provider.GetEntityObject<mjBizAppsTasksMeetingNoteEntity>(MEETING_NOTE_ENTITY, asJun.User);
+                Assert(await tamper.Load(ivys.note.ID), 'Jun reads the organizer\'s note');
+                tamper.Body = 'Agenda does not hold.';
+                Assert(!(await tamper.Save()), 'Jun cannot change the organizer\'s note');
+                const mine = await asJun.Provider.GetEntityObject<mjBizAppsTasksMeetingNoteEntity>(MEETING_NOTE_ENTITY, asJun.User);
+                Assert(await mine.Load(own.note.ID), 'Jun reads his own note');
+                mine.Body = 'The numbers came in.';
+                await RequireSave(mine, 'Jun\'s own note, changed');
+                // The agenda is the organizer's
+                const item = await asJun.Provider.GetEntityObject<mjBizAppsTasksMeetingAgendaItemEntity>(MEETING_AGENDA_ITEM_ENTITY, asJun.User);
+                item.NewRecord();
+                item.MeetingID = meeting.ID;
+                item.Name = 'Slipped in';
+                item.Sequence = 900;
+                item.Status = 'Planned';
+                Assert(!(await item.Save()), 'an attendee cannot add an agenda item');
+                Assert(/Only the organizer changes the agenda/.test(item.LatestResult?.CompleteMessage ?? item.LatestResult?.Message ?? ''), 'the refusal says so');
+            } finally {
+                await cleanupPersonaProviders(ctx);
+                if (meetingId) await deleteMeeting(ctx, meetingId);
+            }
+        },
+    },
+    {
         Id: 'meetings.M5',
         Name: 'M5 — cancelling a meeting stamps it and, after the commit, tells the video provider\'s driver to delete the provider\'s meeting',
         RequiresMutation: true,

@@ -1,4 +1,4 @@
-import { Metadata, RunView, type IMetadataProvider, type UserInfo } from '@memberjunction/core';
+import { LogError, Metadata, RunView, type IMetadataProvider, type UserInfo } from '@memberjunction/core';
 import type {
     mjBizAppsTasksMeetingAttendeeEntity,
     mjBizAppsTasksMeetingEntity,
@@ -21,13 +21,15 @@ export interface MaterializeResult {
     created: number;
     updated: number;
     cancelled: number;
+    /** Occurrences the run could not change, each with why; the rest of the run went on without them. */
+    failures: string[];
     through: Date | null;
     ended: boolean;
 }
 
 export const DEFAULT_HORIZON_DAYS = 90;
 
-type OccurrenceRow = Pick<mjBizAppsTasksMeetingEntity, 'ID' | 'OccurrenceStartsAt' | 'StartsAt' | 'Status'>;
+type OccurrenceRow = Pick<mjBizAppsTasksMeetingEntity, 'ID' | 'OccurrenceStartsAt' | 'StartsAt' | 'Status' | 'OrganizerPersonID'>;
 
 const sameInstant = (a: Date | null | undefined, b: Date | null | undefined): boolean => !!a && !!b && a.getTime() === b.getTime();
 
@@ -63,7 +65,7 @@ export class MeetingSeriesService {
     private async materializeNow(seriesId: string, contextUser: UserInfo, options: MaterializeOptions): Promise<MaterializeResult> {
         const series = await this.provider.GetEntityObject<mjBizAppsTasksMeetingSeriesEntity>(MEETING_SERIES_ENTITY, contextUser);
         if (!(await series.Load(seriesId))) throw new Error(`Series ${seriesId} was not found.`);
-        const result: MaterializeResult = { seriesId: series.ID, created: 0, updated: 0, cancelled: 0, through: null, ended: false };
+        const result: MaterializeResult = { seriesId: series.ID, created: 0, updated: 0, cancelled: 0, failures: [], through: null, ended: false };
         if (series.Status !== 'Active') return result;
 
         const now = options.now ?? new Date();
@@ -79,46 +81,60 @@ export class MeetingSeriesService {
         // the series' time moved, and the plan (§ 3) moves the meetings not yet held with it rather than cancelling them
         const produced = new Set(slots.map((slot) => slot.occurrenceStartsAt.getTime()));
         const movable = existing
-            .filter((row) => !produced.has(row.OccurrenceStartsAt?.getTime() ?? 0) && (row.OccurrenceStartsAt?.getTime() ?? 0) <= through.getTime() && this.isUntouched(row))
+            .filter((row) => !produced.has(row.OccurrenceStartsAt?.getTime() ?? 0) && (row.OccurrenceStartsAt?.getTime() ?? 0) <= through.getTime() && this.isUntouched(row, series))
             .sort((a, b) => (a.OccurrenceStartsAt?.getTime() ?? 0) - (b.OccurrenceStartsAt?.getTime() ?? 0));
         const moved = new Set<string>();
+
+        // One occurrence that cannot be changed is noted and skipped; the rest of the series is still brought up to date
+        const attempt = async (what: string, work: () => Promise<void>): Promise<void> => {
+            try {
+                await work();
+            } catch (error) {
+                const message = `${what}: ${error instanceof Error ? error.message : String(error)}`;
+                result.failures.push(message);
+                LogError(`MeetingSeriesService: ${message}`);
+            }
+        };
 
         for (const slot of slots) {
             const found = bySlot.get(slot.occurrenceStartsAt.getTime()) ?? movable.shift() ?? null;
             if (!found) {
-                if (await this.createOccurrence(series, slot, attendees, links, contextUser)) result.created += 1;
+                await attempt(`the occurrence at ${slot.startsAt.toISOString()}`, async () => {
+                    if (await this.createOccurrence(series, slot, attendees, links, contextUser)) result.created += 1;
+                });
                 continue;
             }
-            if (this.isUntouched(found)) {
+            if (!this.isUntouched(found, series)) continue;
+            await attempt(`occurrence ${found.ID}`, async () => {
                 const meeting = await this.provider.GetEntityObject<mjBizAppsTasksMeetingEntity>(MEETING_ENTITY, contextUser);
-                if (await meeting.Load(found.ID)) {
-                    if (!sameInstant(meeting.OccurrenceStartsAt, slot.occurrenceStartsAt)) {
-                        meeting.OccurrenceStartsAt = slot.occurrenceStartsAt; // the slot names the occurrence: it moves with the series
-                        moved.add(found.ID.toLowerCase());
-                    }
-                    this.copySeriesValues(series, meeting, slot.startsAt, slot.endsAt);
-                    let changed = false;
-                    if (meeting.Dirty) {
-                        if (!(await meeting.Save())) throw new Error(`Occurrence ${meeting.ID} was not updated: ${entityFailure(meeting)}`);
-                        changed = true;
-                    }
-                    if (await this.ensureAttendees(meeting.ID, attendees, contextUser)) changed = true;
-                    if (await this.ensureLinks(meeting.ID, links, contextUser)) changed = true;
-                    if (changed) result.updated += 1;
+                if (!(await meeting.Load(found.ID))) return;
+                if (!sameInstant(meeting.OccurrenceStartsAt, slot.occurrenceStartsAt)) {
+                    meeting.OccurrenceStartsAt = slot.occurrenceStartsAt; // the slot names the occurrence: it moves with the series
+                    moved.add(found.ID.toLowerCase());
                 }
-            }
+                this.copySeriesValues(series, meeting, slot.startsAt, slot.endsAt);
+                let changed = false;
+                if (meeting.Dirty) {
+                    if (!(await meeting.Save())) throw new Error(`not updated: ${entityFailure(meeting)}`);
+                    changed = true;
+                }
+                if (await this.ensureAttendees(meeting.ID, attendees, contextUser)) changed = true;
+                if (await this.ensureLinks(meeting.ID, links, contextUser)) changed = true;
+                if (changed) result.updated += 1;
+            });
         }
         // A future slot the rule no longer produces, with no new slot to move to: cancelled when the meeting was never changed on its own
         for (const row of existing) {
             const slotTime = row.OccurrenceStartsAt?.getTime() ?? 0;
-            if (produced.has(slotTime) || slotTime > through.getTime() || !this.isUntouched(row) || moved.has(row.ID.toLowerCase())) continue;
-            const meeting = await this.provider.GetEntityObject<mjBizAppsTasksMeetingEntity>(MEETING_ENTITY, contextUser);
-            if (await meeting.Load(row.ID)) {
+            if (produced.has(slotTime) || slotTime > through.getTime() || !this.isUntouched(row, series) || moved.has(row.ID.toLowerCase())) continue;
+            await attempt(`occurrence ${row.ID}`, async () => {
+                const meeting = await this.provider.GetEntityObject<mjBizAppsTasksMeetingEntity>(MEETING_ENTITY, contextUser);
+                if (!(await meeting.Load(row.ID))) return;
                 meeting.Status = 'Cancelled';
                 meeting.CancellationReason = 'The series changed and no longer meets then.';
-                if (!(await meeting.Save())) throw new Error(`Occurrence ${meeting.ID} was not cancelled: ${entityFailure(meeting)}`);
+                if (!(await meeting.Save())) throw new Error(`not cancelled: ${entityFailure(meeting)}`);
                 result.cancelled += 1;
-            }
+            });
         }
 
         series.MaterializedThrough = through;
@@ -137,7 +153,7 @@ export class MeetingSeriesService {
             {
                 EntityName: MEETING_ENTITY,
                 ExtraFilter: `SeriesID = '${seriesId}' AND OccurrenceStartsAt >= '${from.toISOString()}'`,
-                Fields: ['ID', 'OccurrenceStartsAt', 'StartsAt', 'Status'],
+                Fields: ['ID', 'OccurrenceStartsAt', 'StartsAt', 'Status', 'OrganizerPersonID'],
                 ResultType: 'simple',
                 MaxRows: 2000,
             },
@@ -169,9 +185,10 @@ export class MeetingSeriesService {
         return res.Results;
     }
 
-    /** A meeting that still sits in its slot, scheduled and unstarted: the series may change it. */
-    private isUntouched(row: OccurrenceRow): boolean {
-        return row.Status === 'Scheduled' && sameInstant(row.StartsAt, row.OccurrenceStartsAt);
+    /** A meeting that still sits in its slot, scheduled, unstarted and still the series' organizer's: the series may change it. */
+    private isUntouched(row: OccurrenceRow, series: mjBizAppsTasksMeetingSeriesEntity): boolean {
+        const sameOrganizer = (row.OrganizerPersonID ?? '').toLowerCase() === series.OrganizerPersonID.toLowerCase();
+        return row.Status === 'Scheduled' && sameOrganizer && sameInstant(row.StartsAt, row.OccurrenceStartsAt);
     }
 
     private copySeriesValues(series: mjBizAppsTasksMeetingSeriesEntity, meeting: mjBizAppsTasksMeetingEntity, startsAt: Date, endsAt: Date): void {

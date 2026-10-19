@@ -36,7 +36,7 @@ export const mjBizAppsTasksMeetingAgendaItemTypeSchema = z.object({
         * * Description: Font Awesome icon class shown beside the item.`),
     DefaultDurationMinutes: z.number().nullable().describe(`
         * * Field Name: DefaultDurationMinutes
-        * * Display Name: Default Duration (Minutes)
+        * * Display Name: Default Duration Minutes
         * * SQL Data Type: int
         * * Description: How long an item of this type takes unless the agenda says otherwise. More than 0.`),
     IsActive: z.boolean().describe(`
@@ -77,13 +77,13 @@ export const mjBizAppsTasksMeetingAgendaItemSchema = z.object({
         * * Description: Primary key.`),
     MeetingID: z.string().describe(`
         * * Field Name: MeetingID
-        * * Display Name: Meeting
+        * * Display Name: Meeting ID
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meetings (vwMeetings.ID)
         * * Description: The meeting the item is on the agenda of.`),
     ParentID: z.string().nullable().describe(`
         * * Field Name: ParentID
-        * * Display Name: Parent Item
+        * * Display Name: Parent ID
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meeting Agenda Items (vwMeetingAgendaItems.ID)
         * * Description: The item this one sits under, for a sub-item. Same meeting, no cycle.`),
@@ -105,19 +105,19 @@ export const mjBizAppsTasksMeetingAgendaItemSchema = z.object({
         * * Description: What the item covers, in Markdown.`),
     TypeID: z.string().nullable().describe(`
         * * Field Name: TypeID
-        * * Display Name: Type
+        * * Display Name: Type ID
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meeting Agenda Item Types (vwMeetingAgendaItemTypes.ID)
         * * Description: The agenda item type: Information, Discussion, Decision, and so on.`),
     PresenterPersonID: z.string().nullable().describe(`
         * * Field Name: PresenterPersonID
-        * * Display Name: Presenter
+        * * Display Name: Presenter Person ID
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
         * * Description: The person who presents the item.`),
     DurationMinutes: z.number().nullable().describe(`
         * * Field Name: DurationMinutes
-        * * Display Name: Duration (Minutes)
+        * * Display Name: Duration Minutes
         * * SQL Data Type: int
         * * Description: How long the item is planned to take. 0 or more.`),
     Status: z.union([z.literal('Deferred'), z.literal('Done'), z.literal('InProgress'), z.literal('Planned'), z.literal('Skipped')]).describe(`
@@ -150,7 +150,7 @@ export const mjBizAppsTasksMeetingAgendaItemSchema = z.object({
         * * Description: What was agreed, in a sentence or two.`),
     DeferredToMeetingID: z.string().nullable().describe(`
         * * Field Name: DeferredToMeetingID
-        * * Display Name: Deferred To Meeting
+        * * Display Name: Deferred To Meeting ID
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meetings (vwMeetings.ID)
         * * Description: The later meeting a deferred item moved to.`),
@@ -166,23 +166,23 @@ export const mjBizAppsTasksMeetingAgendaItemSchema = z.object({
         * * Default Value: getutcdate()`),
     Meeting: z.string().describe(`
         * * Field Name: Meeting
-        * * Display Name: Meeting Name
+        * * Display Name: Meeting
         * * SQL Data Type: nvarchar(255)`),
     Parent: z.string().nullable().describe(`
         * * Field Name: Parent
-        * * Display Name: Parent Name
+        * * Display Name: Parent
         * * SQL Data Type: nvarchar(500)`),
     Type: z.string().nullable().describe(`
         * * Field Name: Type
-        * * Display Name: Type Name
+        * * Display Name: Type
         * * SQL Data Type: nvarchar(100)`),
     PresenterPerson: z.string().nullable().describe(`
         * * Field Name: PresenterPerson
-        * * Display Name: Presenter Name
+        * * Display Name: Presenter Person
         * * SQL Data Type: nvarchar(201)`),
     DeferredToMeeting: z.string().nullable().describe(`
         * * Field Name: DeferredToMeeting
-        * * Display Name: Deferred To Meeting Name
+        * * Display Name: Deferred To Meeting
         * * SQL Data Type: nvarchar(255)`),
 });
 
@@ -200,19 +200,19 @@ export const mjBizAppsTasksMeetingAttendeeSchema = z.object({
         * * Description: Primary key.`),
     MeetingID: z.string().describe(`
         * * Field Name: MeetingID
-        * * Display Name: Meeting
+        * * Display Name: Meeting ID
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meetings (vwMeetings.ID)
         * * Description: The meeting the attendee is invited to.`),
     PersonID: z.string().nullable().describe(`
         * * Field Name: PersonID
-        * * Display Name: Person
+        * * Display Name: Person ID
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
         * * Description: The person invited, when they are a Person. Either this or Email is set.`),
     UserID: z.string().nullable().describe(`
         * * Field Name: UserID
-        * * Display Name: User
+        * * Display Name: User ID
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ: Users (vwUsers.ID)
         * * Description: The person's MemberJunction user, when they have one, filled from the person's account. My meetings and the private-meeting filter use it.`),
@@ -385,13 +385,13 @@ export const mjBizAppsTasksMeetingNoteSchema = z.object({
         * * Description: Primary key.`),
     MeetingID: z.string().describe(`
         * * Field Name: MeetingID
-        * * Display Name: Meeting
+        * * Display Name: Meeting ID
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meetings (vwMeetings.ID)
         * * Description: The meeting the note is about.`),
     AgendaItemID: z.string().nullable().describe(`
         * * Field Name: AgendaItemID
-        * * Display Name: Agenda Item
+        * * Display Name: Agenda Item ID
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meeting Agenda Items (vwMeetingAgendaItems.ID)
         * * Description: The agenda item the note is about, for a note on one item.`),
@@ -438,13 +438,13 @@ export const mjBizAppsTasksMeetingNoteSchema = z.object({
         * * Description: Draft or Final. Approving minutes is governance and stays with the app that owns it.`),
     AuthorPersonID: z.string().nullable().describe(`
         * * Field Name: AuthorPersonID
-        * * Display Name: Author Person
+        * * Display Name: Author Person ID
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
         * * Description: The person who wrote the note, for a person's note.`),
     AIPromptRunID: z.string().nullable().describe(`
         * * Field Name: AIPromptRunID
-        * * Display Name: AI Prompt Run
+        * * Display Name: AI Prompt Run ID
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ: AI Prompt Runs (vwAIPromptRuns.ID)
         * * Description: The MJ: AI Prompt Runs record the draft came from, for an AI note.`),
@@ -465,19 +465,19 @@ export const mjBizAppsTasksMeetingNoteSchema = z.object({
         * * Default Value: getutcdate()`),
     Meeting: z.string().describe(`
         * * Field Name: Meeting
-        * * Display Name: Meeting Name
+        * * Display Name: Meeting
         * * SQL Data Type: nvarchar(255)`),
     AgendaItem: z.string().nullable().describe(`
         * * Field Name: AgendaItem
-        * * Display Name: Agenda Item Name
+        * * Display Name: Agenda Item
         * * SQL Data Type: nvarchar(500)`),
     AuthorPerson: z.string().nullable().describe(`
         * * Field Name: AuthorPerson
-        * * Display Name: Author Person Name
+        * * Display Name: Author Person
         * * SQL Data Type: nvarchar(201)`),
     AIPromptRun: z.string().nullable().describe(`
         * * Field Name: AIPromptRun
-        * * Display Name: AI Prompt Run Details
+        * * Display Name: AI Prompt Run
         * * SQL Data Type: nvarchar(255)`),
 });
 
@@ -505,13 +505,13 @@ export const mjBizAppsTasksMeetingSeriesSchema = z.object({
         * * Description: The series' purpose, in Markdown. Each new occurrence starts with it.`),
     TypeID: z.string().nullable().describe(`
         * * Field Name: TypeID
-        * * Display Name: Type
+        * * Display Name: Type ID
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meeting Types (vwMeetingTypes.ID)
         * * Description: The meeting type each occurrence is made from.`),
     OrganizerPersonID: z.string().describe(`
         * * Field Name: OrganizerPersonID
-        * * Display Name: Organizer
+        * * Display Name: Organizer Person ID
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
         * * Description: The person who organizes the series. Each occurrence starts with them as its organizer.`),
@@ -532,7 +532,7 @@ export const mjBizAppsTasksMeetingSeriesSchema = z.object({
         * * Description: The rule's DTSTART: when the first occurrence starts.`),
     DurationMinutes: z.number().describe(`
         * * Field Name: DurationMinutes
-        * * Display Name: Duration (Minutes)
+        * * Display Name: Duration Minutes
         * * SQL Data Type: int
         * * Description: How long each occurrence lasts. More than 0.`),
     LocationType: z.union([z.literal('Hybrid'), z.literal('InPerson'), z.literal('Phone'), z.literal('Virtual')]).describe(`
@@ -554,7 +554,7 @@ export const mjBizAppsTasksMeetingSeriesSchema = z.object({
         * * Description: The room or address each new occurrence starts with.`),
     VideoProviderID: z.string().nullable().describe(`
         * * Field Name: VideoProviderID
-        * * Display Name: Video Provider
+        * * Display Name: Video Provider ID
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Video Providers (vwVideoProviders.ID)
         * * Description: The video provider each new virtual occurrence is hosted on.`),
@@ -586,7 +586,7 @@ export const mjBizAppsTasksMeetingSeriesSchema = z.object({
         * * Description: Occurrences exist up to this point in time. The scheduled job and a save extend it.`),
     CreatedByPersonID: z.string().nullable().describe(`
         * * Field Name: CreatedByPersonID
-        * * Display Name: Created By Person
+        * * Display Name: Created By Person ID
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
         * * Description: The person who created the series, as Task.CreatedByPersonID.`),
@@ -602,7 +602,7 @@ export const mjBizAppsTasksMeetingSeriesSchema = z.object({
         * * Default Value: getutcdate()`),
     Type: z.string().nullable().describe(`
         * * Field Name: Type
-        * * Display Name: Type Name
+        * * Display Name: Type
         * * SQL Data Type: nvarchar(100)`),
     OrganizerPerson: z.string().describe(`
         * * Field Name: OrganizerPerson
@@ -610,20 +610,12 @@ export const mjBizAppsTasksMeetingSeriesSchema = z.object({
         * * SQL Data Type: nvarchar(201)`),
     VideoProvider: z.string().nullable().describe(`
         * * Field Name: VideoProvider
-        * * Display Name: Video Provider Name
+        * * Display Name: Video Provider
         * * SQL Data Type: nvarchar(100)`),
     CreatedByPerson: z.string().nullable().describe(`
         * * Field Name: CreatedByPerson
-        * * Display Name: Created By Person Name
+        * * Display Name: Created By Person
         * * SQL Data Type: nvarchar(201)`),
-    __mj_Latitude: z.number().nullable().describe(`
-        * * Field Name: __mj_Latitude
-        * * Display Name: Mj Latitude
-        * * SQL Data Type: decimal(10, 6)`),
-    __mj_Longitude: z.number().nullable().describe(`
-        * * Field Name: __mj_Longitude
-        * * Display Name: Mj Longitude
-        * * SQL Data Type: decimal(10, 6)`),
 });
 
 export type mjBizAppsTasksMeetingSeriesEntityType = z.infer<typeof mjBizAppsTasksMeetingSeriesSchema>;
@@ -646,19 +638,19 @@ export const mjBizAppsTasksMeetingSeriesAttendeeSchema = z.object({
         * * Description: The series each new occurrence of which invites this attendee.`),
     PersonID: z.string().nullable().describe(`
         * * Field Name: PersonID
-        * * Display Name: Person
+        * * Display Name: Person ID
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
         * * Description: The person invited, when they are a Person. Either this or Email is set.`),
     UserID: z.string().nullable().describe(`
         * * Field Name: UserID
-        * * Display Name: User
+        * * Display Name: User ID
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ: Users (vwUsers.ID)
         * * Description: The person's MemberJunction user, when they have one, filled from the person's account.`),
     Email: z.string().nullable().describe(`
         * * Field Name: Email
-        * * Display Name: Email Address
+        * * Display Name: Email
         * * SQL Data Type: nvarchar(255)
         * * Description: A guest's address, or the address a person's invitation goes to.`),
     DisplayName: z.string().nullable().describe(`
@@ -692,11 +684,11 @@ export const mjBizAppsTasksMeetingSeriesAttendeeSchema = z.object({
         * * SQL Data Type: nvarchar(255)`),
     Person: z.string().nullable().describe(`
         * * Field Name: Person
-        * * Display Name: Person Name
+        * * Display Name: Person
         * * SQL Data Type: nvarchar(201)`),
     User: z.string().nullable().describe(`
         * * Field Name: User
-        * * Display Name: User Name
+        * * Display Name: User
         * * SQL Data Type: nvarchar(100)`),
 });
 
@@ -734,7 +726,7 @@ export const mjBizAppsTasksMeetingTypeSchema = z.object({
         * * Description: Font Awesome icon class shown beside the type.`),
     DefaultDurationMinutes: z.number().nullable().describe(`
         * * Field Name: DefaultDurationMinutes
-        * * Display Name: Default Duration (Minutes)
+        * * Display Name: Default Duration Minutes
         * * SQL Data Type: int
         * * Description: How long a new meeting of this type lasts unless the organizer says otherwise. More than 0.`),
     DefaultLocationType: z.union([z.literal('Hybrid'), z.literal('InPerson'), z.literal('Phone'), z.literal('Virtual')]).nullable().describe(`
@@ -750,7 +742,7 @@ export const mjBizAppsTasksMeetingTypeSchema = z.object({
         * * Description: The location a new meeting of this type starts with: Virtual, InPerson, Hybrid or Phone.`),
     DefaultVideoProviderID: z.string().nullable().describe(`
         * * Field Name: DefaultVideoProviderID
-        * * Display Name: Default Video Provider
+        * * Display Name: Default Video Provider ID
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Video Providers (vwVideoProviders.ID)
         * * Description: The video provider a new virtual meeting of this type is hosted on.`),
@@ -770,13 +762,13 @@ export const mjBizAppsTasksMeetingTypeSchema = z.object({
         * * Description: JSON: the agenda a new meeting of this type starts with, as items with a title, an agenda item type code, a duration in minutes and sub-items.`),
     NotesPromptID: z.string().nullable().describe(`
         * * Field Name: NotesPromptID
-        * * Display Name: Notes Prompt
+        * * Display Name: Notes Prompt ID
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ: AI Prompts (vwAIPrompts.ID)
         * * Description: The MJ: AI Prompts record that drafts notes from a transcript for this type, instead of the shipped prompt.`),
     IsActive: z.boolean().describe(`
         * * Field Name: IsActive
-        * * Display Name: Active
+        * * Display Name: Is Active
         * * SQL Data Type: bit
         * * Default Value: 1
         * * Description: When false, the type is kept for existing meetings but not offered for new ones.`),
@@ -798,11 +790,11 @@ export const mjBizAppsTasksMeetingTypeSchema = z.object({
         * * Default Value: getutcdate()`),
     DefaultVideoProvider: z.string().nullable().describe(`
         * * Field Name: DefaultVideoProvider
-        * * Display Name: Default Video Provider Name
+        * * Display Name: Default Video Provider
         * * SQL Data Type: nvarchar(100)`),
     NotesPrompt: z.string().nullable().describe(`
         * * Field Name: NotesPrompt
-        * * Display Name: Notes Prompt Name
+        * * Display Name: Notes Prompt
         * * SQL Data Type: nvarchar(255)`),
 });
 
@@ -830,7 +822,7 @@ export const mjBizAppsTasksMeetingSchema = z.object({
         * * Description: The meeting's purpose, in Markdown.`),
     TypeID: z.string().nullable().describe(`
         * * Field Name: TypeID
-        * * Display Name: Type
+        * * Display Name: Type ID
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meeting Types (vwMeetingTypes.ID)
         * * Description: The meeting type it was made from, which gave its defaults and agenda template.`),
@@ -909,7 +901,7 @@ export const mjBizAppsTasksMeetingSchema = z.object({
         * * Description: The link attendees join by, from the provider or typed in.`),
     DialInDetails: z.string().nullable().describe(`
         * * Field Name: DialInDetails
-        * * Display Name: Dial-In Details
+        * * Display Name: Dial In Details
         * * SQL Data Type: nvarchar(1000)
         * * Description: Phone numbers and access codes for joining by phone.`),
     OrganizerPersonID: z.string().describe(`
@@ -989,7 +981,7 @@ export const mjBizAppsTasksMeetingSchema = z.object({
         * * SQL Data Type: nvarchar(100)`),
     OrganizerPerson: z.string().describe(`
         * * Field Name: OrganizerPerson
-        * * Display Name: Organizer
+        * * Display Name: Organizer Person
         * * SQL Data Type: nvarchar(201)`),
     TranscriptFile: z.string().nullable().describe(`
         * * Field Name: TranscriptFile
@@ -997,16 +989,8 @@ export const mjBizAppsTasksMeetingSchema = z.object({
         * * SQL Data Type: nvarchar(500)`),
     CreatedByPerson: z.string().nullable().describe(`
         * * Field Name: CreatedByPerson
-        * * Display Name: Created By
+        * * Display Name: Created By Person
         * * SQL Data Type: nvarchar(201)`),
-    __mj_Latitude: z.number().nullable().describe(`
-        * * Field Name: __mj_Latitude
-        * * Display Name: Mj Latitude
-        * * SQL Data Type: decimal(10, 6)`),
-    __mj_Longitude: z.number().nullable().describe(`
-        * * Field Name: __mj_Longitude
-        * * Display Name: Mj Longitude
-        * * SQL Data Type: decimal(10, 6)`),
 });
 
 export type mjBizAppsTasksMeetingEntityType = z.infer<typeof mjBizAppsTasksMeetingSchema>;
@@ -1076,7 +1060,7 @@ export const mjBizAppsTasksTaskActivitySchema = z.object({
     Person: z.string().nullable().describe(`
         * * Field Name: Person
         * * Display Name: Person
-        * * SQL Data Type: nvarchar(250)`),
+        * * SQL Data Type: nvarchar(201)`),
 });
 
 export type mjBizAppsTasksTaskActivityEntityType = z.infer<typeof mjBizAppsTasksTaskActivitySchema>;
@@ -1158,7 +1142,7 @@ export const mjBizAppsTasksTaskAssignmentSchema = z.object({
     AssignedByPerson: z.string().nullable().describe(`
         * * Field Name: AssignedByPerson
         * * Display Name: Assigned By Person
-        * * SQL Data Type: nvarchar(250)`),
+        * * SQL Data Type: nvarchar(201)`),
 });
 
 export type mjBizAppsTasksTaskAssignmentEntityType = z.infer<typeof mjBizAppsTasksTaskAssignmentSchema>;
@@ -1341,7 +1325,7 @@ export const mjBizAppsTasksTaskCheckInSchema = z.object({
     AuthorPerson: z.string().nullable().describe(`
         * * Field Name: AuthorPerson
         * * Display Name: Author Person Name
-        * * SQL Data Type: nvarchar(250)`),
+        * * SQL Data Type: nvarchar(201)`),
     AuthorUser: z.string().nullable().describe(`
         * * Field Name: AuthorUser
         * * Display Name: Author User Name
@@ -1404,7 +1388,7 @@ export const mjBizAppsTasksTaskCommentSchema = z.object({
     Person: z.string().describe(`
         * * Field Name: Person
         * * Display Name: Person
-        * * SQL Data Type: nvarchar(250)`),
+        * * SQL Data Type: nvarchar(201)`),
     RootParentID: z.string().nullable().describe(`
         * * Field Name: RootParentID
         * * Display Name: Root Parent ID
@@ -1549,7 +1533,7 @@ export const mjBizAppsTasksTaskDecisionSchema = z.object({
     DecidedByPerson: z.string().nullable().describe(`
         * * Field Name: DecidedByPerson
         * * Display Name: Decided By Person
-        * * SQL Data Type: nvarchar(250)`),
+        * * SQL Data Type: nvarchar(201)`),
 });
 
 export type mjBizAppsTasksTaskDecisionEntityType = z.infer<typeof mjBizAppsTasksTaskDecisionSchema>;
@@ -2610,7 +2594,7 @@ export const mjBizAppsTasksTaskSchema = z.object({
     CreatedByPerson: z.string().nullable().describe(`
         * * Field Name: CreatedByPerson
         * * Display Name: Created By Person
-        * * SQL Data Type: nvarchar(250)`),
+        * * SQL Data Type: nvarchar(201)`),
     TaskTypeStatus: z.string().nullable().describe(`
         * * Field Name: TaskTypeStatus
         * * Display Name: Task Type Status Name
@@ -2676,7 +2660,7 @@ export const mjBizAppsTasksVideoProviderSchema = z.object({
         * * Description: Font Awesome icon class shown beside the provider.`),
     CredentialID: z.string().nullable().describe(`
         * * Field Name: CredentialID
-        * * Display Name: Credential
+        * * Display Name: Credential ID
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ: Credentials (vwCredentials.ID)
         * * Description: The MJ: Credentials record holding the provider's secrets, decrypted through CredentialEngine. Never stored here.`),
@@ -2754,38 +2738,6 @@ export class mjBizAppsTasksMeetingAgendaItemTypeEntity extends BaseEntity<mjBizA
     }
 
     /**
-    * Validate() method override for MJ_BizApps_Tasks: Meeting Agenda Item Types entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
-    * * DefaultDurationMinutes: Default duration minutes must be greater than zero when specified.
-    * @public
-    * @method
-    * @override
-    */
-    public override Validate(): ValidationResult {
-        const result = super.Validate();
-        this.ValidateDefaultDurationMinutesGreaterThanZero(result);
-        result.Success = result.Success && (result.Errors.length === 0);
-
-        return result;
-    }
-
-    /**
-    * Default duration minutes must be greater than zero when specified.
-    * @param result - the ValidationResult object to add any errors or warnings to
-    * @public
-    * @method
-    */
-    public ValidateDefaultDurationMinutesGreaterThanZero(result: ValidationResult) {
-    	if (this.DefaultDurationMinutes != null && this.DefaultDurationMinutes <= 0) {
-    		result.Errors.push(new ValidationErrorInfo(
-    			"DefaultDurationMinutes",
-    			"Default duration minutes must be greater than 0.",
-    			this.DefaultDurationMinutes,
-    			ValidationErrorType.Failure
-    		));
-    	}
-    }
-
-    /**
     * * Field Name: ID
     * * Display Name: ID
     * * SQL Data Type: uniqueidentifier
@@ -2853,7 +2805,7 @@ export class mjBizAppsTasksMeetingAgendaItemTypeEntity extends BaseEntity<mjBizA
 
     /**
     * * Field Name: DefaultDurationMinutes
-    * * Display Name: Default Duration (Minutes)
+    * * Display Name: Default Duration Minutes
     * * SQL Data Type: int
     * * Description: How long an item of this type takes unless the agenda says otherwise. More than 0.
     */
@@ -2945,38 +2897,6 @@ export class mjBizAppsTasksMeetingAgendaItemEntity extends BaseEntity<mjBizAppsT
     }
 
     /**
-    * Validate() method override for MJ_BizApps_Tasks: Meeting Agenda Items entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
-    * * DurationMinutes: Duration in minutes must be zero or greater if specified.
-    * @public
-    * @method
-    * @override
-    */
-    public override Validate(): ValidationResult {
-        const result = super.Validate();
-        this.ValidateDurationMinutesNonNegative(result);
-        result.Success = result.Success && (result.Errors.length === 0);
-
-        return result;
-    }
-
-    /**
-    * Duration in minutes must be zero or greater if specified.
-    * @param result - the ValidationResult object to add any errors or warnings to
-    * @public
-    * @method
-    */
-    public ValidateDurationMinutesNonNegative(result: ValidationResult) {
-    	if (this.DurationMinutes != null && this.DurationMinutes < 0) {
-    		result.Errors.push(new ValidationErrorInfo(
-    			"DurationMinutes",
-    			"Duration in minutes must be zero or greater.",
-    			this.DurationMinutes,
-    			ValidationErrorType.Failure
-    		));
-    	}
-    }
-
-    /**
     * * Field Name: ID
     * * Display Name: ID
     * * SQL Data Type: uniqueidentifier
@@ -2992,7 +2912,7 @@ export class mjBizAppsTasksMeetingAgendaItemEntity extends BaseEntity<mjBizAppsT
 
     /**
     * * Field Name: MeetingID
-    * * Display Name: Meeting
+    * * Display Name: Meeting ID
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meetings (vwMeetings.ID)
     * * Description: The meeting the item is on the agenda of.
@@ -3006,7 +2926,7 @@ export class mjBizAppsTasksMeetingAgendaItemEntity extends BaseEntity<mjBizAppsT
 
     /**
     * * Field Name: ParentID
-    * * Display Name: Parent Item
+    * * Display Name: Parent ID
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meeting Agenda Items (vwMeetingAgendaItems.ID)
     * * Description: The item this one sits under, for a sub-item. Same meeting, no cycle.
@@ -3060,7 +2980,7 @@ export class mjBizAppsTasksMeetingAgendaItemEntity extends BaseEntity<mjBizAppsT
 
     /**
     * * Field Name: TypeID
-    * * Display Name: Type
+    * * Display Name: Type ID
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meeting Agenda Item Types (vwMeetingAgendaItemTypes.ID)
     * * Description: The agenda item type: Information, Discussion, Decision, and so on.
@@ -3074,7 +2994,7 @@ export class mjBizAppsTasksMeetingAgendaItemEntity extends BaseEntity<mjBizAppsT
 
     /**
     * * Field Name: PresenterPersonID
-    * * Display Name: Presenter
+    * * Display Name: Presenter Person ID
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
     * * Description: The person who presents the item.
@@ -3088,7 +3008,7 @@ export class mjBizAppsTasksMeetingAgendaItemEntity extends BaseEntity<mjBizAppsT
 
     /**
     * * Field Name: DurationMinutes
-    * * Display Name: Duration (Minutes)
+    * * Display Name: Duration Minutes
     * * SQL Data Type: int
     * * Description: How long the item is planned to take. 0 or more.
     */
@@ -3161,7 +3081,7 @@ export class mjBizAppsTasksMeetingAgendaItemEntity extends BaseEntity<mjBizAppsT
 
     /**
     * * Field Name: DeferredToMeetingID
-    * * Display Name: Deferred To Meeting
+    * * Display Name: Deferred To Meeting ID
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meetings (vwMeetings.ID)
     * * Description: The later meeting a deferred item moved to.
@@ -3195,7 +3115,7 @@ export class mjBizAppsTasksMeetingAgendaItemEntity extends BaseEntity<mjBizAppsT
 
     /**
     * * Field Name: Meeting
-    * * Display Name: Meeting Name
+    * * Display Name: Meeting
     * * SQL Data Type: nvarchar(255)
     */
     get Meeting(): string {
@@ -3204,7 +3124,7 @@ export class mjBizAppsTasksMeetingAgendaItemEntity extends BaseEntity<mjBizAppsT
 
     /**
     * * Field Name: Parent
-    * * Display Name: Parent Name
+    * * Display Name: Parent
     * * SQL Data Type: nvarchar(500)
     */
     get Parent(): string | null {
@@ -3213,7 +3133,7 @@ export class mjBizAppsTasksMeetingAgendaItemEntity extends BaseEntity<mjBizAppsT
 
     /**
     * * Field Name: Type
-    * * Display Name: Type Name
+    * * Display Name: Type
     * * SQL Data Type: nvarchar(100)
     */
     get Type(): string | null {
@@ -3222,7 +3142,7 @@ export class mjBizAppsTasksMeetingAgendaItemEntity extends BaseEntity<mjBizAppsT
 
     /**
     * * Field Name: PresenterPerson
-    * * Display Name: Presenter Name
+    * * Display Name: Presenter Person
     * * SQL Data Type: nvarchar(201)
     */
     get PresenterPerson(): string | null {
@@ -3231,7 +3151,7 @@ export class mjBizAppsTasksMeetingAgendaItemEntity extends BaseEntity<mjBizAppsT
 
     /**
     * * Field Name: DeferredToMeeting
-    * * Display Name: Deferred To Meeting Name
+    * * Display Name: Deferred To Meeting
     * * SQL Data Type: nvarchar(255)
     */
     get DeferredToMeeting(): string | null {
@@ -3271,38 +3191,6 @@ export class mjBizAppsTasksMeetingAttendeeEntity extends BaseEntity<mjBizAppsTas
     }
 
     /**
-    * Validate() method override for MJ_BizApps_Tasks: Meeting Attendees entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
-    * * Table-Level: Either a Person or an Email address must be provided to identify the attendee.
-    * @public
-    * @method
-    * @override
-    */
-    public override Validate(): ValidationResult {
-        const result = super.Validate();
-        this.ValidatePersonIDOrEmailRequired(result);
-        result.Success = result.Success && (result.Errors.length === 0);
-
-        return result;
-    }
-
-    /**
-    * Either a Person or an Email address must be provided to identify the attendee.
-    * @param result - the ValidationResult object to add any errors or warnings to
-    * @public
-    * @method
-    */
-    public ValidatePersonIDOrEmailRequired(result: ValidationResult) {
-    	if (this.PersonID == null && (this.Email == null || this.Email.trim() === "")) {
-    		result.Errors.push(new ValidationErrorInfo(
-    			"PersonID",
-    			"Either a Person or an Email address must be provided.",
-    			this.PersonID,
-    			ValidationErrorType.Failure
-    		));
-    	}
-    }
-
-    /**
     * * Field Name: ID
     * * Display Name: ID
     * * SQL Data Type: uniqueidentifier
@@ -3318,7 +3206,7 @@ export class mjBizAppsTasksMeetingAttendeeEntity extends BaseEntity<mjBizAppsTas
 
     /**
     * * Field Name: MeetingID
-    * * Display Name: Meeting
+    * * Display Name: Meeting ID
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meetings (vwMeetings.ID)
     * * Description: The meeting the attendee is invited to.
@@ -3332,7 +3220,7 @@ export class mjBizAppsTasksMeetingAttendeeEntity extends BaseEntity<mjBizAppsTas
 
     /**
     * * Field Name: PersonID
-    * * Display Name: Person
+    * * Display Name: Person ID
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
     * * Description: The person invited, when they are a Person. Either this or Email is set.
@@ -3346,7 +3234,7 @@ export class mjBizAppsTasksMeetingAttendeeEntity extends BaseEntity<mjBizAppsTas
 
     /**
     * * Field Name: UserID
-    * * Display Name: User
+    * * Display Name: User ID
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ: Users (vwUsers.ID)
     * * Description: The person's MemberJunction user, when they have one, filled from the person's account. My meetings and the private-meeting filter use it.
@@ -3577,41 +3465,6 @@ export class mjBizAppsTasksMeetingLinkEntity extends BaseEntity<mjBizAppsTasksMe
     }
 
     /**
-    * Validate() method override for MJ_BizApps_Tasks: Meeting Links entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
-    * * Table-Level: A record must be associated with either a meeting or a series, but cannot be linked to both or neither.
-    * @public
-    * @method
-    * @override
-    */
-    public override Validate(): ValidationResult {
-        const result = super.Validate();
-        this.ValidateMeetingIDComparedToSeriesID(result);
-        result.Success = result.Success && (result.Errors.length === 0);
-
-        return result;
-    }
-
-    /**
-    * A record must be associated with either a meeting or a series, but cannot be linked to both or neither.
-    * @param result - the ValidationResult object to add any errors or warnings to
-    * @public
-    * @method
-    */
-    public ValidateMeetingIDComparedToSeriesID(result: ValidationResult) {
-    	const hasMeeting = this.MeetingID != null;
-    	const hasSeries = this.SeriesID != null;
-    
-    	if ((hasMeeting && hasSeries) || (!hasMeeting && !hasSeries)) {
-    		result.Errors.push(new ValidationErrorInfo(
-    			"MeetingID",
-    			"A record must be associated with either a meeting or a series, but not both.",
-    			this.MeetingID,
-    			ValidationErrorType.Failure
-    		));
-    	}
-    }
-
-    /**
     * * Field Name: ID
     * * Display Name: ID
     * * SQL Data Type: uniqueidentifier
@@ -3788,7 +3641,7 @@ export class mjBizAppsTasksMeetingNoteEntity extends BaseEntity<mjBizAppsTasksMe
 
     /**
     * * Field Name: MeetingID
-    * * Display Name: Meeting
+    * * Display Name: Meeting ID
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meetings (vwMeetings.ID)
     * * Description: The meeting the note is about.
@@ -3802,7 +3655,7 @@ export class mjBizAppsTasksMeetingNoteEntity extends BaseEntity<mjBizAppsTasksMe
 
     /**
     * * Field Name: AgendaItemID
-    * * Display Name: Agenda Item
+    * * Display Name: Agenda Item ID
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meeting Agenda Items (vwMeetingAgendaItems.ID)
     * * Description: The agenda item the note is about, for a note on one item.
@@ -3897,7 +3750,7 @@ export class mjBizAppsTasksMeetingNoteEntity extends BaseEntity<mjBizAppsTasksMe
 
     /**
     * * Field Name: AuthorPersonID
-    * * Display Name: Author Person
+    * * Display Name: Author Person ID
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
     * * Description: The person who wrote the note, for a person's note.
@@ -3911,7 +3764,7 @@ export class mjBizAppsTasksMeetingNoteEntity extends BaseEntity<mjBizAppsTasksMe
 
     /**
     * * Field Name: AIPromptRunID
-    * * Display Name: AI Prompt Run
+    * * Display Name: AI Prompt Run ID
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ: AI Prompt Runs (vwAIPromptRuns.ID)
     * * Description: The MJ: AI Prompt Runs record the draft came from, for an AI note.
@@ -3958,7 +3811,7 @@ export class mjBizAppsTasksMeetingNoteEntity extends BaseEntity<mjBizAppsTasksMe
 
     /**
     * * Field Name: Meeting
-    * * Display Name: Meeting Name
+    * * Display Name: Meeting
     * * SQL Data Type: nvarchar(255)
     */
     get Meeting(): string {
@@ -3967,7 +3820,7 @@ export class mjBizAppsTasksMeetingNoteEntity extends BaseEntity<mjBizAppsTasksMe
 
     /**
     * * Field Name: AgendaItem
-    * * Display Name: Agenda Item Name
+    * * Display Name: Agenda Item
     * * SQL Data Type: nvarchar(500)
     */
     get AgendaItem(): string | null {
@@ -3976,7 +3829,7 @@ export class mjBizAppsTasksMeetingNoteEntity extends BaseEntity<mjBizAppsTasksMe
 
     /**
     * * Field Name: AuthorPerson
-    * * Display Name: Author Person Name
+    * * Display Name: Author Person
     * * SQL Data Type: nvarchar(201)
     */
     get AuthorPerson(): string | null {
@@ -3985,7 +3838,7 @@ export class mjBizAppsTasksMeetingNoteEntity extends BaseEntity<mjBizAppsTasksMe
 
     /**
     * * Field Name: AIPromptRun
-    * * Display Name: AI Prompt Run Details
+    * * Display Name: AI Prompt Run
     * * SQL Data Type: nvarchar(255)
     */
     get AIPromptRun(): string | null {
@@ -4022,38 +3875,6 @@ export class mjBizAppsTasksMeetingSeriesEntity extends BaseEntity<mjBizAppsTasks
         const compositeKey: CompositeKey = new CompositeKey();
         compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
         return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
-    }
-
-    /**
-    * Validate() method override for MJ_BizApps_Tasks: Meeting Series entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
-    * * DurationMinutes: Event duration must be greater than zero minutes to ensure scheduled events have a valid timeframe.
-    * @public
-    * @method
-    * @override
-    */
-    public override Validate(): ValidationResult {
-        const result = super.Validate();
-        this.ValidateDurationMinutesGreaterThanZero(result);
-        result.Success = result.Success && (result.Errors.length === 0);
-
-        return result;
-    }
-
-    /**
-    * Event duration must be greater than zero minutes to ensure scheduled events have a valid timeframe.
-    * @param result - the ValidationResult object to add any errors or warnings to
-    * @public
-    * @method
-    */
-    public ValidateDurationMinutesGreaterThanZero(result: ValidationResult) {
-    	if (this.DurationMinutes != null && this.DurationMinutes <= 0) {
-    		result.Errors.push(new ValidationErrorInfo(
-    			"DurationMinutes",
-    			"Duration must be greater than 0 minutes.",
-    			this.DurationMinutes,
-    			ValidationErrorType.Failure
-    		));
-    	}
     }
 
     /**
@@ -4098,7 +3919,7 @@ export class mjBizAppsTasksMeetingSeriesEntity extends BaseEntity<mjBizAppsTasks
 
     /**
     * * Field Name: TypeID
-    * * Display Name: Type
+    * * Display Name: Type ID
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meeting Types (vwMeetingTypes.ID)
     * * Description: The meeting type each occurrence is made from.
@@ -4112,7 +3933,7 @@ export class mjBizAppsTasksMeetingSeriesEntity extends BaseEntity<mjBizAppsTasks
 
     /**
     * * Field Name: OrganizerPersonID
-    * * Display Name: Organizer
+    * * Display Name: Organizer Person ID
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
     * * Description: The person who organizes the series. Each occurrence starts with them as its organizer.
@@ -4165,7 +3986,7 @@ export class mjBizAppsTasksMeetingSeriesEntity extends BaseEntity<mjBizAppsTasks
 
     /**
     * * Field Name: DurationMinutes
-    * * Display Name: Duration (Minutes)
+    * * Display Name: Duration Minutes
     * * SQL Data Type: int
     * * Description: How long each occurrence lasts. More than 0.
     */
@@ -4211,7 +4032,7 @@ export class mjBizAppsTasksMeetingSeriesEntity extends BaseEntity<mjBizAppsTasks
 
     /**
     * * Field Name: VideoProviderID
-    * * Display Name: Video Provider
+    * * Display Name: Video Provider ID
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Video Providers (vwVideoProviders.ID)
     * * Description: The video provider each new virtual occurrence is hosted on.
@@ -4275,7 +4096,7 @@ export class mjBizAppsTasksMeetingSeriesEntity extends BaseEntity<mjBizAppsTasks
 
     /**
     * * Field Name: CreatedByPersonID
-    * * Display Name: Created By Person
+    * * Display Name: Created By Person ID
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
     * * Description: The person who created the series, as Task.CreatedByPersonID.
@@ -4309,7 +4130,7 @@ export class mjBizAppsTasksMeetingSeriesEntity extends BaseEntity<mjBizAppsTasks
 
     /**
     * * Field Name: Type
-    * * Display Name: Type Name
+    * * Display Name: Type
     * * SQL Data Type: nvarchar(100)
     */
     get Type(): string | null {
@@ -4327,7 +4148,7 @@ export class mjBizAppsTasksMeetingSeriesEntity extends BaseEntity<mjBizAppsTasks
 
     /**
     * * Field Name: VideoProvider
-    * * Display Name: Video Provider Name
+    * * Display Name: Video Provider
     * * SQL Data Type: nvarchar(100)
     */
     get VideoProvider(): string | null {
@@ -4336,29 +4157,11 @@ export class mjBizAppsTasksMeetingSeriesEntity extends BaseEntity<mjBizAppsTasks
 
     /**
     * * Field Name: CreatedByPerson
-    * * Display Name: Created By Person Name
+    * * Display Name: Created By Person
     * * SQL Data Type: nvarchar(201)
     */
     get CreatedByPerson(): string | null {
         return this.Get('CreatedByPerson');
-    }
-
-    /**
-    * * Field Name: __mj_Latitude
-    * * Display Name: Mj Latitude
-    * * SQL Data Type: decimal(10, 6)
-    */
-    get __mj_Latitude(): number | null {
-        return this.Get('__mj_Latitude');
-    }
-
-    /**
-    * * Field Name: __mj_Longitude
-    * * Display Name: Mj Longitude
-    * * SQL Data Type: decimal(10, 6)
-    */
-    get __mj_Longitude(): number | null {
-        return this.Get('__mj_Longitude');
     }
 }
 
@@ -4394,38 +4197,6 @@ export class mjBizAppsTasksMeetingSeriesAttendeeEntity extends BaseEntity<mjBizA
     }
 
     /**
-    * Validate() method override for MJ_BizApps_Tasks: Meeting Series Attendees entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
-    * * Table-Level: At least one contact identifier (either a Person or an Email address) must be provided.
-    * @public
-    * @method
-    * @override
-    */
-    public override Validate(): ValidationResult {
-        const result = super.Validate();
-        this.ValidatePersonIDOrEmailRequired(result);
-        result.Success = result.Success && (result.Errors.length === 0);
-
-        return result;
-    }
-
-    /**
-    * At least one contact identifier (either a Person or an Email address) must be provided.
-    * @param result - the ValidationResult object to add any errors or warnings to
-    * @public
-    * @method
-    */
-    public ValidatePersonIDOrEmailRequired(result: ValidationResult) {
-    	if (this.PersonID == null && (this.Email == null || this.Email.trim() === "")) {
-    		result.Errors.push(new ValidationErrorInfo(
-    			"PersonID",
-    			"Either a Person or an Email address must be provided.",
-    			this.PersonID,
-    			ValidationErrorType.Failure
-    		));
-    	}
-    }
-
-    /**
     * * Field Name: ID
     * * Display Name: ID
     * * SQL Data Type: uniqueidentifier
@@ -4455,7 +4226,7 @@ export class mjBizAppsTasksMeetingSeriesAttendeeEntity extends BaseEntity<mjBizA
 
     /**
     * * Field Name: PersonID
-    * * Display Name: Person
+    * * Display Name: Person ID
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
     * * Description: The person invited, when they are a Person. Either this or Email is set.
@@ -4469,7 +4240,7 @@ export class mjBizAppsTasksMeetingSeriesAttendeeEntity extends BaseEntity<mjBizA
 
     /**
     * * Field Name: UserID
-    * * Display Name: User
+    * * Display Name: User ID
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ: Users (vwUsers.ID)
     * * Description: The person's MemberJunction user, when they have one, filled from the person's account.
@@ -4483,7 +4254,7 @@ export class mjBizAppsTasksMeetingSeriesAttendeeEntity extends BaseEntity<mjBizA
 
     /**
     * * Field Name: Email
-    * * Display Name: Email Address
+    * * Display Name: Email
     * * SQL Data Type: nvarchar(255)
     * * Description: A guest's address, or the address a person's invitation goes to.
     */
@@ -4556,7 +4327,7 @@ export class mjBizAppsTasksMeetingSeriesAttendeeEntity extends BaseEntity<mjBizA
 
     /**
     * * Field Name: Person
-    * * Display Name: Person Name
+    * * Display Name: Person
     * * SQL Data Type: nvarchar(201)
     */
     get Person(): string | null {
@@ -4565,7 +4336,7 @@ export class mjBizAppsTasksMeetingSeriesAttendeeEntity extends BaseEntity<mjBizA
 
     /**
     * * Field Name: User
-    * * Display Name: User Name
+    * * Display Name: User
     * * SQL Data Type: nvarchar(100)
     */
     get User(): string | null {
@@ -4602,38 +4373,6 @@ export class mjBizAppsTasksMeetingTypeEntity extends BaseEntity<mjBizAppsTasksMe
         const compositeKey: CompositeKey = new CompositeKey();
         compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
         return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
-    }
-
-    /**
-    * Validate() method override for MJ_BizApps_Tasks: Meeting Types entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
-    * * DefaultDurationMinutes: Default duration minutes must be greater than zero when specified.
-    * @public
-    * @method
-    * @override
-    */
-    public override Validate(): ValidationResult {
-        const result = super.Validate();
-        this.ValidateDefaultDurationMinutesGreaterThanZero(result);
-        result.Success = result.Success && (result.Errors.length === 0);
-
-        return result;
-    }
-
-    /**
-    * Default duration minutes must be greater than zero when specified.
-    * @param result - the ValidationResult object to add any errors or warnings to
-    * @public
-    * @method
-    */
-    public ValidateDefaultDurationMinutesGreaterThanZero(result: ValidationResult) {
-    	if (this.DefaultDurationMinutes != null && this.DefaultDurationMinutes <= 0) {
-    		result.Errors.push(new ValidationErrorInfo(
-    			"DefaultDurationMinutes",
-    			"Default duration must be greater than 0 minutes.",
-    			this.DefaultDurationMinutes,
-    			ValidationErrorType.Failure
-    		));
-    	}
     }
 
     /**
@@ -4704,7 +4443,7 @@ export class mjBizAppsTasksMeetingTypeEntity extends BaseEntity<mjBizAppsTasksMe
 
     /**
     * * Field Name: DefaultDurationMinutes
-    * * Display Name: Default Duration (Minutes)
+    * * Display Name: Default Duration Minutes
     * * SQL Data Type: int
     * * Description: How long a new meeting of this type lasts unless the organizer says otherwise. More than 0.
     */
@@ -4736,7 +4475,7 @@ export class mjBizAppsTasksMeetingTypeEntity extends BaseEntity<mjBizAppsTasksMe
 
     /**
     * * Field Name: DefaultVideoProviderID
-    * * Display Name: Default Video Provider
+    * * Display Name: Default Video Provider ID
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Video Providers (vwVideoProviders.ID)
     * * Description: The video provider a new virtual meeting of this type is hosted on.
@@ -4780,7 +4519,7 @@ export class mjBizAppsTasksMeetingTypeEntity extends BaseEntity<mjBizAppsTasksMe
 
     /**
     * * Field Name: NotesPromptID
-    * * Display Name: Notes Prompt
+    * * Display Name: Notes Prompt ID
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ: AI Prompts (vwAIPrompts.ID)
     * * Description: The MJ: AI Prompts record that drafts notes from a transcript for this type, instead of the shipped prompt.
@@ -4794,7 +4533,7 @@ export class mjBizAppsTasksMeetingTypeEntity extends BaseEntity<mjBizAppsTasksMe
 
     /**
     * * Field Name: IsActive
-    * * Display Name: Active
+    * * Display Name: Is Active
     * * SQL Data Type: bit
     * * Default Value: 1
     * * Description: When false, the type is kept for existing meetings but not offered for new ones.
@@ -4842,7 +4581,7 @@ export class mjBizAppsTasksMeetingTypeEntity extends BaseEntity<mjBizAppsTasksMe
 
     /**
     * * Field Name: DefaultVideoProvider
-    * * Display Name: Default Video Provider Name
+    * * Display Name: Default Video Provider
     * * SQL Data Type: nvarchar(100)
     */
     get DefaultVideoProvider(): string | null {
@@ -4851,7 +4590,7 @@ export class mjBizAppsTasksMeetingTypeEntity extends BaseEntity<mjBizAppsTasksMe
 
     /**
     * * Field Name: NotesPrompt
-    * * Display Name: Notes Prompt Name
+    * * Display Name: Notes Prompt
     * * SQL Data Type: nvarchar(255)
     */
     get NotesPrompt(): string | null {
@@ -4888,64 +4627,6 @@ export class mjBizAppsTasksMeetingEntity extends BaseEntity<mjBizAppsTasksMeetin
         const compositeKey: CompositeKey = new CompositeKey();
         compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
         return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
-    }
-
-    /**
-    * Validate() method override for MJ_BizApps_Tasks: Meetings entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
-    * * Table-Level: The scheduled end time must be after the start time.
-    * * Table-Level: Series ID and Occurrence Start Time must either both be specified or both be omitted. An event belonging to a series requires an occurrence start time, while standalone events cannot have one.
-    * @public
-    * @method
-    * @override
-    */
-    public override Validate(): ValidationResult {
-        const result = super.Validate();
-        this.ValidateEndsAtAfterStartsAt(result);
-        this.ValidateSeriesIDAndOccurrenceStartsAt(result);
-        result.Success = result.Success && (result.Errors.length === 0);
-
-        return result;
-    }
-
-    /**
-    * The scheduled end time must be after the start time.
-    * @param result - the ValidationResult object to add any errors or warnings to
-    * @public
-    * @method
-    */
-    public ValidateEndsAtAfterStartsAt(result: ValidationResult) {
-    	if (this.StartsAt != null && this.EndsAt != null) {
-    		const startTime = new Date(this.StartsAt).getTime();
-    		const endTime = new Date(this.EndsAt).getTime();
-    		if (endTime <= startTime) {
-    			result.Errors.push(new ValidationErrorInfo(
-    				"EndsAt",
-    				"End time must be after the start time.",
-    				this.EndsAt,
-    				ValidationErrorType.Failure
-    			));
-    		}
-    	}
-    }
-
-    /**
-    * Series ID and Occurrence Start Time must either both be specified or both be omitted. An event belonging to a series requires an occurrence start time, while standalone events cannot have one.
-    * @param result - the ValidationResult object to add any errors or warnings to
-    * @public
-    * @method
-    */
-    public ValidateSeriesIDAndOccurrenceStartsAt(result: ValidationResult) {
-    	const hasSeriesID = this.SeriesID != null;
-    	const hasOccurrenceStartsAt = this.OccurrenceStartsAt != null;
-    
-    	if (hasSeriesID !== hasOccurrenceStartsAt) {
-    		result.Errors.push(new ValidationErrorInfo(
-    			"SeriesID",
-    			"Series and occurrence start time must either both be provided or both be empty.",
-    			this.SeriesID,
-    			ValidationErrorType.Failure
-    		));
-    	}
     }
 
     /**
@@ -4990,7 +4671,7 @@ export class mjBizAppsTasksMeetingEntity extends BaseEntity<mjBizAppsTasksMeetin
 
     /**
     * * Field Name: TypeID
-    * * Display Name: Type
+    * * Display Name: Type ID
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meeting Types (vwMeetingTypes.ID)
     * * Description: The meeting type it was made from, which gave its defaults and agenda template.
@@ -5165,7 +4846,7 @@ export class mjBizAppsTasksMeetingEntity extends BaseEntity<mjBizAppsTasksMeetin
 
     /**
     * * Field Name: DialInDetails
-    * * Display Name: Dial-In Details
+    * * Display Name: Dial In Details
     * * SQL Data Type: nvarchar(1000)
     * * Description: Phone numbers and access codes for joining by phone.
     */
@@ -5350,7 +5031,7 @@ export class mjBizAppsTasksMeetingEntity extends BaseEntity<mjBizAppsTasksMeetin
 
     /**
     * * Field Name: OrganizerPerson
-    * * Display Name: Organizer
+    * * Display Name: Organizer Person
     * * SQL Data Type: nvarchar(201)
     */
     get OrganizerPerson(): string {
@@ -5368,29 +5049,11 @@ export class mjBizAppsTasksMeetingEntity extends BaseEntity<mjBizAppsTasksMeetin
 
     /**
     * * Field Name: CreatedByPerson
-    * * Display Name: Created By
+    * * Display Name: Created By Person
     * * SQL Data Type: nvarchar(201)
     */
     get CreatedByPerson(): string | null {
         return this.Get('CreatedByPerson');
-    }
-
-    /**
-    * * Field Name: __mj_Latitude
-    * * Display Name: Mj Latitude
-    * * SQL Data Type: decimal(10, 6)
-    */
-    get __mj_Latitude(): number | null {
-        return this.Get('__mj_Latitude');
-    }
-
-    /**
-    * * Field Name: __mj_Longitude
-    * * Display Name: Mj Longitude
-    * * SQL Data Type: decimal(10, 6)
-    */
-    get __mj_Longitude(): number | null {
-        return this.Get('__mj_Longitude');
     }
 }
 
@@ -5556,7 +5219,7 @@ export class mjBizAppsTasksTaskActivityEntity extends BaseEntity<mjBizAppsTasksT
     /**
     * * Field Name: Person
     * * Display Name: Person
-    * * SQL Data Type: nvarchar(250)
+    * * SQL Data Type: nvarchar(201)
     */
     get Person(): string | null {
         return this.Get('Person');
@@ -5763,7 +5426,7 @@ export class mjBizAppsTasksTaskAssignmentEntity extends BaseEntity<mjBizAppsTask
     /**
     * * Field Name: AssignedByPerson
     * * Display Name: Assigned By Person
-    * * SQL Data Type: nvarchar(250)
+    * * SQL Data Type: nvarchar(201)
     */
     get AssignedByPerson(): string | null {
         return this.Get('AssignedByPerson');
@@ -6272,7 +5935,7 @@ export class mjBizAppsTasksTaskCheckInEntity extends BaseEntity<mjBizAppsTasksTa
     /**
     * * Field Name: AuthorPerson
     * * Display Name: Author Person Name
-    * * SQL Data Type: nvarchar(250)
+    * * SQL Data Type: nvarchar(201)
     */
     get AuthorPerson(): string | null {
         return this.Get('AuthorPerson');
@@ -6436,7 +6099,7 @@ export class mjBizAppsTasksTaskCommentEntity extends BaseEntity<mjBizAppsTasksTa
     /**
     * * Field Name: Person
     * * Display Name: Person
-    * * SQL Data Type: nvarchar(250)
+    * * SQL Data Type: nvarchar(201)
     */
     get Person(): string {
         return this.Get('Person');
@@ -6799,7 +6462,7 @@ export class mjBizAppsTasksTaskDecisionEntity extends BaseEntity<mjBizAppsTasksT
     /**
     * * Field Name: DecidedByPerson
     * * Display Name: Decided By Person
-    * * SQL Data Type: nvarchar(250)
+    * * SQL Data Type: nvarchar(201)
     */
     get DecidedByPerson(): string | null {
         return this.Get('DecidedByPerson');
@@ -6858,7 +6521,7 @@ export class mjBizAppsTasksTaskDependencyEntity extends BaseEntity<mjBizAppsTask
     * @method
     */
     public ValidateTaskIDNotEqualToDependsOnTaskID(result: ValidationResult) {
-    	if (this.TaskID && this.DependsOnTaskID && this.TaskID === this.DependsOnTaskID) {
+    	if (this.TaskID != null && this.DependsOnTaskID != null && this.TaskID === this.DependsOnTaskID) {
     		result.Errors.push(new ValidationErrorInfo(
     			"DependsOnTaskID",
     			"A task cannot depend on itself. TaskID and DependsOnTaskID must be different.",
@@ -9588,7 +9251,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     /**
     * * Field Name: CreatedByPerson
     * * Display Name: Created By Person
-    * * SQL Data Type: nvarchar(250)
+    * * SQL Data Type: nvarchar(201)
     */
     get CreatedByPerson(): string | null {
         return this.Get('CreatedByPerson');
@@ -9761,7 +9424,7 @@ export class mjBizAppsTasksVideoProviderEntity extends BaseEntity<mjBizAppsTasks
 
     /**
     * * Field Name: CredentialID
-    * * Display Name: Credential
+    * * Display Name: Credential ID
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ: Credentials (vwCredentials.ID)
     * * Description: The MJ: Credentials record holding the provider's secrets, decrypted through CredentialEngine. Never stored here.

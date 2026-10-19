@@ -17,7 +17,7 @@ import { MaxLength } from 'class-validator';
 import * as mj_core_schema_server_object_types from '@memberjunction/server'
 
 
-import { mjBizAppsTasksMeetingAgendaItemTypeEntity, mjBizAppsTasksMeetingAgendaItemEntity, mjBizAppsTasksMeetingAttendeeEntity, mjBizAppsTasksMeetingLinkEntity, mjBizAppsTasksMeetingNoteEntity, mjBizAppsTasksMeetingSeriesEntity, mjBizAppsTasksMeetingSeriesAttendeeEntity, mjBizAppsTasksMeetingTypeEntity, mjBizAppsTasksMeetingEntity, mjBizAppsTasksTaskActivityEntity, mjBizAppsTasksTaskAssignmentEntity, mjBizAppsTasksTaskCategoryEntity, mjBizAppsTasksTaskCommentEntity, mjBizAppsTasksTaskDecisionOutcomeEntity, mjBizAppsTasksTaskDecisionEntity, mjBizAppsTasksTaskDependencyEntity, mjBizAppsTasksTaskLinkEntity, mjBizAppsTasksTaskNotificationConfigEntity, mjBizAppsTasksTaskNotificationLogEntity, mjBizAppsTasksTaskRoleEntity, mjBizAppsTasksTaskTagLinkEntity, mjBizAppsTasksTaskTagEntity, mjBizAppsTasksTaskTemplateItemDependencyEntity, mjBizAppsTasksTaskTemplateItemRoleEntity, mjBizAppsTasksTaskTemplateItemEntity, mjBizAppsTasksTaskTemplateEntity, mjBizAppsTasksTaskTypeStatusEntity, mjBizAppsTasksTaskTypeEntity, mjBizAppsTasksTaskEntity, mjBizAppsTasksVideoProviderEntity, mjBizAppsTasksTaskCheckInEntity } from '@mj-biz-apps/tasks-entities';
+import { mjBizAppsTasksMeetingAgendaItemTypeEntity, mjBizAppsTasksMeetingAgendaItemEntity, mjBizAppsTasksMeetingAttendeeEntity, mjBizAppsTasksMeetingLinkEntity, mjBizAppsTasksMeetingNoteEntity, mjBizAppsTasksMeetingSeriesEntity, mjBizAppsTasksMeetingSeriesAttendeeEntity, mjBizAppsTasksMeetingTypeEntity, mjBizAppsTasksMeetingEntity, mjBizAppsTasksTaskActivityEntity, mjBizAppsTasksTaskAssignmentEntity, mjBizAppsTasksTaskCategoryEntity, mjBizAppsTasksTaskCheckInEntity, mjBizAppsTasksTaskCommentEntity, mjBizAppsTasksTaskDecisionOutcomeEntity, mjBizAppsTasksTaskDecisionEntity, mjBizAppsTasksTaskDependencyEntity, mjBizAppsTasksTaskLinkEntity, mjBizAppsTasksTaskNotificationConfigEntity, mjBizAppsTasksTaskNotificationLogEntity, mjBizAppsTasksTaskRoleEntity, mjBizAppsTasksTaskTagLinkEntity, mjBizAppsTasksTaskTagEntity, mjBizAppsTasksTaskTemplateItemDependencyEntity, mjBizAppsTasksTaskTemplateItemRoleEntity, mjBizAppsTasksTaskTemplateItemEntity, mjBizAppsTasksTaskTemplateEntity, mjBizAppsTasksTaskTypeStatusEntity, mjBizAppsTasksTaskTypeEntity, mjBizAppsTasksTaskEntity, mjBizAppsTasksVideoProviderEntity } from '@mj-biz-apps/tasks-entities';
     
 
 //****************************************************************************
@@ -1292,12 +1292,6 @@ export class mjBizAppsTasksMeetingSeries_ {
     @MaxLength(201)
     CreatedByPerson?: string;
         
-    @Field(() => Float, {nullable: true}) 
-    _mj__Latitude?: number;
-        
-    @Field(() => Float, {nullable: true}) 
-    _mj__Longitude?: number;
-        
     @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
     ReadableFields___?: string[];
         
@@ -2098,12 +2092,6 @@ export class mjBizAppsTasksMeeting_ {
     @MaxLength(201)
     CreatedByPerson?: string;
         
-    @Field(() => Float, {nullable: true}) 
-    _mj__Latitude?: number;
-        
-    @Field(() => Float, {nullable: true}) 
-    _mj__Longitude?: number;
-        
     @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
     ReadableFields___?: string[];
         
@@ -2410,7 +2398,7 @@ export class mjBizAppsTasksTaskActivity_ {
     Task?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(250)
+    @MaxLength(201)
     Person?: string;
         
     @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
@@ -2627,7 +2615,7 @@ export class mjBizAppsTasksTaskAssignment_ {
     Role?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(250)
+    @MaxLength(201)
     AssignedByPerson?: string;
         
     @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
@@ -3072,7 +3060,7 @@ export class mjBizAppsTasksTaskCheckIn_ {
     Task?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(250)
+    @MaxLength(201)
     AuthorPerson?: string;
         
     @Field({nullable: true}) 
@@ -3318,7 +3306,7 @@ export class mjBizAppsTasksTaskComment_ {
     Task?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(250)
+    @MaxLength(201)
     Person?: string;
         
     @Field({nullable: true}) 
@@ -3722,7 +3710,7 @@ export class mjBizAppsTasksTaskDecision_ {
     Outcome?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(250)
+    @MaxLength(201)
     DecidedByPerson?: string;
         
     @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
@@ -6595,7 +6583,7 @@ export class mjBizAppsTasksTask_ {
     Parent?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(250)
+    @MaxLength(201)
     CreatedByPerson?: string;
         
     @Field({nullable: true}) 

@@ -368,22 +368,26 @@ export class MeetingData {
 
     async CreateMeeting(draft: NewMeetingDraft): Promise<mjBizAppsTasksMeetingEntity> {
         MeetingData.ForgetDetails();
-        const personId = await this.CurrentPersonId();
-        if (!personId) throw new Error('Your user account is not linked to a Person, so you cannot organize a meeting. Ask an administrator to link one.');
-        const service = new MeetingService(Metadata.Provider);
-        const meeting = await service.createMeeting(
-            {
-                name: draft.name, typeId: draft.typeId, organizerPersonId: personId, startsAt: draft.startsAt, endsAt: new Date(draft.startsAt.getTime() + draft.durationMinutes * 60000), timeZone: draft.timeZone,
-                locationType: draft.locationType, location: draft.location || null, videoProviderId: draft.videoProviderId, visibility: draft.visibility, description: draft.description || null, applyTemplate: draft.applyTemplate, createdByPersonId: personId,
-                attendees: [...draft.attendeePersonIds.map((id) => ({ personId: id })), ...draft.guestEmails.map((email) => ({ email }))],
-            },
-            this.user,
-        );
-        if (draft.joinUrl && !draft.videoProviderId) {
-            meeting.VideoJoinURL = draft.joinUrl;
-            if (!(await meeting.Save())) throw new Error(entityFailure(meeting));
+        try {
+            const personId = await this.CurrentPersonId();
+            if (!personId) throw new Error('Your user account is not linked to a Person, so you cannot organize a meeting. Ask an administrator to link one.');
+            const service = new MeetingService(Metadata.Provider);
+            const meeting = await service.createMeeting(
+                {
+                    name: draft.name, typeId: draft.typeId, organizerPersonId: personId, startsAt: draft.startsAt, endsAt: new Date(draft.startsAt.getTime() + draft.durationMinutes * 60000), timeZone: draft.timeZone,
+                    locationType: draft.locationType, location: draft.location || null, videoProviderId: draft.videoProviderId, visibility: draft.visibility, description: draft.description || null, applyTemplate: draft.applyTemplate, createdByPersonId: personId,
+                    attendees: [...draft.attendeePersonIds.map((id) => ({ personId: id })), ...draft.guestEmails.map((email) => ({ email }))],
+                },
+                this.user,
+            );
+            if (draft.joinUrl && !draft.videoProviderId) {
+                meeting.VideoJoinURL = draft.joinUrl;
+                if (!(await meeting.Save())) throw new Error(entityFailure(meeting));
+            }
+            return meeting;
+        } finally {
+            MeetingData.ForgetDetails(); // the panels read again after the change, never a copy made during it
         }
-        return meeting;
     }
 
     StartMeeting(id: string): Promise<MeetingStatusChange> {
@@ -403,71 +407,99 @@ export class MeetingData {
 
     async Respond(attendeeId: string, response: ResponseStatus): Promise<void> {
         MeetingData.ForgetDetails();
-        const row = await this.md.GetEntityObject<mjBizAppsTasksMeetingAttendeeEntity>(MEETING_ATTENDEE_ENTITY, this.user);
-        if (!(await row.Load(attendeeId))) throw new Error('Your invitation was not found.');
-        row.ResponseStatus = response;
-        row.RespondedAt = new Date();
-        if (!(await row.Save())) throw new Error(entityFailure(row));
+        try {
+            const row = await this.md.GetEntityObject<mjBizAppsTasksMeetingAttendeeEntity>(MEETING_ATTENDEE_ENTITY, this.user);
+            if (!(await row.Load(attendeeId))) throw new Error('Your invitation was not found.');
+            row.ResponseStatus = response;
+            row.RespondedAt = new Date();
+            if (!(await row.Save())) throw new Error(entityFailure(row));
+        } finally {
+            MeetingData.ForgetDetails(); // the panels read again after the change, never a copy made during it
+        }
     }
 
     /** The viewer answers a meeting they are invited to: their attendee row is found by their user or person. */
     async RespondToMeeting(meetingId: string, response: ResponseStatus): Promise<void> {
         MeetingData.ForgetDetails();
-        const personId = await this.CurrentPersonId();
-        const rows = await this.rows<AttendeeRecordRow>(MEETING_ATTENDEE_ENTITY, `MeetingID = '${meetingId}'`, ATTENDEE_FIELDS, '', 1000);
-        const mine = rows.find((a) => same(a.UserID, this.user.ID) || (personId && same(a.PersonID, personId)));
-        if (!mine) throw new Error('You are not invited to this meeting.');
-        await this.Respond(mine.ID, response);
+        try {
+            const personId = await this.CurrentPersonId();
+            const rows = await this.rows<AttendeeRecordRow>(MEETING_ATTENDEE_ENTITY, `MeetingID = '${meetingId}'`, ATTENDEE_FIELDS, '', 1000);
+            const mine = rows.find((a) => same(a.UserID, this.user.ID) || (personId && same(a.PersonID, personId)));
+            if (!mine) throw new Error('You are not invited to this meeting.');
+            await this.Respond(mine.ID, response);
+        } finally {
+            MeetingData.ForgetDetails(); // the panels read again after the change, never a copy made during it
+        }
     }
 
     async Invite(meetingId: string, invite: { personId: string | null; email: string | null; displayName: string | null; role: 'Required' | 'Optional' }): Promise<void> {
         MeetingData.ForgetDetails();
-        await new MeetingService(Metadata.Provider).addAttendee(meetingId, invite, this.user);
+        try {
+            await new MeetingService(Metadata.Provider).addAttendee(meetingId, invite, this.user);
+        } finally {
+            MeetingData.ForgetDetails(); // the panels read again after the change, never a copy made during it
+        }
     }
 
     async RemoveAttendee(attendeeId: string): Promise<void> {
         MeetingData.ForgetDetails();
-        const row = await this.md.GetEntityObject<mjBizAppsTasksMeetingAttendeeEntity>(MEETING_ATTENDEE_ENTITY, this.user);
-        if (!(await row.Load(attendeeId))) return;
-        if (!(await row.Delete())) throw new Error(entityFailure(row));
+        try {
+            const row = await this.md.GetEntityObject<mjBizAppsTasksMeetingAttendeeEntity>(MEETING_ATTENDEE_ENTITY, this.user);
+            if (!(await row.Load(attendeeId))) return;
+            if (!(await row.Delete())) throw new Error(entityFailure(row));
+        } finally {
+            MeetingData.ForgetDetails(); // the panels read again after the change, never a copy made during it
+        }
     }
 
     async MarkAttendance(attendeeId: string, attendance: AttendeeModel['attendanceStatus']): Promise<void> {
         MeetingData.ForgetDetails();
-        const row = await this.md.GetEntityObject<mjBizAppsTasksMeetingAttendeeEntity>(MEETING_ATTENDEE_ENTITY, this.user);
-        if (!(await row.Load(attendeeId))) throw new Error('The attendee was not found.');
-        row.AttendanceStatus = attendance;
-        if (attendance === 'Present' || attendance === 'Late') row.JoinedAt = row.JoinedAt ?? new Date();
-        if (attendance === 'LeftEarly') row.LeftAt = new Date();
-        if (!(await row.Save())) throw new Error(entityFailure(row));
+        try {
+            const row = await this.md.GetEntityObject<mjBizAppsTasksMeetingAttendeeEntity>(MEETING_ATTENDEE_ENTITY, this.user);
+            if (!(await row.Load(attendeeId))) throw new Error('The attendee was not found.');
+            row.AttendanceStatus = attendance;
+            if (attendance === 'Present' || attendance === 'Late') row.JoinedAt = row.JoinedAt ?? new Date();
+            if (attendance === 'LeftEarly') row.LeftAt = new Date();
+            if (!(await row.Save())) throw new Error(entityFailure(row));
+        } finally {
+            MeetingData.ForgetDetails(); // the panels read again after the change, never a copy made during it
+        }
     }
 
     async SaveAgendaItem(meetingId: string, draft: AgendaItemDraft, agenda: AgendaItemModel[]): Promise<void> {
         MeetingData.ForgetDetails();
-        const item = await this.md.GetEntityObject<mjBizAppsTasksMeetingAgendaItemEntity>(MEETING_AGENDA_ITEM_ENTITY, this.user);
-        if (draft.id) {
-            if (!(await item.Load(draft.id))) throw new Error('The agenda item was not found.');
-        } else {
-            item.NewRecord();
-            item.MeetingID = meetingId;
-            item.Status = 'Planned';
-            const siblings = agenda.filter((a) => (a.parentId ?? '').toLowerCase() === (draft.parentId ?? '').toLowerCase());
-            item.Sequence = siblings.reduce((max, a) => Math.max(max, a.sequence), 0) + 100;
+        try {
+            const item = await this.md.GetEntityObject<mjBizAppsTasksMeetingAgendaItemEntity>(MEETING_AGENDA_ITEM_ENTITY, this.user);
+            if (draft.id) {
+                if (!(await item.Load(draft.id))) throw new Error('The agenda item was not found.');
+            } else {
+                item.NewRecord();
+                item.MeetingID = meetingId;
+                item.Status = 'Planned';
+                const siblings = agenda.filter((a) => (a.parentId ?? '').toLowerCase() === (draft.parentId ?? '').toLowerCase());
+                item.Sequence = siblings.reduce((max, a) => Math.max(max, a.sequence), 0) + 100;
+            }
+            item.ParentID = draft.parentId;
+            item.Name = draft.name;
+            item.Description = draft.description || null;
+            item.TypeID = draft.typeId;
+            item.PresenterPersonID = draft.presenterPersonId;
+            item.DurationMinutes = draft.durationMinutes;
+            if (!(await item.Save())) throw new Error(entityFailure(item));
+        } finally {
+            MeetingData.ForgetDetails(); // the panels read again after the change, never a copy made during it
         }
-        item.ParentID = draft.parentId;
-        item.Name = draft.name;
-        item.Description = draft.description || null;
-        item.TypeID = draft.typeId;
-        item.PresenterPersonID = draft.presenterPersonId;
-        item.DurationMinutes = draft.durationMinutes;
-        if (!(await item.Save())) throw new Error(entityFailure(item));
     }
 
     async RemoveAgendaItem(itemId: string): Promise<void> {
         MeetingData.ForgetDetails();
-        const item = await this.md.GetEntityObject<mjBizAppsTasksMeetingAgendaItemEntity>(MEETING_AGENDA_ITEM_ENTITY, this.user);
-        if (!(await item.Load(itemId))) return;
-        if (!(await item.Delete())) throw new Error(entityFailure(item));
+        try {
+            const item = await this.md.GetEntityObject<mjBizAppsTasksMeetingAgendaItemEntity>(MEETING_AGENDA_ITEM_ENTITY, this.user);
+            if (!(await item.Load(itemId))) return;
+            if (!(await item.Delete())) throw new Error(entityFailure(item));
+        } finally {
+            MeetingData.ForgetDetails(); // the panels read again after the change, never a copy made during it
+        }
     }
 
     ReorderAgenda(meetingId: string, orderedIds: string[]): Promise<void> {
@@ -477,99 +509,127 @@ export class MeetingData {
 
     async MoveAgendaItem(itemId: string, parentId: string | null, agenda: AgendaItemModel[]): Promise<void> {
         MeetingData.ForgetDetails();
-        const item = await this.md.GetEntityObject<mjBizAppsTasksMeetingAgendaItemEntity>(MEETING_AGENDA_ITEM_ENTITY, this.user);
-        if (!(await item.Load(itemId))) throw new Error('The agenda item was not found.');
-        const siblings = agenda.filter((a) => (a.parentId ?? '').toLowerCase() === (parentId ?? '').toLowerCase() && !same(a.id, itemId));
-        item.ParentID = parentId;
-        item.Sequence = siblings.reduce((max, a) => Math.max(max, a.sequence), 0) + 100;
-        if (!(await item.Save())) throw new Error(entityFailure(item));
+        try {
+            const item = await this.md.GetEntityObject<mjBizAppsTasksMeetingAgendaItemEntity>(MEETING_AGENDA_ITEM_ENTITY, this.user);
+            if (!(await item.Load(itemId))) throw new Error('The agenda item was not found.');
+            const siblings = agenda.filter((a) => (a.parentId ?? '').toLowerCase() === (parentId ?? '').toLowerCase() && !same(a.id, itemId));
+            item.ParentID = parentId;
+            item.Sequence = siblings.reduce((max, a) => Math.max(max, a.sequence), 0) + 100;
+            if (!(await item.Save())) throw new Error(entityFailure(item));
+        } finally {
+            MeetingData.ForgetDetails(); // the panels read again after the change, never a copy made during it
+        }
     }
 
     async ApplyTemplate(meetingId: string, typeId: string): Promise<void> {
         MeetingData.ForgetDetails();
-        const [type] = await this.rows<{ AgendaTemplate: string | null }>(MEETING_TYPE_ENTITY, `ID = '${typeId}'`, ['AgendaTemplate'], '', 1);
-        const template = parseAgendaTemplate(type?.AgendaTemplate);
-        if (!template) throw new Error('The type has no agenda template.');
-        await new MeetingAgendaService(Metadata.Provider).applyTemplate(meetingId, template, this.user);
+        try {
+            const [type] = await this.rows<{ AgendaTemplate: string | null }>(MEETING_TYPE_ENTITY, `ID = '${typeId}'`, ['AgendaTemplate'], '', 1);
+            const template = parseAgendaTemplate(type?.AgendaTemplate);
+            if (!template) throw new Error('The type has no agenda template.');
+            await new MeetingAgendaService(Metadata.Provider).applyTemplate(meetingId, template, this.user);
+        } finally {
+            MeetingData.ForgetDetails(); // the panels read again after the change, never a copy made during it
+        }
     }
 
     async SetAgendaItemStatus(itemId: string, status: AgendaItemModel['status'], outcome?: string | null): Promise<void> {
         MeetingData.ForgetDetails();
-        const item = await this.md.GetEntityObject<mjBizAppsTasksMeetingAgendaItemEntity>(MEETING_AGENDA_ITEM_ENTITY, this.user);
-        if (!(await item.Load(itemId))) throw new Error('The agenda item was not found.');
-        item.Status = status;
-        if (status === 'InProgress' && !item.StartedAt) item.StartedAt = new Date();
-        if ((status === 'Done' || status === 'Skipped' || status === 'Deferred') && !item.EndedAt) item.EndedAt = new Date();
-        if (outcome !== undefined) item.Outcome = outcome;
-        if (!(await item.Save())) throw new Error(entityFailure(item));
+        try {
+            const item = await this.md.GetEntityObject<mjBizAppsTasksMeetingAgendaItemEntity>(MEETING_AGENDA_ITEM_ENTITY, this.user);
+            if (!(await item.Load(itemId))) throw new Error('The agenda item was not found.');
+            item.Status = status;
+            if (status === 'InProgress' && !item.StartedAt) item.StartedAt = new Date();
+            if ((status === 'Done' || status === 'Skipped' || status === 'Deferred') && !item.EndedAt) item.EndedAt = new Date();
+            if (outcome !== undefined) item.Outcome = outcome;
+            if (!(await item.Save())) throw new Error(entityFailure(item));
+        } finally {
+            MeetingData.ForgetDetails(); // the panels read again after the change, never a copy made during it
+        }
     }
 
     async SaveNote(meetingId: string, draft: NoteDraft): Promise<void> {
         MeetingData.ForgetDetails();
-        const personId = await this.CurrentPersonId();
-        const note = await this.md.GetEntityObject<mjBizAppsTasksMeetingNoteEntity>(MEETING_NOTE_ENTITY, this.user);
-        if (draft.id) {
-            if (!(await note.Load(draft.id))) throw new Error('The note was not found.');
-        } else {
-            note.NewRecord();
-            note.MeetingID = meetingId;
-            note.Source = 'Manual';
-            note.AuthorPersonID = personId;
+        try {
+            const personId = await this.CurrentPersonId();
+            const note = await this.md.GetEntityObject<mjBizAppsTasksMeetingNoteEntity>(MEETING_NOTE_ENTITY, this.user);
+            if (draft.id) {
+                if (!(await note.Load(draft.id))) throw new Error('The note was not found.');
+            } else {
+                note.NewRecord();
+                note.MeetingID = meetingId;
+                note.Source = 'Manual';
+                note.AuthorPersonID = personId;
+            }
+            note.AgendaItemID = draft.agendaItemId;
+            note.Kind = draft.kind;
+            note.Title = draft.title || null;
+            note.Body = draft.body;
+            note.Status = draft.status;
+            if (!(await note.Save())) throw new Error(entityFailure(note));
+        } finally {
+            MeetingData.ForgetDetails(); // the panels read again after the change, never a copy made during it
         }
-        note.AgendaItemID = draft.agendaItemId;
-        note.Kind = draft.kind;
-        note.Title = draft.title || null;
-        note.Body = draft.body;
-        note.Status = draft.status;
-        if (!(await note.Save())) throw new Error(entityFailure(note));
     }
 
     async DeleteNote(noteId: string): Promise<void> {
         MeetingData.ForgetDetails();
-        const note = await this.md.GetEntityObject<mjBizAppsTasksMeetingNoteEntity>(MEETING_NOTE_ENTITY, this.user);
-        if (!(await note.Load(noteId))) return;
-        if (!(await note.Delete())) throw new Error(entityFailure(note));
+        try {
+            const note = await this.md.GetEntityObject<mjBizAppsTasksMeetingNoteEntity>(MEETING_NOTE_ENTITY, this.user);
+            if (!(await note.Load(noteId))) return;
+            if (!(await note.Delete())) throw new Error(entityFailure(note));
+        } finally {
+            MeetingData.ForgetDetails(); // the panels read again after the change, never a copy made during it
+        }
     }
 
     /** A follow-up: an ACTION_ITEM task, assigned when asked, linked to the meeting or the agenda item. */
     async AddFollowUp(meetingId: string, draft: FollowUpDraft): Promise<string> {
         MeetingData.ForgetDetails();
-        const personId = await this.CurrentPersonId();
-        const [type] = await this.rows<{ ID: string }>(TASK_TYPES_ENTITY, `Code = '${ACTION_ITEM_CODE}'`, ['ID'], '', 1);
-        if (!type) throw new Error('The Action Item task type is not installed.');
-        const task = await this.md.GetEntityObject<TaskEntity>(TASKS_ENTITY, this.user);
-        task.NewRecord();
-        task.Name = draft.name;
-        task.TypeID = type.ID;
-        task.Status = 'Open';
-        task.Priority = 'Medium';
-        task.PercentComplete = 0;
-        task.DueAt = draft.dueAt;
-        task.CreatedByPersonID = personId;
-        if (!(await task.Save())) throw new Error(entityFailure(task));
-        const target = draft.agendaItemId ? { entity: MEETING_AGENDA_ITEM_ENTITY, id: draft.agendaItemId } : { entity: MEETING_ENTITY, id: meetingId };
-        const entityInfo = this.md.EntityByName(target.entity);
-        if (entityInfo) {
-            const link = await this.md.GetEntityObject<mjBizAppsTasksTaskLinkEntity>(TASK_LINKS_ENTITY, this.user);
-            link.NewRecord();
-            link.TaskID = task.ID;
-            link.EntityID = entityInfo.ID;
-            link.RecordID = target.id;
-            link.Description = 'Follow-up from the meeting';
-            if (!(await link.Save())) throw new Error(entityFailure(link));
+        try {
+            const personId = await this.CurrentPersonId();
+            const [type] = await this.rows<{ ID: string }>(TASK_TYPES_ENTITY, `Code = '${ACTION_ITEM_CODE}'`, ['ID'], '', 1);
+            if (!type) throw new Error('The Action Item task type is not installed.');
+            const task = await this.md.GetEntityObject<TaskEntity>(TASKS_ENTITY, this.user);
+            task.NewRecord();
+            task.Name = draft.name;
+            task.TypeID = type.ID;
+            task.Status = 'Open';
+            task.Priority = 'Medium';
+            task.PercentComplete = 0;
+            task.DueAt = draft.dueAt;
+            task.CreatedByPersonID = personId;
+            if (!(await task.Save())) throw new Error(entityFailure(task));
+            const target = draft.agendaItemId ? { entity: MEETING_AGENDA_ITEM_ENTITY, id: draft.agendaItemId } : { entity: MEETING_ENTITY, id: meetingId };
+            const entityInfo = this.md.EntityByName(target.entity);
+            if (entityInfo) {
+                const link = await this.md.GetEntityObject<mjBizAppsTasksTaskLinkEntity>(TASK_LINKS_ENTITY, this.user);
+                link.NewRecord();
+                link.TaskID = task.ID;
+                link.EntityID = entityInfo.ID;
+                link.RecordID = target.id;
+                link.Description = 'Follow-up from the meeting';
+                if (!(await link.Save())) throw new Error(entityFailure(link));
+            }
+            if (draft.assigneePersonId) {
+                const people = this.md.EntityByName(PEOPLE_ENTITY);
+                if (people) await new TaskAssignmentService().assignToTask({ taskID: task.ID, assigneeEntityID: people.ID, assigneeRecordID: draft.assigneePersonId, assignedByPersonID: personId ?? undefined }, this.user);
+            }
+            return task.ID;
+        } finally {
+            MeetingData.ForgetDetails(); // the panels read again after the change, never a copy made during it
         }
-        if (draft.assigneePersonId) {
-            const people = this.md.EntityByName(PEOPLE_ENTITY);
-            if (people) await new TaskAssignmentService().assignToTask({ taskID: task.ID, assigneeEntityID: people.ID, assigneeRecordID: draft.assigneePersonId, assignedByPersonID: personId ?? undefined }, this.user);
-        }
-        return task.ID;
     }
 
     async RemoveLink(linkId: string): Promise<void> {
         MeetingData.ForgetDetails();
-        const link = await this.md.GetEntityObject<mjBizAppsTasksMeetingLinkEntity>(MEETING_LINK_ENTITY, this.user);
-        if (!(await link.Load(linkId))) return;
-        if (!(await link.Delete())) throw new Error(entityFailure(link));
+        try {
+            const link = await this.md.GetEntityObject<mjBizAppsTasksMeetingLinkEntity>(MEETING_LINK_ENTITY, this.user);
+            if (!(await link.Load(linkId))) return;
+            if (!(await link.Delete())) throw new Error(entityFailure(link));
+        } finally {
+            MeetingData.ForgetDetails(); // the panels read again after the change, never a copy made during it
+        }
     }
 
     async CalendarFile(meetingId: string, method: 'REQUEST' | 'CANCEL'): Promise<{ fileName: string; content: string }> {
@@ -578,30 +638,34 @@ export class MeetingData {
 
     async SaveSeries(draft: SeriesDraft): Promise<mjBizAppsTasksMeetingSeriesEntity> {
         MeetingData.ForgetDetails();
-        const personId = draft.organizerPersonId ?? (await this.CurrentPersonId());
-        if (!personId) throw new Error('Your user account is not linked to a Person, so you cannot organize a series.');
-        const series = await this.md.GetEntityObject<mjBizAppsTasksMeetingSeriesEntity>(MEETING_SERIES_ENTITY, this.user);
-        if (draft.id) {
-            if (!(await series.Load(draft.id))) throw new Error('The series was not found.');
-        } else {
-            series.NewRecord();
-            series.Status = 'Active';
-            series.CreatedByPersonID = personId;
+        try {
+            const personId = draft.organizerPersonId ?? (await this.CurrentPersonId());
+            if (!personId) throw new Error('Your user account is not linked to a Person, so you cannot organize a series.');
+            const series = await this.md.GetEntityObject<mjBizAppsTasksMeetingSeriesEntity>(MEETING_SERIES_ENTITY, this.user);
+            if (draft.id) {
+                if (!(await series.Load(draft.id))) throw new Error('The series was not found.');
+            } else {
+                series.NewRecord();
+                series.Status = 'Active';
+                series.CreatedByPersonID = personId;
+            }
+            series.Name = draft.name;
+            series.Description = draft.description || null;
+            series.TypeID = draft.typeId;
+            series.OrganizerPersonID = personId;
+            series.RecurrenceRule = draft.recurrenceRule;
+            series.TimeZone = draft.timeZone;
+            series.FirstStartsAt = draft.firstStartsAt;
+            series.DurationMinutes = draft.durationMinutes;
+            series.LocationType = draft.locationType;
+            series.Location = draft.location || null;
+            series.VideoProviderID = draft.videoProviderId;
+            series.Visibility = draft.visibility;
+            if (!(await series.Save())) throw new Error(entityFailure(series));
+            return series;
+        } finally {
+            MeetingData.ForgetDetails(); // the panels read again after the change, never a copy made during it
         }
-        series.Name = draft.name;
-        series.Description = draft.description || null;
-        series.TypeID = draft.typeId;
-        series.OrganizerPersonID = personId;
-        series.RecurrenceRule = draft.recurrenceRule;
-        series.TimeZone = draft.timeZone;
-        series.FirstStartsAt = draft.firstStartsAt;
-        series.DurationMinutes = draft.durationMinutes;
-        series.LocationType = draft.locationType;
-        series.Location = draft.location || null;
-        series.VideoProviderID = draft.videoProviderId;
-        series.Visibility = draft.visibility;
-        if (!(await series.Save())) throw new Error(entityFailure(series));
-        return series;
     }
 
     /** The error's text for a callout. */

@@ -37,10 +37,10 @@ import { SharedService } from '@memberjunction/ng-shared';
 abstract class MeetingSectionPanel extends BaseFormPanel<mjBizAppsTasksMeetingEntity> implements OnInit {
     protected readonly cdr = inject(ChangeDetectorRef);
     protected readonly data = new MeetingData();
-    public detail: MeetingDetail | null = null;
-    public people: PersonOption[] = [];
-    public busy = false;
-    public error = '';
+    protected detail: MeetingDetail | null = null;
+    protected people: PersonOption[] = [];
+    protected busy = false;
+    protected error = '';
 
     async ngOnInit(): Promise<void> {
         await this.reload();
@@ -50,7 +50,7 @@ abstract class MeetingSectionPanel extends BaseFormPanel<mjBizAppsTasksMeetingEn
         return this.Record?.ID ?? '';
     }
 
-    async reload(): Promise<void> {
+    protected async reload(): Promise<void> {
         if (!this.meetingId) return;
         try {
             this.detail = await this.data.LoadMeeting(this.meetingId);
@@ -136,7 +136,7 @@ export class MeetingAgendaPanel extends MeetingSectionPanel {
         return this.run(() => this.data.MoveAgendaItem(change.item.id, change.parentId, this.detail?.agenda ?? []));
     }
 
-    template(): Promise<void> {
+    protected template(): Promise<void> {
         return this.run(async () => {
             if (!this.detail?.typeId) throw new Error('The meeting has no type, so there is no template.');
             await this.data.ApplyTemplate(this.meetingId, this.detail.typeId);

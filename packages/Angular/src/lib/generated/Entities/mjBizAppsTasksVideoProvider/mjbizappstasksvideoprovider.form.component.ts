@@ -16,13 +16,10 @@ export class mjBizAppsTasksVideoProviderFormComponent extends BaseFormComponent 
     override async ngOnInit() {
         await super.ngOnInit();
         this.initSections([
-            { sectionKey: 'providerDetails', sectionName: 'Provider Details', isExpanded: true },
-            { sectionKey: 'configurationAndSecrets', sectionName: 'Configuration and Secrets', isExpanded: true },
-            { sectionKey: 'capabilitiesAndStatus', sectionName: 'Capabilities and Status', isExpanded: true },
-            { sectionKey: 'systemMetadata', sectionName: 'System Metadata', isExpanded: false },
-            { sectionKey: 'mJBizAppsTasksMeetingTypes', sectionName: 'Meeting Types', isExpanded: false },
+            { sectionKey: 'details', sectionName: 'Details', isExpanded: true },
             { sectionKey: 'mJBizAppsTasksMeetingSeries', sectionName: 'Meeting Series', isExpanded: false },
-            { sectionKey: 'mJBizAppsTasksMeetings', sectionName: 'Meetings', isExpanded: false }
+            { sectionKey: 'mJBizAppsTasksMeetings', sectionName: 'Meetings', isExpanded: false },
+            { sectionKey: 'mJBizAppsTasksMeetingTypes', sectionName: 'Meeting Types', isExpanded: false }
         ]);
     }
 }

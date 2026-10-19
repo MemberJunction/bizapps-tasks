@@ -7,6 +7,7 @@ vi.mock('@memberjunction/core', () => ({
     Metadata: { Provider: {} },
     BaseEntity: class {},
     CompositeKey: class {},
+    LogError: vi.fn(),
 }));
 
 import { MeetingSeriesService } from '../MeetingSeriesService.js';
@@ -93,7 +94,7 @@ beforeEach(() => {
     runViewMock.mockImplementation(async (params: { EntityName: string; ExtraFilter: string }) => {
         const rows = stores.get(params.EntityName) ?? [];
         if (params.EntityName === MEETINGS) {
-            return { Success: true, Results: rows.map((r) => ({ ID: r.ID, OccurrenceStartsAt: (r.OccurrenceStartsAt as Date).toISOString(), StartsAt: (r.StartsAt as Date).toISOString(), Status: r.Status })) };
+            return { Success: true, Results: rows.map((r) => ({ ID: r.ID, OccurrenceStartsAt: (r.OccurrenceStartsAt as Date).toISOString(), StartsAt: (r.StartsAt as Date).toISOString(), Status: r.Status, OrganizerPersonID: r.OrganizerPersonID })) };
         }
         if (params.EntityName === ATTENDEES) {
             const meetingId = /MeetingID = '([^']+)'/.exec(params.ExtraFilter)?.[1] ?? '';
@@ -158,6 +159,29 @@ describe('a series\' occurrences', () => {
         const result = await new MeetingSeriesService(provider as never).materialize('S1', user as never, options);
         expect(meetings().find((m) => m.ID === 'M-2')?.Status).toBe('InProgress');
         expect(result.cancelled).toBe(1);
+    });
+
+    it('leave an occurrence whose organizer was changed on its own alone', async () => {
+        meetings().push(occurrence('M-1', '2026-10-20T14:00:00Z', { OrganizerPersonID: 'P-NICO' }));
+        const result = await new MeetingSeriesService(provider as never).materialize('S1', user as never, options);
+        expect(meetings().find((m) => m.ID === 'M-1')?.Name).toBe('Old name');
+        expect(meetings().find((m) => m.ID === 'M-1')?.OrganizerPersonID).toBe('P-NICO');
+        expect(result.created).toBe(2);
+    });
+
+    it('go on past an occurrence that cannot be changed, and say which', async () => {
+        meetings().push(occurrence('M-1', '2026-10-20T14:00:00Z'));
+        const failing = provider.GetEntityObject;
+        let calls = 0;
+        const flaky = { GetEntityObject: async (name: string) => {
+            const entity = await failing(name);
+            if (name === MEETINGS && ++calls === 1) (entity as unknown as { Save: () => Promise<boolean> }).Save = async () => false;
+            return entity;
+        } };
+        const result = await new MeetingSeriesService(flaky as never).materialize('S1', user as never, options);
+        expect(result.failures).toHaveLength(1);
+        expect(result.failures[0]).toMatch(/occurrence M-1/);
+        expect(result.created).toBe(2);
     });
 
     it('end the series once its rule produces nothing more', async () => {
