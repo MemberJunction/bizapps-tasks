@@ -107,6 +107,9 @@ const MEETING_FIELDS = ['ID', 'Name', 'Description', 'Status', 'Visibility', 'Ty
 const ATTENDEE_FIELDS = ['ID', 'MeetingID', 'PersonID', 'UserID', 'Email', 'DisplayName', 'Person', 'Role', 'ResponseStatus', 'AttendanceStatus'];
 
 const same = (a: string | null | undefined, b: string | null | undefined): boolean => !!a && !!b && a.toLowerCase() === b.toLowerCase();
+/** The meeting reads in flight or just finished, shared by the panels of one page. */
+const detailCache = new Map<string, { promise: Promise<MeetingDetail>; at: number }>();
+const DETAIL_SHARE_MS = 3000;
 const quote = (value: string): string => value.replace(/'/g, "''");
 const dateLabel = (value: string | Date | null | undefined): string => (value ? new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '');
 
@@ -253,8 +256,29 @@ export class MeetingData {
         };
     }
 
-    /** Everything the meeting page shows. */
-    async loadMeeting(meetingId: string): Promise<MeetingDetail> {
+    /**
+     * Everything the meeting page shows. The six panels of a meeting's form each ask for it as they mount, so one read is
+     * shared by everyone who asks within a few seconds; any change made through this layer forgets it, and the next ask
+     * reads again.
+     */
+    loadMeeting(meetingId: string): Promise<MeetingDetail> {
+        const key = meetingId.toLowerCase();
+        const cached = detailCache.get(key);
+        if (cached && Date.now() - cached.at < DETAIL_SHARE_MS) return cached.promise;
+        const promise = this.loadMeetingNow(meetingId).catch((error: unknown) => {
+            if (detailCache.get(key)?.promise === promise) detailCache.delete(key);
+            throw error;
+        });
+        detailCache.set(key, { promise, at: Date.now() });
+        return promise;
+    }
+
+    /** Forgets every shared read: the next loadMeeting reads the server. Called after any change made here. */
+    static forgetDetails(): void {
+        detailCache.clear();
+    }
+
+    private async loadMeetingNow(meetingId: string): Promise<MeetingDetail> {
         if (!this.typeIcons.size) await this.loadTypes();
         const personId = await this.currentPersonId();
         const [record] = await this.rows<MeetingRecordRow>(MEETING_ENTITY, `ID = '${meetingId}'`, MEETING_FIELDS, '', 1);
@@ -291,17 +315,18 @@ export class MeetingData {
 
     async loadLinks(meetingId: string): Promise<LinkModel[]> {
         const rows = await this.rows<{ ID: string; EntityID: string; Entity: string; RecordID: string; Description: string | null }>(MEETING_LINK_ENTITY, `MeetingID = '${meetingId}'`, ['ID', 'EntityID', 'Entity', 'RecordID', 'Description'], '', 200);
-        const links: LinkModel[] = [];
-        for (const r of rows) {
-            let recordName: string | null = null;
-            try {
-                recordName = await this.md.GetEntityRecordName(r.Entity, CompositeKey.FromID(r.RecordID), this.user);
-            } catch {
-                recordName = null;
+        if (!rows.length) return [];
+        // One call names every linked record; a name that cannot be read leaves the link with its id
+        const names = new Map<string, string>();
+        try {
+            const results = await this.md.GetEntityRecordNames(rows.map((r) => ({ EntityName: r.Entity, CompositeKey: CompositeKey.FromID(r.RecordID) })), this.user);
+            for (const result of results) {
+                if (result.Success && result.RecordName) names.set(`${result.EntityName.toLowerCase()}|${result.CompositeKey.ToString().toLowerCase()}`, result.RecordName);
             }
-            links.push({ id: r.ID, entityName: r.Entity, recordId: r.RecordID, recordName, description: r.Description });
+        } catch {
+            // the links show without names
         }
-        return links;
+        return rows.map((r) => ({ id: r.ID, entityName: r.Entity, recordId: r.RecordID, recordName: names.get(`${r.Entity.toLowerCase()}|${CompositeKey.FromID(r.RecordID).ToString().toLowerCase()}`) ?? null, description: r.Description }));
     }
 
     /** The tasks linked to the meeting or any of its agenda items. */
@@ -342,6 +367,7 @@ export class MeetingData {
     // ── writes ───────────────────────────────────────────────────────────────
 
     async createMeeting(draft: NewMeetingDraft): Promise<mjBizAppsTasksMeetingEntity> {
+        MeetingData.forgetDetails();
         const personId = await this.currentPersonId();
         if (!personId) throw new Error('Your user account is not linked to a Person, so you cannot organize a meeting. Ask an administrator to link one.');
         const service = new MeetingService(Metadata.Provider);
@@ -361,18 +387,22 @@ export class MeetingData {
     }
 
     startMeeting(id: string): Promise<MeetingStatusChange> {
+        MeetingData.forgetDetails();
         return new MeetingService(Metadata.Provider).startMeeting(id, this.user);
     }
 
     endMeeting(id: string): Promise<MeetingStatusChange> {
+        MeetingData.forgetDetails();
         return new MeetingService(Metadata.Provider).endMeeting(id, this.user);
     }
 
     cancelMeeting(id: string, reason: string | null): Promise<MeetingStatusChange> {
+        MeetingData.forgetDetails();
         return new MeetingService(Metadata.Provider).cancelMeeting(id, reason, this.user);
     }
 
     async respond(attendeeId: string, response: ResponseStatus): Promise<void> {
+        MeetingData.forgetDetails();
         const row = await this.md.GetEntityObject<mjBizAppsTasksMeetingAttendeeEntity>(MEETING_ATTENDEE_ENTITY, this.user);
         if (!(await row.Load(attendeeId))) throw new Error('Your invitation was not found.');
         row.ResponseStatus = response;
@@ -382,6 +412,7 @@ export class MeetingData {
 
     /** The viewer answers a meeting they are invited to: their attendee row is found by their user or person. */
     async respondToMeeting(meetingId: string, response: ResponseStatus): Promise<void> {
+        MeetingData.forgetDetails();
         const personId = await this.currentPersonId();
         const rows = await this.rows<AttendeeRecordRow>(MEETING_ATTENDEE_ENTITY, `MeetingID = '${meetingId}'`, ATTENDEE_FIELDS, '', 1000);
         const mine = rows.find((a) => same(a.UserID, this.user.ID) || (personId && same(a.PersonID, personId)));
@@ -390,16 +421,19 @@ export class MeetingData {
     }
 
     async invite(meetingId: string, invite: { personId: string | null; email: string | null; displayName: string | null; role: 'Required' | 'Optional' }): Promise<void> {
+        MeetingData.forgetDetails();
         await new MeetingService(Metadata.Provider).addAttendee(meetingId, invite, this.user);
     }
 
     async removeAttendee(attendeeId: string): Promise<void> {
+        MeetingData.forgetDetails();
         const row = await this.md.GetEntityObject<mjBizAppsTasksMeetingAttendeeEntity>(MEETING_ATTENDEE_ENTITY, this.user);
         if (!(await row.Load(attendeeId))) return;
         if (!(await row.Delete())) throw new Error(entityFailure(row));
     }
 
     async markAttendance(attendeeId: string, attendance: AttendeeModel['attendanceStatus']): Promise<void> {
+        MeetingData.forgetDetails();
         const row = await this.md.GetEntityObject<mjBizAppsTasksMeetingAttendeeEntity>(MEETING_ATTENDEE_ENTITY, this.user);
         if (!(await row.Load(attendeeId))) throw new Error('The attendee was not found.');
         row.AttendanceStatus = attendance;
@@ -409,6 +443,7 @@ export class MeetingData {
     }
 
     async saveAgendaItem(meetingId: string, draft: AgendaItemDraft, agenda: AgendaItemModel[]): Promise<void> {
+        MeetingData.forgetDetails();
         const item = await this.md.GetEntityObject<mjBizAppsTasksMeetingAgendaItemEntity>(MEETING_AGENDA_ITEM_ENTITY, this.user);
         if (draft.id) {
             if (!(await item.Load(draft.id))) throw new Error('The agenda item was not found.');
@@ -429,16 +464,19 @@ export class MeetingData {
     }
 
     async removeAgendaItem(itemId: string): Promise<void> {
+        MeetingData.forgetDetails();
         const item = await this.md.GetEntityObject<mjBizAppsTasksMeetingAgendaItemEntity>(MEETING_AGENDA_ITEM_ENTITY, this.user);
         if (!(await item.Load(itemId))) return;
         if (!(await item.Delete())) throw new Error(entityFailure(item));
     }
 
     reorderAgenda(meetingId: string, orderedIds: string[]): Promise<void> {
+        MeetingData.forgetDetails();
         return new MeetingAgendaService(Metadata.Provider).reorder(meetingId, orderedIds, this.user);
     }
 
     async moveAgendaItem(itemId: string, parentId: string | null, agenda: AgendaItemModel[]): Promise<void> {
+        MeetingData.forgetDetails();
         const item = await this.md.GetEntityObject<mjBizAppsTasksMeetingAgendaItemEntity>(MEETING_AGENDA_ITEM_ENTITY, this.user);
         if (!(await item.Load(itemId))) throw new Error('The agenda item was not found.');
         const siblings = agenda.filter((a) => (a.parentId ?? '').toLowerCase() === (parentId ?? '').toLowerCase() && !same(a.id, itemId));
@@ -448,6 +486,7 @@ export class MeetingData {
     }
 
     async applyTemplate(meetingId: string, typeId: string): Promise<void> {
+        MeetingData.forgetDetails();
         const [type] = await this.rows<{ AgendaTemplate: string | null }>(MEETING_TYPE_ENTITY, `ID = '${typeId}'`, ['AgendaTemplate'], '', 1);
         const template = parseAgendaTemplate(type?.AgendaTemplate);
         if (!template) throw new Error('The type has no agenda template.');
@@ -455,6 +494,7 @@ export class MeetingData {
     }
 
     async setAgendaItemStatus(itemId: string, status: AgendaItemModel['status'], outcome?: string | null): Promise<void> {
+        MeetingData.forgetDetails();
         const item = await this.md.GetEntityObject<mjBizAppsTasksMeetingAgendaItemEntity>(MEETING_AGENDA_ITEM_ENTITY, this.user);
         if (!(await item.Load(itemId))) throw new Error('The agenda item was not found.');
         item.Status = status;
@@ -465,6 +505,7 @@ export class MeetingData {
     }
 
     async saveNote(meetingId: string, draft: NoteDraft): Promise<void> {
+        MeetingData.forgetDetails();
         const personId = await this.currentPersonId();
         const note = await this.md.GetEntityObject<mjBizAppsTasksMeetingNoteEntity>(MEETING_NOTE_ENTITY, this.user);
         if (draft.id) {
@@ -484,6 +525,7 @@ export class MeetingData {
     }
 
     async deleteNote(noteId: string): Promise<void> {
+        MeetingData.forgetDetails();
         const note = await this.md.GetEntityObject<mjBizAppsTasksMeetingNoteEntity>(MEETING_NOTE_ENTITY, this.user);
         if (!(await note.Load(noteId))) return;
         if (!(await note.Delete())) throw new Error(entityFailure(note));
@@ -491,6 +533,7 @@ export class MeetingData {
 
     /** A follow-up: an ACTION_ITEM task, assigned when asked, linked to the meeting or the agenda item. */
     async addFollowUp(meetingId: string, draft: FollowUpDraft): Promise<string> {
+        MeetingData.forgetDetails();
         const personId = await this.currentPersonId();
         const [type] = await this.rows<{ ID: string }>(TASK_TYPES_ENTITY, `Code = '${ACTION_ITEM_CODE}'`, ['ID'], '', 1);
         if (!type) throw new Error('The Action Item task type is not installed.');
@@ -523,6 +566,7 @@ export class MeetingData {
     }
 
     async removeLink(linkId: string): Promise<void> {
+        MeetingData.forgetDetails();
         const link = await this.md.GetEntityObject<mjBizAppsTasksMeetingLinkEntity>(MEETING_LINK_ENTITY, this.user);
         if (!(await link.Load(linkId))) return;
         if (!(await link.Delete())) throw new Error(entityFailure(link));
@@ -533,6 +577,7 @@ export class MeetingData {
     }
 
     async saveSeries(draft: SeriesDraft): Promise<mjBizAppsTasksMeetingSeriesEntity> {
+        MeetingData.forgetDetails();
         const personId = draft.organizerPersonId ?? (await this.currentPersonId());
         if (!personId) throw new Error('Your user account is not linked to a Person, so you cannot organize a series.');
         const series = await this.md.GetEntityObject<mjBizAppsTasksMeetingSeriesEntity>(MEETING_SERIES_ENTITY, this.user);

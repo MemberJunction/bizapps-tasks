@@ -17,6 +17,7 @@ import {
 } from '@mj-biz-apps/tasks-core';
 import { BusinessTimeZoneEngine } from '@mj-biz-apps/common-entities';
 import { runAfterCommit } from './after-commit.js';
+import { callerOwnsMeeting, meetingCaller } from './meeting-caller.js';
 import { resolveVideoProviderDriver } from './video/VideoProviderBase.js';
 
 const fail = (result: ValidationResult, field: string, message: string): ValidationResult => {
@@ -60,14 +61,30 @@ export class MeetingEntityServer extends mjBizAppsTasksMeetingEntity {
                 return fail(result, 'Status', `Only the organizer ${verb} a meeting.`);
             }
         }
+        // The meeting itself is the organizer's to make and change (§ 3), over the API as in the app
+        const caller = await meetingCaller(this.metadataProvider, this.ContextCurrentUser);
+        if (!caller.administers) {
+            if (!this.IsSaved) {
+                if (!callerOwnsMeeting(caller, this.OrganizerPersonID)) return fail(result, 'OrganizerPersonID', 'A meeting is organized by the person who schedules it.');
+            } else if (!callerOwnsMeeting(caller, this.organizerBefore)) {
+                return fail(result, 'OrganizerPersonID', 'Only the organizer changes a meeting.');
+            }
+        }
         return result;
+    }
+
+    /** The organizer the database holds, before this save changed it. */
+    private get organizerBefore(): string {
+        const field = this.Fields.find((f) => f.CodeName === 'OrganizerPersonID');
+        return field?.Dirty ? String(field.OldValue ?? '') : this.OrganizerPersonID;
     }
 
     public override async Save(options?: EntitySaveOptions): Promise<boolean> {
         const isNew = !this.IsSaved;
         const before = this.statusBefore;
         await this.stampDefaults(isNew);
-        this.stampStatusTimes(before);
+        // A refused save leaves no stamp behind: the base class validates again inside Save and reports the refusal
+        if ((await this.ValidateAsync()).Success) this.stampStatusTimes(before);
         const cancelling = this.Status === 'Cancelled' && before !== 'Cancelled';
         const videoMeetingId = this.VideoMeetingID;
         const videoProviderId = this.VideoProviderID;
@@ -120,25 +137,48 @@ export class MeetingEntityServer extends mjBizAppsTasksMeetingEntity {
         if (this.Status === 'Cancelled' && !this.CancelledAt) this.CancelledAt = now;
     }
 
-    /** The organizer's attendee row: made when missing, moved to the new organizer when OrganizerPersonID changed. */
+    /**
+     * The organizer's attendee row, kept in step with OrganizerPersonID: made when missing; when the organizer changed,
+     * the new organizer's existing row is promoted and the old organizer's row becomes a Required attendee, so the
+     * database's one-row-per-person index is never crossed. These saves are the server's own, marked so.
+     */
     private async ensureOrganizerAttendee(): Promise<void> {
         const user = this.ContextCurrentUser;
         const rows = await RunView.FromMetadataProvider(this.metadataProvider).RunView<mjBizAppsTasksMeetingAttendeeEntity>(
-            { EntityName: MEETING_ATTENDEE_ENTITY, ExtraFilter: `MeetingID = '${this.ID}' AND Role = 'Organizer'`, ResultType: 'entity_object', MaxRows: 2 },
+            { EntityName: MEETING_ATTENDEE_ENTITY, ExtraFilter: `MeetingID = '${this.ID}'`, ResultType: 'entity_object', MaxRows: 1000 },
             user,
         );
         if (!rows.Success) throw new Error(rows.ErrorMessage);
-        const organizer = rows.Results[0];
-        if (organizer) {
-            if ((organizer.PersonID ?? '').toLowerCase() === this.OrganizerPersonID.toLowerCase()) return;
-            organizer.PersonID = this.OrganizerPersonID;
-            organizer.UserID = null; // the attendee server fills it from the new person
-            organizer.Email = null;
-            organizer.DisplayName = null;
-            if (!(await organizer.Save())) throw new Error(organizer.LatestResult?.Message ?? 'the organizer row was not updated');
+        const organizerId = this.OrganizerPersonID.toLowerCase();
+        const organizerRow = rows.Results.find((row) => row.Role === 'Organizer') ?? null;
+        const newOrganizerRow = rows.Results.find((row) => (row.PersonID ?? '').toLowerCase() === organizerId) ?? null;
+        if (organizerRow && (organizerRow.PersonID ?? '').toLowerCase() === organizerId) return;
+
+        if (organizerRow) {
+            // The old organizer stays on the meeting as an ordinary attendee
+            this.maintain(organizerRow);
+            if (newOrganizerRow) {
+                organizerRow.Role = 'Required';
+                if (!(await organizerRow.Save())) throw new Error(organizerRow.LatestResult?.Message ?? 'the former organizer\'s row was not updated');
+            } else {
+                organizerRow.PersonID = this.OrganizerPersonID;
+                organizerRow.UserID = null; // the attendee server fills it from the new person
+                organizerRow.Email = null;
+                organizerRow.DisplayName = null;
+                if (!(await organizerRow.Save())) throw new Error(organizerRow.LatestResult?.Message ?? 'the organizer row was not updated');
+                return;
+            }
+        }
+        if (newOrganizerRow) {
+            this.maintain(newOrganizerRow);
+            newOrganizerRow.Role = 'Organizer';
+            newOrganizerRow.ResponseStatus = 'Accepted';
+            if (!newOrganizerRow.RespondedAt) newOrganizerRow.RespondedAt = new Date();
+            if (!(await newOrganizerRow.Save())) throw new Error(newOrganizerRow.LatestResult?.Message ?? 'the organizer row was not promoted');
             return;
         }
         const row = await this.metadataProvider.GetEntityObject<mjBizAppsTasksMeetingAttendeeEntity>(MEETING_ATTENDEE_ENTITY, user);
+        this.maintain(row);
         row.NewRecord();
         row.MeetingID = this.ID;
         row.PersonID = this.OrganizerPersonID;
@@ -147,6 +187,11 @@ export class MeetingEntityServer extends mjBizAppsTasksMeetingEntity {
         row.RespondedAt = new Date();
         row.AttendanceStatus = 'Unknown';
         if (!(await row.Save())) throw new Error(row.LatestResult?.Message ?? 'the organizer row was not made');
+    }
+
+    /** Marks an attendee row as the meeting server's own save, so the attendee server's caller gate lets it through. */
+    private maintain(row: mjBizAppsTasksMeetingAttendeeEntity): void {
+        (row as mjBizAppsTasksMeetingAttendeeEntity & { MaintainedByMeetingServer?: boolean }).MaintainedByMeetingServer = true;
     }
 
     /** After the commit: the provider's copy of a cancelled meeting goes. Best effort, logged. */

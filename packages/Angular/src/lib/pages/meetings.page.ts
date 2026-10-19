@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LogError } from '@memberjunction/core';
@@ -53,9 +53,9 @@ type StatusFilter = 'open' | MeetingStatus | 'all';
                         <option value="Completed">Completed</option><option value="Cancelled">Cancelled</option><option value="Draft">Draft</option><option value="all">Any status</option>
                     </select>
                     <div class="mjt-seg" role="group" aria-label="When">
-                        <button type="button" [class.on]="when === 'upcoming'" (click)="setWhen('upcoming')">Upcoming</button>
-                        <button type="button" [class.on]="when === 'past'" (click)="setWhen('past')">Past</button>
-                        <button type="button" [class.on]="when === 'all'" (click)="setWhen('all')">All</button>
+                        <button type="button" [class.on]="when === 'upcoming'" [attr.aria-pressed]="when === 'upcoming'" (click)="setWhen('upcoming')">Upcoming</button>
+                        <button type="button" [class.on]="when === 'past'" [attr.aria-pressed]="when === 'past'" (click)="setWhen('past')">Past</button>
+                        <button type="button" [class.on]="when === 'all'" [attr.aria-pressed]="when === 'all'" (click)="setWhen('all')">All</button>
                     </div>
                 </div>
             </div>
@@ -76,7 +76,7 @@ type StatusFilter = 'open' | MeetingStatus | 'all';
         .filter-input { padding: 7px 10px; border: 1px solid var(--mj-border-strong, #cbd5e1); border-radius: var(--mj-radius-md, 8px); background: var(--mj-bg-surface-card, #fff); color: var(--mj-text-primary, #0f172a); font: inherit; font-size: 13px; min-width: 160px; }
     `],
 })
-export class MeetingsPageComponent implements OnInit {
+export class MeetingsPageComponent implements OnInit, OnDestroy {
     private readonly cdr = inject(ChangeDetectorRef);
     private readonly data = new MeetingData();
     public meetings: MeetingRow[] = [];
@@ -95,6 +95,10 @@ export class MeetingsPageComponent implements OnInit {
     public providers: VideoProviderOption[] = [];
     public typesWithTemplate: string[] = [];
     private reloadTimer: ReturnType<typeof setTimeout> | null = null;
+
+    ngOnDestroy(): void {
+        if (this.reloadTimer) clearTimeout(this.reloadTimer);
+    }
 
     async ngOnInit(): Promise<void> {
         try {

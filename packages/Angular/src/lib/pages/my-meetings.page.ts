@@ -40,8 +40,8 @@ import { NO_PERSON_MESSAGE } from '../current-person';
                     </div>
                     <div class="mjt-actions">
                         <div class="mjt-seg" role="group" aria-label="Which meetings">
-                            <button type="button" [class.on]="range === 'upcoming'" (click)="setRange('upcoming')">Upcoming</button>
-                            <button type="button" [class.on]="range === 'past'" (click)="setRange('past')">Past</button>
+                            <button type="button" [class.on]="range === 'upcoming'" [attr.aria-pressed]="range === 'upcoming'" (click)="setRange('upcoming')">Upcoming</button>
+                            <button type="button" [class.on]="range === 'past'" [attr.aria-pressed]="range === 'past'" (click)="setRange('past')">Past</button>
                         </div>
                         <button mjButton Variant="primary" Size="md" (click)="openNew()"><i class="fa-solid fa-plus"></i>New meeting</button>
                     </div>

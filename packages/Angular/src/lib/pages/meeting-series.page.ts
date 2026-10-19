@@ -39,8 +39,8 @@ import { MEETINGS_PAGE_CSS, OpenSeriesRecord } from './meetings-shared';
                     </div>
                     <div class="mjt-actions">
                         <div class="mjt-seg" role="group" aria-label="Which series">
-                            <button type="button" [class.on]="status === 'Active'" (click)="setStatus('Active')">Active</button>
-                            <button type="button" [class.on]="status === 'all'" (click)="setStatus('all')">All</button>
+                            <button type="button" [class.on]="status === 'Active'" [attr.aria-pressed]="status === 'Active'" (click)="setStatus('Active')">Active</button>
+                            <button type="button" [class.on]="status === 'all'" [attr.aria-pressed]="status === 'all'" (click)="setStatus('all')">All</button>
                         </div>
                         <button mjButton Variant="primary" Size="md" (click)="openNew()"><i class="fa-solid fa-plus"></i>New series</button>
                     </div>

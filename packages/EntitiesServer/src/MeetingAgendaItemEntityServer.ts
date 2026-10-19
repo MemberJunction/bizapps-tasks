@@ -9,12 +9,19 @@ const fail = (result: ValidationResult, field: string, message: string): Validat
     return result;
 };
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** An agenda item's parent is in the same meeting and the tree has no cycle (the meetings plan, § 3). */
 @RegisterClass(BaseEntity, MEETING_AGENDA_ITEM_ENTITY)
 export class MeetingAgendaItemEntityServer extends mjBizAppsTasksMeetingAgendaItemEntity {
     public override async ValidateAsync(): Promise<ValidationResult> {
         const result = await super.ValidateAsync();
         if (this.DurationMinutes != null && this.DurationMinutes < 0) return fail(result, 'DurationMinutes', 'An agenda item takes 0 or more minutes.');
+        // The ids below reach a filter before the database would refuse a malformed one: only a GUID passes
+        for (const field of ['MeetingID', 'ParentID', 'DeferredToMeetingID'] as const) {
+            const value = this[field];
+            if (value != null && value !== '' && !UUID.test(String(value))) return fail(result, field, `${field} is not an id.`);
+        }
         if (this.DeferredToMeetingID && this.DeferredToMeetingID.toLowerCase() === this.MeetingID.toLowerCase()) {
             return fail(result, 'DeferredToMeetingID', 'An item is deferred to a later meeting, not to its own.');
         }

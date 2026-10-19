@@ -35,7 +35,9 @@ const sameInstant = (a: Date | null | undefined, b: Date | null | undefined): bo
  * A series' occurrences (the meetings plan, § 3): real Meeting rows made ahead of time up to a horizon, each named by
  * its slot. Saving or changing a series calls this: a slot with no meeting gets one; a meeting that has not started and
  * was not moved or cancelled on its own takes the series' current values; one that was moved, started or cancelled is
- * left alone; and a future meeting whose slot the rule no longer produces is cancelled, unless it was changed on its own.
+ * left alone; a future meeting whose slot the rule no longer produces moves to the next slot that has none (the series'
+ * time changed), keeping its agenda, attendees and answers; and one with no slot to move to is cancelled, unless it was
+ * changed on its own.
  */
 /** The materialization in flight per series, so two saves close together run one after the other, never over each other. */
 const inFlight = new Map<string, Promise<MaterializeResult>>();
@@ -73,8 +75,16 @@ export class MeetingSeriesService {
         const attendees = await this.seriesAttendees(series.ID, contextUser);
         const links = await this.seriesLinks(series.ID, contextUser);
 
+        // A slot with no meeting of its own takes an untouched meeting whose slot the rule no longer produces, in order:
+        // the series' time moved, and the plan (§ 3) moves the meetings not yet held with it rather than cancelling them
+        const produced = new Set(slots.map((slot) => slot.occurrenceStartsAt.getTime()));
+        const movable = existing
+            .filter((row) => !produced.has(row.OccurrenceStartsAt?.getTime() ?? 0) && (row.OccurrenceStartsAt?.getTime() ?? 0) <= through.getTime() && this.isUntouched(row))
+            .sort((a, b) => (a.OccurrenceStartsAt?.getTime() ?? 0) - (b.OccurrenceStartsAt?.getTime() ?? 0));
+        const moved = new Set<string>();
+
         for (const slot of slots) {
-            const found = bySlot.get(slot.occurrenceStartsAt.getTime());
+            const found = bySlot.get(slot.occurrenceStartsAt.getTime()) ?? movable.shift() ?? null;
             if (!found) {
                 if (await this.createOccurrence(series, slot, attendees, links, contextUser)) result.created += 1;
                 continue;
@@ -82,6 +92,10 @@ export class MeetingSeriesService {
             if (this.isUntouched(found)) {
                 const meeting = await this.provider.GetEntityObject<mjBizAppsTasksMeetingEntity>(MEETING_ENTITY, contextUser);
                 if (await meeting.Load(found.ID)) {
+                    if (!sameInstant(meeting.OccurrenceStartsAt, slot.occurrenceStartsAt)) {
+                        meeting.OccurrenceStartsAt = slot.occurrenceStartsAt; // the slot names the occurrence: it moves with the series
+                        moved.add(found.ID.toLowerCase());
+                    }
                     this.copySeriesValues(series, meeting, slot.startsAt, slot.endsAt);
                     let changed = false;
                     if (meeting.Dirty) {
@@ -94,11 +108,10 @@ export class MeetingSeriesService {
                 }
             }
         }
-        // A future slot the rule no longer produces: cancelled when the meeting was never changed on its own
-        const produced = new Set(slots.map((slot) => slot.occurrenceStartsAt.getTime()));
+        // A future slot the rule no longer produces, with no new slot to move to: cancelled when the meeting was never changed on its own
         for (const row of existing) {
             const slotTime = row.OccurrenceStartsAt?.getTime() ?? 0;
-            if (produced.has(slotTime) || slotTime > through.getTime() || !this.isUntouched(row)) continue;
+            if (produced.has(slotTime) || slotTime > through.getTime() || !this.isUntouched(row) || moved.has(row.ID.toLowerCase())) continue;
             const meeting = await this.provider.GetEntityObject<mjBizAppsTasksMeetingEntity>(MEETING_ENTITY, contextUser);
             if (await meeting.Load(row.ID)) {
                 meeting.Status = 'Cancelled';
