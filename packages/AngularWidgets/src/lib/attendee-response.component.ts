@@ -42,7 +42,7 @@ export class AttendeeResponseComponent {
     @Input() AriaLabel = 'Your answer';
     @Output() ValueChange = new EventEmitter<ResponseStatus>();
 
-    public choose(next: ResponseStatus): void {
+    protected choose(next: ResponseStatus): void {
         if (this.Disabled || next === this.Value) return;
         this.ValueChange.emit(next);
     }

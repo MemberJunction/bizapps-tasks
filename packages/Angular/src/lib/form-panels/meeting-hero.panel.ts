@@ -74,25 +74,25 @@ import { OpenTaskRecord } from '../open-task-record';
 export class MeetingHeroPanel extends BaseFormPanel<mjBizAppsTasksMeetingEntity> implements OnInit {
     private readonly cdr = inject(ChangeDetectorRef);
     private readonly data = new MeetingData();
-    public detail: MeetingDetail | null = null;
-    public loadError = '';
-    public error = '';
-    public busy = false;
-    public askCancel = false;
-    public cancelReason = '';
-    public liveOpen = false;
+    protected detail: MeetingDetail | null = null;
+    protected loadError = '';
+    protected error = '';
+    protected busy = false;
+    protected askCancel = false;
+    protected cancelReason = '';
+    protected liveOpen = false;
 
     async ngOnInit(): Promise<void> {
         await this.reload();
     }
 
-    async reload(): Promise<void> {
+    protected async reload(): Promise<void> {
         if (!this.Record?.ID) return;
         try {
-            this.detail = await this.data.loadMeeting(this.Record.ID);
+            this.detail = await this.data.LoadMeeting(this.Record.ID);
             this.loadError = '';
         } catch (e) {
-            this.loadError = `The meeting could not be read: ${MeetingData.message(e)}`;
+            this.loadError = `The meeting could not be read: ${MeetingData.Message(e)}`;
             LogError(this.loadError);
         }
         this.cdr.markForCheck();
@@ -103,7 +103,7 @@ export class MeetingHeroPanel extends BaseFormPanel<mjBizAppsTasksMeetingEntity>
         try {
             await this.Record.Load(this.Record.ID);
         } catch (e) {
-            LogError(`Meetings: the form's record was not refreshed: ${MeetingData.message(e)}`);
+            LogError(`Meetings: the form's record was not refreshed: ${MeetingData.Message(e)}`);
         }
         await this.reload();
     }
@@ -115,82 +115,82 @@ export class MeetingHeroPanel extends BaseFormPanel<mjBizAppsTasksMeetingEntity>
         try {
             await work();
         } catch (e) {
-            this.error = MeetingData.message(e);
+            this.error = MeetingData.Message(e);
         } finally {
             this.busy = false;
             this.cdr.markForCheck();
         }
     }
 
-    start(): Promise<void> {
+    protected start(): Promise<void> {
         return this.run(async () => {
-            const result = await this.data.startMeeting(this.Record.ID);
+            const result = await this.data.StartMeeting(this.Record.ID);
             if (!result.ok) throw new Error(result.message ?? 'The meeting was not started.');
             await this.refreshRecord();
             this.liveOpen = true;
         });
     }
 
-    end(): Promise<void> {
+    protected end(): Promise<void> {
         return this.run(async () => {
-            const result = await this.data.endMeeting(this.Record.ID);
+            const result = await this.data.EndMeeting(this.Record.ID);
             if (!result.ok) throw new Error(result.message ?? 'The meeting was not ended.');
             this.liveOpen = false;
             await this.refreshRecord();
         });
     }
 
-    cancel(): Promise<void> {
+    protected cancel(): Promise<void> {
         return this.run(async () => {
-            const result = await this.data.cancelMeeting(this.Record.ID, this.cancelReason.trim() || null);
+            const result = await this.data.CancelMeeting(this.Record.ID, this.cancelReason.trim() || null);
             if (!result.ok) throw new Error(result.message ?? 'The meeting was not cancelled.');
             this.askCancel = false;
             await this.refreshRecord();
         });
     }
 
-    calendar(): Promise<void> {
+    protected calendar(): Promise<void> {
         return this.run(async () => {
-            const file = await this.data.calendarFile(this.Record.ID, this.detail?.row.status === 'Cancelled' ? 'CANCEL' : 'REQUEST');
+            const file = await this.data.CalendarFile(this.Record.ID, this.detail?.row.status === 'Cancelled' ? 'CANCEL' : 'REQUEST');
             downloadTextFile(file.fileName, file.content);
         });
     }
 
-    respond(response: ResponseStatus): Promise<void> {
+    protected respond(response: ResponseStatus): Promise<void> {
         return this.run(async () => {
-            await this.data.respondToMeeting(this.Record.ID, response);
+            await this.data.RespondToMeeting(this.Record.ID, response);
             await this.reload();
         });
     }
 
-    openSeries(seriesId: string): void {
+    protected openSeries(seriesId: string): void {
         OpenSeriesRecord(seriesId);
     }
 
-    liveItem(change: LiveItemChange): Promise<void> {
+    protected liveItem(change: LiveItemChange): Promise<void> {
         return this.run(async () => {
-            await this.data.setAgendaItemStatus(change.item.id, change.status, change.outcome);
+            await this.data.SetAgendaItemStatus(change.item.id, change.status, change.outcome);
             await this.reload();
         });
     }
 
-    liveAttendance(change: LiveAttendanceChange): Promise<void> {
+    protected liveAttendance(change: LiveAttendanceChange): Promise<void> {
         return this.run(async () => {
-            await this.data.markAttendance(change.attendee.id, change.attendance);
+            await this.data.MarkAttendance(change.attendee.id, change.attendance);
             await this.reload();
         });
     }
 
-    liveNote(note: LiveQuickNote): Promise<void> {
+    protected liveNote(note: LiveQuickNote): Promise<void> {
         return this.run(async () => {
-            await this.data.saveNote(this.Record.ID, { id: null, agendaItemId: note.item?.id ?? null, kind: 'Notes', title: '', body: note.body, status: 'Draft' });
+            await this.data.SaveNote(this.Record.ID, { id: null, agendaItemId: note.item?.id ?? null, kind: 'Notes', title: '', body: note.body, status: 'Draft' });
             await this.reload();
         });
     }
 
-    liveFollowUp(followUp: LiveFollowUp): Promise<void> {
+    protected liveFollowUp(followUp: LiveFollowUp): Promise<void> {
         return this.run(async () => {
-            const taskId = await this.data.addFollowUp(this.Record.ID, { name: followUp.name, agendaItemId: followUp.item?.id ?? null, assigneePersonId: null, dueAt: null });
+            const taskId = await this.data.AddFollowUp(this.Record.ID, { name: followUp.name, agendaItemId: followUp.item?.id ?? null, assigneePersonId: null, dueAt: null });
             await this.reload();
             if (!this.liveOpen) OpenTaskRecord(taskId);
         });

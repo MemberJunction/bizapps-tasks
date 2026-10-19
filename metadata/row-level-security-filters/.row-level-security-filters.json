@@ -32,5 +32,33 @@
     "primaryKey": {
       "ID": "AB856DE4-9F70-4A17-8E6D-1C1C24142E9C"
     }
+  },
+  {
+    "fields": {
+      "Name": "Tasks: Visible Meeting Series",
+      "Description": "A Standard series, or a Private series the caller organizes (through their user's link to a Person, or the Person's deprecated LinkedUserID) or is invited to.",
+      "FilterText": "(Visibility = N'Standard' OR OrganizerPersonID IN (SELECT TRY_CAST(LinkedEntityRecordID AS UNIQUEIDENTIFIER) FROM [__mj].[vwUsers] WHERE ID = TRY_CAST('{{UserID}}' AS UNIQUEIDENTIFIER)) OR OrganizerPersonID IN (SELECT ID FROM [__mj_BizAppsCommon].[vwPeople] WHERE LinkedUserID = TRY_CAST('{{UserID}}' AS UNIQUEIDENTIFIER)) OR ID IN (SELECT SeriesID FROM [__mj_BizAppsTasks].[vwMeetingSeriesAttendees] WHERE UserID = TRY_CAST('{{UserID}}' AS UNIQUEIDENTIFIER)))"
+    },
+    "primaryKey": {
+      "ID": "3C7D9A1E-5B2F-4E8A-9D6C-1F0E2A3B4C5D"
+    },
+    "sync": {
+      "lastModified": "2026-10-19T20:17:43.733Z",
+      "checksum": "10f8191d73cb403ba391713695d5e873cd97ab13e999ef94218e8014dd1ca926"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Tasks: Visible Meeting Series Attendees",
+      "Description": "Who a series invites, for a series the caller may see.",
+      "FilterText": "(SeriesID IN (SELECT ID FROM [__mj_BizAppsTasks].[vwMeetingSeries] WHERE Visibility = N'Standard' OR OrganizerPersonID IN (SELECT TRY_CAST(LinkedEntityRecordID AS UNIQUEIDENTIFIER) FROM [__mj].[vwUsers] WHERE ID = TRY_CAST('{{UserID}}' AS UNIQUEIDENTIFIER)) OR OrganizerPersonID IN (SELECT ID FROM [__mj_BizAppsCommon].[vwPeople] WHERE LinkedUserID = TRY_CAST('{{UserID}}' AS UNIQUEIDENTIFIER)) OR ID IN (SELECT SeriesID FROM [__mj_BizAppsTasks].[vwMeetingSeriesAttendees] WHERE UserID = TRY_CAST('{{UserID}}' AS UNIQUEIDENTIFIER))))"
+    },
+    "primaryKey": {
+      "ID": "8E2F4B6D-0A1C-4D3E-B5F7-2C9A8B7D6E5F"
+    },
+    "sync": {
+      "lastModified": "2026-10-19T20:17:43.764Z",
+      "checksum": "0fb672456e85b5c4c920749178addc31ff37608ff9f5067112b89ce41333682a"
+    }
   }
 ]

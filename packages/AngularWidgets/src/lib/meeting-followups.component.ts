@@ -81,28 +81,28 @@ export class MeetingFollowUpsComponent {
     @Output() AddRequested = new EventEmitter<FollowUpDraft>();
     @Output() OpenRequested = new EventEmitter<FollowUpModel>();
 
-    public draft: FollowUpDraft | null = null;
-    public dueValue = '';
+    protected draft: FollowUpDraft | null = null;
+    protected dueValue = '';
 
-    public openDraft(agendaItemId: string | null = this.DefaultAgendaItemID): void {
+    protected openDraft(agendaItemId: string | null = this.DefaultAgendaItemID): void {
         this.draft = { name: '', agendaItemId, assigneePersonId: null, dueAt: null };
         this.dueValue = '';
     }
 
-    public setDue(value: string): void {
+    protected setDue(value: string): void {
         this.dueValue = value;
         if (!this.draft) return;
         const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value ?? '');
         this.draft.dueAt = match ? new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 17, 0, 0)) : null;
     }
 
-    public submit(): void {
+    protected submit(): void {
         if (!this.draft?.name.trim()) return;
         this.AddRequested.emit({ ...this.draft, name: this.draft.name.trim() });
         this.draft = null;
     }
 
-    public statusClass(status: string): string {
+    protected statusClass(status: string): string {
         switch (status) {
             case 'Completed':
                 return 'mjt-chip mjt-chip--ok';
@@ -117,11 +117,11 @@ export class MeetingFollowUpsComponent {
         }
     }
 
-    public dueLabel(task: FollowUpModel): string {
+    protected dueLabel(task: FollowUpModel): string {
         return task.dueAt ? formatDay(task.dueAt, this.ViewerZone) : '';
     }
 
-    public itemName(id: string): string {
+    protected itemName(id: string): string {
         return this.AgendaItems.find((item) => item.id.toLowerCase() === id.toLowerCase())?.name ?? 'an item';
     }
 }

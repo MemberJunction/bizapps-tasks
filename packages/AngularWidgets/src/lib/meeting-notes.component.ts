@@ -86,21 +86,21 @@ export class MeetingNotesComponent {
     @Output() SaveRequested = new EventEmitter<NoteDraft>();
     @Output() DeleteRequested = new EventEmitter<NoteModel>();
 
-    public draft: NoteDraft | null = null;
+    protected draft: NoteDraft | null = null;
 
-    public openDraft(note: NoteModel | null, kind: NoteKind = 'Notes'): void {
+    protected openDraft(note: NoteModel | null, kind: NoteKind = 'Notes'): void {
         this.draft = note
             ? { id: note.id, agendaItemId: note.agendaItemId, kind: note.kind, title: note.title ?? '', body: note.body, status: note.status }
             : { id: null, agendaItemId: this.DefaultAgendaItemID, kind, title: '', body: '', status: 'Draft' };
     }
 
-    public submit(): void {
+    protected submit(): void {
         if (!this.draft?.body.trim()) return;
         this.SaveRequested.emit({ ...this.draft, title: this.draft.title.trim(), body: this.draft.body.trim() });
         this.draft = null;
     }
 
-    public itemName(id: string): string {
+    protected itemName(id: string): string {
         return this.AgendaItems.find((item) => item.id.toLowerCase() === id.toLowerCase())?.name ?? 'an item';
     }
 }

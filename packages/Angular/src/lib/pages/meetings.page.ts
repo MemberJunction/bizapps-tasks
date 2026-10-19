@@ -79,21 +79,21 @@ type StatusFilter = 'open' | MeetingStatus | 'all';
 export class MeetingsPageComponent implements OnInit, OnDestroy {
     private readonly cdr = inject(ChangeDetectorRef);
     private readonly data = new MeetingData();
-    public meetings: MeetingRow[] = [];
-    public loading = true;
-    public error = '';
-    public search = '';
-    public typeId: string | null = null;
-    public status: StatusFilter = 'open';
-    public when: 'upcoming' | 'past' | 'all' = 'upcoming';
-    public newOpen = false;
-    public saving = false;
-    public saveError = '';
-    public draft: NewMeetingDraft = emptyMeetingDraft(viewerTimeZone());
-    public types: MeetingTypeOption[] = [];
-    public people: PersonOption[] = [];
+    protected meetings: MeetingRow[] = [];
+    protected loading = true;
+    protected error = '';
+    protected search = '';
+    protected typeId: string | null = null;
+    protected status: StatusFilter = 'open';
+    protected when: 'upcoming' | 'past' | 'all' = 'upcoming';
+    protected newOpen = false;
+    protected saving = false;
+    protected saveError = '';
+    protected draft: NewMeetingDraft = emptyMeetingDraft(viewerTimeZone());
+    protected types: MeetingTypeOption[] = [];
+    protected people: PersonOption[] = [];
     public providers: VideoProviderOption[] = [];
-    public typesWithTemplate: string[] = [];
+    protected typesWithTemplate: string[] = [];
     private reloadTimer: ReturnType<typeof setTimeout> | null = null;
 
     ngOnDestroy(): void {
@@ -102,26 +102,26 @@ export class MeetingsPageComponent implements OnInit, OnDestroy {
 
     async ngOnInit(): Promise<void> {
         try {
-            this.types = await this.data.loadTypes();
-            this.typesWithTemplate = this.data.typesWithTemplate();
+            this.types = await this.data.LoadTypes();
+            this.typesWithTemplate = this.data.TypesWithTemplate();
         } catch (e) {
-            LogError(`Meetings: the types could not be read: ${MeetingData.message(e)}`);
+            LogError(`Meetings: the types could not be read: ${MeetingData.Message(e)}`);
         }
         await this.load();
     }
 
-    reload(): void {
+    protected reload(): void {
         if (this.reloadTimer) clearTimeout(this.reloadTimer);
         this.reloadTimer = setTimeout(() => void this.load(), 250);
     }
 
-    setWhen(when: 'upcoming' | 'past' | 'all'): void {
+    protected setWhen(when: 'upcoming' | 'past' | 'all'): void {
         if (this.when === when) return;
         this.when = when;
         void this.load();
     }
 
-    async load(): Promise<void> {
+    protected async load(): Promise<void> {
         this.loading = true;
         this.error = '';
         this.cdr.markForCheck();
@@ -132,9 +132,9 @@ export class MeetingsPageComponent implements OnInit, OnDestroy {
             if (this.status === 'open') filters.push(`Status NOT IN ('Cancelled', 'Completed')`);
             else if (this.status !== 'all') filters.push(`Status = '${this.status}'`);
             const now = new Date();
-            this.meetings = await this.data.loadMeetingRows({ mine: false, from: this.when === 'upcoming' ? now : null, through: this.when === 'past' ? now : null, extraFilter: filters.join(' AND ') || undefined });
+            this.meetings = await this.data.LoadMeetingRows({ mine: false, from: this.when === 'upcoming' ? now : null, through: this.when === 'past' ? now : null, extraFilter: filters.join(' AND ') || undefined });
         } catch (e) {
-            this.error = `The meetings could not be read: ${MeetingData.message(e)}`;
+            this.error = `The meetings could not be read: ${MeetingData.Message(e)}`;
             LogError(this.error);
         } finally {
             this.loading = false;
@@ -142,34 +142,34 @@ export class MeetingsPageComponent implements OnInit, OnDestroy {
         }
     }
 
-    open(meeting: MeetingRow): void {
+    protected open(meeting: MeetingRow): void {
         OpenMeetingRecord(meeting.id);
     }
 
-    async openNew(): Promise<void> {
+    protected async openNew(): Promise<void> {
         this.saveError = '';
         this.draft = emptyMeetingDraft(viewerTimeZone());
         this.newOpen = true;
         this.cdr.markForCheck();
         try {
-            [this.people, this.providers] = await Promise.all([this.data.loadPeople(), this.data.loadVideoProviders()]);
+            [this.people, this.providers] = await Promise.all([this.data.LoadPeople(), this.data.LoadVideoProviders()]);
         } catch (e) {
-            this.saveError = `The form's choices could not be read: ${MeetingData.message(e)}`;
+            this.saveError = `The form's choices could not be read: ${MeetingData.Message(e)}`;
         }
         this.cdr.markForCheck();
     }
 
-    async create(draft: NewMeetingDraft): Promise<void> {
+    protected async create(draft: NewMeetingDraft): Promise<void> {
         this.saving = true;
         this.saveError = '';
         this.cdr.markForCheck();
         try {
-            const meeting = await this.data.createMeeting(draft);
+            const meeting = await this.data.CreateMeeting(draft);
             this.newOpen = false;
             await this.load();
             OpenMeetingRecord(meeting.ID);
         } catch (e) {
-            this.saveError = MeetingData.message(e);
+            this.saveError = MeetingData.Message(e);
         } finally {
             this.saving = false;
             this.cdr.markForCheck();

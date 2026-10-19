@@ -65,36 +65,36 @@ import { NO_PERSON_MESSAGE } from '../current-person';
 export class MyMeetingsPageComponent implements OnInit {
     private readonly cdr = inject(ChangeDetectorRef);
     private readonly data = new MeetingData();
-    public meetings: MeetingRow[] = [];
-    public loading = true;
-    public error = '';
-    public busyId: string | null = null;
-    public range: 'upcoming' | 'past' = 'upcoming';
+    protected meetings: MeetingRow[] = [];
+    protected loading = true;
+    protected error = '';
+    protected busyId: string | null = null;
+    protected range: 'upcoming' | 'past' = 'upcoming';
     public NoPerson = false;
     public readonly NoPersonMessage = NO_PERSON_MESSAGE;
-    public newOpen = false;
-    public saving = false;
-    public saveError = '';
-    public draft: NewMeetingDraft = emptyMeetingDraft(viewerTimeZone());
-    public types: MeetingTypeOption[] = [];
-    public people: PersonOption[] = [];
+    protected newOpen = false;
+    protected saving = false;
+    protected saveError = '';
+    protected draft: NewMeetingDraft = emptyMeetingDraft(viewerTimeZone());
+    protected types: MeetingTypeOption[] = [];
+    protected people: PersonOption[] = [];
     public providers: VideoProviderOption[] = [];
-    public typesWithTemplate: string[] = [];
+    protected typesWithTemplate: string[] = [];
 
     async ngOnInit(): Promise<void> {
-        this.NoPerson = (await this.data.currentPersonId()) === null;
+        this.NoPerson = (await this.data.CurrentPersonId()) === null;
         await this.load();
     }
 
-    async load(): Promise<void> {
+    protected async load(): Promise<void> {
         this.loading = true;
         this.error = '';
         this.cdr.markForCheck();
         try {
             const now = new Date();
-            this.meetings = await this.data.loadMeetingRows(this.range === 'upcoming' ? { mine: true, from: now } : { mine: true, through: now });
+            this.meetings = await this.data.LoadMeetingRows(this.range === 'upcoming' ? { mine: true, from: now } : { mine: true, through: now });
         } catch (e) {
-            this.error = `Your meetings could not be read: ${MeetingData.message(e)}`;
+            this.error = `Your meetings could not be read: ${MeetingData.Message(e)}`;
             LogError(this.error);
         } finally {
             this.loading = false;
@@ -102,55 +102,55 @@ export class MyMeetingsPageComponent implements OnInit {
         }
     }
 
-    setRange(range: 'upcoming' | 'past'): void {
+    protected setRange(range: 'upcoming' | 'past'): void {
         if (this.range === range) return;
         this.range = range;
         void this.load();
     }
 
-    open(meeting: MeetingRow): void {
+    protected open(meeting: MeetingRow): void {
         OpenMeetingRecord(meeting.id);
     }
 
-    async respond(change: MeetingResponseChange): Promise<void> {
+    protected async respond(change: MeetingResponseChange): Promise<void> {
         this.busyId = change.meeting.id;
         this.cdr.markForCheck();
         try {
-            await this.data.respondToMeeting(change.meeting.id, change.response);
+            await this.data.RespondToMeeting(change.meeting.id, change.response);
             this.meetings = this.meetings.map((m) => (m.id === change.meeting.id ? { ...m, myResponse: change.response } : m));
         } catch (e) {
-            this.error = `Your answer was not saved: ${MeetingData.message(e)}`;
+            this.error = `Your answer was not saved: ${MeetingData.Message(e)}`;
         } finally {
             this.busyId = null;
             this.cdr.markForCheck();
         }
     }
 
-    async openNew(): Promise<void> {
+    protected async openNew(): Promise<void> {
         this.saveError = '';
         this.draft = emptyMeetingDraft(viewerTimeZone());
         this.newOpen = true;
         this.cdr.markForCheck();
         try {
-            [this.types, this.people, this.providers] = await Promise.all([this.data.loadTypes(), this.data.loadPeople(), this.data.loadVideoProviders()]);
-            this.typesWithTemplate = this.data.typesWithTemplate();
+            [this.types, this.people, this.providers] = await Promise.all([this.data.LoadTypes(), this.data.LoadPeople(), this.data.LoadVideoProviders()]);
+            this.typesWithTemplate = this.data.TypesWithTemplate();
         } catch (e) {
-            this.saveError = `The form's choices could not be read: ${MeetingData.message(e)}`;
+            this.saveError = `The form's choices could not be read: ${MeetingData.Message(e)}`;
         }
         this.cdr.markForCheck();
     }
 
-    async create(draft: NewMeetingDraft): Promise<void> {
+    protected async create(draft: NewMeetingDraft): Promise<void> {
         this.saving = true;
         this.saveError = '';
         this.cdr.markForCheck();
         try {
-            const meeting = await this.data.createMeeting(draft);
+            const meeting = await this.data.CreateMeeting(draft);
             this.newOpen = false;
             await this.load();
             OpenMeetingRecord(meeting.ID);
         } catch (e) {
-            this.saveError = MeetingData.message(e);
+            this.saveError = MeetingData.Message(e);
         } finally {
             this.saving = false;
             this.cdr.markForCheck();

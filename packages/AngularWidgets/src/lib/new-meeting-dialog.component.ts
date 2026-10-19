@@ -113,8 +113,8 @@ export class NewMeetingFormComponent implements OnChanges {
     @Output() SubmitRequested = new EventEmitter<NewMeetingDraft>();
     @Output() CancelRequested = new EventEmitter<void>();
 
-    public draft: NewMeetingDraft = emptyMeetingDraft(viewerTimeZone());
-    public guest = '';
+    protected draft: NewMeetingDraft = emptyMeetingDraft(viewerTimeZone());
+    protected guest = '';
     public readonly Zones: string[] = typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : [];
 
     ngOnChanges(changes: SimpleChanges): void {
@@ -125,11 +125,11 @@ export class NewMeetingFormComponent implements OnChanges {
         return isValidTimeZone(this.draft.timeZone);
     }
 
-    public get startsValue(): string {
+    protected get startsValue(): string {
         return toLocalInputValue(this.draft.startsAt, this.ZoneOk ? this.draft.timeZone : 'UTC');
     }
 
-    public setStarts(value: string): void {
+    protected setStarts(value: string): void {
         const instant = fromLocalInputValue(value, this.ZoneOk ? this.draft.timeZone : 'UTC');
         if (instant) this.draft.startsAt = instant;
     }
@@ -138,33 +138,33 @@ export class NewMeetingFormComponent implements OnChanges {
         return !!this.draft.typeId && this.TypesWithTemplate.some((id) => id.toLowerCase() === this.draft.typeId!.toLowerCase());
     }
 
-    public typeChosen(): void {
+    protected typeChosen(): void {
         const type = this.Types.find((t) => t.id === this.draft.typeId);
         if (type?.defaultDurationMinutes) this.draft.durationMinutes = type.defaultDurationMinutes;
         if (type?.defaultLocationType) this.draft.locationType = type.defaultLocationType;
         if (type?.defaultVisibility) this.draft.visibility = type.defaultVisibility;
     }
 
-    public personName(id: string): string {
+    protected personName(id: string): string {
         return this.People.find((p) => p.id === id)?.name ?? id;
     }
 
-    public addPerson(id: string | null): void {
+    protected addPerson(id: string | null): void {
         if (id && !this.draft.attendeePersonIds.includes(id)) this.draft.attendeePersonIds = [...this.draft.attendeePersonIds, id];
     }
 
-    public removePerson(id: string): void {
+    protected removePerson(id: string): void {
         this.draft.attendeePersonIds = this.draft.attendeePersonIds.filter((p) => p !== id);
     }
 
-    public addGuest(): void {
+    protected addGuest(): void {
         const email = this.guest.trim().toLowerCase();
         if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
         if (!this.draft.guestEmails.includes(email)) this.draft.guestEmails = [...this.draft.guestEmails, email];
         this.guest = '';
     }
 
-    public removeGuest(email: string): void {
+    protected removeGuest(email: string): void {
         this.draft.guestEmails = this.draft.guestEmails.filter((g) => g !== email);
     }
 
@@ -172,7 +172,7 @@ export class NewMeetingFormComponent implements OnChanges {
         return !!this.draft.name.trim() && this.ZoneOk && this.draft.durationMinutes > 0;
     }
 
-    public submit(): void {
+    protected submit(): void {
         if (!this.CanSubmit) return;
         this.SubmitRequested.emit({ ...this.draft, name: this.draft.name.trim(), location: this.draft.location.trim(), joinUrl: this.draft.joinUrl.trim() });
     }

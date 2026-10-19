@@ -179,11 +179,11 @@ export class MeetingLiveComponent implements OnChanges, OnDestroy {
     @Output() EndRequested = new EventEmitter<void>();
     @Output() CloseRequested = new EventEmitter<void>();
 
-    public index = 0;
-    public outcome = '';
-    public quickNote = '';
-    public followUp = '';
-    public now = new Date();
+    protected index = 0;
+    protected outcome = '';
+    protected quickNote = '';
+    protected followUp = '';
+    protected now = new Date();
     private itemClockFrom = new Date();
     private ticker: ReturnType<typeof setInterval> | null = null;
     public readonly formatMinutes = formatMinutes;
@@ -231,46 +231,46 @@ export class MeetingLiveComponent implements OnChanges, OnDestroy {
         this.cdr.markForCheck();
     }
 
-    public resetItemClock(): void {
+    protected resetItemClock(): void {
         this.itemClockFrom = new Date();
         this.outcome = this.Current?.outcome ?? '';
     }
 
-    public go(delta: -1 | 1): void {
+    protected go(delta: -1 | 1): void {
         const next = this.index + delta;
         if (next < 0 || next >= this.Tree.length) return;
         this.index = next;
         this.resetItemClock();
     }
 
-    public isOver(item: AgendaItemModel): boolean {
+    protected isOver(item: AgendaItemModel): boolean {
         return item.durationMinutes != null && elapsedSince(item.startedAt ?? (item.status === 'InProgress' ? this.itemClockFrom : null), this.now) > item.durationMinutes * 60;
     }
 
-    public plannedLabel(item: AgendaItemModel): string {
+    protected plannedLabel(item: AgendaItemModel): string {
         return formatMinutes(item.durationMinutes);
     }
 
-    public finish(item: AgendaItemModel): void {
+    protected finish(item: AgendaItemModel): void {
         this.ItemChanged.emit({ item, status: 'Done', outcome: this.outcome.trim() || null });
         if (this.index < this.Tree.length - 1) this.go(1);
     }
 
-    public sendNote(item: AgendaItemModel | null): void {
+    protected sendNote(item: AgendaItemModel | null): void {
         const body = this.quickNote.trim();
         if (!body) return;
         this.NoteRequested.emit({ item, body });
         this.quickNote = '';
     }
 
-    public sendFollowUp(item: AgendaItemModel | null): void {
+    protected sendFollowUp(item: AgendaItemModel | null): void {
         const name = this.followUp.trim();
         if (!name) return;
         this.FollowUpRequested.emit({ item, name });
         this.followUp = '';
     }
 
-    public iconFor(status: AgendaItemStatus): string {
+    protected iconFor(status: AgendaItemStatus): string {
         switch (status) {
             case 'Done':
                 return 'fa-solid fa-circle-check';

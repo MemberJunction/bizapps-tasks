@@ -127,23 +127,23 @@ export class MeetingListComponent {
         return groupMeetingsByDay(this.Meetings, this.ViewerZone, this.Order);
     }
 
-    public timeOf(meeting: MeetingRow): string {
+    protected timeOf(meeting: MeetingRow): string {
         return formatTime(meeting.startsAt, this.ViewerZone);
     }
 
-    public spanOf(meeting: MeetingRow): string {
+    protected spanOf(meeting: MeetingRow): string {
         return formatSpan(meeting.startsAt, meeting.endsAt, this.ViewerZone);
     }
 
-    public zoneDiffers(meeting: MeetingRow): boolean {
+    protected zoneDiffers(meeting: MeetingRow): boolean {
         return zoneAbbreviation(meeting.startsAt, meeting.timeZone) !== zoneAbbreviation(meeting.startsAt, this.ViewerZone);
     }
 
-    public ownZoneTime(meeting: MeetingRow): string {
+    protected ownZoneTime(meeting: MeetingRow): string {
         return `${formatTime(meeting.startsAt, meeting.timeZone)} ${zoneAbbreviation(meeting.startsAt, meeting.timeZone)} there`;
     }
 
-    public whereOf(meeting: MeetingRow): string {
+    protected whereOf(meeting: MeetingRow): string {
         return locationLabel(meeting.locationType, meeting.location, meeting.joinUrl);
     }
 }

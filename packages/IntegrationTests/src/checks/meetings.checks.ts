@@ -356,6 +356,54 @@ const checks: NamedCheck[] = [
         },
     },
     {
+        Id: 'meetings.M7',
+        Name: 'M7 — a Private series is read by its organizer and its invitees only: a UI user not invited reads neither the series nor who it invites, an invited one reads both; a Standard series is read by all',
+        RequiresMutation: true,
+        Fn: async (ctx: IntegrationCheckContext) => {
+            const world = await LoadMeetingWorld(ctx);
+            let privateId: string | null = null;
+            let standardId: string | null = null;
+            const makeSeries = async (name: string, visibility: 'Private' | 'Standard'): Promise<string> => {
+                const series = await ctx.Provider.GetEntityObject<mjBizAppsTasksMeetingSeriesEntity>(MEETING_SERIES_ENTITY, ctx.User);
+                series.NewRecord();
+                series.Name = name;
+                series.OrganizerPersonID = world.ivy.personId;
+                series.RecurrenceRule = 'FREQ=WEEKLY;COUNT=2';
+                series.TimeZone = 'America/Chicago';
+                series.FirstStartsAt = nextWeek();
+                series.DurationMinutes = 30;
+                series.LocationType = 'Virtual';
+                series.Visibility = visibility;
+                series.Status = 'Cancelled'; // no occurrences are made: the series rows are what this check reads
+                await RequireSave(series, `the ${visibility} series`);
+                return series.ID;
+            };
+            try {
+                privateId = await makeSeries(`${MARK} private series`, 'Private');
+                standardId = await makeSeries(`${MARK} open series`, 'Standard');
+                const asIvy = await getPersonaContext(ctx, world.ivy.email);
+                const asJun = await getPersonaContext(ctx, world.jun.email);
+                Assert((await FindRows<{ ID: string }>(asIvy, MEETING_SERIES_ENTITY, `ID = '${privateId}'`, ['ID'])).length === 1, 'the organizer reads her private series');
+                Assert((await FindRows<{ ID: string }>(asJun, MEETING_SERIES_ENTITY, `ID = '${privateId}'`, ['ID'])).length === 0, 'a UI user who is not invited does not read it');
+                Assert((await FindRows<{ ID: string }>(asJun, MEETING_SERIES_ATTENDEE_ENTITY, `SeriesID = '${privateId}'`, ['ID'])).length === 0, 'nor who it invites');
+                Assert((await FindRows<{ ID: string }>(asJun, MEETING_SERIES_ENTITY, `ID = '${standardId}'`, ['ID'])).length === 1, 'a Standard series is read by anyone who reads series');
+
+                const invite = await ctx.Provider.GetEntityObject<mjBizAppsTasksMeetingSeriesAttendeeEntity>(MEETING_SERIES_ATTENDEE_ENTITY, ctx.User);
+                invite.NewRecord();
+                invite.SeriesID = privateId;
+                invite.PersonID = world.jun.personId;
+                invite.Role = 'Required';
+                await RequireSave(invite, 'the invitation to the private series');
+                Assert((await FindRows<{ ID: string }>(asJun, MEETING_SERIES_ENTITY, `ID = '${privateId}'`, ['ID'], { BypassCache: true })).length === 1, 'once invited, he reads the series');
+                Assert((await FindRows<{ ID: string }>(asJun, MEETING_SERIES_ATTENDEE_ENTITY, `SeriesID = '${privateId}'`, ['ID'], { BypassCache: true })).length === 1, 'and who it invites');
+            } finally {
+                await cleanupPersonaProviders(ctx);
+                if (privateId) await deleteSeries(ctx, privateId);
+                if (standardId) await deleteSeries(ctx, standardId);
+            }
+        },
+    },
+    {
         Id: 'meetings.M5',
         Name: 'M5 — cancelling a meeting stamps it and, after the commit, tells the video provider\'s driver to delete the provider\'s meeting',
         RequiresMutation: true,

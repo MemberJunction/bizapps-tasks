@@ -53,10 +53,10 @@ abstract class MeetingSectionPanel extends BaseFormPanel<mjBizAppsTasksMeetingEn
     async reload(): Promise<void> {
         if (!this.meetingId) return;
         try {
-            this.detail = await this.data.loadMeeting(this.meetingId);
-            if (!this.people.length && this.wantsPeople) this.people = await this.data.loadPeople();
+            this.detail = await this.data.LoadMeeting(this.meetingId);
+            if (!this.people.length && this.wantsPeople) this.people = await this.data.LoadPeople();
         } catch (e) {
-            this.error = `This section could not be read: ${MeetingData.message(e)}`;
+            this.error = `This section could not be read: ${MeetingData.Message(e)}`;
             LogError(this.error);
         }
         this.cdr.markForCheck();
@@ -74,7 +74,7 @@ abstract class MeetingSectionPanel extends BaseFormPanel<mjBizAppsTasksMeetingEn
             await work();
             await this.reload();
         } catch (e) {
-            this.error = MeetingData.message(e);
+            this.error = MeetingData.Message(e);
         } finally {
             this.busy = false;
             this.cdr.markForCheck();
@@ -100,7 +100,7 @@ abstract class MeetingSectionPanel extends BaseFormPanel<mjBizAppsTasksMeetingEn
     styleUrls: ['./task-form.css'],
 })
 export class MeetingAgendaPanel extends MeetingSectionPanel {
-    public itemTypes: AgendaItemTypeOption[] = [];
+    protected itemTypes: AgendaItemTypeOption[] = [];
 
     protected override get wantsPeople(): boolean {
         return true;
@@ -109,37 +109,37 @@ export class MeetingAgendaPanel extends MeetingSectionPanel {
     override async ngOnInit(): Promise<void> {
         await super.ngOnInit();
         try {
-            this.itemTypes = await this.data.loadAgendaItemTypes();
+            this.itemTypes = await this.data.LoadAgendaItemTypes();
         } catch (e) {
-            LogError(`Meetings: the agenda item types could not be read: ${MeetingData.message(e)}`);
+            LogError(`Meetings: the agenda item types could not be read: ${MeetingData.Message(e)}`);
         }
         this.cdr.markForCheck();
     }
 
-    minutes(row: MeetingRow): number {
+    protected minutes(row: MeetingRow): number {
         return Math.round((row.endsAt.getTime() - row.startsAt.getTime()) / 60000);
     }
 
-    save(draft: AgendaItemDraft): Promise<void> {
-        return this.run(() => this.data.saveAgendaItem(this.meetingId, draft, this.detail?.agenda ?? []));
+    protected save(draft: AgendaItemDraft): Promise<void> {
+        return this.run(() => this.data.SaveAgendaItem(this.meetingId, draft, this.detail?.agenda ?? []));
     }
 
-    remove(item: AgendaItemModel): Promise<void> {
-        return this.run(() => this.data.removeAgendaItem(item.id));
+    protected remove(item: AgendaItemModel): Promise<void> {
+        return this.run(() => this.data.RemoveAgendaItem(item.id));
     }
 
-    reorder(change: AgendaReorder): Promise<void> {
-        return this.run(() => this.data.reorderAgenda(this.meetingId, change.orderedIds));
+    protected reorder(change: AgendaReorder): Promise<void> {
+        return this.run(() => this.data.ReorderAgenda(this.meetingId, change.orderedIds));
     }
 
-    move(change: AgendaMove): Promise<void> {
-        return this.run(() => this.data.moveAgendaItem(change.item.id, change.parentId, this.detail?.agenda ?? []));
+    protected move(change: AgendaMove): Promise<void> {
+        return this.run(() => this.data.MoveAgendaItem(change.item.id, change.parentId, this.detail?.agenda ?? []));
     }
 
     template(): Promise<void> {
         return this.run(async () => {
             if (!this.detail?.typeId) throw new Error('The meeting has no type, so there is no template.');
-            await this.data.applyTemplate(this.meetingId, this.detail.typeId);
+            await this.data.ApplyTemplate(this.meetingId, this.detail.typeId);
         });
     }
 }
@@ -166,16 +166,16 @@ export class MeetingPeoplePanel extends MeetingSectionPanel {
         return true;
     }
 
-    invite(request: InviteRequest): Promise<void> {
-        return this.run(() => this.data.invite(this.meetingId, request));
+    protected invite(request: InviteRequest): Promise<void> {
+        return this.run(() => this.data.Invite(this.meetingId, request));
     }
 
-    remove(attendee: { id: string }): Promise<void> {
-        return this.run(() => this.data.removeAttendee(attendee.id));
+    protected remove(attendee: { id: string }): Promise<void> {
+        return this.run(() => this.data.RemoveAttendee(attendee.id));
     }
 
-    attendance(change: AttendanceChange): Promise<void> {
-        return this.run(() => this.data.markAttendance(change.attendee.id, change.attendance));
+    protected attendance(change: AttendanceChange): Promise<void> {
+        return this.run(() => this.data.MarkAttendance(change.attendee.id, change.attendance));
     }
 }
 
@@ -197,12 +197,12 @@ export class MeetingPeoplePanel extends MeetingSectionPanel {
     styleUrls: ['./task-form.css'],
 })
 export class MeetingNotesPanel extends MeetingSectionPanel {
-    save(draft: NoteDraft): Promise<void> {
-        return this.run(() => this.data.saveNote(this.meetingId, draft));
+    protected save(draft: NoteDraft): Promise<void> {
+        return this.run(() => this.data.SaveNote(this.meetingId, draft));
     }
 
-    remove(note: NoteModel): Promise<void> {
-        return this.run(() => this.data.deleteNote(note.id));
+    protected remove(note: NoteModel): Promise<void> {
+        return this.run(() => this.data.DeleteNote(note.id));
     }
 }
 
@@ -228,13 +228,13 @@ export class MeetingFollowUpsPanel extends MeetingSectionPanel {
         return true;
     }
 
-    add(draft: FollowUpDraft): Promise<void> {
+    protected add(draft: FollowUpDraft): Promise<void> {
         return this.run(async () => {
-            await this.data.addFollowUp(this.meetingId, draft);
+            await this.data.AddFollowUp(this.meetingId, draft);
         });
     }
 
-    open(task: FollowUpModel): void {
+    protected open(task: FollowUpModel): void {
         OpenTaskRecord(task.id);
     }
 }
@@ -256,16 +256,16 @@ export class MeetingFollowUpsPanel extends MeetingSectionPanel {
     styleUrls: ['./task-form.css'],
 })
 export class MeetingLinksPanel extends MeetingSectionPanel {
-    open(link: LinkModel): void {
+    protected open(link: LinkModel): void {
         SharedService.Instance.OpenEntityRecord(link.entityName, CompositeKey.FromID(link.recordId));
     }
 
-    remove(link: LinkModel): Promise<void> {
-        return this.run(() => this.data.removeLink(link.id));
+    protected remove(link: LinkModel): Promise<void> {
+        return this.run(() => this.data.RemoveLink(link.id));
     }
 
     /** A new link is a Meeting Links record: the generated form for it, with the meeting filled in. */
-    add(): void {
+    protected add(): void {
         SharedService.Instance.OpenEntityRecord(MEETING_LINK_ENTITY, new CompositeKey());
     }
 }
@@ -289,16 +289,16 @@ export class MeetingLinksPanel extends MeetingSectionPanel {
 export class SeriesOccurrencesPanel extends BaseFormPanel<mjBizAppsTasksMeetingSeriesEntity> implements OnInit {
     private readonly cdr = inject(ChangeDetectorRef);
     private readonly data = new MeetingData();
-    public occurrences: MeetingRow[] = [];
-    public loading = true;
-    public error = '';
+    protected occurrences: MeetingRow[] = [];
+    protected loading = true;
+    protected error = '';
 
     async ngOnInit(): Promise<void> {
         if (!this.Record?.ID) return;
         try {
-            this.occurrences = await this.data.loadMeetingRows({ mine: false, extraFilter: `SeriesID = '${this.Record.ID}'` });
+            this.occurrences = await this.data.LoadMeetingRows({ mine: false, extraFilter: `SeriesID = '${this.Record.ID}'` });
         } catch (e) {
-            this.error = `The occurrences could not be read: ${MeetingData.message(e)}`;
+            this.error = `The occurrences could not be read: ${MeetingData.Message(e)}`;
             LogError(this.error);
         } finally {
             this.loading = false;
@@ -311,7 +311,7 @@ export class SeriesOccurrencesPanel extends BaseFormPanel<mjBizAppsTasksMeetingS
         return parsed ? describeRecurrenceRule(parsed) : (this.Record?.RecurrenceRule ?? '');
     }
 
-    open(meeting: MeetingRow): void {
+    protected open(meeting: MeetingRow): void {
         OpenMeetingRecord(meeting.id);
     }
 }

@@ -145,8 +145,8 @@ export class MeetingSeriesEditorComponent implements OnChanges {
     @Output() SaveRequested = new EventEmitter<SeriesDraft>();
     @Output() CancelRequested = new EventEmitter<void>();
 
-    public draft: SeriesDraft = emptySeriesDraft(viewerTimeZone(), null);
-    public rule: SeriesRuleDraft = emptySeriesRule();
+    protected draft: SeriesDraft = emptySeriesDraft(viewerTimeZone(), null);
+    protected rule: SeriesRuleDraft = emptySeriesRule();
     /** The rule says something the editor does not express; it is kept as written. */
     public CustomRule = false;
     public readonly Weekdays = WEEKDAYS;
@@ -161,20 +161,20 @@ export class MeetingSeriesEditorComponent implements OnChanges {
         }
     }
 
-    public get firstValue(): string {
+    protected get firstValue(): string {
         return toLocalInputValue(this.draft.firstStartsAt, this.ZoneOk ? this.draft.timeZone : 'UTC');
     }
 
-    public setFirst(value: string): void {
+    protected setFirst(value: string): void {
         const instant = fromLocalInputValue(value, this.ZoneOk ? this.draft.timeZone : 'UTC');
         if (instant) this.draft.firstStartsAt = instant;
     }
 
-    public get untilValue(): string {
+    protected get untilValue(): string {
         return this.rule.until ? this.rule.until.toISOString().slice(0, 10) : '';
     }
 
-    public setUntil(value: string): void {
+    protected setUntil(value: string): void {
         const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value ?? '');
         this.rule.until = match ? new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 23, 59, 59)) : null;
         this.ruleChanged();
@@ -184,19 +184,19 @@ export class MeetingSeriesEditorComponent implements OnChanges {
         return isValidTimeZone(this.draft.timeZone);
     }
 
-    public typeChosen(): void {
+    protected typeChosen(): void {
         const type = this.Types.find((t) => t.id === this.draft.typeId);
         if (type?.defaultDurationMinutes) this.draft.durationMinutes = type.defaultDurationMinutes;
         if (type?.defaultLocationType) this.draft.locationType = type.defaultLocationType;
         if (type?.defaultVisibility) this.draft.visibility = type.defaultVisibility;
     }
 
-    public toggleDay(code: string): void {
+    protected toggleDay(code: string): void {
         this.rule.byDay = this.rule.byDay.includes(code) ? this.rule.byDay.filter((d) => d !== code) : [...this.rule.byDay, code];
         this.ruleChanged();
     }
 
-    public ruleChanged(): void {
+    protected ruleChanged(): void {
         this.CustomRule = false;
         this.draft.recurrenceRule = buildRecurrenceRule(this.rule);
     }
@@ -216,7 +216,7 @@ export class MeetingSeriesEditorComponent implements OnChanges {
         }
     }
 
-    public previewLabel(when: Date): string {
+    protected previewLabel(when: Date): string {
         return `${formatDay(when, this.draft.timeZone)}, ${formatTime(when, this.draft.timeZone)} ${zoneAbbreviation(when, this.draft.timeZone)}`;
     }
 
@@ -224,7 +224,7 @@ export class MeetingSeriesEditorComponent implements OnChanges {
         return !!this.draft.name.trim() && this.ZoneOk && this.draft.durationMinutes > 0 && !!this.draft.recurrenceRule;
     }
 
-    public submit(): void {
+    protected submit(): void {
         if (!this.CanSubmit) return;
         this.SaveRequested.emit({ ...this.draft, name: this.draft.name.trim(), location: this.draft.location.trim() });
     }

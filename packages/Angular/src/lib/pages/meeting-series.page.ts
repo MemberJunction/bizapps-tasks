@@ -83,15 +83,15 @@ import { MEETINGS_PAGE_CSS, OpenSeriesRecord } from './meetings-shared';
 export class MeetingSeriesPageComponent implements OnInit {
     private readonly cdr = inject(ChangeDetectorRef);
     private readonly data = new MeetingData();
-    public series: SeriesModel[] = [];
-    public loading = true;
-    public error = '';
-    public status: 'Active' | 'all' = 'Active';
-    public newOpen = false;
-    public saving = false;
-    public saveError = '';
-    public draft: SeriesDraft = emptySeriesDraft(viewerTimeZone(), null);
-    public types: MeetingTypeOption[] = [];
+    protected series: SeriesModel[] = [];
+    protected loading = true;
+    protected error = '';
+    protected status: 'Active' | 'all' = 'Active';
+    protected newOpen = false;
+    protected saving = false;
+    protected saveError = '';
+    protected draft: SeriesDraft = emptySeriesDraft(viewerTimeZone(), null);
+    protected types: MeetingTypeOption[] = [];
     public providers: VideoProviderOption[] = [];
     public readonly formatMinutes = formatMinutes;
 
@@ -99,14 +99,14 @@ export class MeetingSeriesPageComponent implements OnInit {
         await this.load();
     }
 
-    async load(): Promise<void> {
+    protected async load(): Promise<void> {
         this.loading = true;
         this.error = '';
         this.cdr.markForCheck();
         try {
-            this.series = await this.data.loadSeries(this.status === 'Active' ? "Status = 'Active'" : '');
+            this.series = await this.data.LoadSeries(this.status === 'Active' ? "Status = 'Active'" : '');
         } catch (e) {
-            this.error = `The series could not be read: ${MeetingData.message(e)}`;
+            this.error = `The series could not be read: ${MeetingData.Message(e)}`;
             LogError(this.error);
         } finally {
             this.loading = false;
@@ -114,57 +114,57 @@ export class MeetingSeriesPageComponent implements OnInit {
         }
     }
 
-    setStatus(status: 'Active' | 'all'): void {
+    protected setStatus(status: 'Active' | 'all'): void {
         if (this.status === status) return;
         this.status = status;
         void this.load();
     }
 
-    ruleText(s: SeriesModel): string {
+    protected ruleText(s: SeriesModel): string {
         const parsed = parseRecurrenceRuleDraft(s.recurrenceRule);
         return parsed ? describeRecurrenceRule(parsed) : s.recurrenceRule;
     }
 
-    timeText(s: SeriesModel): string {
+    protected timeText(s: SeriesModel): string {
         return `${formatTime(s.firstStartsAt, s.timeZone)} ${zoneAbbreviation(s.firstStartsAt, s.timeZone)}`;
     }
 
-    nextText(s: SeriesModel): string {
+    protected nextText(s: SeriesModel): string {
         return s.nextOccurrenceAt ? `${formatDay(s.nextOccurrenceAt, viewerTimeZone())}, ${formatTime(s.nextOccurrenceAt, viewerTimeZone())}` : '';
     }
 
-    throughText(s: SeriesModel): string {
+    protected throughText(s: SeriesModel): string {
         return s.materializedThrough ? formatDay(s.materializedThrough, viewerTimeZone()) : '';
     }
 
-    open(s: SeriesModel): void {
+    protected open(s: SeriesModel): void {
         OpenSeriesRecord(s.id);
     }
 
-    async openNew(): Promise<void> {
+    protected async openNew(): Promise<void> {
         this.saveError = '';
-        this.draft = emptySeriesDraft(viewerTimeZone(), await this.data.currentPersonId());
+        this.draft = emptySeriesDraft(viewerTimeZone(), await this.data.CurrentPersonId());
         this.newOpen = true;
         this.cdr.markForCheck();
         try {
-            [this.types, this.providers] = await Promise.all([this.data.loadTypes(), this.data.loadVideoProviders()]);
+            [this.types, this.providers] = await Promise.all([this.data.LoadTypes(), this.data.LoadVideoProviders()]);
         } catch (e) {
-            this.saveError = `The form's choices could not be read: ${MeetingData.message(e)}`;
+            this.saveError = `The form's choices could not be read: ${MeetingData.Message(e)}`;
         }
         this.cdr.markForCheck();
     }
 
-    async create(draft: SeriesDraft): Promise<void> {
+    protected async create(draft: SeriesDraft): Promise<void> {
         this.saving = true;
         this.saveError = '';
         this.cdr.markForCheck();
         try {
-            const series = await this.data.saveSeries(draft);
+            const series = await this.data.SaveSeries(draft);
             this.newOpen = false;
             await this.load();
             OpenSeriesRecord(series.ID);
         } catch (e) {
-            this.saveError = MeetingData.message(e);
+            this.saveError = MeetingData.Message(e);
         } finally {
             this.saving = false;
             this.cdr.markForCheck();

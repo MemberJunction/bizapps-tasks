@@ -128,13 +128,13 @@ export class MeetingPeopleComponent {
     @Output() RemoveRequested = new EventEmitter<AttendeeModel>();
     @Output() AttendanceChanged = new EventEmitter<AttendanceChange>();
 
-    public inviting = false;
-    public invitePersonId: string | null = null;
-    public inviteEmail = '';
-    public inviteRole: 'Required' | 'Optional' = 'Required';
+    protected inviting = false;
+    protected invitePersonId: string | null = null;
+    protected inviteEmail = '';
+    protected inviteRole: 'Required' | 'Optional' = 'Required';
     public readonly AttendanceOptions = ATTENDANCE;
 
-    public submitInvite(): void {
+    protected submitInvite(): void {
         const email = this.inviteEmail.trim().toLowerCase();
         if (!this.invitePersonId && !email) return;
         this.InviteRequested.emit({ personId: this.invitePersonId, email: this.invitePersonId ? null : email, displayName: null, role: this.inviteRole });
@@ -144,7 +144,7 @@ export class MeetingPeopleComponent {
         this.inviteRole = 'Required';
     }
 
-    public initials(attendee: AttendeeModel): string {
+    protected initials(attendee: AttendeeModel): string {
         const source = attendee.name || attendee.email || '?';
         const parts = source.split(/[\s@.]+/).filter(Boolean);
         return (parts.length > 1 ? parts[0][0] + parts[1][0] : source.slice(0, 2)).toUpperCase();

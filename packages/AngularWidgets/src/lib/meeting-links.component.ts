@@ -45,7 +45,7 @@ export class MeetingLinksComponent {
     @Output() AddRequested = new EventEmitter<void>();
 
     /** "MJ_BizApps_Collaboration: Spaces" → "Spaces". */
-    public entityLabel(entityName: string): string {
+    protected entityLabel(entityName: string): string {
         const index = entityName.indexOf(':');
         return index >= 0 ? entityName.slice(index + 1).trim() : entityName;
     }

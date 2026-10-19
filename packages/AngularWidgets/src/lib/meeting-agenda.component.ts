@@ -182,7 +182,7 @@ export class MeetingAgendaComponent {
     @Output() MoveRequested = new EventEmitter<AgendaMove>();
     @Output() TemplateRequested = new EventEmitter<void>();
 
-    public draft: AgendaItemDraft | null = null;
+    protected draft: AgendaItemDraft | null = null;
     public readonly StatusClass = STATUS_CLASS;
 
     public get Tree(): Array<{ item: AgendaItemModel; depth: number }> {
@@ -209,36 +209,36 @@ export class MeetingAgendaComponent {
         return formatMinutes(this.TotalMinutes - (this.MeetingMinutes ?? 0));
     }
 
-    public openDraft(item: AgendaItemModel | null, parentId: string | null): void {
+    protected openDraft(item: AgendaItemModel | null, parentId: string | null): void {
         this.draft = item
             ? { id: item.id, parentId: item.parentId, name: item.name, description: item.description ?? '', typeId: item.typeId, presenterPersonId: item.presenterPersonId, durationMinutes: item.durationMinutes }
             : { id: null, parentId, name: '', description: '', typeId: null, presenterPersonId: null, durationMinutes: null };
     }
 
-    public typeChosen(draft: AgendaItemDraft): void {
+    protected typeChosen(draft: AgendaItemDraft): void {
         if (draft.durationMinutes != null) return;
         const type = this.ItemTypes.find((t) => t.id === draft.typeId);
         if (type?.defaultDurationMinutes) draft.durationMinutes = type.defaultDurationMinutes;
     }
 
-    public submit(): void {
+    protected submit(): void {
         if (!this.draft || !this.draft.name.trim()) return;
         this.SaveRequested.emit({ ...this.draft, name: this.draft.name.trim() });
         this.draft = null;
     }
 
-    public nameOf(id: string): string {
+    protected nameOf(id: string): string {
         return this.Items.find((item) => item.id.toLowerCase() === id.toLowerCase())?.name ?? '';
     }
 
-    public durationOf(item: AgendaItemModel): string {
+    protected durationOf(item: AgendaItemModel): string {
         if (item.durationMinutes != null) return formatMinutes(item.durationMinutes);
         const children = this.Items.filter((i) => i.parentId?.toLowerCase() === item.id.toLowerCase());
         return children.length ? `${formatMinutes(agendaMinutes(children.map((c) => ({ ...c, parentId: null }))))} in sub-items` : 'no length';
     }
 
     /** "2.1" style numbering from the tree. */
-    public numberOf(item: AgendaItemModel): string {
+    protected numberOf(item: AgendaItemModel): string {
         const path: number[] = [];
         let current: AgendaItemModel | undefined = item;
         while (current) {
@@ -253,22 +253,22 @@ export class MeetingAgendaComponent {
         return this.Items.filter((i) => (i.parentId ?? '').toLowerCase() === (parentId ?? '').toLowerCase()).sort((a, b) => a.sequence - b.sequence || a.name.localeCompare(b.name));
     }
 
-    public canMoveUp(item: AgendaItemModel): boolean {
+    protected canMoveUp(item: AgendaItemModel): boolean {
         const siblings = this.siblingsOf(item.parentId);
         return siblings.findIndex((s) => s.id === item.id) > 0;
     }
 
-    public canMoveDown(item: AgendaItemModel): boolean {
+    protected canMoveDown(item: AgendaItemModel): boolean {
         const siblings = this.siblingsOf(item.parentId);
         const index = siblings.findIndex((s) => s.id === item.id);
         return index >= 0 && index < siblings.length - 1;
     }
 
-    public canIndent(item: AgendaItemModel): boolean {
+    protected canIndent(item: AgendaItemModel): boolean {
         return this.canMoveUp(item);
     }
 
-    public move(item: AgendaItemModel, delta: -1 | 1): void {
+    protected move(item: AgendaItemModel, delta: -1 | 1): void {
         const siblings = this.siblingsOf(item.parentId);
         const index = siblings.findIndex((s) => s.id === item.id);
         const target = index + delta;
@@ -279,7 +279,7 @@ export class MeetingAgendaComponent {
     }
 
     /** Under the sibling above it. */
-    public indent(item: AgendaItemModel): void {
+    protected indent(item: AgendaItemModel): void {
         const siblings = this.siblingsOf(item.parentId);
         const index = siblings.findIndex((s) => s.id === item.id);
         if (index <= 0) return;
@@ -287,7 +287,7 @@ export class MeetingAgendaComponent {
     }
 
     /** Up to its parent's level, after the parent. */
-    public outdent(item: AgendaItemModel): void {
+    protected outdent(item: AgendaItemModel): void {
         if (!item.parentId) return;
         const parent = this.Items.find((i) => i.id.toLowerCase() === item.parentId!.toLowerCase());
         this.MoveRequested.emit({ item, parentId: parent?.parentId ?? null });
