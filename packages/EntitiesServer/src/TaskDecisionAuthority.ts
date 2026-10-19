@@ -9,11 +9,15 @@
  * When the Tasks setting `PreventSelfApproval` is on, a decision on an approval-type task
  * (`TaskType.IsApproval`) is refused unless:
  *   1. the decision is attributed to the deciding user's own Person, or to nobody;
- *   2. the deciding user is one of the task's assignees — assigned through a Person bound to the user,
- *      or assigned as the user directly (accounting assigns its batch approver as an `MJ: Users` row);
- *   3. a named `TaskAssignmentID` is one of the decider's own assignments; and
+ *   2. the deciding user holds an ACTIVE (Pending or InProgress) assignment on the task — assigned
+ *      through a Person bound to the user, or assigned as the user directly (accounting assigns its
+ *      batch approver as an `MJ: Users` row). A Completed assignment no longer authorises a decision;
+ *   3. a named `TaskAssignmentID` is one of the decider's own active assignments; and
  *   4. the decider is not the task's creator (`Task.CreatedByPersonID`), unless they hold the role
- *      the `SelfApprovalExemptRole` setting names.
+ *      the `SelfApprovalExemptRole` setting names. TaskEntityServer records the creator from the
+ *      signed-in user when the caller leaves it unset, and refuses changing it once recorded, so this
+ *      holds for callers that never pass a creator. A task whose creating user has no Person (a
+ *      service account) still has no creator, and is nobody's own request.
  *
  * Off (the default), every decision is accepted as before. A non-approval task is never checked.
  *
@@ -25,7 +29,12 @@ export interface DecisionAssignmentFact {
     ID: string;
     AssigneeEntityID: string;
     AssigneeRecordID: string;
+    /** The assignment's status; only Pending and InProgress authorise a decision. */
+    Status: 'Pending' | 'InProgress' | 'Completed';
 }
+
+/** Assignment statuses that may still decide. */
+export const ACTIVE_ASSIGNMENT_STATUSES: readonly DecisionAssignmentFact['Status'][] = ['Pending', 'InProgress'];
 
 /** Everything the rule needs to decide. IDs are compared case-insensitively. */
 export interface TaskDecisionFacts {
@@ -43,7 +52,7 @@ export interface TaskDecisionFacts {
     TaskAssignmentID: string | null;
     /** The task's CreatedByPersonID, when set. */
     TaskCreatedByPersonID: string | null;
-    /** The task's assignments. */
+    /** The task's assignments, in every status. */
     Assignments: readonly DecisionAssignmentFact[];
     /** Whether an assignment's AssigneeEntityID is People (or an IS-A subtype of it). */
     IsPeopleEntityID: (entityID: string) => boolean;
@@ -80,8 +89,13 @@ export function TaskDecisionRefusal(facts: TaskDecisionFacts): string | null {
     if (mine.length === 0) {
         return 'Only a person this approval is assigned to can decide it, and it is not assigned to you.';
     }
-    if (facts.TaskAssignmentID && !mine.some((a) => same(a.ID, facts.TaskAssignmentID))) {
-        return 'This decision is recorded against an assignment that is not yours. Decide on your own assignment.';
+    const completed = 'Your assignment on this approval is already completed, so it cannot take another decision.';
+    const active = mine.filter((a) => ACTIVE_ASSIGNMENT_STATUSES.includes(a.Status));
+    if (active.length === 0) return completed;
+    if (facts.TaskAssignmentID && !active.some((a) => same(a.ID, facts.TaskAssignmentID))) {
+        return mine.some((a) => same(a.ID, facts.TaskAssignmentID))
+            ? completed
+            : 'This decision is recorded against an assignment that is not yours. Decide on your own assignment.';
     }
 
     if (!facts.DeciderIsExempt && facts.DeciderPersonIDs.some((p) => same(p, facts.TaskCreatedByPersonID))) {

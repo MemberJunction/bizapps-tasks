@@ -52,6 +52,12 @@ describe('@mj-biz-apps/tasks-entities-server', () => {
     expect(mod.TaskDecisionEntityServer).toBeDefined();
   });
 
+  it('exports no way to override a Tasks setting in-process', async () => {
+    const mod = await import('../index.js');
+    expect(Object.getOwnPropertyNames(mod.TasksSettings).filter((m) => /override/i.test(m))).toEqual([]);
+    expect(Object.keys(mod).filter((k) => /override/i.test(k))).toEqual([]);
+  });
+
   it('LoadBizAppsTasksEntitiesServer runs without throwing', async () => {
     const mod = await import('../index.js');
     expect(() => mod.LoadBizAppsTasksEntitiesServer()).not.toThrow();

@@ -16,7 +16,7 @@ function facts(overrides: Partial<TaskDecisionFacts> = {}): TaskDecisionFacts {
         DecidedByPersonID: APPROVER_PERSON,
         TaskAssignmentID: null,
         TaskCreatedByPersonID: REQUESTER_PERSON,
-        Assignments: [{ ID: 'asg-1', AssigneeEntityID: PEOPLE, AssigneeRecordID: APPROVER_PERSON }],
+        Assignments: [{ ID: 'asg-1', AssigneeEntityID: PEOPLE, AssigneeRecordID: APPROVER_PERSON, Status: 'Pending' }],
         IsPeopleEntityID: (id) => id.toLowerCase() === PEOPLE.toLowerCase(),
         UsersEntityID: USERS,
         DeciderIsExempt: false,
@@ -38,7 +38,7 @@ describe('TaskDecisionRefusal', () => {
     });
 
     it('refuses a decider who is not assigned', () => {
-        expect(TaskDecisionRefusal(facts({ Assignments: [{ ID: 'asg-2', AssigneeEntityID: PEOPLE, AssigneeRecordID: REQUESTER_PERSON }] })))
+        expect(TaskDecisionRefusal(facts({ Assignments: [{ ID: 'asg-2', AssigneeEntityID: PEOPLE, AssigneeRecordID: REQUESTER_PERSON, Status: 'Pending' }] })))
             .toMatch(/not assigned to you/);
     });
 
@@ -47,7 +47,7 @@ describe('TaskDecisionRefusal', () => {
     });
 
     it('accepts an assignee assigned as an MJ user directly (the accounting batch approver)', () => {
-        const f = facts({ Assignments: [{ ID: 'asg-u', AssigneeEntityID: USERS, AssigneeRecordID: APPROVER_USER.toLowerCase() }] });
+        const f = facts({ Assignments: [{ ID: 'asg-u', AssigneeEntityID: USERS, AssigneeRecordID: APPROVER_USER.toLowerCase(), Status: 'Pending' }] });
         expect(TaskDecisionRefusal(f)).toBeNull();
     });
 
@@ -67,8 +67,8 @@ describe('TaskDecisionRefusal', () => {
         const f = facts({
             TaskAssignmentID: 'asg-2',
             Assignments: [
-                { ID: 'asg-1', AssigneeEntityID: PEOPLE, AssigneeRecordID: APPROVER_PERSON },
-                { ID: 'asg-2', AssigneeEntityID: PEOPLE, AssigneeRecordID: REQUESTER_PERSON },
+                { ID: 'asg-1', AssigneeEntityID: PEOPLE, AssigneeRecordID: APPROVER_PERSON, Status: 'Pending' },
+                { ID: 'asg-2', AssigneeEntityID: PEOPLE, AssigneeRecordID: REQUESTER_PERSON, Status: 'Pending' },
             ],
         });
         expect(TaskDecisionRefusal(f)).toMatch(/assignment that is not yours/);
@@ -91,8 +91,29 @@ describe('TaskDecisionRefusal', () => {
             .toMatch(/not assigned to you/);
     });
 
-    it('treats a task with no recorded creator as nobody\'s own request', () => {
+    it('treats a task with no recorded creator as nobody\'s own request (TaskEntityServer stamps one whenever the creating user has a Person)', () => {
         expect(TaskDecisionRefusal(facts({ TaskCreatedByPersonID: null }))).toBeNull();
+    });
+
+    it('accepts an InProgress assignment', () => {
+        expect(TaskDecisionRefusal(facts({ Assignments: [{ ID: 'asg-1', AssigneeEntityID: PEOPLE, AssigneeRecordID: APPROVER_PERSON, Status: 'InProgress' }] }))).toBeNull();
+    });
+
+    it('refuses a decider whose only assignment is Completed', () => {
+        expect(TaskDecisionRefusal(facts({ Assignments: [{ ID: 'asg-1', AssigneeEntityID: PEOPLE, AssigneeRecordID: APPROVER_PERSON, Status: 'Completed' }] })))
+            .toMatch(/already completed/);
+    });
+
+    it('refuses a decision naming the decider\'s own Completed assignment even when they hold another active one', () => {
+        const f = facts({
+            TaskAssignmentID: 'asg-done',
+            Assignments: [
+                { ID: 'asg-done', AssigneeEntityID: PEOPLE, AssigneeRecordID: APPROVER_PERSON, Status: 'Completed' },
+                { ID: 'asg-live', AssigneeEntityID: USERS, AssigneeRecordID: APPROVER_USER, Status: 'Pending' },
+            ],
+        });
+        expect(TaskDecisionRefusal(f)).toMatch(/already completed/);
+        expect(TaskDecisionRefusal({ ...f, TaskAssignmentID: 'asg-live' })).toBeNull();
     });
 
     it('refuses a decider with no linked person unless they are assigned as a user', () => {
@@ -100,7 +121,7 @@ describe('TaskDecisionRefusal', () => {
         expect(TaskDecisionRefusal(facts({
             DeciderPersonIDs: [],
             DecidedByPersonID: null,
-            Assignments: [{ ID: 'asg-u', AssigneeEntityID: USERS, AssigneeRecordID: APPROVER_USER }],
+            Assignments: [{ ID: 'asg-u', AssigneeEntityID: USERS, AssigneeRecordID: APPROVER_USER, Status: 'Pending' }],
         }))).toBeNull();
     });
 });
@@ -108,6 +129,6 @@ describe('TaskDecisionRefusal', () => {
 describe('DeciderAssignments', () => {
     it('ignores an assignment to another entity that happens to carry the same record ID', () => {
         const other = 'A0000000-0000-0000-0000-000000000099';
-        expect(DeciderAssignments(facts({ Assignments: [{ ID: 'x', AssigneeEntityID: other, AssigneeRecordID: APPROVER_PERSON }] }))).toEqual([]);
+        expect(DeciderAssignments(facts({ Assignments: [{ ID: 'x', AssigneeEntityID: other, AssigneeRecordID: APPROVER_PERSON, Status: 'Pending' }] }))).toEqual([]);
     });
 });

@@ -43,27 +43,17 @@ function asBoolean(raw: string | undefined, fallback: boolean): boolean {
     return fallback;
 }
 
+/**
+ * Deliberately read-only: there is no in-process override. These settings switch a security control,
+ * so the only way to change one is the audited `ApplicationSetting` row; tests mock the engine instead.
+ */
 export class TasksSettings {
-    private static overrides = new Map<string, string>();
-
     /** Load the settings cache. Idempotent and cheap after the first call. */
     public static async Load(provider: IMetadataProvider, user: UserInfo): Promise<void> {
         await ApplicationSettingEngine.Instance.Config(false, user, provider);
     }
 
-    /** Override a setting for tests. Pass undefined to remove the override. */
-    public static SetOverride(key: TasksSettingKey, value: string | undefined): void {
-        if (value === undefined) this.overrides.delete(key);
-        else this.overrides.set(key, value);
-    }
-
-    /** Clear every test override. */
-    public static ClearOverrides(): void {
-        this.overrides.clear();
-    }
-
     private static raw(key: TasksSettingKey, provider: IMetadataProvider): string | undefined {
-        if (this.overrides.has(key)) return this.overrides.get(key);
         const appID = provider.Applications?.find((a) => a.Name === TASKS_APPLICATION_NAME)?.ID;
         if (!appID) return undefined;
         return ApplicationSettingEngine.Instance.GetSetting(key, appID);

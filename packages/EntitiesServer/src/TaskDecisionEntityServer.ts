@@ -26,16 +26,16 @@ import {
     type IMetadataProvider,
     type UserInfo,
 } from '@memberjunction/core';
-import { IsValidUUID, RegisterClass } from '@memberjunction/global';
+import { RegisterClass } from '@memberjunction/global';
 import { mjBizAppsTasksTaskDecisionEntity } from '@mj-biz-apps/tasks-entities';
 import { TaskDecisionRefusal, type DecisionAssignmentFact, type TaskDecisionFacts } from './TaskDecisionAuthority.js';
 import { TasksSettings } from './TasksSettings.js';
+import { GuidLiteral as guid, IsPeopleEntity as isPeopleEntity, PEOPLE_ENTITY, PeopleFilterForUser } from './UserPeople.js';
 
 export const TASK_DECISION_ENTITY = 'MJ_BizApps_Tasks: Task Decisions';
 const TASK_ENTITY = 'MJ_BizApps_Tasks: Tasks';
 const TASK_TYPE_ENTITY = 'MJ_BizApps_Tasks: Task Types';
 const TASK_ASSIGNMENT_ENTITY = 'MJ_BizApps_Tasks: Task Assignments';
-const PEOPLE_ENTITY = 'MJ_BizApps_Common: People';
 const USERS_ENTITY = 'MJ: Users';
 const ROLES_ENTITY = 'MJ: Roles';
 const USER_ROLES_ENTITY = 'MJ: User Roles';
@@ -43,19 +43,6 @@ const SOURCE = 'TaskDecisionEntityServer.ValidateAsync';
 
 /** The decision fields the rule reads; a change to any of them re-checks a saved decision. */
 const CHECKED_FIELDS = ['TaskID', 'OutcomeID', 'DecidedByPersonID', 'TaskAssignmentID'] as const;
-
-/** A UUID literal for a filter, or an error: every id here reaches SQL text. */
-function guid(id: string, label: string): string {
-    if (!IsValidUUID(id)) throw new Error(`${label} '${id}' is not a valid ID.`);
-    return `'${id}'`;
-}
-
-/** True when the entity is People or an IS-A subtype of it. */
-function isPeopleEntity(provider: IMetadataProvider, entityID: string): boolean {
-    const entity = provider.EntityByID(entityID);
-    if (!entity) return false;
-    return entity.Name === PEOPLE_ENTITY || (entity.ParentChain ?? []).some((parent) => parent.Name === PEOPLE_ENTITY);
-}
 
 @RegisterClass(BaseEntity, TASK_DECISION_ENTITY)
 export class TaskDecisionEntityServer extends mjBizAppsTasksTaskDecisionEntity {
@@ -104,10 +91,10 @@ export class TaskDecisionEntityServer extends mjBizAppsTasksTaskDecisionEntity {
     private async gatherFacts(provider: IMetadataProvider, user: UserInfo): Promise<TaskDecisionFacts | null> {
         const rv = new RunView(this.RunViewProviderToUse);
         const taskFilter = guid(this.TaskID, 'TaskID');
-        const personFilter = this.personFilter(provider, user);
+        const personFilter = PeopleFilterForUser(provider, user);
         const [taskRes, assignmentRes, peopleRes] = await rv.RunViews([
             { EntityName: TASK_ENTITY, ExtraFilter: `ID = ${taskFilter}`, Fields: ['ID', 'TypeID', 'CreatedByPersonID'], ResultType: 'simple', BypassCache: true },
-            { EntityName: TASK_ASSIGNMENT_ENTITY, ExtraFilter: `TaskID = ${taskFilter}`, Fields: ['ID', 'AssigneeEntityID', 'AssigneeRecordID'], ResultType: 'simple', BypassCache: true },
+            { EntityName: TASK_ASSIGNMENT_ENTITY, ExtraFilter: `TaskID = ${taskFilter}`, Fields: ['ID', 'AssigneeEntityID', 'AssigneeRecordID', 'Status'], ResultType: 'simple', BypassCache: true },
             { EntityName: PEOPLE_ENTITY, ExtraFilter: personFilter, Fields: ['ID'], ResultType: 'simple', BypassCache: true },
         ], user);
         for (const res of [taskRes, assignmentRes, peopleRes]) {
@@ -133,17 +120,6 @@ export class TaskDecisionEntityServer extends mjBizAppsTasksTaskDecisionEntity {
             // Only read when it matters: the decider created the task.
             DeciderIsExempt: creatorIsDecider ? await this.holdsExemptRole(rv, provider, user) : false,
         };
-    }
-
-    /** People bound to the user: the user's own People link, and any Person whose LinkedUserID names them. */
-    private personFilter(provider: IMetadataProvider, user: UserInfo): string {
-        const clauses = [`LinkedUserID = ${guid(user.ID, 'UserID')}`];
-        const linkedEntityID = user.LinkedEntityID != null ? String(user.LinkedEntityID) : '';
-        const linkedRecordID = user.LinkedEntityRecordID != null ? String(user.LinkedEntityRecordID) : '';
-        if (IsValidUUID(linkedEntityID) && IsValidUUID(linkedRecordID) && isPeopleEntity(provider, linkedEntityID)) {
-            clauses.push(`ID = '${linkedRecordID}'`);
-        }
-        return clauses.join(' OR ');
     }
 
     private async isApprovalType(rv: RunView, typeID: string, user: UserInfo): Promise<boolean> {

@@ -15,16 +15,18 @@ const db = {
     settings: new Map<string, string>(),
     task: { ID: TASK_ID, TypeID: TYPE_ID, CreatedByPersonID: OTHER_PERSON as string | null },
     isApproval: true,
-    assignments: [{ ID: 'asg-1', AssigneeEntityID: PEOPLE_ID, AssigneeRecordID: PERSON_ID }],
+    assignments: [{ ID: 'asg-1', AssigneeEntityID: PEOPLE_ID, AssigneeRecordID: PERSON_ID, Status: 'Pending' as 'Pending' | 'InProgress' | 'Completed' }],
     people: [{ ID: PERSON_ID }],
     roles: [{ ID: ROLE_ID }],
     userRoles: [] as Array<{ ID: string }>,
     failTaskLookup: false,
 };
 const filtersSeen: string[] = [];
+const fieldsSeen = new Map<string, string[]>();
 
-function viewResult(entityName: string, filter: string): { Success: boolean; Results: unknown[]; ErrorMessage?: string } {
+function viewResult(entityName: string, filter: string, fields?: string[]): { Success: boolean; Results: unknown[]; ErrorMessage?: string } {
     filtersSeen.push(`${entityName}: ${filter}`);
+    if (fields) fieldsSeen.set(entityName, fields);
     switch (entityName) {
         case 'MJ_BizApps_Tasks: Tasks':
             return db.failTaskLookup ? { Success: false, Results: [], ErrorMessage: 'database unavailable' } : { Success: true, Results: [db.task] };
@@ -64,11 +66,11 @@ vi.mock('@memberjunction/core', () => {
         LogError: vi.fn(),
         Metadata: { Provider: provider },
         RunView: class {
-            async RunViews(params: Array<{ EntityName: string; ExtraFilter: string }>) {
-                return params.map((p) => viewResult(p.EntityName, p.ExtraFilter));
+            async RunViews(params: Array<{ EntityName: string; ExtraFilter: string; Fields?: string[] }>) {
+                return params.map((p) => viewResult(p.EntityName, p.ExtraFilter, p.Fields));
             }
-            async RunView(p: { EntityName: string; ExtraFilter: string }) {
-                return viewResult(p.EntityName, p.ExtraFilter);
+            async RunView(p: { EntityName: string; ExtraFilter: string; Fields?: string[] }) {
+                return viewResult(p.EntityName, p.ExtraFilter, p.Fields);
             }
         },
         ValidationResult,
@@ -102,16 +104,16 @@ function decision(): InstanceType<typeof TaskDecisionEntityServer> {
 
 describe('TaskDecisionEntityServer', () => {
     beforeEach(() => {
-        TasksSettings.ClearOverrides();
         db.settings = new Map([['PreventSelfApproval', 'true']]);
         db.task = { ID: TASK_ID, TypeID: TYPE_ID, CreatedByPersonID: OTHER_PERSON };
         db.isApproval = true;
-        db.assignments = [{ ID: 'asg-1', AssigneeEntityID: PEOPLE_ID, AssigneeRecordID: PERSON_ID }];
+        db.assignments = [{ ID: 'asg-1', AssigneeEntityID: PEOPLE_ID, AssigneeRecordID: PERSON_ID, Status: 'Pending' }];
         db.people = [{ ID: PERSON_ID }];
         db.roles = [{ ID: ROLE_ID }];
         db.userRoles = [];
         db.failTaskLookup = false;
         filtersSeen.length = 0;
+        fieldsSeen.clear();
     });
 
     it('opts in to async validation so the rule always runs', () => {
@@ -155,10 +157,18 @@ describe('TaskDecisionEntityServer', () => {
     });
 
     it('refuses someone who is not assigned', async () => {
-        db.assignments = [{ ID: 'asg-2', AssigneeEntityID: PEOPLE_ID, AssigneeRecordID: OTHER_PERSON }];
+        db.assignments = [{ ID: 'asg-2', AssigneeEntityID: PEOPLE_ID, AssigneeRecordID: OTHER_PERSON, Status: 'Pending' }];
         const result = await decision().ValidateAsync();
         expect(result.Success).toBe(false);
         expect(result.Errors[0].Message).toMatch(/not assigned to you/);
+    });
+
+    it('refuses an assignee whose assignment is already Completed (and reads the assignment status to know)', async () => {
+        db.assignments = [{ ID: 'asg-1', AssigneeEntityID: PEOPLE_ID, AssigneeRecordID: PERSON_ID, Status: 'Completed' }];
+        const result = await decision().ValidateAsync();
+        expect(result.Success).toBe(false);
+        expect(result.Errors[0].Message).toMatch(/already completed/);
+        expect(fieldsSeen.get('MJ_BizApps_Tasks: Task Assignments')).toContain('Status');
     });
 
     it('does not check a task whose type is not an approval type', async () => {
