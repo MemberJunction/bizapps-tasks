@@ -11,6 +11,9 @@
       "CodeApprovalStatus": "Approved",
       "Status": "Active"
     },
+    "primaryKey": {
+      "ID": "1D6ADFBD-D936-4014-9C3E-C1BBF6ED9B96"
+    },
     "relatedEntities": {
       "MJ: Action Params": [
         {
@@ -25,10 +28,6 @@
           },
           "primaryKey": {
             "ID": "7F061431-6E3D-41DA-B223-35985CB60ABB"
-          },
-          "sync": {
-            "lastModified": "2026-10-19T21:11:19.649Z",
-            "checksum": "31ed76cac279feed984423654d1f38b10b19b3c4fe6acc13e628c12c0960503e"
           }
         },
         {
@@ -43,10 +42,6 @@
           },
           "primaryKey": {
             "ID": "F8AD7CD5-60BF-4139-AC79-0DBC0B2C4C09"
-          },
-          "sync": {
-            "lastModified": "2026-10-19T21:11:19.664Z",
-            "checksum": "76051dd5674bc40e4f78961ff195c026768c5ccfbe5f21df91ffd1ca90997d25"
           }
         },
         {
@@ -61,10 +56,6 @@
           },
           "primaryKey": {
             "ID": "FAF9A711-C628-43F9-8A51-87E1DFFF1589"
-          },
-          "sync": {
-            "lastModified": "2026-10-19T21:11:19.680Z",
-            "checksum": "528e62b2c4c09b02eab1bc5073fed218810fde40c261ffa279fdb2d997721652"
           }
         },
         {
@@ -79,10 +70,6 @@
           },
           "primaryKey": {
             "ID": "6FDB1756-8F68-46F3-888B-4AF5D857DB62"
-          },
-          "sync": {
-            "lastModified": "2026-10-19T21:11:19.697Z",
-            "checksum": "8e96016869074db981df67ae8a22cb9545241afc1768f9e6343988c8b27f643e"
           }
         },
         {
@@ -97,10 +84,6 @@
           },
           "primaryKey": {
             "ID": "12B6149B-846D-4935-A09B-42D92E5E00FA"
-          },
-          "sync": {
-            "lastModified": "2026-10-19T21:11:19.713Z",
-            "checksum": "5f1db335ad584077c683a11167ee9b5fb4deddf42ec0aa268998597fed366519"
           }
         },
         {
@@ -115,10 +98,6 @@
           },
           "primaryKey": {
             "ID": "46F29ED2-903D-463D-8152-CD8AB3799595"
-          },
-          "sync": {
-            "lastModified": "2026-10-19T21:11:19.730Z",
-            "checksum": "aa3471e3b82d0243ec5f526161cfd14ee65def4ada2e2744dfd16aac8fefcc5c"
           }
         },
         {
@@ -133,10 +112,6 @@
           },
           "primaryKey": {
             "ID": "6186CBA0-3584-4C0B-A424-FC97CC64A70C"
-          },
-          "sync": {
-            "lastModified": "2026-10-19T21:11:19.745Z",
-            "checksum": "21b5c472f269adee92fb972426842882a125b0cca33deefdccecc4b9263f144c"
           }
         }
       ],
@@ -150,10 +125,6 @@
           },
           "primaryKey": {
             "ID": "F504719C-F2BC-41BB-BA1A-8C2B769B705C"
-          },
-          "sync": {
-            "lastModified": "2026-10-19T21:11:19.766Z",
-            "checksum": "12bf7a59a1cb60f14dc75b36bc1071f21f7d5ddefa1307a5560ca7ec79401583"
           }
         },
         {
@@ -165,10 +136,6 @@
           },
           "primaryKey": {
             "ID": "3C55BA77-4B14-4787-A798-D98BC5502AF9"
-          },
-          "sync": {
-            "lastModified": "2026-10-19T21:11:19.777Z",
-            "checksum": "3991cf47aef7e6bfc2ba7a0437f672696f4260b7460bafd88a6d35a38e8695de"
           }
         },
         {
@@ -180,10 +147,6 @@
           },
           "primaryKey": {
             "ID": "04A8334E-1BE9-4513-A743-5C30F04D8558"
-          },
-          "sync": {
-            "lastModified": "2026-10-19T21:11:19.789Z",
-            "checksum": "7ce89d878267b11e53cd5188479c6f2bebb1284fe428f35e0f5654c111f92e33"
           }
         },
         {
@@ -195,10 +158,6 @@
           },
           "primaryKey": {
             "ID": "7401F330-7522-4176-8F6A-4E05A345E47D"
-          },
-          "sync": {
-            "lastModified": "2026-10-19T21:11:19.802Z",
-            "checksum": "5b6370240a207999c400d8f3f69636e31fd24a3b4eb647610bf03bd672888700"
           }
         },
         {
@@ -210,10 +169,6 @@
           },
           "primaryKey": {
             "ID": "C5F3B00A-D541-4E43-8BFF-F5622620AFF0"
-          },
-          "sync": {
-            "lastModified": "2026-10-19T21:11:19.815Z",
-            "checksum": "667dcec7c23bec96db02d10627e6bcf5443ed743dbd9bf86344b754cf29ec7a2"
           }
         },
         {
@@ -225,10 +180,6 @@
           },
           "primaryKey": {
             "ID": "5B724E06-F308-4AD6-ABE7-FE68F6CF83F2"
-          },
-          "sync": {
-            "lastModified": "2026-10-19T21:11:19.827Z",
-            "checksum": "50789ec1f546a1ec9e6319e07994cd2e362c7988d48ff472a5b631262249756f"
           }
         },
         {
@@ -240,23 +191,9 @@
           },
           "primaryKey": {
             "ID": "8FDF4376-9C6C-4961-A4FF-93F3A62E49EC"
-          },
-          "sync": {
-            "lastModified": "2026-10-19T21:11:19.838Z",
-            "checksum": "ef1ead6a0622a398d9c630271c77f95367010eadda7b7bb8577fa553c293175d"
           }
         }
       ]
-    },
-    "primaryKey": {
-      "ID": "1D6ADFBD-D936-4014-9C3E-C1BBF6ED9B96"
-    },
-    "_comments": [
-      "Ids are the ones the 1.8.0 release shipped (V202610142252 Metadata_Sync), so a push on any host updates those rows rather than inserting a second action."
-    ],
-    "sync": {
-      "lastModified": "2026-10-19T21:11:19.624Z",
-      "checksum": "d4c75e049b7b7dcfaa042127998aeb4ec2de580423c7b8e1a308c380495da92c"
     }
   }
 ]

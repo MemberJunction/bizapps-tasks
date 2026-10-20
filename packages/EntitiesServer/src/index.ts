@@ -8,14 +8,19 @@
  */
 import { TaskEntityServer } from './TaskEntityServer.js';
 import { TaskCheckInEntityServer } from './TaskCheckInEntityServer.js';
+import { TaskDecisionEntityServer } from './TaskDecisionEntityServer.js';
 import { MeetingEntityServer } from './MeetingEntityServer.js';
 import { MeetingSeriesEntityServer } from './MeetingSeriesEntityServer.js';
 import { MeetingAttendeeEntityServer, MeetingSeriesAttendeeEntityServer } from './MeetingAttendeeEntityServer.js';
 import { MeetingAgendaItemEntityServer, MeetingLinkEntityServer } from './MeetingAgendaItemEntityServer.js';
 import { MeetingNoteEntityServer } from './MeetingNoteEntityServer.js';
 
+
 export { TaskEntityServer } from './TaskEntityServer.js';
 export { TaskCheckInEntityServer } from './TaskCheckInEntityServer.js';
+export { TaskDecisionEntityServer, TASK_DECISION_ENTITY } from './TaskDecisionEntityServer.js';
+export { TaskDecisionRefusal, DeciderAssignments, type TaskDecisionFacts, type DecisionAssignmentFact } from './TaskDecisionAuthority.js';
+export { TasksSettings, TASKS_SETTING, TASKS_APPLICATION_NAME, type TasksSettingKey } from './TasksSettings.js';
 export { MeetingEntityServer } from './MeetingEntityServer.js';
 export { MeetingSeriesEntityServer } from './MeetingSeriesEntityServer.js';
 export { MeetingAttendeeEntityServer, MeetingSeriesAttendeeEntityServer } from './MeetingAttendeeEntityServer.js';
@@ -34,6 +39,7 @@ export function LoadBizAppsTasksEntitiesServer(): void {
     const anchor = [
         TaskEntityServer,
         TaskCheckInEntityServer,
+        TaskDecisionEntityServer,
         MeetingEntityServer,
         MeetingSeriesEntityServer,
         MeetingAttendeeEntityServer,
