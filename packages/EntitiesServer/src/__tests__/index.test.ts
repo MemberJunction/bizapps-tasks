@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 // Mock the heavy MJ runtime + sibling packages so the entry point imports cleanly
 vi.mock('@memberjunction/global', () => ({
   RegisterClass: () => () => {},
+  IsValidUUID: () => true,
   BaseSingleton: class {
     public static getInstance() {
       return {};
@@ -34,11 +35,13 @@ vi.mock('@mj-biz-apps/tasks-entities', () => ({
   TaskEntity: class {},
   mjBizAppsTasksTaskActivityEntity: class {},
   mjBizAppsTasksTaskCheckInEntity: class {},
+  mjBizAppsTasksTaskDecisionEntity: class {},
   mjBizAppsTasksTaskEntity: class {},
   mjBizAppsTasksTaskTypeEntity: class {},
   mjBizAppsTasksTaskTypeStatusEntity: class {},
 }));
 vi.mock('@mj-biz-apps/tasks-core', () => ({ TaskService: class {} }));
+vi.mock('@memberjunction/core-entities', () => ({ ApplicationSettingEngine: { Instance: {} } }));
 
 describe('@mj-biz-apps/tasks-entities-server', () => {
   it('imports the entry point and exposes the bootstrap + subclasses', async () => {
@@ -46,6 +49,13 @@ describe('@mj-biz-apps/tasks-entities-server', () => {
     expect(mod.LoadBizAppsTasksEntitiesServer).toBeTypeOf('function');
     expect(mod.TaskEntityServer).toBeDefined();
     expect(mod.TaskCheckInEntityServer).toBeDefined();
+    expect(mod.TaskDecisionEntityServer).toBeDefined();
+  });
+
+  it('exports no way to override a Tasks setting in-process', async () => {
+    const mod = await import('../index.js');
+    expect(Object.getOwnPropertyNames(mod.TasksSettings).filter((m) => /override/i.test(m))).toEqual([]);
+    expect(Object.keys(mod).filter((k) => /override/i.test(k))).toEqual([]);
   });
 
   it('LoadBizAppsTasksEntitiesServer runs without throwing', async () => {

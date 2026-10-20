@@ -6,6 +6,9 @@ import {
     LogStatus,
     Metadata,
     RunView,
+    ValidationErrorInfo,
+    ValidationErrorType,
+    ValidationResult,
 } from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
 import { ActionEngineServer } from '@memberjunction/actions';
@@ -17,6 +20,7 @@ import {
     mjBizAppsTasksTaskTypeStatusEntity,
 } from '@mj-biz-apps/tasks-entities';
 import { TaskService } from '@mj-biz-apps/tasks-core';
+import { PrimaryPersonIDForUser } from './UserPeople.js';
 
 /**
  * Action hook trigger types supported on TaskType and TaskTypeStatus.
@@ -72,6 +76,10 @@ export interface TaskActionHookResult {
  *   - Server-authoritative activity audit logging (MJ_BizApps_Tasks: Task Activities)
  *   - Parent sub-task progress rollup
  *   - Event-driven Action & Workflow hook execution (OnCreate, OnStatusChange, OnEnterStatus, OnExitStatus, OnComplete, OnCancel, OnReject, OnPercentChange)
+ *   - Creator integrity: a new task with no `CreatedByPersonID` records the signed-in user's Person,
+ *     and a recorded creator cannot be changed. The no-self-approval rule (TaskDecisionEntityServer)
+ *     compares deciders against this column, so it must not depend on every caller remembering to
+ *     pass it, nor be editable away afterwards.
  *
  * Compiler/import order ensures this server subclass takes effect.
  */
@@ -81,6 +89,9 @@ export class TaskEntityServer extends TaskEntity {
 
     public override async Save(options?: EntitySaveOptions): Promise<boolean> {
         this.ensureRollupHandler();
+
+        // 0. Record the creator when the caller did not (fails closed: throws if it cannot be looked up)
+        await this.stampCreatorPreSave();
 
         // 1. Pre-Save Sync: Synchronize TaskTypeStatusID <-> Status and defaults
         await this.syncTaskTypeStatusPreSave();
@@ -107,6 +118,40 @@ export class TaskEntityServer extends TaskEntity {
         });
 
         return true;
+    }
+
+    /** Refuses changing a recorded creator, on top of the client-safe field rules. */
+    public override Validate(): ValidationResult {
+        const result = super.Validate();
+        const creator = this.Fields.find(f => f.CodeName === 'CreatedByPersonID');
+        if (this.IsSaved && creator?.Dirty && creator.OldValue != null && String(creator.OldValue).toLowerCase() !== String(creator.Value ?? '').toLowerCase()) {
+            result.Errors.push(new ValidationErrorInfo(
+                'CreatedByPersonID',
+                "A task's creator cannot be changed once it is recorded.",
+                creator.Value,
+                ValidationErrorType.Failure,
+            ));
+            result.Success = false;
+        }
+        return result;
+    }
+
+    /**
+     * On create, records the signed-in user's Person as the creator when the caller left it unset.
+     * A caller-supplied creator is kept: server code legitimately creates tasks on someone's behalf
+     * (accounting names the batch's builder). A user with no Person (a service account) leaves it unset.
+     */
+    private async stampCreatorPreSave(): Promise<void> {
+        const user = this.ContextCurrentUser;
+        if (this.IsSaved || this.CreatedByPersonID || !user) return;
+        try {
+            const personID = await PrimaryPersonIDForUser(Metadata.Provider, this.RunViewProviderToUse, user);
+            if (personID) this.CreatedByPersonID = personID;
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : String(e);
+            LogError(`TaskEntityServer: could not record the creator of task "${this.Name}": ${msg}`);
+            throw new Error(`The task was not created: its creator could not be recorded (${msg}).`);
+        }
     }
 
     /**
