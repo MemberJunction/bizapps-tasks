@@ -11,6 +11,9 @@
       "CodeApprovalStatus": "Approved",
       "Status": "Active"
     },
+    "primaryKey": {
+      "ID": "1D6ADFBD-D936-4014-9C3E-C1BBF6ED9B96"
+    },
     "relatedEntities": {
       "MJ: Action Params": [
         {
@@ -22,6 +25,9 @@
             "IsArray": false,
             "IsRequired": true,
             "Description": "ID of the assigned task. Passed by the OnAssign hook."
+          },
+          "primaryKey": {
+            "ID": "7F061431-6E3D-41DA-B223-35985CB60ABB"
           }
         },
         {
@@ -33,6 +39,9 @@
             "IsArray": false,
             "IsRequired": true,
             "Description": "Name of the assigned task. Passed by the OnAssign hook."
+          },
+          "primaryKey": {
+            "ID": "F8AD7CD5-60BF-4139-AC79-0DBC0B2C4C09"
           }
         },
         {
@@ -44,6 +53,9 @@
             "IsArray": false,
             "IsRequired": false,
             "Description": "ID of the task's type, used to find the credential named after its Code. Passed by the OnAssign hook."
+          },
+          "primaryKey": {
+            "ID": "FAF9A711-C628-43F9-8A51-87E1DFFF1589"
           }
         },
         {
@@ -55,6 +67,9 @@
             "IsArray": false,
             "IsRequired": false,
             "Description": "People record ID of the assignee. Passed by the OnAssign hook."
+          },
+          "primaryKey": {
+            "ID": "6FDB1756-8F68-46F3-888B-4AF5D857DB62"
           }
         },
         {
@@ -66,6 +81,9 @@
             "IsArray": false,
             "IsRequired": false,
             "Description": "Display name of the assignee, shown on the card. Passed by the OnAssign hook."
+          },
+          "primaryKey": {
+            "ID": "12B6149B-846D-4935-A09B-42D92E5E00FA"
           }
         },
         {
@@ -77,6 +95,9 @@
             "IsArray": false,
             "IsRequired": false,
             "Description": "Status of the task. Passed by the OnAssign hook; not used."
+          },
+          "primaryKey": {
+            "ID": "46F29ED2-903D-463D-8152-CD8AB3799595"
           }
         },
         {
@@ -88,6 +109,9 @@
             "IsArray": false,
             "IsRequired": false,
             "Description": "Name of the 'Teams Channel Webhook' credential to use. Optional; defaults to the task type's Code."
+          },
+          "primaryKey": {
+            "ID": "6186CBA0-3584-4C0B-A424-FC97CC64A70C"
           }
         }
       ],
@@ -98,6 +122,9 @@
             "ResultCode": "SUCCESS",
             "IsSuccess": true,
             "Description": "The card was posted."
+          },
+          "primaryKey": {
+            "ID": "F504719C-F2BC-41BB-BA1A-8C2B769B705C"
           }
         },
         {
@@ -106,6 +133,9 @@
             "ResultCode": "MISSING_TASK",
             "IsSuccess": false,
             "Description": "TaskID or TaskName was not supplied."
+          },
+          "primaryKey": {
+            "ID": "3C55BA77-4B14-4787-A798-D98BC5502AF9"
           }
         },
         {
@@ -114,6 +144,9 @@
             "ResultCode": "INVALID_TASK_TYPE",
             "IsSuccess": false,
             "Description": "TaskTypeID was supplied but is not a valid ID."
+          },
+          "primaryKey": {
+            "ID": "04A8334E-1BE9-4513-A743-5C30F04D8558"
           }
         },
         {
@@ -122,6 +155,9 @@
             "ResultCode": "MISSING_CREDENTIAL",
             "IsSuccess": false,
             "Description": "No 'Teams Channel Webhook' credential matched and the type has no default."
+          },
+          "primaryKey": {
+            "ID": "7401F330-7522-4176-8F6A-4E05A345E47D"
           }
         },
         {
@@ -130,6 +166,9 @@
             "ResultCode": "INVALID_WEBHOOK_URL",
             "IsSuccess": false,
             "Description": "The credential's webhookUrl is not an https Teams connector or Power Automate webhook URL."
+          },
+          "primaryKey": {
+            "ID": "C5F3B00A-D541-4E43-8BFF-F5622620AFF0"
           }
         },
         {
@@ -138,6 +177,9 @@
             "ResultCode": "TEAMS_ERROR",
             "IsSuccess": false,
             "Description": "The webhook rejected the post or could not be reached."
+          },
+          "primaryKey": {
+            "ID": "5B724E06-F308-4AD6-ABE7-FE68F6CF83F2"
           }
         },
         {
@@ -146,6 +188,9 @@
             "ResultCode": "ERROR",
             "IsSuccess": false,
             "Description": "No context user."
+          },
+          "primaryKey": {
+            "ID": "8FDF4376-9C6C-4961-A4FF-93F3A62E49EC"
           }
         }
       ]
