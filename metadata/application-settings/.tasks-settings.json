@@ -8,6 +8,10 @@
     },
     "primaryKey": {
       "ID": "03CB418F-59E6-4838-9DA7-5646502D3D79"
+    },
+    "sync": {
+      "lastModified": "2026-10-20T01:14:32.541Z",
+      "checksum": "b899e3348e2d0f5d8d007f773f723adfb7fec27233ddf1c30cfd0c782e6efffb"
     }
   },
   {
@@ -19,6 +23,10 @@
     },
     "primaryKey": {
       "ID": "17CC9998-9382-447B-A7DF-682A06837953"
+    },
+    "sync": {
+      "lastModified": "2026-10-20T01:14:32.551Z",
+      "checksum": "61c924cfb7ff21d7abeb187386743aa0dfc00d0ec0ca5113365f2a047f20e53f"
     }
   }
 ]
