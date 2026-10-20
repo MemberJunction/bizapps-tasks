@@ -1,5 +1,14 @@
 # @mj-biz-apps/tasks-entities
 
+## 1.10.0
+
+### Minor Changes
+
+- 304ed58: Move to MemberJunction 6.1.6: every `@memberjunction/*` caret floor and exact devDependency anchor goes from 6.1.0-edge.5 to 6.1.6, and `mj-app.json`'s `mjVersionRange` becomes `>=6.1.6 <7.0.0`.
+- 8f2cc7b: Ship the 1.10 metadata: a `Metadata_Sync` migration that seeds the PreventSelfApproval and SelfApprovalExemptRole application settings and the Priority Objective and Key Result task types, with its PostgreSQL counterpart, and the PostgreSQL counterpart of the Task priority / OKR and Task Check In migration (native PostgreSQL CodeGen from MJ 6.1.6), so a PostgreSQL install reaches the same schema and metadata as SQL Server. The credential type, action category and action the 1.8 seed created now carry their primary keys in `metadata/`, so a push against a database that ran that seed matches them instead of trying to create them again.
+- 86887d2: Remove hand-authored PostgreSQL migration file so the release toolchain generates the PostgreSQL counterpart.
+- 49b744f: Add Priority/OKR tracking columns on `Task` (`HealthStatus`, `ConfidenceScore`, `BaselineValue`, `TargetValue`, `CurrentValue`, `UnitOfMeasure`, `MetricDirection`, `RollupWeight`, `PlanningPeriod`, `CheckInCadence`, `LastCheckInAt`, `NextCheckInDueAt`), the `TaskCheckIn` entity, and weighted health/confidence rollup in `TaskCheckInEntityServer` and `TaskService`.
+
 ## 1.9.0
 
 ### Minor Changes
