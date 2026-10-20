@@ -1,7 +1,7 @@
 {
   "name": "@mj-biz-apps/tasks-integration-tests",
   "type": "module",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "private": true,
   "description": "Integration check bundles for BizApps Tasks, dispatched by `mj test` or standalone runner.",
   "main": "dist/index.js",
@@ -24,12 +24,12 @@
     "vitest": "^4.0.18"
   },
   "dependencies": {
-    "@memberjunction/core": "^6.1.0-edge.5",
-    "@memberjunction/global": "^6.1.0-edge.5",
-    "@memberjunction/testing-integration": "^6.1.0-edge.5",
+    "@memberjunction/core": "^6.1.6",
+    "@memberjunction/global": "^6.1.6",
+    "@memberjunction/testing-integration": "^6.1.6",
     "@mj-biz-apps/common-entities": ">=5.37.0",
-    "@mj-biz-apps/tasks-entities": "^1.9.0",
-    "@mj-biz-apps/tasks-entities-server": "^1.9.0"
+    "@mj-biz-apps/tasks-entities": "^1.10.0",
+    "@mj-biz-apps/tasks-entities-server": "^1.10.0"
   },
   "repository": {
     "type": "git",

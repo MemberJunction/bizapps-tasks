@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  <img alt="MJ Version" src="https://img.shields.io/badge/MemberJunction-6.1.0--edge.1-blue?style=flat-square" />
+  <img alt="MJ Version" src="https://img.shields.io/badge/MemberJunction-6.1.6%2B-blue?style=flat-square" />
   <img alt="Angular" src="https://img.shields.io/badge/Angular-21-DD0031?style=flat-square&logo=angular&logoColor=white" />
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript&logoColor=white" />
   <a href="./LICENSE"><img alt="License: BUSL-1.1" src="https://img.shields.io/badge/License-BUSL--1.1-green?style=flat-square" /></a>
@@ -46,7 +46,7 @@ mj app install https://github.com/MemberJunction/bizapps-tasks
 This single command:
 
 1. Fetches the `mj-app.json` manifest from this repository
-2. Validates MJ version compatibility (`>=6.1.0-edge.1 <7.0.0`)
+2. Validates MJ version compatibility (`>=6.1.6 <7.0.0`)
 3. Installs the dependency [BizApps Common](https://github.com/MemberJunction/bizapps-common) if not already present
 4. Creates the `__mj_BizAppsTasks` database schema
 5. Runs Skyway migrations to create all 15 tables with seed data
@@ -365,7 +365,7 @@ Entities ──► Core ──► Server
 
 | Layer | Technology | Version |
 |-------|-----------|---------|
-| **Platform** | [MemberJunction](https://github.com/MemberJunction/MJ) | 6.1.0-edge.1 |
+| **Platform** | [MemberJunction](https://github.com/MemberJunction/MJ) | 6.1.6 |
 | **Runtime** | Node.js | 18+ |
 | **Language** | TypeScript | 5.9 |
 | **Database** | SQL Server / Azure SQL | 2019+ |

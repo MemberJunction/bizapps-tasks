@@ -1,5 +1,24 @@
 # @mj-biz-apps/tasks-server
 
+## 1.10.0
+
+### Minor Changes
+
+- 49b744f: Add Priority/OKR tracking columns on `Task` (`HealthStatus`, `ConfidenceScore`, `BaselineValue`, `TargetValue`, `CurrentValue`, `UnitOfMeasure`, `MetricDirection`, `RollupWeight`, `PlanningPeriod`, `CheckInCadence`, `LastCheckInAt`, `NextCheckInDueAt`), the `TaskCheckIn` entity, and weighted health/confidence rollup in `TaskCheckInEntityServer` and `TaskService`.
+
+### Patch Changes
+
+- Updated dependencies [20d8ecd]
+- Updated dependencies [3ab8698]
+- Updated dependencies [304ed58]
+- Updated dependencies [8f2cc7b]
+- Updated dependencies [86887d2]
+- Updated dependencies [49b744f]
+  - @mj-biz-apps/tasks-entities-server@1.10.0
+  - @mj-biz-apps/tasks-core@1.10.0
+  - @mj-biz-apps/tasks-entities@1.10.0
+  - @mj-biz-apps/tasks-actions@1.10.0
+
 ## 1.9.0
 
 ### Patch Changes
