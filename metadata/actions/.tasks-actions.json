@@ -24,7 +24,7 @@
             "Description": "ID of the assigned task. Passed by the OnAssign hook."
           },
           "primaryKey": {
-            "ID": "08B383E8-A5B9-569A-AE95-B080003883A5"
+            "ID": "7F061431-6E3D-41DA-B223-35985CB60ABB"
           },
           "sync": {
             "lastModified": "2026-10-19T21:11:19.649Z",
@@ -42,7 +42,7 @@
             "Description": "Name of the assigned task. Passed by the OnAssign hook."
           },
           "primaryKey": {
-            "ID": "694296BC-D609-5277-A6F6-271A63875FC5"
+            "ID": "F8AD7CD5-60BF-4139-AC79-0DBC0B2C4C09"
           },
           "sync": {
             "lastModified": "2026-10-19T21:11:19.664Z",
@@ -60,7 +60,7 @@
             "Description": "ID of the task's type, used to find the credential named after its Code. Passed by the OnAssign hook."
           },
           "primaryKey": {
-            "ID": "CDA58C2B-B830-5A71-B282-A0F35606E8FB"
+            "ID": "FAF9A711-C628-43F9-8A51-87E1DFFF1589"
           },
           "sync": {
             "lastModified": "2026-10-19T21:11:19.680Z",
@@ -78,7 +78,7 @@
             "Description": "People record ID of the assignee. Passed by the OnAssign hook."
           },
           "primaryKey": {
-            "ID": "F04F49B3-74F8-577D-966A-5FA7A9CC6A30"
+            "ID": "6FDB1756-8F68-46F3-888B-4AF5D857DB62"
           },
           "sync": {
             "lastModified": "2026-10-19T21:11:19.697Z",
@@ -96,7 +96,7 @@
             "Description": "Display name of the assignee, shown on the card. Passed by the OnAssign hook."
           },
           "primaryKey": {
-            "ID": "6731A8BE-488B-56D1-B72C-5A92D13DDF39"
+            "ID": "12B6149B-846D-4935-A09B-42D92E5E00FA"
           },
           "sync": {
             "lastModified": "2026-10-19T21:11:19.713Z",
@@ -114,7 +114,7 @@
             "Description": "Status of the task. Passed by the OnAssign hook; not used."
           },
           "primaryKey": {
-            "ID": "83473794-15BD-52B3-9C96-919C4C192A78"
+            "ID": "46F29ED2-903D-463D-8152-CD8AB3799595"
           },
           "sync": {
             "lastModified": "2026-10-19T21:11:19.730Z",
@@ -132,7 +132,7 @@
             "Description": "Name of the 'Teams Channel Webhook' credential to use. Optional; defaults to the task type's Code."
           },
           "primaryKey": {
-            "ID": "153CD39A-808F-55D0-A3E6-458AF56427C9"
+            "ID": "6186CBA0-3584-4C0B-A424-FC97CC64A70C"
           },
           "sync": {
             "lastModified": "2026-10-19T21:11:19.745Z",
@@ -149,7 +149,7 @@
             "Description": "The card was posted."
           },
           "primaryKey": {
-            "ID": "BC78F9BD-8CB7-56D9-9AE1-9C9C66B654B0"
+            "ID": "F504719C-F2BC-41BB-BA1A-8C2B769B705C"
           },
           "sync": {
             "lastModified": "2026-10-19T21:11:19.766Z",
@@ -164,7 +164,7 @@
             "Description": "TaskID or TaskName was not supplied."
           },
           "primaryKey": {
-            "ID": "82B4E5E1-83C9-5564-813C-C80BBBCC4E9E"
+            "ID": "3C55BA77-4B14-4787-A798-D98BC5502AF9"
           },
           "sync": {
             "lastModified": "2026-10-19T21:11:19.777Z",
@@ -179,7 +179,7 @@
             "Description": "TaskTypeID was supplied but is not a valid ID."
           },
           "primaryKey": {
-            "ID": "B4C2B470-D387-56E5-910C-A64F4F738062"
+            "ID": "04A8334E-1BE9-4513-A743-5C30F04D8558"
           },
           "sync": {
             "lastModified": "2026-10-19T21:11:19.789Z",
@@ -194,7 +194,7 @@
             "Description": "No 'Teams Channel Webhook' credential matched and the type has no default."
           },
           "primaryKey": {
-            "ID": "FB9281EE-9E22-55B2-B771-37382694B059"
+            "ID": "7401F330-7522-4176-8F6A-4E05A345E47D"
           },
           "sync": {
             "lastModified": "2026-10-19T21:11:19.802Z",
@@ -209,7 +209,7 @@
             "Description": "The credential's webhookUrl is not an https Teams connector or Power Automate webhook URL."
           },
           "primaryKey": {
-            "ID": "DDE27EF8-FF4E-5A0B-832F-FF90CBEFF423"
+            "ID": "C5F3B00A-D541-4E43-8BFF-F5622620AFF0"
           },
           "sync": {
             "lastModified": "2026-10-19T21:11:19.815Z",
@@ -224,7 +224,7 @@
             "Description": "The webhook rejected the post or could not be reached."
           },
           "primaryKey": {
-            "ID": "ACA1E2EE-9A05-5A81-BF6C-7BB6F508C753"
+            "ID": "5B724E06-F308-4AD6-ABE7-FE68F6CF83F2"
           },
           "sync": {
             "lastModified": "2026-10-19T21:11:19.827Z",
@@ -239,7 +239,7 @@
             "Description": "No context user."
           },
           "primaryKey": {
-            "ID": "D176BEE7-B811-5E9D-9FE5-3ADB1F6362B3"
+            "ID": "8FDF4376-9C6C-4961-A4FF-93F3A62E49EC"
           },
           "sync": {
             "lastModified": "2026-10-19T21:11:19.838Z",
@@ -249,10 +249,10 @@
       ]
     },
     "primaryKey": {
-      "ID": "D034EC63-2013-5310-A388-FF077E4EA825"
+      "ID": "1D6ADFBD-D936-4014-9C3E-C1BBF6ED9B96"
     },
     "_comments": [
-      "Fixed ids on the action, its parameters and its result codes: a push updates what is there and inserts what is not, on any host."
+      "Ids are the ones the 1.8.0 release shipped (V202610142252 Metadata_Sync), so a push on any host updates those rows rather than inserting a second action."
     ],
     "sync": {
       "lastModified": "2026-10-19T21:11:19.624Z",

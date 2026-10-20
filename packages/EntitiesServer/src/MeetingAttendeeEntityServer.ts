@@ -2,7 +2,7 @@ import { BaseEntity, ValidationErrorInfo, ValidationErrorType, type EntityDelete
 import { RegisterClass } from '@memberjunction/global';
 import { mjBizAppsTasksMeetingAttendeeEntity, mjBizAppsTasksMeetingEntity, mjBizAppsTasksMeetingSeriesAttendeeEntity, mjBizAppsTasksMeetingSeriesEntity } from '@mj-biz-apps/tasks-entities';
 import { MEETING_ATTENDEE_ENTITY, MEETING_ENTITY, MEETING_SERIES_ATTENDEE_ENTITY, MEETING_SERIES_ENTITY, userIdForPerson } from '@mj-biz-apps/tasks-core';
-import { callerOwnsMeeting, meetingCaller } from './meeting-caller.js';
+import { callerOwnsMeeting, meetingCaller, movedFromMeetingRefusal } from './meeting-caller.js';
 
 const fail = (result: ValidationResult, field: string, message: string): ValidationResult => {
     result.Success = false;
@@ -51,6 +51,8 @@ export class MeetingAttendeeEntityServer extends mjBizAppsTasksMeetingAttendeeEn
 
         // The meeting a caller may not read (a Private one they are not on) is, to them, not there
         if (!found) return fail(result, 'MeetingID', 'The meeting was not found, or you may not see it.');
+        const moved = await movedFromMeetingRefusal(this.metadataProvider, this.ContextCurrentUser, this);
+        if (moved) return fail(result, 'MeetingID', moved);
         const caller = await meetingCaller(this.metadataProvider, this.ContextCurrentUser);
         if (callerOwnsMeeting(caller, meeting.OrganizerPersonID)) return result;
         if (!this.IsSaved) return fail(result, 'MeetingID', 'Only the organizer invites people to a meeting.');

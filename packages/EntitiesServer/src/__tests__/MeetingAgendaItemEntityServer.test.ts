@@ -22,11 +22,24 @@ vi.mock('@memberjunction/core', () => {
         public IsSaved = false;
         private readonly values: Record<string, unknown> = {};
         public ProviderToUse = { Entities: [] as unknown[], Roles: [] as unknown[], GetEntityObject: (...args: unknown[]) => getEntityObjectMock(...args) };
+        private readonly olds: Record<string, unknown> = {};
+        private readonly dirty = new Set<string>();
         public Get(name: string) {
             return this.values[name];
         }
         public Set(name: string, value: unknown) {
+            if (this.IsSaved && !(name in this.olds)) this.olds[name] = this.values[name];
             this.values[name] = value;
+            this.dirty.add(name);
+        }
+        public get Fields() {
+            return Object.keys(this.values).map((name) => ({ CodeName: name, Name: name, Dirty: this.dirty.has(name), OldValue: this.olds[name], Value: this.values[name] }));
+        }
+        public seed(values: Record<string, unknown>) {
+            Object.assign(this.values, values);
+            this.IsSaved = true;
+            this.dirty.clear();
+            return this;
         }
         public async ValidateAsync() {
             return { Success: true, Errors: [] as ValidationErrorInfo[] };
@@ -148,6 +161,17 @@ describe('who writes the agenda', () => {
     it('treats a meeting the caller may not read as not there', async () => {
         meeting = { OrganizerPersonID: 'P-ADA', found: false };
         expect((await item({}).ValidateAsync()).Errors[0].Message).toBe('The meeting was not found, or you may not see it.');
+    });
+});
+
+describe('rows that change meeting', () => {
+    it('refuse an agenda item or a link moved to a meeting whose old meeting the caller does not organize', async () => {
+        const moved = item({});
+        (moved as unknown as { seed(v: Record<string, unknown>): void }).seed({ ID: I2, MeetingID: M2, ParentID: null, DeferredToMeetingID: null, Sequence: 100, DurationMinutes: 10 });
+        meeting = { OrganizerPersonID: 'P-ADA', found: true };
+        getEntityObjectMock.mockImplementation(async () => ({ OrganizerPersonID: 'P-ADA', Load: async (id: string) => id !== M2 })); // the old meeting is not the caller's to read
+        moved.MeetingID = M1;
+        expect((await moved.ValidateAsync()).Errors[0].Message).toMatch(/moves to another meeting only at the organizer/);
     });
 });
 

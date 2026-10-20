@@ -228,6 +228,15 @@ describe('who may write an attendee', () => {
         expect((await row.ValidateAsync()).Success).toBe(true);
     });
 
+    it('does not move a row to another meeting unless the caller organizes both', async () => {
+        // The caller organizes M2, the meeting the row is moved to, but not M1, the meeting it was on
+        getEntityObjectMock.mockImplementation(async () => ({ get OrganizerPersonID() { return 'P-NICO'; }, Load: async () => true }));
+        getEntityObjectMock.mockImplementationOnce(async () => ({ OrganizerPersonID: 'P-ADA', Load: async () => true }));
+        const row = invited();
+        row.MeetingID = 'M2';
+        expect((await row.ValidateAsync()).Errors[0].Message).toMatch(/moves to another meeting only at the organizer/);
+    });
+
     it('refuses someone who is not the organizer removing an attendee', async () => {
         callerPerson = 'P-SAM';
         await expect(invited().Delete()).rejects.toThrow(/Only the organizer removes an attendee/);

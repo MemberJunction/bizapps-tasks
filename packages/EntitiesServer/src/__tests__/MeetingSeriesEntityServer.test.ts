@@ -188,6 +188,15 @@ describe('who may write a series', () => {
         expect((await series.ValidateAsync()).Success).toBe(true);
     });
 
+    it('keeps a cancelled series cancelled', async () => {
+        const series = weekly();
+        series.seed({ Status: 'Cancelled' });
+        series.Status = 'Active';
+        const result = await series.ValidateAsync();
+        expect(result.Success).toBe(false);
+        expect(result.Errors[0].Message).toMatch(/A cancelled series stays cancelled/);
+    });
+
     it('refuses someone else deleting it', async () => {
         callerPerson = 'P-SAM';
         await expect(weekly().Delete()).rejects.toThrow('Only the organizer deletes a series.');

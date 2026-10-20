@@ -25,8 +25,15 @@ vi.mock('@memberjunction/core', () => {
         public Get(name: string) {
             return this.values[name];
         }
+        private readonly olds: Record<string, unknown> = {};
+        private readonly dirty = new Set<string>();
         public Set(name: string, value: unknown) {
+            if (this.IsSaved && !(name in this.olds)) this.olds[name] = this.values[name];
             this.values[name] = value;
+            this.dirty.add(name);
+        }
+        public get Fields() {
+            return Object.keys(this.values).map((name) => ({ CodeName: name, Name: name, Dirty: this.dirty.has(name), OldValue: this.olds[name], Value: this.values[name] }));
         }
         public async ValidateAsync() {
             return { Success: true, Errors: [] as ValidationErrorInfo[] };
@@ -41,6 +48,7 @@ vi.mock('@memberjunction/core', () => {
         public seed(values: Record<string, unknown>) {
             Object.assign(this.values, values);
             this.IsSaved = true;
+            this.dirty.clear();
             return this;
         }
     }
@@ -121,6 +129,36 @@ describe('who writes a note', () => {
         const result = await newNote().ValidateAsync();
         expect(result.Success).toBe(false);
         expect(result.Errors[0].Message).toBe('Only someone on the meeting writes a note on it.');
+    });
+
+    it('is the caller\'s own on create whatever author it proposes, unless the organizer writes it for someone', async () => {
+        const note = newNote();
+        note.AuthorPersonID = P_NICO;
+        expect((await note.ValidateAsync()).Success).toBe(true);
+        expect(note.AuthorPersonID).toBe(P_SAM);
+        callerPerson = P_ADA;
+        const byOrganizer = newNote();
+        byOrganizer.AuthorPersonID = P_NICO;
+        expect((await byOrganizer.ValidateAsync()).Success).toBe(true);
+        expect(byOrganizer.AuthorPersonID).toBe(P_NICO);
+    });
+
+    it('judges the author by what the database holds, and keeps it', async () => {
+        const other = saved(P_NICO);
+        other.AuthorPersonID = P_SAM; // the caller re-stamps the note as their own
+        other.Body = 'Tampered';
+        const result = await other.ValidateAsync();
+        expect(result.Success).toBe(false);
+        expect(result.Errors[0].Message).toBe('Only its author or the organizer changes a note.');
+        const own = saved(P_SAM);
+        own.AuthorPersonID = P_NICO; // the author hands it to someone else
+        expect((await own.ValidateAsync()).Errors[0].Message).toBe('A note keeps its author; the organizer may change it.');
+    });
+
+    it('does not move to another meeting unless the caller organizes both', async () => {
+        const own = saved(P_SAM);
+        own.MeetingID = '7A94ADA9-7880-4FAE-97D8-DB0E934C3F5E';
+        expect((await own.ValidateAsync()).Errors[0].Message).toMatch(/moves to another meeting only at the organizer/);
     });
 
     it('lets the author or the organizer change and remove it, nobody else', async () => {

@@ -30,6 +30,10 @@ export class MeetingSeriesEntityServer extends mjBizAppsTasksMeetingSeriesEntity
         if (!isValidTimeZone(this.TimeZone)) return fail(result, 'TimeZone', `"${this.TimeZone ?? ''}" is not a time zone. Use an IANA name such as America/Chicago.`);
         if (!(this.DurationMinutes > 0)) return fail(result, 'DurationMinutes', 'A series\' meetings last more than 0 minutes.');
 
+        const statusField = this.Fields.find((f) => f.CodeName === 'Status');
+        if (this.IsSaved && statusField?.Dirty && statusField.OldValue === 'Cancelled' && this.Status !== 'Cancelled') {
+            return fail(result, 'Status', 'A cancelled series stays cancelled; its meetings were cancelled with it. Make a new series.');
+        }
         const caller = await meetingCaller(this.metadataProvider, this.ContextCurrentUser);
         if (caller.administers) return result;
         if (!this.IsSaved) {

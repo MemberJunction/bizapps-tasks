@@ -3,7 +3,7 @@ import { RegisterClass } from '@memberjunction/global';
 import { mjBizAppsTasksMeetingAgendaItemEntity, mjBizAppsTasksMeetingLinkEntity } from '@mj-biz-apps/tasks-entities';
 import { MEETING_AGENDA_ITEM_ENTITY, MEETING_LINK_ENTITY, MEETING_SERIES_ENTITY, agendaParentProblem, type AgendaNode } from '@mj-biz-apps/tasks-core';
 import { mjBizAppsTasksMeetingSeriesEntity } from '@mj-biz-apps/tasks-entities';
-import { callerAndMeeting, callerOwnsMeeting, meetingCaller } from './meeting-caller.js';
+import { callerAndMeeting, callerOwnsMeeting, meetingCaller, movedFromMeetingRefusal, valueBefore } from './meeting-caller.js';
 
 const fail = (result: ValidationResult, field: string, message: string): ValidationResult => {
     result.Success = false;
@@ -25,6 +25,8 @@ export class MeetingAgendaItemEntityServer extends mjBizAppsTasksMeetingAgendaIt
             if (value != null && value !== '' && !UUID.test(String(value))) return fail(result, field, `${field} is not an id.`);
         }
         // The agenda is the organizer's to write (the meetings plan, § 3 and § 5), over the API as in the app
+        const moved = await movedFromMeetingRefusal(this.ProviderToUse as unknown as IMetadataProvider, this.ContextCurrentUser, this);
+        if (moved) return fail(result, 'MeetingID', moved);
         const access = await callerAndMeeting(this.ProviderToUse as unknown as IMetadataProvider, this.ContextCurrentUser, this.MeetingID);
         if (!access.found) return fail(result, 'MeetingID', 'The meeting was not found, or you may not see it.');
         if (!access.owns) return fail(result, 'MeetingID', 'Only the organizer changes the agenda.');
@@ -86,8 +88,17 @@ export class MeetingLinkEntityServer extends mjBizAppsTasksMeetingLinkEntity {
         return super.Delete(options);
     }
 
-    /** Why the caller may not write this link, or null. */
+    /** Why the caller may not write this link, or null. A link that moves needs the caller on both ends. */
     private async callerRefusal(): Promise<string | null> {
+        const moved = await movedFromMeetingRefusal(this.metadataProvider, this.ContextCurrentUser, this);
+        if (moved) return moved;
+        const seriesField = this.Fields.find((f) => f.CodeName === 'SeriesID');
+        const seriesBefore = this.IsSaved && seriesField?.Dirty ? valueBefore(this, 'SeriesID') : null;
+        if (seriesBefore) {
+            const series = await this.metadataProvider.GetEntityObject<mjBizAppsTasksMeetingSeriesEntity>(MEETING_SERIES_ENTITY, this.ContextCurrentUser);
+            const caller = await meetingCaller(this.metadataProvider, this.ContextCurrentUser);
+            if (!(await series.Load(seriesBefore)) || !callerOwnsMeeting(caller, series.OrganizerPersonID)) return 'A link moves to another series only at the organizer\'s hand, on both series.';
+        }
         if (this.MeetingID) {
             const access = await callerAndMeeting(this.metadataProvider, this.ContextCurrentUser, this.MeetingID);
             if (!access.found) return 'The meeting was not found, or you may not see it.';

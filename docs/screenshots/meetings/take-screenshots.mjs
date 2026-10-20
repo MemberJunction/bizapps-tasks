@@ -6,7 +6,7 @@
  *   node docs/screenshots/meetings/take-screenshots.mjs --save-staff-session   # a browser opens; sign in; the session is saved
  *
  * Env: EXPLORER_URL (default http://localhost:4218), MJAPI_URL and MJ_API_KEY for the seed (the harness's), SCREENSHOT_STAFF_EMAIL
- * (the signed-in user; the seed gives them a Person and makes them the organizer of the sample meetings).
+ * (the signed-in user; the seed gives them a Person, named from STAFF_NAME or the address, and makes them the organizer of the sample meetings).
  * The sample rows are made once, by name, over GraphQL, and left in place.
  */
 import { existsSync, mkdirSync } from 'node:fs';
@@ -57,8 +57,9 @@ async function seed() {
     if (!staffPerson) {
         const person = await provider.GetEntityObject(it.PERSON_ENTITY, user);
         person.NewRecord();
-        person.FirstName = 'Ian';
-        person.LastName = 'Zygmunt';
+        const [first, ...rest] = (process.env.STAFF_NAME ?? STAFF_EMAIL.split('@')[0].replace(/[._-]+/g, ' ')).split(' ');
+        person.FirstName = first;
+        person.LastName = rest.join(' ') || null;
         person.Email = STAFF_EMAIL;
         person.Status = 'Active';
         await it.RequireSave(person, 'the staff person');

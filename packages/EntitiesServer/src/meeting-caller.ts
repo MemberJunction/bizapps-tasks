@@ -49,3 +49,22 @@ export async function callerAndMeeting(
     const attends = owns ? true : await callerAttendsMeeting(provider, user, caller, meetingId);
     return { found: true, caller, owns, attends, organizerPersonId: meeting.OrganizerPersonID };
 }
+
+/** The value a field held before this save, or its current value when it did not change. */
+export function valueBefore(entity: { Fields: Array<{ CodeName: string; Dirty: boolean; OldValue: unknown; Value: unknown }> }, codeName: string): string | null {
+    const field = entity.Fields.find((f) => f.CodeName === codeName);
+    if (!field) return null;
+    const value = field.Dirty ? field.OldValue : field.Value;
+    return value == null || value === '' ? null : String(value);
+}
+
+/** Whether a saved row's meeting changed, and the caller may not take it from the meeting it was on. */
+export async function movedFromMeetingRefusal(provider: IMetadataProvider, user: UserInfo | undefined, entity: { IsSaved: boolean; Fields: Array<{ CodeName: string; Dirty: boolean; OldValue: unknown; Value: unknown }> }): Promise<string | null> {
+    if (!entity.IsSaved) return null;
+    const field = entity.Fields.find((f) => f.CodeName === 'MeetingID');
+    if (!field?.Dirty) return null;
+    const before = valueBefore(entity, 'MeetingID');
+    if (!before) return null;
+    const access = await callerAndMeeting(provider, user, before);
+    return access.found && access.owns ? null : 'A row moves to another meeting only at the organizer\'s hand, on both meetings.';
+}
