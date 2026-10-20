@@ -51,7 +51,7 @@ vi.mock('@mj-biz-apps/tasks-entities', () => ({
 vi.mock('@mj-biz-apps/common-entities', () => ({
   BusinessTimeZoneEngine: { Instance: { Config: async () => undefined, Zone: 'UTC' } },
 }));
-vi.mock('@mj-biz-apps/tasks-core', () => ({ TaskService: class {} }));
+vi.mock('@mj-biz-apps/tasks-core', async () => ({ ...(await vi.importActual<typeof import('@mj-biz-apps/tasks-core')>('@mj-biz-apps/tasks-core')), TaskService: class {} }));
 vi.mock('@memberjunction/core-entities', () => ({ ApplicationSettingEngine: { Instance: {} } }));
 
 describe('@mj-biz-apps/tasks-entities-server', () => {
