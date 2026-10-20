@@ -5,15 +5,81 @@
 --
 -- HOW IT WAS MADE
 --   * `mj sql-convert --from tsql --to postgres` (MJ CLI 6.1.6) on the push log the T-SQL file
---     was generated from. Each record is a DO block that calls this app's function, in whichever
---     signature the host has (jsonb or named parameters).
+--     was generated from. Each record is a DO block that calls the core or app function, in
+--     whichever signature the host has (jsonb or named parameters).
 --   * The converter does not translate the guards the T-SQL file adds, so they are written here
 --     by hand from the T-SQL ones: IF <guard> EXEC ... becomes IF <guard> THEN <call> END IF.
 --   * String values match the T-SQL file verbatim.
---   * This app's schema is written as the converter emits it.
+--   * Core calls use ${mjSchema}; this app's schema is written as the converter emits it.
 -- =============================================================================================
 
 SET standard_conforming_strings = on;
+
+-- Save MJ: Application Settings (core SP call only)
+DO $mj$
+DECLARE
+  p_ID_792f17ed8c91 UUID;
+  p_ApplicationID_792f17ed8c91 UUID;
+  p_Name_792f17ed8c91 VARCHAR(100);
+  p_Value_792f17ed8c91 TEXT;
+  p_Comments_792f17ed8c91 TEXT;
+BEGIN
+  p_ID_792f17ed8c91 := '03CB418F-59E6-4838-9DA7-5646502D3D79';
+  p_ApplicationID_792f17ed8c91 := '22541055-8ED4-4850-8ACD-E5EE1887B15B';
+  p_Name_792f17ed8c91 := 'PreventSelfApproval';
+  p_Value_792f17ed8c91 := 'false';
+  p_Comments_792f17ed8c91 := 'When true, a decision on an approval task (a task whose type has IsApproval set) is accepted only from one of the task''s assignees, recorded as that assignee''s own decision, and never from the person who created the task (bc-aidp-next-golive#320). Checked on the server for every path that records a decision: the approval panel, the Tasks inbox and other apps'' server code. False, the default, accepts every decision as before.';
+  IF NOT EXISTS (SELECT 1 FROM "${mjSchema}"."ApplicationSetting" WHERE "ID" = p_ID_792f17ed8c91 OR ("ApplicationID" = p_ApplicationID_792f17ed8c91 AND "Name" = p_Name_792f17ed8c91)) THEN
+    IF EXISTS (
+      SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+       WHERE n.nspname = '${mjSchema}' AND p.proname = 'spCreateApplicationSetting'
+         AND p.pronargs = 1 AND p.proargtypes[0] = 'jsonb'::regtype
+    ) THEN
+      PERFORM "${mjSchema}"."spCreateApplicationSetting"(p_data := jsonb_build_object(
+      'ID', p_ID_792f17ed8c91,
+      'ApplicationID', p_ApplicationID_792f17ed8c91,
+      'Name', p_Name_792f17ed8c91,
+      'Value', p_Value_792f17ed8c91,
+      'Comments', p_Comments_792f17ed8c91
+    ));
+    ELSE
+      PERFORM "${mjSchema}"."spCreateApplicationSetting"(p_ID := p_ID_792f17ed8c91, p_ApplicationID := p_ApplicationID_792f17ed8c91, p_Name := p_Name_792f17ed8c91, p_Value := p_Value_792f17ed8c91, p_Comments := p_Comments_792f17ed8c91);
+    END IF;
+  END IF;
+END $mj$;
+
+-- Save MJ: Application Settings (core SP call only)
+DO $mj$
+DECLARE
+  p_ID_d6aeb744928f UUID;
+  p_ApplicationID_d6aeb744928f UUID;
+  p_Name_d6aeb744928f VARCHAR(100);
+  p_Value_d6aeb744928f TEXT;
+  p_Comments_d6aeb744928f TEXT;
+BEGIN
+  p_ID_d6aeb744928f := '17CC9998-9382-447B-A7DF-682A06837953';
+  p_ApplicationID_d6aeb744928f := '22541055-8ED4-4850-8ACD-E5EE1887B15B';
+  p_Name_d6aeb744928f := 'SelfApprovalExemptRole';
+  p_Value_d6aeb744928f := '';
+  p_Comments_d6aeb744928f := 'The NAME of the MJ role whose holders may decide an approval task they created themselves while PreventSelfApproval is true. They must still be one of its assignees. Empty exempts nobody. A name that is not a role exempts nobody and is logged.';
+  IF NOT EXISTS (SELECT 1 FROM "${mjSchema}"."ApplicationSetting" WHERE "ID" = p_ID_d6aeb744928f OR ("ApplicationID" = p_ApplicationID_d6aeb744928f AND "Name" = p_Name_d6aeb744928f)) THEN
+    IF EXISTS (
+      SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+       WHERE n.nspname = '${mjSchema}' AND p.proname = 'spCreateApplicationSetting'
+         AND p.pronargs = 1 AND p.proargtypes[0] = 'jsonb'::regtype
+    ) THEN
+      PERFORM "${mjSchema}"."spCreateApplicationSetting"(p_data := jsonb_build_object(
+      'ID', p_ID_d6aeb744928f,
+      'ApplicationID', p_ApplicationID_d6aeb744928f,
+      'Name', p_Name_d6aeb744928f,
+      'Value', p_Value_d6aeb744928f,
+      'Comments', p_Comments_d6aeb744928f
+    ));
+    ELSE
+      PERFORM "${mjSchema}"."spCreateApplicationSetting"(p_ID := p_ID_d6aeb744928f, p_ApplicationID := p_ApplicationID_d6aeb744928f, p_Name := p_Name_d6aeb744928f, p_Value := p_Value_d6aeb744928f, p_Comments := p_Comments_d6aeb744928f);
+    END IF;
+  END IF;
+END $mj$;
 
 -- Save MJ_BizApps_Tasks: Task Types (core SP call only)
 DO $mj$
