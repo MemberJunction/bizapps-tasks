@@ -10,9 +10,10 @@
       "MJ: Entity Fields": [
         {
           "fields": {
-            "EntityID": "@parent:ID",
-            "Name": "AssigneeRecordID",
             "EntityIDFieldName": "AssigneeEntityID"
+          },
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Assignments&Name=AssigneeRecordID"
           }
         }
       ]
@@ -32,9 +33,10 @@
       "MJ: Entity Fields": [
         {
           "fields": {
-            "EntityID": "@parent:ID",
-            "Name": "RecordID",
             "EntityIDFieldName": "EntityID"
+          },
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Links&Name=RecordID"
           }
         }
       ]
