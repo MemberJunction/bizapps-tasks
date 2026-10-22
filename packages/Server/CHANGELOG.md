@@ -1,5 +1,16 @@
 # @mj-biz-apps/tasks-server
 
+## 1.11.0
+
+### Patch Changes
+
+- Updated dependencies [a2bab10]
+- Updated dependencies [f50bd0d]
+  - @mj-biz-apps/tasks-entities@1.11.0
+  - @mj-biz-apps/tasks-actions@1.11.0
+  - @mj-biz-apps/tasks-core@1.11.0
+  - @mj-biz-apps/tasks-entities-server@1.11.0
+
 ## 1.10.0
 
 ### Minor Changes
