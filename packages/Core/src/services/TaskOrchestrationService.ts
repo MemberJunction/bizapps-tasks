@@ -173,6 +173,18 @@ export class TaskOrchestrationService {
     async RecordDecision(params: RecordDecisionParams, contextUser?: UserInfo): Promise<RecordDecisionResult> {
         const outcome = await this.resolveOutcome(params.OutcomeCode, contextUser);
 
+        // The OutcomeCode type is compile-time only — runtime callers (e.g. UI panels
+        // that load deployment-defined outcomes from the DB) can pass codes outside the
+        // seeded table. A terminal outcome we cannot map to a status must fail HERE,
+        // before any write; otherwise the decision row is saved and statusForOutcome
+        // throws afterwards, leaving a recorded decision with no task transition.
+        if (outcome.IsTerminal && !IsTaskDecisionOutcomeCode(params.OutcomeCode)) {
+            throw new Error(
+                `Terminal decision outcome '${params.OutcomeCode}' is not a recognized code ` +
+                `(expected one of: ${TaskDecisionOutcomeCodes.join(', ')}); refusing to record it.`
+            );
+        }
+
         const md = new Metadata();
         const decision = await md.GetEntityObject<mjBizAppsTasksTaskDecisionEntity>(TASK_DECISIONS_ENTITY, contextUser);
         decision.NewRecord();
