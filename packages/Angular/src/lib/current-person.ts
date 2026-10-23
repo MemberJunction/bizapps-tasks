@@ -20,15 +20,29 @@ export const PEOPLE_ENTITY = 'MJ_BizApps_Common: People';
 export async function ResolveCurrentPersonID(user: UserInfo | undefined = new Metadata().CurrentUser): Promise<string | null> {
     if (!user?.ID) return null;
     const linkedPersonID = LinkedPersonRecordID(user);
-    const result = await new RunView().RunView<{ ID: string }>({
+    const params = {
         EntityName: PEOPLE_ENTITY,
         ExtraFilter: `${linkedPersonID ? `ID = '${linkedPersonID}'` : `LinkedUserID = '${user.ID}'`} AND Status = 'Active'`,
         Fields: ['ID'],
-        ResultType: 'simple',
+        ResultType: 'simple' as const,
         MaxRows: 1,
-    });
+    };
+    let result: Awaited<ReturnType<RunView['RunView']>> | null = null;
+    try {
+        result = await new RunView().RunView<{ ID: string }>(params);
+    } catch (error) {
+        // The GraphQL provider sends the views asked in one tick as one batch and rejects them all when any one of them
+        // names an entity the host lacks (a shell component's, on a host behind its code). The People read was not the
+        // problem then: ask once more, in a batch of its own.
+        if (error instanceof Error && /not found in metadata/i.test(error.message) && !error.message.includes(PEOPLE_ENTITY)) {
+            await new Promise((resolve) => setTimeout(resolve, 150));
+            result = await new RunView().RunView<{ ID: string }>(params);
+        } else {
+            throw error;
+        }
+    }
     if (!result?.Success) throw new Error(`Person lookup failed: ${result?.ErrorMessage ?? 'no result'}`);
-    return result.Results?.[0]?.ID ?? null;
+    return (result.Results as Array<{ ID: string }> | undefined)?.[0]?.ID ?? null;
 }
 
 /** The Person ID the user record links to, or null when it links to no People record. */

@@ -5,6 +5,997 @@ import { z } from "zod";
      
  
 /**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Meeting Agenda Item Types
+ */
+export const mjBizAppsTasksMeetingAgendaItemTypeSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key.`),
+    Name: z.string().describe(`
+        * * Field Name: Name
+        * * Display Name: Name
+        * * SQL Data Type: nvarchar(100)
+        * * Description: The type's display name. Unique.`),
+    Code: z.string().describe(`
+        * * Field Name: Code
+        * * Display Name: Code
+        * * SQL Data Type: nvarchar(50)
+        * * Description: A stable code apps and agenda templates refer to. Unique.`),
+    Description: z.string().nullable().describe(`
+        * * Field Name: Description
+        * * Display Name: Description
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: What items of this type are for.`),
+    IconClass: z.string().nullable().describe(`
+        * * Field Name: IconClass
+        * * Display Name: Icon Class
+        * * SQL Data Type: nvarchar(100)
+        * * Description: Font Awesome icon class shown beside the item.`),
+    DefaultDurationMinutes: z.number().nullable().describe(`
+        * * Field Name: DefaultDurationMinutes
+        * * Display Name: Default Duration Minutes
+        * * SQL Data Type: int
+        * * Description: How long an item of this type takes unless the agenda says otherwise. More than 0.`),
+    IsActive: z.boolean().describe(`
+        * * Field Name: IsActive
+        * * Display Name: Is Active
+        * * SQL Data Type: bit
+        * * Default Value: 1
+        * * Description: When false, the type is kept for existing items but not offered for new ones.`),
+    Sequence: z.number().describe(`
+        * * Field Name: Sequence
+        * * Display Name: Sequence
+        * * SQL Data Type: int
+        * * Default Value: 100
+        * * Description: Display order among types.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+});
+
+export type mjBizAppsTasksMeetingAgendaItemTypeEntityType = z.infer<typeof mjBizAppsTasksMeetingAgendaItemTypeSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Meeting Agenda Items
+ */
+export const mjBizAppsTasksMeetingAgendaItemSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key.`),
+    MeetingID: z.string().describe(`
+        * * Field Name: MeetingID
+        * * Display Name: Meeting ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meetings (vwMeetings.ID)
+        * * Description: The meeting the item is on the agenda of.`),
+    ParentID: z.string().nullable().describe(`
+        * * Field Name: ParentID
+        * * Display Name: Parent ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meeting Agenda Items (vwMeetingAgendaItems.ID)
+        * * Description: The item this one sits under, for a sub-item. Same meeting, no cycle.`),
+    Sequence: z.number().describe(`
+        * * Field Name: Sequence
+        * * Display Name: Sequence
+        * * SQL Data Type: int
+        * * Default Value: 100
+        * * Description: Order among its siblings.`),
+    Name: z.string().describe(`
+        * * Field Name: Name
+        * * Display Name: Name
+        * * SQL Data Type: nvarchar(500)
+        * * Description: The item's title.`),
+    Description: z.string().nullable().describe(`
+        * * Field Name: Description
+        * * Display Name: Description
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: What the item covers, in Markdown.`),
+    TypeID: z.string().nullable().describe(`
+        * * Field Name: TypeID
+        * * Display Name: Type ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meeting Agenda Item Types (vwMeetingAgendaItemTypes.ID)
+        * * Description: The agenda item type: Information, Discussion, Decision, and so on.`),
+    PresenterPersonID: z.string().nullable().describe(`
+        * * Field Name: PresenterPersonID
+        * * Display Name: Presenter Person ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: The person who presents the item.`),
+    DurationMinutes: z.number().nullable().describe(`
+        * * Field Name: DurationMinutes
+        * * Display Name: Duration Minutes
+        * * SQL Data Type: int
+        * * Description: How long the item is planned to take. 0 or more.`),
+    Status: z.union([z.literal('Deferred'), z.literal('Done'), z.literal('InProgress'), z.literal('Planned'), z.literal('Skipped')]).describe(`
+        * * Field Name: Status
+        * * Display Name: Status
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: Planned
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Deferred
+    *   * Done
+    *   * InProgress
+    *   * Planned
+    *   * Skipped
+        * * Description: Planned, InProgress, Done, Deferred or Skipped.`),
+    StartedAt: z.date().nullable().describe(`
+        * * Field Name: StartedAt
+        * * Display Name: Started At
+        * * SQL Data Type: datetimeoffset
+        * * Description: When the item was started, from the live meeting.`),
+    EndedAt: z.date().nullable().describe(`
+        * * Field Name: EndedAt
+        * * Display Name: Ended At
+        * * SQL Data Type: datetimeoffset
+        * * Description: When the item was ended.`),
+    Outcome: z.string().nullable().describe(`
+        * * Field Name: Outcome
+        * * Display Name: Outcome
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: What was agreed, in a sentence or two.`),
+    DeferredToMeetingID: z.string().nullable().describe(`
+        * * Field Name: DeferredToMeetingID
+        * * Display Name: Deferred To Meeting ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meetings (vwMeetings.ID)
+        * * Description: The later meeting a deferred item moved to.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Meeting: z.string().describe(`
+        * * Field Name: Meeting
+        * * Display Name: Meeting
+        * * SQL Data Type: nvarchar(255)`),
+    Parent: z.string().nullable().describe(`
+        * * Field Name: Parent
+        * * Display Name: Parent
+        * * SQL Data Type: nvarchar(500)`),
+    Type: z.string().nullable().describe(`
+        * * Field Name: Type
+        * * Display Name: Type
+        * * SQL Data Type: nvarchar(100)`),
+    PresenterPerson: z.string().nullable().describe(`
+        * * Field Name: PresenterPerson
+        * * Display Name: Presenter Person
+        * * SQL Data Type: nvarchar(201)`),
+    DeferredToMeeting: z.string().nullable().describe(`
+        * * Field Name: DeferredToMeeting
+        * * Display Name: Deferred To Meeting
+        * * SQL Data Type: nvarchar(255)`),
+});
+
+export type mjBizAppsTasksMeetingAgendaItemEntityType = z.infer<typeof mjBizAppsTasksMeetingAgendaItemSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Meeting Attendees
+ */
+export const mjBizAppsTasksMeetingAttendeeSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key.`),
+    MeetingID: z.string().describe(`
+        * * Field Name: MeetingID
+        * * Display Name: Meeting ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meetings (vwMeetings.ID)
+        * * Description: The meeting the attendee is invited to.`),
+    PersonID: z.string().nullable().describe(`
+        * * Field Name: PersonID
+        * * Display Name: Person ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: The person invited, when they are a Person. Either this or Email is set.`),
+    UserID: z.string().nullable().describe(`
+        * * Field Name: UserID
+        * * Display Name: User ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: Users (vwUsers.ID)
+        * * Description: The person's MemberJunction user, when they have one, filled from the person's account. My meetings and the private-meeting filter use it.`),
+    Email: z.string().nullable().describe(`
+        * * Field Name: Email
+        * * Display Name: Email
+        * * SQL Data Type: nvarchar(255)
+        * * Description: A guest's address, or the address a person's invitation goes to.`),
+    DisplayName: z.string().nullable().describe(`
+        * * Field Name: DisplayName
+        * * Display Name: Display Name
+        * * SQL Data Type: nvarchar(255)
+        * * Description: A guest's name.`),
+    Role: z.union([z.literal('Optional'), z.literal('Organizer'), z.literal('Required')]).describe(`
+        * * Field Name: Role
+        * * Display Name: Role
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: Required
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Optional
+    *   * Organizer
+    *   * Required
+        * * Description: Organizer, Required or Optional. One Organizer row per meeting, kept in step with Meeting.OrganizerPersonID.`),
+    ResponseStatus: z.union([z.literal('Accepted'), z.literal('Declined'), z.literal('None'), z.literal('Tentative')]).describe(`
+        * * Field Name: ResponseStatus
+        * * Display Name: Response Status
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: None
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Accepted
+    *   * Declined
+    *   * None
+    *   * Tentative
+        * * Description: The answer to the invitation: None, Accepted, Tentative or Declined.`),
+    RespondedAt: z.date().nullable().describe(`
+        * * Field Name: RespondedAt
+        * * Display Name: Responded At
+        * * SQL Data Type: datetimeoffset
+        * * Description: When the invitation was answered.`),
+    AttendanceStatus: z.union([z.literal('Absent'), z.literal('Excused'), z.literal('Late'), z.literal('LeftEarly'), z.literal('Present'), z.literal('Unknown')]).describe(`
+        * * Field Name: AttendanceStatus
+        * * Display Name: Attendance Status
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: Unknown
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Absent
+    *   * Excused
+    *   * Late
+    *   * LeftEarly
+    *   * Present
+    *   * Unknown
+        * * Description: Whether they came: Unknown, Present, Late, LeftEarly, Absent or Excused.`),
+    JoinedAt: z.date().nullable().describe(`
+        * * Field Name: JoinedAt
+        * * Display Name: Joined At
+        * * SQL Data Type: datetimeoffset
+        * * Description: When they joined, from the live meeting or the video provider.`),
+    LeftAt: z.date().nullable().describe(`
+        * * Field Name: LeftAt
+        * * Display Name: Left At
+        * * SQL Data Type: datetimeoffset
+        * * Description: When they left.`),
+    Notes: z.string().nullable().describe(`
+        * * Field Name: Notes
+        * * Display Name: Notes
+        * * SQL Data Type: nvarchar(500)
+        * * Description: A note on their attendance, such as why someone is excused.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Meeting: z.string().describe(`
+        * * Field Name: Meeting
+        * * Display Name: Meeting
+        * * SQL Data Type: nvarchar(255)`),
+    Person: z.string().nullable().describe(`
+        * * Field Name: Person
+        * * Display Name: Person
+        * * SQL Data Type: nvarchar(201)`),
+    User: z.string().nullable().describe(`
+        * * Field Name: User
+        * * Display Name: User
+        * * SQL Data Type: nvarchar(100)`),
+});
+
+export type mjBizAppsTasksMeetingAttendeeEntityType = z.infer<typeof mjBizAppsTasksMeetingAttendeeSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Meeting Links
+ */
+export const mjBizAppsTasksMeetingLinkSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key.`),
+    MeetingID: z.string().nullable().describe(`
+        * * Field Name: MeetingID
+        * * Display Name: Meeting ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meetings (vwMeetings.ID)
+        * * Description: The meeting that belongs to the record. Either this or SeriesID is set.`),
+    SeriesID: z.string().nullable().describe(`
+        * * Field Name: SeriesID
+        * * Display Name: Series ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meeting Series (vwMeetingSeries.ID)
+        * * Description: The series that belongs to the record. Either this or MeetingID is set.`),
+    EntityID: z.string().describe(`
+        * * Field Name: EntityID
+        * * Display Name: Entity ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: Entities (vwEntities.ID)
+        * * Description: The entity of the record the meeting belongs to.`),
+    RecordID: z.string().describe(`
+        * * Field Name: RecordID
+        * * Display Name: Record ID
+        * * SQL Data Type: nvarchar(450)
+        * * Description: The record's primary key, as on TaskLink.`),
+    Description: z.string().nullable().describe(`
+        * * Field Name: Description
+        * * Display Name: Description
+        * * SQL Data Type: nvarchar(500)
+        * * Description: Why the meeting belongs to the record.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Meeting: z.string().nullable().describe(`
+        * * Field Name: Meeting
+        * * Display Name: Meeting
+        * * SQL Data Type: nvarchar(255)`),
+    Series: z.string().nullable().describe(`
+        * * Field Name: Series
+        * * Display Name: Series
+        * * SQL Data Type: nvarchar(255)`),
+    Entity: z.string().describe(`
+        * * Field Name: Entity
+        * * Display Name: Entity
+        * * SQL Data Type: nvarchar(255)`),
+});
+
+export type mjBizAppsTasksMeetingLinkEntityType = z.infer<typeof mjBizAppsTasksMeetingLinkSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Meeting Notes
+ */
+export const mjBizAppsTasksMeetingNoteSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key.`),
+    MeetingID: z.string().describe(`
+        * * Field Name: MeetingID
+        * * Display Name: Meeting ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meetings (vwMeetings.ID)
+        * * Description: The meeting the note is about.`),
+    AgendaItemID: z.string().nullable().describe(`
+        * * Field Name: AgendaItemID
+        * * Display Name: Agenda Item ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meeting Agenda Items (vwMeetingAgendaItems.ID)
+        * * Description: The agenda item the note is about, for a note on one item.`),
+    Kind: z.union([z.literal('Decision'), z.literal('Notes'), z.literal('Summary')]).describe(`
+        * * Field Name: Kind
+        * * Display Name: Kind
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: Notes
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Decision
+    *   * Notes
+    *   * Summary
+        * * Description: Notes, Summary or Decision.`),
+    Title: z.string().nullable().describe(`
+        * * Field Name: Title
+        * * Display Name: Title
+        * * SQL Data Type: nvarchar(255)
+        * * Description: The note's title.`),
+    Body: z.string().describe(`
+        * * Field Name: Body
+        * * Display Name: Body
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: The note, in Markdown.`),
+    Source: z.union([z.literal('AI'), z.literal('Manual')]).describe(`
+        * * Field Name: Source
+        * * Display Name: Source
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: Manual
+    * * Value List Type: List
+    * * Possible Values 
+    *   * AI
+    *   * Manual
+        * * Description: Manual for a person's note; AI for a draft from a transcript.`),
+    Status: z.union([z.literal('Draft'), z.literal('Final')]).describe(`
+        * * Field Name: Status
+        * * Display Name: Status
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: Draft
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Draft
+    *   * Final
+        * * Description: Draft or Final. Approving minutes is governance and stays with the app that owns it.`),
+    AuthorPersonID: z.string().nullable().describe(`
+        * * Field Name: AuthorPersonID
+        * * Display Name: Author Person ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: The person who wrote the note, for a person's note.`),
+    AIPromptRunID: z.string().nullable().describe(`
+        * * Field Name: AIPromptRunID
+        * * Display Name: AI Prompt Run ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: AI Prompt Runs (vwAIPromptRuns.ID)
+        * * Description: The MJ: AI Prompt Runs record the draft came from, for an AI note.`),
+    ProposedTasks: z.string().nullable().describe(`
+        * * Field Name: ProposedTasks
+        * * Display Name: Proposed Tasks
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: JSON: the action items the notes propose, each with a title, an assignee, a due date, its agenda item, and the task's ID once a person accepted it. Nothing is filed without that approval.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Meeting: z.string().describe(`
+        * * Field Name: Meeting
+        * * Display Name: Meeting
+        * * SQL Data Type: nvarchar(255)`),
+    AgendaItem: z.string().nullable().describe(`
+        * * Field Name: AgendaItem
+        * * Display Name: Agenda Item
+        * * SQL Data Type: nvarchar(500)`),
+    AuthorPerson: z.string().nullable().describe(`
+        * * Field Name: AuthorPerson
+        * * Display Name: Author Person
+        * * SQL Data Type: nvarchar(201)`),
+    AIPromptRun: z.string().nullable().describe(`
+        * * Field Name: AIPromptRun
+        * * Display Name: AI Prompt Run
+        * * SQL Data Type: nvarchar(255)`),
+});
+
+export type mjBizAppsTasksMeetingNoteEntityType = z.infer<typeof mjBizAppsTasksMeetingNoteSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Meeting Series
+ */
+export const mjBizAppsTasksMeetingSeriesSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key.`),
+    Name: z.string().describe(`
+        * * Field Name: Name
+        * * Display Name: Name
+        * * SQL Data Type: nvarchar(255)
+        * * Description: The series' title. Each new occurrence starts with it.`),
+    Description: z.string().nullable().describe(`
+        * * Field Name: Description
+        * * Display Name: Description
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: The series' purpose, in Markdown. Each new occurrence starts with it.`),
+    TypeID: z.string().nullable().describe(`
+        * * Field Name: TypeID
+        * * Display Name: Type ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meeting Types (vwMeetingTypes.ID)
+        * * Description: The meeting type each occurrence is made from.`),
+    OrganizerPersonID: z.string().describe(`
+        * * Field Name: OrganizerPersonID
+        * * Display Name: Organizer Person ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: The person who organizes the series. Each occurrence starts with them as its organizer.`),
+    RecurrenceRule: z.string().describe(`
+        * * Field Name: RecurrenceRule
+        * * Display Name: Recurrence Rule
+        * * SQL Data Type: nvarchar(500)
+        * * Description: An RFC 5545 RRULE value, such as FREQ=WEEKLY;BYDAY=TU. Its UNTIL or COUNT ends the series.`),
+    TimeZone: z.string().describe(`
+        * * Field Name: TimeZone
+        * * Display Name: Time Zone
+        * * SQL Data Type: nvarchar(64)
+        * * Description: The IANA time zone the rule is expanded in, such as America/Chicago, so a 9:00 meeting stays at 9:00 across daylight-saving changes.`),
+    FirstStartsAt: z.date().describe(`
+        * * Field Name: FirstStartsAt
+        * * Display Name: First Starts At
+        * * SQL Data Type: datetimeoffset
+        * * Description: The rule's DTSTART: when the first occurrence starts.`),
+    DurationMinutes: z.number().describe(`
+        * * Field Name: DurationMinutes
+        * * Display Name: Duration Minutes
+        * * SQL Data Type: int
+        * * Description: How long each occurrence lasts. More than 0.`),
+    LocationType: z.union([z.literal('Hybrid'), z.literal('InPerson'), z.literal('Phone'), z.literal('Virtual')]).describe(`
+        * * Field Name: LocationType
+        * * Display Name: Location Type
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: Virtual
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Hybrid
+    *   * InPerson
+    *   * Phone
+    *   * Virtual
+        * * Description: The location each new occurrence starts with: Virtual, InPerson, Hybrid or Phone.`),
+    Location: z.string().nullable().describe(`
+        * * Field Name: Location
+        * * Display Name: Location
+        * * SQL Data Type: nvarchar(500)
+        * * Description: The room or address each new occurrence starts with.`),
+    VideoProviderID: z.string().nullable().describe(`
+        * * Field Name: VideoProviderID
+        * * Display Name: Video Provider ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Video Providers (vwVideoProviders.ID)
+        * * Description: The video provider each new virtual occurrence is hosted on.`),
+    Visibility: z.union([z.literal('Private'), z.literal('Standard')]).describe(`
+        * * Field Name: Visibility
+        * * Display Name: Visibility
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: Standard
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Private
+    *   * Standard
+        * * Description: The visibility each new occurrence starts with: Standard, or Private for its attendees only.`),
+    Status: z.union([z.literal('Active'), z.literal('Cancelled'), z.literal('Ended')]).describe(`
+        * * Field Name: Status
+        * * Display Name: Status
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: Active
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Active
+    *   * Cancelled
+    *   * Ended
+        * * Description: Active while occurrences are still made; Ended once the rule has run out; Cancelled when the series was stopped.`),
+    MaterializedThrough: z.date().nullable().describe(`
+        * * Field Name: MaterializedThrough
+        * * Display Name: Materialized Through
+        * * SQL Data Type: datetimeoffset
+        * * Description: Occurrences exist up to this point in time. The scheduled job and a save extend it.`),
+    CreatedByPersonID: z.string().nullable().describe(`
+        * * Field Name: CreatedByPersonID
+        * * Display Name: Created By Person ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: The person who created the series, as Task.CreatedByPersonID.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Type: z.string().nullable().describe(`
+        * * Field Name: Type
+        * * Display Name: Type
+        * * SQL Data Type: nvarchar(100)`),
+    OrganizerPerson: z.string().describe(`
+        * * Field Name: OrganizerPerson
+        * * Display Name: Organizer Person
+        * * SQL Data Type: nvarchar(201)`),
+    VideoProvider: z.string().nullable().describe(`
+        * * Field Name: VideoProvider
+        * * Display Name: Video Provider
+        * * SQL Data Type: nvarchar(100)`),
+    CreatedByPerson: z.string().nullable().describe(`
+        * * Field Name: CreatedByPerson
+        * * Display Name: Created By Person
+        * * SQL Data Type: nvarchar(201)`),
+});
+
+export type mjBizAppsTasksMeetingSeriesEntityType = z.infer<typeof mjBizAppsTasksMeetingSeriesSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Meeting Series Attendees
+ */
+export const mjBizAppsTasksMeetingSeriesAttendeeSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key.`),
+    SeriesID: z.string().describe(`
+        * * Field Name: SeriesID
+        * * Display Name: Series ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meeting Series (vwMeetingSeries.ID)
+        * * Description: The series each new occurrence of which invites this attendee.`),
+    PersonID: z.string().nullable().describe(`
+        * * Field Name: PersonID
+        * * Display Name: Person ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: The person invited, when they are a Person. Either this or Email is set.`),
+    UserID: z.string().nullable().describe(`
+        * * Field Name: UserID
+        * * Display Name: User ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: Users (vwUsers.ID)
+        * * Description: The person's MemberJunction user, when they have one, filled from the person's account.`),
+    Email: z.string().nullable().describe(`
+        * * Field Name: Email
+        * * Display Name: Email
+        * * SQL Data Type: nvarchar(255)
+        * * Description: A guest's address, or the address a person's invitation goes to.`),
+    DisplayName: z.string().nullable().describe(`
+        * * Field Name: DisplayName
+        * * Display Name: Display Name
+        * * SQL Data Type: nvarchar(255)
+        * * Description: A guest's name.`),
+    Role: z.union([z.literal('Optional'), z.literal('Required')]).describe(`
+        * * Field Name: Role
+        * * Display Name: Role
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: Required
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Optional
+    *   * Required
+        * * Description: Required or Optional. The organizer is the series' own.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Series: z.string().describe(`
+        * * Field Name: Series
+        * * Display Name: Series
+        * * SQL Data Type: nvarchar(255)`),
+    Person: z.string().nullable().describe(`
+        * * Field Name: Person
+        * * Display Name: Person
+        * * SQL Data Type: nvarchar(201)`),
+    User: z.string().nullable().describe(`
+        * * Field Name: User
+        * * Display Name: User
+        * * SQL Data Type: nvarchar(100)`),
+});
+
+export type mjBizAppsTasksMeetingSeriesAttendeeEntityType = z.infer<typeof mjBizAppsTasksMeetingSeriesAttendeeSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Meeting Types
+ */
+export const mjBizAppsTasksMeetingTypeSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key.`),
+    Name: z.string().describe(`
+        * * Field Name: Name
+        * * Display Name: Name
+        * * SQL Data Type: nvarchar(100)
+        * * Description: The type's display name. Unique.`),
+    Code: z.string().describe(`
+        * * Field Name: Code
+        * * Display Name: Code
+        * * SQL Data Type: nvarchar(50)
+        * * Description: A stable code apps refer to, as TaskType.Code. Unique.`),
+    Description: z.string().nullable().describe(`
+        * * Field Name: Description
+        * * Display Name: Description
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: What meetings of this type are for.`),
+    IconClass: z.string().nullable().describe(`
+        * * Field Name: IconClass
+        * * Display Name: Icon Class
+        * * SQL Data Type: nvarchar(100)
+        * * Description: Font Awesome icon class shown beside the type.`),
+    DefaultDurationMinutes: z.number().nullable().describe(`
+        * * Field Name: DefaultDurationMinutes
+        * * Display Name: Default Duration Minutes
+        * * SQL Data Type: int
+        * * Description: How long a new meeting of this type lasts unless the organizer says otherwise. More than 0.`),
+    DefaultLocationType: z.union([z.literal('Hybrid'), z.literal('InPerson'), z.literal('Phone'), z.literal('Virtual')]).nullable().describe(`
+        * * Field Name: DefaultLocationType
+        * * Display Name: Default Location Type
+        * * SQL Data Type: nvarchar(20)
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Hybrid
+    *   * InPerson
+    *   * Phone
+    *   * Virtual
+        * * Description: The location a new meeting of this type starts with: Virtual, InPerson, Hybrid or Phone.`),
+    DefaultVideoProviderID: z.string().nullable().describe(`
+        * * Field Name: DefaultVideoProviderID
+        * * Display Name: Default Video Provider ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Video Providers (vwVideoProviders.ID)
+        * * Description: The video provider a new virtual meeting of this type is hosted on.`),
+    DefaultVisibility: z.union([z.literal('Private'), z.literal('Standard')]).nullable().describe(`
+        * * Field Name: DefaultVisibility
+        * * Display Name: Default Visibility
+        * * SQL Data Type: nvarchar(20)
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Private
+    *   * Standard
+        * * Description: The visibility a new meeting of this type starts with: Standard or Private.`),
+    AgendaTemplate: z.string().nullable().describe(`
+        * * Field Name: AgendaTemplate
+        * * Display Name: Agenda Template
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: JSON: the agenda a new meeting of this type starts with, as items with a title, an agenda item type code, a duration in minutes and sub-items.`),
+    NotesPromptID: z.string().nullable().describe(`
+        * * Field Name: NotesPromptID
+        * * Display Name: Notes Prompt ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: AI Prompts (vwAIPrompts.ID)
+        * * Description: The MJ: AI Prompts record that drafts notes from a transcript for this type, instead of the shipped prompt.`),
+    IsActive: z.boolean().describe(`
+        * * Field Name: IsActive
+        * * Display Name: Is Active
+        * * SQL Data Type: bit
+        * * Default Value: 1
+        * * Description: When false, the type is kept for existing meetings but not offered for new ones.`),
+    Sequence: z.number().describe(`
+        * * Field Name: Sequence
+        * * Display Name: Sequence
+        * * SQL Data Type: int
+        * * Default Value: 100
+        * * Description: Display order among types.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    DefaultVideoProvider: z.string().nullable().describe(`
+        * * Field Name: DefaultVideoProvider
+        * * Display Name: Default Video Provider
+        * * SQL Data Type: nvarchar(100)`),
+    NotesPrompt: z.string().nullable().describe(`
+        * * Field Name: NotesPrompt
+        * * Display Name: Notes Prompt
+        * * SQL Data Type: nvarchar(255)`),
+});
+
+export type mjBizAppsTasksMeetingTypeEntityType = z.infer<typeof mjBizAppsTasksMeetingTypeSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Meetings
+ */
+export const mjBizAppsTasksMeetingSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key.`),
+    Name: z.string().describe(`
+        * * Field Name: Name
+        * * Display Name: Name
+        * * SQL Data Type: nvarchar(255)
+        * * Description: The meeting's title, as Task.Name is a task's.`),
+    Description: z.string().nullable().describe(`
+        * * Field Name: Description
+        * * Display Name: Description
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: The meeting's purpose, in Markdown.`),
+    TypeID: z.string().nullable().describe(`
+        * * Field Name: TypeID
+        * * Display Name: Type ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meeting Types (vwMeetingTypes.ID)
+        * * Description: The meeting type it was made from, which gave its defaults and agenda template.`),
+    SeriesID: z.string().nullable().describe(`
+        * * Field Name: SeriesID
+        * * Display Name: Series ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meeting Series (vwMeetingSeries.ID)
+        * * Description: The series this meeting is an occurrence of, when it is one.`),
+    OccurrenceStartsAt: z.date().nullable().describe(`
+        * * Field Name: OccurrenceStartsAt
+        * * Display Name: Occurrence Starts At
+        * * SQL Data Type: datetimeoffset
+        * * Description: The series' original slot for this occurrence. It names the occurrence after it moves, so the series does not make it again. Set with SeriesID, empty without it.`),
+    Status: z.union([z.literal('Cancelled'), z.literal('Completed'), z.literal('Draft'), z.literal('InProgress'), z.literal('Postponed'), z.literal('Scheduled')]).describe(`
+        * * Field Name: Status
+        * * Display Name: Status
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: Scheduled
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Cancelled
+    *   * Completed
+    *   * Draft
+    *   * InProgress
+    *   * Postponed
+    *   * Scheduled
+        * * Description: Draft, Scheduled, Postponed, InProgress, Completed or Cancelled. The server moves it forward: Draft to Scheduled to InProgress to Completed; Scheduled and Postponed either way; anything but Completed may be Cancelled.`),
+    StartsAt: z.date().describe(`
+        * * Field Name: StartsAt
+        * * Display Name: Starts At
+        * * SQL Data Type: datetimeoffset
+        * * Description: When the meeting is planned to start.`),
+    EndsAt: z.date().describe(`
+        * * Field Name: EndsAt
+        * * Display Name: Ends At
+        * * SQL Data Type: datetimeoffset
+        * * Description: When the meeting is planned to end. Later than StartsAt.`),
+    TimeZone: z.string().describe(`
+        * * Field Name: TimeZone
+        * * Display Name: Time Zone
+        * * SQL Data Type: nvarchar(64)
+        * * Description: The IANA time zone the meeting is planned in, such as America/Chicago. Display and recurrence use it. Defaults from the organizer's setting, else the business time zone.`),
+    LocationType: z.union([z.literal('Hybrid'), z.literal('InPerson'), z.literal('Phone'), z.literal('Virtual')]).describe(`
+        * * Field Name: LocationType
+        * * Display Name: Location Type
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: Virtual
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Hybrid
+    *   * InPerson
+    *   * Phone
+    *   * Virtual
+        * * Description: Virtual, InPerson, Hybrid or Phone.`),
+    Location: z.string().nullable().describe(`
+        * * Field Name: Location
+        * * Display Name: Location
+        * * SQL Data Type: nvarchar(500)
+        * * Description: A room or an address, for an in-person or hybrid meeting.`),
+    VideoProviderID: z.string().nullable().describe(`
+        * * Field Name: VideoProviderID
+        * * Display Name: Video Provider ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Video Providers (vwVideoProviders.ID)
+        * * Description: The video provider the meeting is hosted on, for a virtual or hybrid meeting.`),
+    VideoMeetingID: z.string().nullable().describe(`
+        * * Field Name: VideoMeetingID
+        * * Display Name: Video Meeting ID
+        * * SQL Data Type: nvarchar(255)
+        * * Description: The provider's own ID for the meeting, kept to update or delete it there.`),
+    VideoJoinURL: z.string().nullable().describe(`
+        * * Field Name: VideoJoinURL
+        * * Display Name: Video Join URL
+        * * SQL Data Type: nvarchar(1000)
+        * * Description: The link attendees join by, from the provider or typed in.`),
+    DialInDetails: z.string().nullable().describe(`
+        * * Field Name: DialInDetails
+        * * Display Name: Dial In Details
+        * * SQL Data Type: nvarchar(1000)
+        * * Description: Phone numbers and access codes for joining by phone.`),
+    OrganizerPersonID: z.string().describe(`
+        * * Field Name: OrganizerPersonID
+        * * Display Name: Organizer Person ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: The person who organizes the meeting. Their calendar holds its event, and the meeting always has their attendee row.`),
+    Visibility: z.union([z.literal('Private'), z.literal('Standard')]).describe(`
+        * * Field Name: Visibility
+        * * Display Name: Visibility
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: Standard
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Private
+    *   * Standard
+        * * Description: Standard: readable by anyone who reads meetings. Private: readable only by its attendees, the organizer included.`),
+    ActualStartedAt: z.date().nullable().describe(`
+        * * Field Name: ActualStartedAt
+        * * Display Name: Actual Started At
+        * * SQL Data Type: datetimeoffset
+        * * Description: When the live meeting was started.`),
+    ActualEndedAt: z.date().nullable().describe(`
+        * * Field Name: ActualEndedAt
+        * * Display Name: Actual Ended At
+        * * SQL Data Type: datetimeoffset
+        * * Description: When the live meeting was ended.`),
+    CancelledAt: z.date().nullable().describe(`
+        * * Field Name: CancelledAt
+        * * Display Name: Cancelled At
+        * * SQL Data Type: datetimeoffset
+        * * Description: When the meeting was cancelled. Stamped by the server with the status.`),
+    CancellationReason: z.string().nullable().describe(`
+        * * Field Name: CancellationReason
+        * * Display Name: Cancellation Reason
+        * * SQL Data Type: nvarchar(500)
+        * * Description: Why the meeting was cancelled, for its attendees.`),
+    VideoRecordingURL: z.string().nullable().describe(`
+        * * Field Name: VideoRecordingURL
+        * * Display Name: Video Recording URL
+        * * SQL Data Type: nvarchar(1000)
+        * * Description: Where the provider's recording can be watched.`),
+    TranscriptFileID: z.string().nullable().describe(`
+        * * Field Name: TranscriptFileID
+        * * Display Name: Transcript File ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: Files (vwFiles.ID)
+        * * Description: The MJ: Files record holding the transcript, uploaded by a person or saved there by the provider's driver. A transcript is a file in MemberJunction's storage, never a URL a user typed.`),
+    CreatedByPersonID: z.string().nullable().describe(`
+        * * Field Name: CreatedByPersonID
+        * * Display Name: Created By Person ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: The person who created the meeting, as Task.CreatedByPersonID.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Type: z.string().nullable().describe(`
+        * * Field Name: Type
+        * * Display Name: Type
+        * * SQL Data Type: nvarchar(100)`),
+    Series: z.string().nullable().describe(`
+        * * Field Name: Series
+        * * Display Name: Series
+        * * SQL Data Type: nvarchar(255)`),
+    VideoProvider: z.string().nullable().describe(`
+        * * Field Name: VideoProvider
+        * * Display Name: Video Provider
+        * * SQL Data Type: nvarchar(100)`),
+    OrganizerPerson: z.string().describe(`
+        * * Field Name: OrganizerPerson
+        * * Display Name: Organizer Person
+        * * SQL Data Type: nvarchar(201)`),
+    TranscriptFile: z.string().nullable().describe(`
+        * * Field Name: TranscriptFile
+        * * Display Name: Transcript File
+        * * SQL Data Type: nvarchar(500)`),
+    CreatedByPerson: z.string().nullable().describe(`
+        * * Field Name: CreatedByPerson
+        * * Display Name: Created By Person
+        * * SQL Data Type: nvarchar(201)`),
+});
+
+export type mjBizAppsTasksMeetingEntityType = z.infer<typeof mjBizAppsTasksMeetingSchema>;
+
+/**
  * zod schema definition for the entity MJ_BizApps_Tasks: Task Activities
  */
 export const mjBizAppsTasksTaskActivitySchema = z.object({
@@ -69,7 +1060,7 @@ export const mjBizAppsTasksTaskActivitySchema = z.object({
     Person: z.string().nullable().describe(`
         * * Field Name: Person
         * * Display Name: Person
-        * * SQL Data Type: nvarchar(250)`),
+        * * SQL Data Type: nvarchar(201)`),
 });
 
 export type mjBizAppsTasksTaskActivityEntityType = z.infer<typeof mjBizAppsTasksTaskActivitySchema>;
@@ -151,7 +1142,7 @@ export const mjBizAppsTasksTaskAssignmentSchema = z.object({
     AssignedByPerson: z.string().nullable().describe(`
         * * Field Name: AssignedByPerson
         * * Display Name: Assigned By Person
-        * * SQL Data Type: nvarchar(250)`),
+        * * SQL Data Type: nvarchar(201)`),
 });
 
 export type mjBizAppsTasksTaskAssignmentEntityType = z.infer<typeof mjBizAppsTasksTaskAssignmentSchema>;
@@ -334,7 +1325,7 @@ export const mjBizAppsTasksTaskCheckInSchema = z.object({
     AuthorPerson: z.string().nullable().describe(`
         * * Field Name: AuthorPerson
         * * Display Name: Author Person Name
-        * * SQL Data Type: nvarchar(250)`),
+        * * SQL Data Type: nvarchar(201)`),
     AuthorUser: z.string().nullable().describe(`
         * * Field Name: AuthorUser
         * * Display Name: Author User Name
@@ -397,7 +1388,7 @@ export const mjBizAppsTasksTaskCommentSchema = z.object({
     Person: z.string().describe(`
         * * Field Name: Person
         * * Display Name: Person
-        * * SQL Data Type: nvarchar(250)`),
+        * * SQL Data Type: nvarchar(201)`),
     RootParentID: z.string().nullable().describe(`
         * * Field Name: RootParentID
         * * Display Name: Root Parent ID
@@ -542,7 +1533,7 @@ export const mjBizAppsTasksTaskDecisionSchema = z.object({
     DecidedByPerson: z.string().nullable().describe(`
         * * Field Name: DecidedByPerson
         * * Display Name: Decided By Person
-        * * SQL Data Type: nvarchar(250)`),
+        * * SQL Data Type: nvarchar(201)`),
 });
 
 export type mjBizAppsTasksTaskDecisionEntityType = z.infer<typeof mjBizAppsTasksTaskDecisionSchema>;
@@ -1603,7 +2594,7 @@ export const mjBizAppsTasksTaskSchema = z.object({
     CreatedByPerson: z.string().nullable().describe(`
         * * Field Name: CreatedByPerson
         * * Display Name: Created By Person
-        * * SQL Data Type: nvarchar(250)`),
+        * * SQL Data Type: nvarchar(201)`),
     TaskTypeStatus: z.string().nullable().describe(`
         * * Field Name: TaskTypeStatus
         * * Display Name: Task Type Status Name
@@ -1631,8 +2622,2441 @@ export const mjBizAppsTasksTaskSchema = z.object({
 });
 
 export type mjBizAppsTasksTaskEntityType = z.infer<typeof mjBizAppsTasksTaskSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Video Providers
+ */
+export const mjBizAppsTasksVideoProviderSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key.`),
+    Name: z.string().describe(`
+        * * Field Name: Name
+        * * Display Name: Name
+        * * SQL Data Type: nvarchar(100)
+        * * Description: The provider's display name. Unique.`),
+    Code: z.string().describe(`
+        * * Field Name: Code
+        * * Display Name: Code
+        * * SQL Data Type: nvarchar(50)
+        * * Description: A stable code apps refer to: ZOOM, TEAMS or GOOGLE_MEET. Unique.`),
+    DriverClass: z.string().describe(`
+        * * Field Name: DriverClass
+        * * Display Name: Driver Class
+        * * SQL Data Type: nvarchar(255)
+        * * Description: The class the driver registers with MemberJunction's class factory under VideoProviderBase.`),
+    Description: z.string().nullable().describe(`
+        * * Field Name: Description
+        * * Display Name: Description
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: What this provider is and when to use it.`),
+    IconClass: z.string().nullable().describe(`
+        * * Field Name: IconClass
+        * * Display Name: Icon Class
+        * * SQL Data Type: nvarchar(100)
+        * * Description: Font Awesome icon class shown beside the provider.`),
+    CredentialID: z.string().nullable().describe(`
+        * * Field Name: CredentialID
+        * * Display Name: Credential ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: Credentials (vwCredentials.ID)
+        * * Description: The MJ: Credentials record holding the provider's secrets, decrypted through CredentialEngine. Never stored here.`),
+    Configuration: z.string().nullable().describe(`
+        * * Field Name: Configuration
+        * * Display Name: Configuration
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: JSON: settings that are not secret, such as the organizer account or default meeting options.`),
+    SupportsTranscripts: z.boolean().describe(`
+        * * Field Name: SupportsTranscripts
+        * * Display Name: Supports Transcripts
+        * * SQL Data Type: bit
+        * * Default Value: 0
+        * * Description: When true, the driver can fetch a transcript of a recorded meeting.`),
+    IsDefault: z.boolean().describe(`
+        * * Field Name: IsDefault
+        * * Display Name: Is Default
+        * * SQL Data Type: bit
+        * * Default Value: 0
+        * * Description: When true, this is the provider a new virtual meeting uses unless its type says otherwise. One provider at most.`),
+    IsActive: z.boolean().describe(`
+        * * Field Name: IsActive
+        * * Display Name: Is Active
+        * * SQL Data Type: bit
+        * * Default Value: 0
+        * * Description: When true, the provider is configured and offered. Ships as 0.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Credential: z.string().nullable().describe(`
+        * * Field Name: Credential
+        * * Display Name: Credential
+        * * SQL Data Type: nvarchar(200)`),
+});
+
+export type mjBizAppsTasksVideoProviderEntityType = z.infer<typeof mjBizAppsTasksVideoProviderSchema>;
  
  
+
+/**
+ * MJ_BizApps_Tasks: Meeting Agenda Item Types - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: MeetingAgendaItemType
+ * * Base View: vwMeetingAgendaItemTypes
+ * * @description A kind of agenda item: Information, Discussion, Decision, Report, Presentation, Action review, Break, or one an app adds, such as Committees' Vote. A lookup rather than a fixed list, so apps extend it.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Meeting Agenda Item Types')
+export class mjBizAppsTasksMeetingAgendaItemTypeEntity extends BaseEntity<mjBizAppsTasksMeetingAgendaItemTypeEntityType> {
+    /**
+    * Loads the MJ_BizApps_Tasks: Meeting Agenda Item Types record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Meeting Agenda Item Types record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksMeetingAgendaItemTypeEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    * * Description: Primary key.
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: Name
+    * * Display Name: Name
+    * * SQL Data Type: nvarchar(100)
+    * * Description: The type's display name. Unique.
+    */
+    get Name(): string {
+        return this.Get('Name');
+    }
+    set Name(value: string) {
+        this.Set('Name', value);
+    }
+
+    /**
+    * * Field Name: Code
+    * * Display Name: Code
+    * * SQL Data Type: nvarchar(50)
+    * * Description: A stable code apps and agenda templates refer to. Unique.
+    */
+    get Code(): string {
+        return this.Get('Code');
+    }
+    set Code(value: string) {
+        this.Set('Code', value);
+    }
+
+    /**
+    * * Field Name: Description
+    * * Display Name: Description
+    * * SQL Data Type: nvarchar(MAX)
+    * * Description: What items of this type are for.
+    */
+    get Description(): string | null {
+        return this.Get('Description');
+    }
+    set Description(value: string | null) {
+        this.Set('Description', value);
+    }
+
+    /**
+    * * Field Name: IconClass
+    * * Display Name: Icon Class
+    * * SQL Data Type: nvarchar(100)
+    * * Description: Font Awesome icon class shown beside the item.
+    */
+    get IconClass(): string | null {
+        return this.Get('IconClass');
+    }
+    set IconClass(value: string | null) {
+        this.Set('IconClass', value);
+    }
+
+    /**
+    * * Field Name: DefaultDurationMinutes
+    * * Display Name: Default Duration Minutes
+    * * SQL Data Type: int
+    * * Description: How long an item of this type takes unless the agenda says otherwise. More than 0.
+    */
+    get DefaultDurationMinutes(): number | null {
+        return this.Get('DefaultDurationMinutes');
+    }
+    set DefaultDurationMinutes(value: number | null) {
+        this.Set('DefaultDurationMinutes', value);
+    }
+
+    /**
+    * * Field Name: IsActive
+    * * Display Name: Is Active
+    * * SQL Data Type: bit
+    * * Default Value: 1
+    * * Description: When false, the type is kept for existing items but not offered for new ones.
+    */
+    get IsActive(): boolean {
+        return this.Get('IsActive');
+    }
+    set IsActive(value: boolean) {
+        this.Set('IsActive', value);
+    }
+
+    /**
+    * * Field Name: Sequence
+    * * Display Name: Sequence
+    * * SQL Data Type: int
+    * * Default Value: 100
+    * * Description: Display order among types.
+    */
+    get Sequence(): number {
+        return this.Get('Sequence');
+    }
+    set Sequence(value: number) {
+        this.Set('Sequence', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+}
+
+
+/**
+ * MJ_BizApps_Tasks: Meeting Agenda Items - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: MeetingAgendaItem
+ * * Base View: vwMeetingAgendaItems
+ * * @description One item on a meeting's agenda, nestable under a parent item of the same meeting, with its type, presenter, planned duration, what happened to it and what was agreed.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Meeting Agenda Items')
+export class mjBizAppsTasksMeetingAgendaItemEntity extends BaseEntity<mjBizAppsTasksMeetingAgendaItemEntityType> {
+    /**
+    * Loads the MJ_BizApps_Tasks: Meeting Agenda Items record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Meeting Agenda Items record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksMeetingAgendaItemEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    * * Description: Primary key.
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: MeetingID
+    * * Display Name: Meeting ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meetings (vwMeetings.ID)
+    * * Description: The meeting the item is on the agenda of.
+    */
+    get MeetingID(): string {
+        return this.Get('MeetingID');
+    }
+    set MeetingID(value: string) {
+        this.Set('MeetingID', value);
+    }
+
+    /**
+    * * Field Name: ParentID
+    * * Display Name: Parent ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meeting Agenda Items (vwMeetingAgendaItems.ID)
+    * * Description: The item this one sits under, for a sub-item. Same meeting, no cycle.
+    */
+    get ParentID(): string | null {
+        return this.Get('ParentID');
+    }
+    set ParentID(value: string | null) {
+        this.Set('ParentID', value);
+    }
+
+    /**
+    * * Field Name: Sequence
+    * * Display Name: Sequence
+    * * SQL Data Type: int
+    * * Default Value: 100
+    * * Description: Order among its siblings.
+    */
+    get Sequence(): number {
+        return this.Get('Sequence');
+    }
+    set Sequence(value: number) {
+        this.Set('Sequence', value);
+    }
+
+    /**
+    * * Field Name: Name
+    * * Display Name: Name
+    * * SQL Data Type: nvarchar(500)
+    * * Description: The item's title.
+    */
+    get Name(): string {
+        return this.Get('Name');
+    }
+    set Name(value: string) {
+        this.Set('Name', value);
+    }
+
+    /**
+    * * Field Name: Description
+    * * Display Name: Description
+    * * SQL Data Type: nvarchar(MAX)
+    * * Description: What the item covers, in Markdown.
+    */
+    get Description(): string | null {
+        return this.Get('Description');
+    }
+    set Description(value: string | null) {
+        this.Set('Description', value);
+    }
+
+    /**
+    * * Field Name: TypeID
+    * * Display Name: Type ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meeting Agenda Item Types (vwMeetingAgendaItemTypes.ID)
+    * * Description: The agenda item type: Information, Discussion, Decision, and so on.
+    */
+    get TypeID(): string | null {
+        return this.Get('TypeID');
+    }
+    set TypeID(value: string | null) {
+        this.Set('TypeID', value);
+    }
+
+    /**
+    * * Field Name: PresenterPersonID
+    * * Display Name: Presenter Person ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+    * * Description: The person who presents the item.
+    */
+    get PresenterPersonID(): string | null {
+        return this.Get('PresenterPersonID');
+    }
+    set PresenterPersonID(value: string | null) {
+        this.Set('PresenterPersonID', value);
+    }
+
+    /**
+    * * Field Name: DurationMinutes
+    * * Display Name: Duration Minutes
+    * * SQL Data Type: int
+    * * Description: How long the item is planned to take. 0 or more.
+    */
+    get DurationMinutes(): number | null {
+        return this.Get('DurationMinutes');
+    }
+    set DurationMinutes(value: number | null) {
+        this.Set('DurationMinutes', value);
+    }
+
+    /**
+    * * Field Name: Status
+    * * Display Name: Status
+    * * SQL Data Type: nvarchar(20)
+    * * Default Value: Planned
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Deferred
+    *   * Done
+    *   * InProgress
+    *   * Planned
+    *   * Skipped
+    * * Description: Planned, InProgress, Done, Deferred or Skipped.
+    */
+    get Status(): 'Deferred' | 'Done' | 'InProgress' | 'Planned' | 'Skipped' {
+        return this.Get('Status');
+    }
+    set Status(value: 'Deferred' | 'Done' | 'InProgress' | 'Planned' | 'Skipped') {
+        this.Set('Status', value);
+    }
+
+    /**
+    * * Field Name: StartedAt
+    * * Display Name: Started At
+    * * SQL Data Type: datetimeoffset
+    * * Description: When the item was started, from the live meeting.
+    */
+    get StartedAt(): Date | null {
+        return this.Get('StartedAt');
+    }
+    set StartedAt(value: Date | null) {
+        this.Set('StartedAt', value);
+    }
+
+    /**
+    * * Field Name: EndedAt
+    * * Display Name: Ended At
+    * * SQL Data Type: datetimeoffset
+    * * Description: When the item was ended.
+    */
+    get EndedAt(): Date | null {
+        return this.Get('EndedAt');
+    }
+    set EndedAt(value: Date | null) {
+        this.Set('EndedAt', value);
+    }
+
+    /**
+    * * Field Name: Outcome
+    * * Display Name: Outcome
+    * * SQL Data Type: nvarchar(MAX)
+    * * Description: What was agreed, in a sentence or two.
+    */
+    get Outcome(): string | null {
+        return this.Get('Outcome');
+    }
+    set Outcome(value: string | null) {
+        this.Set('Outcome', value);
+    }
+
+    /**
+    * * Field Name: DeferredToMeetingID
+    * * Display Name: Deferred To Meeting ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meetings (vwMeetings.ID)
+    * * Description: The later meeting a deferred item moved to.
+    */
+    get DeferredToMeetingID(): string | null {
+        return this.Get('DeferredToMeetingID');
+    }
+    set DeferredToMeetingID(value: string | null) {
+        this.Set('DeferredToMeetingID', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: Meeting
+    * * Display Name: Meeting
+    * * SQL Data Type: nvarchar(255)
+    */
+    get Meeting(): string {
+        return this.Get('Meeting');
+    }
+
+    /**
+    * * Field Name: Parent
+    * * Display Name: Parent
+    * * SQL Data Type: nvarchar(500)
+    */
+    get Parent(): string | null {
+        return this.Get('Parent');
+    }
+
+    /**
+    * * Field Name: Type
+    * * Display Name: Type
+    * * SQL Data Type: nvarchar(100)
+    */
+    get Type(): string | null {
+        return this.Get('Type');
+    }
+
+    /**
+    * * Field Name: PresenterPerson
+    * * Display Name: Presenter Person
+    * * SQL Data Type: nvarchar(201)
+    */
+    get PresenterPerson(): string | null {
+        return this.Get('PresenterPerson');
+    }
+
+    /**
+    * * Field Name: DeferredToMeeting
+    * * Display Name: Deferred To Meeting
+    * * SQL Data Type: nvarchar(255)
+    */
+    get DeferredToMeeting(): string | null {
+        return this.Get('DeferredToMeeting');
+    }
+}
+
+
+/**
+ * MJ_BizApps_Tasks: Meeting Attendees - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: MeetingAttendee
+ * * Base View: vwMeetingAttendees
+ * * @description Someone invited to a meeting: a person, or a guest by email address; their answer to the invitation; and whether they came. A meeting has exactly one Organizer row.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Meeting Attendees')
+export class mjBizAppsTasksMeetingAttendeeEntity extends BaseEntity<mjBizAppsTasksMeetingAttendeeEntityType> {
+    /**
+    * Loads the MJ_BizApps_Tasks: Meeting Attendees record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Meeting Attendees record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksMeetingAttendeeEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    * * Description: Primary key.
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: MeetingID
+    * * Display Name: Meeting ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meetings (vwMeetings.ID)
+    * * Description: The meeting the attendee is invited to.
+    */
+    get MeetingID(): string {
+        return this.Get('MeetingID');
+    }
+    set MeetingID(value: string) {
+        this.Set('MeetingID', value);
+    }
+
+    /**
+    * * Field Name: PersonID
+    * * Display Name: Person ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+    * * Description: The person invited, when they are a Person. Either this or Email is set.
+    */
+    get PersonID(): string | null {
+        return this.Get('PersonID');
+    }
+    set PersonID(value: string | null) {
+        this.Set('PersonID', value);
+    }
+
+    /**
+    * * Field Name: UserID
+    * * Display Name: User ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ: Users (vwUsers.ID)
+    * * Description: The person's MemberJunction user, when they have one, filled from the person's account. My meetings and the private-meeting filter use it.
+    */
+    get UserID(): string | null {
+        return this.Get('UserID');
+    }
+    set UserID(value: string | null) {
+        this.Set('UserID', value);
+    }
+
+    /**
+    * * Field Name: Email
+    * * Display Name: Email
+    * * SQL Data Type: nvarchar(255)
+    * * Description: A guest's address, or the address a person's invitation goes to.
+    */
+    get Email(): string | null {
+        return this.Get('Email');
+    }
+    set Email(value: string | null) {
+        this.Set('Email', value);
+    }
+
+    /**
+    * * Field Name: DisplayName
+    * * Display Name: Display Name
+    * * SQL Data Type: nvarchar(255)
+    * * Description: A guest's name.
+    */
+    get DisplayName(): string | null {
+        return this.Get('DisplayName');
+    }
+    set DisplayName(value: string | null) {
+        this.Set('DisplayName', value);
+    }
+
+    /**
+    * * Field Name: Role
+    * * Display Name: Role
+    * * SQL Data Type: nvarchar(20)
+    * * Default Value: Required
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Optional
+    *   * Organizer
+    *   * Required
+    * * Description: Organizer, Required or Optional. One Organizer row per meeting, kept in step with Meeting.OrganizerPersonID.
+    */
+    get Role(): 'Optional' | 'Organizer' | 'Required' {
+        return this.Get('Role');
+    }
+    set Role(value: 'Optional' | 'Organizer' | 'Required') {
+        this.Set('Role', value);
+    }
+
+    /**
+    * * Field Name: ResponseStatus
+    * * Display Name: Response Status
+    * * SQL Data Type: nvarchar(20)
+    * * Default Value: None
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Accepted
+    *   * Declined
+    *   * None
+    *   * Tentative
+    * * Description: The answer to the invitation: None, Accepted, Tentative or Declined.
+    */
+    get ResponseStatus(): 'Accepted' | 'Declined' | 'None' | 'Tentative' {
+        return this.Get('ResponseStatus');
+    }
+    set ResponseStatus(value: 'Accepted' | 'Declined' | 'None' | 'Tentative') {
+        this.Set('ResponseStatus', value);
+    }
+
+    /**
+    * * Field Name: RespondedAt
+    * * Display Name: Responded At
+    * * SQL Data Type: datetimeoffset
+    * * Description: When the invitation was answered.
+    */
+    get RespondedAt(): Date | null {
+        return this.Get('RespondedAt');
+    }
+    set RespondedAt(value: Date | null) {
+        this.Set('RespondedAt', value);
+    }
+
+    /**
+    * * Field Name: AttendanceStatus
+    * * Display Name: Attendance Status
+    * * SQL Data Type: nvarchar(20)
+    * * Default Value: Unknown
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Absent
+    *   * Excused
+    *   * Late
+    *   * LeftEarly
+    *   * Present
+    *   * Unknown
+    * * Description: Whether they came: Unknown, Present, Late, LeftEarly, Absent or Excused.
+    */
+    get AttendanceStatus(): 'Absent' | 'Excused' | 'Late' | 'LeftEarly' | 'Present' | 'Unknown' {
+        return this.Get('AttendanceStatus');
+    }
+    set AttendanceStatus(value: 'Absent' | 'Excused' | 'Late' | 'LeftEarly' | 'Present' | 'Unknown') {
+        this.Set('AttendanceStatus', value);
+    }
+
+    /**
+    * * Field Name: JoinedAt
+    * * Display Name: Joined At
+    * * SQL Data Type: datetimeoffset
+    * * Description: When they joined, from the live meeting or the video provider.
+    */
+    get JoinedAt(): Date | null {
+        return this.Get('JoinedAt');
+    }
+    set JoinedAt(value: Date | null) {
+        this.Set('JoinedAt', value);
+    }
+
+    /**
+    * * Field Name: LeftAt
+    * * Display Name: Left At
+    * * SQL Data Type: datetimeoffset
+    * * Description: When they left.
+    */
+    get LeftAt(): Date | null {
+        return this.Get('LeftAt');
+    }
+    set LeftAt(value: Date | null) {
+        this.Set('LeftAt', value);
+    }
+
+    /**
+    * * Field Name: Notes
+    * * Display Name: Notes
+    * * SQL Data Type: nvarchar(500)
+    * * Description: A note on their attendance, such as why someone is excused.
+    */
+    get Notes(): string | null {
+        return this.Get('Notes');
+    }
+    set Notes(value: string | null) {
+        this.Set('Notes', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: Meeting
+    * * Display Name: Meeting
+    * * SQL Data Type: nvarchar(255)
+    */
+    get Meeting(): string {
+        return this.Get('Meeting');
+    }
+
+    /**
+    * * Field Name: Person
+    * * Display Name: Person
+    * * SQL Data Type: nvarchar(201)
+    */
+    get Person(): string | null {
+        return this.Get('Person');
+    }
+
+    /**
+    * * Field Name: User
+    * * Display Name: User
+    * * SQL Data Type: nvarchar(100)
+    */
+    get User(): string | null {
+        return this.Get('User');
+    }
+}
+
+
+/**
+ * MJ_BizApps_Tasks: Meeting Links - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: MeetingLink
+ * * Base View: vwMeetingLinks
+ * * @description What a meeting or a series belongs to: any record of any entity, the way TaskLink ties a task to a record. Each new occurrence of a series copies the series' links.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Meeting Links')
+export class mjBizAppsTasksMeetingLinkEntity extends BaseEntity<mjBizAppsTasksMeetingLinkEntityType> {
+    /**
+    * Loads the MJ_BizApps_Tasks: Meeting Links record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Meeting Links record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksMeetingLinkEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    * * Description: Primary key.
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: MeetingID
+    * * Display Name: Meeting ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meetings (vwMeetings.ID)
+    * * Description: The meeting that belongs to the record. Either this or SeriesID is set.
+    */
+    get MeetingID(): string | null {
+        return this.Get('MeetingID');
+    }
+    set MeetingID(value: string | null) {
+        this.Set('MeetingID', value);
+    }
+
+    /**
+    * * Field Name: SeriesID
+    * * Display Name: Series ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meeting Series (vwMeetingSeries.ID)
+    * * Description: The series that belongs to the record. Either this or MeetingID is set.
+    */
+    get SeriesID(): string | null {
+        return this.Get('SeriesID');
+    }
+    set SeriesID(value: string | null) {
+        this.Set('SeriesID', value);
+    }
+
+    /**
+    * * Field Name: EntityID
+    * * Display Name: Entity ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ: Entities (vwEntities.ID)
+    * * Description: The entity of the record the meeting belongs to.
+    */
+    get EntityID(): string {
+        return this.Get('EntityID');
+    }
+    set EntityID(value: string) {
+        this.Set('EntityID', value);
+    }
+
+    /**
+    * * Field Name: RecordID
+    * * Display Name: Record ID
+    * * SQL Data Type: nvarchar(450)
+    * * Description: The record's primary key, as on TaskLink.
+    */
+    get RecordID(): string {
+        return this.Get('RecordID');
+    }
+    set RecordID(value: string) {
+        this.Set('RecordID', value);
+    }
+
+    /**
+    * * Field Name: Description
+    * * Display Name: Description
+    * * SQL Data Type: nvarchar(500)
+    * * Description: Why the meeting belongs to the record.
+    */
+    get Description(): string | null {
+        return this.Get('Description');
+    }
+    set Description(value: string | null) {
+        this.Set('Description', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: Meeting
+    * * Display Name: Meeting
+    * * SQL Data Type: nvarchar(255)
+    */
+    get Meeting(): string | null {
+        return this.Get('Meeting');
+    }
+
+    /**
+    * * Field Name: Series
+    * * Display Name: Series
+    * * SQL Data Type: nvarchar(255)
+    */
+    get Series(): string | null {
+        return this.Get('Series');
+    }
+
+    /**
+    * * Field Name: Entity
+    * * Display Name: Entity
+    * * SQL Data Type: nvarchar(255)
+    */
+    get Entity(): string {
+        return this.Get('Entity');
+    }
+}
+
+
+/**
+ * MJ_BizApps_Tasks: Meeting Notes - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: MeetingNote
+ * * Base View: vwMeetingNotes
+ * * @description The record of what happened in a meeting, or on one of its agenda items: written by a person, or drafted by AI from a transcript with the tasks it proposes.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Meeting Notes')
+export class mjBizAppsTasksMeetingNoteEntity extends BaseEntity<mjBizAppsTasksMeetingNoteEntityType> {
+    /**
+    * Loads the MJ_BizApps_Tasks: Meeting Notes record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Meeting Notes record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksMeetingNoteEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    * * Description: Primary key.
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: MeetingID
+    * * Display Name: Meeting ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meetings (vwMeetings.ID)
+    * * Description: The meeting the note is about.
+    */
+    get MeetingID(): string {
+        return this.Get('MeetingID');
+    }
+    set MeetingID(value: string) {
+        this.Set('MeetingID', value);
+    }
+
+    /**
+    * * Field Name: AgendaItemID
+    * * Display Name: Agenda Item ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meeting Agenda Items (vwMeetingAgendaItems.ID)
+    * * Description: The agenda item the note is about, for a note on one item.
+    */
+    get AgendaItemID(): string | null {
+        return this.Get('AgendaItemID');
+    }
+    set AgendaItemID(value: string | null) {
+        this.Set('AgendaItemID', value);
+    }
+
+    /**
+    * * Field Name: Kind
+    * * Display Name: Kind
+    * * SQL Data Type: nvarchar(20)
+    * * Default Value: Notes
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Decision
+    *   * Notes
+    *   * Summary
+    * * Description: Notes, Summary or Decision.
+    */
+    get Kind(): 'Decision' | 'Notes' | 'Summary' {
+        return this.Get('Kind');
+    }
+    set Kind(value: 'Decision' | 'Notes' | 'Summary') {
+        this.Set('Kind', value);
+    }
+
+    /**
+    * * Field Name: Title
+    * * Display Name: Title
+    * * SQL Data Type: nvarchar(255)
+    * * Description: The note's title.
+    */
+    get Title(): string | null {
+        return this.Get('Title');
+    }
+    set Title(value: string | null) {
+        this.Set('Title', value);
+    }
+
+    /**
+    * * Field Name: Body
+    * * Display Name: Body
+    * * SQL Data Type: nvarchar(MAX)
+    * * Description: The note, in Markdown.
+    */
+    get Body(): string {
+        return this.Get('Body');
+    }
+    set Body(value: string) {
+        this.Set('Body', value);
+    }
+
+    /**
+    * * Field Name: Source
+    * * Display Name: Source
+    * * SQL Data Type: nvarchar(20)
+    * * Default Value: Manual
+    * * Value List Type: List
+    * * Possible Values 
+    *   * AI
+    *   * Manual
+    * * Description: Manual for a person's note; AI for a draft from a transcript.
+    */
+    get Source(): 'AI' | 'Manual' {
+        return this.Get('Source');
+    }
+    set Source(value: 'AI' | 'Manual') {
+        this.Set('Source', value);
+    }
+
+    /**
+    * * Field Name: Status
+    * * Display Name: Status
+    * * SQL Data Type: nvarchar(20)
+    * * Default Value: Draft
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Draft
+    *   * Final
+    * * Description: Draft or Final. Approving minutes is governance and stays with the app that owns it.
+    */
+    get Status(): 'Draft' | 'Final' {
+        return this.Get('Status');
+    }
+    set Status(value: 'Draft' | 'Final') {
+        this.Set('Status', value);
+    }
+
+    /**
+    * * Field Name: AuthorPersonID
+    * * Display Name: Author Person ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+    * * Description: The person who wrote the note, for a person's note.
+    */
+    get AuthorPersonID(): string | null {
+        return this.Get('AuthorPersonID');
+    }
+    set AuthorPersonID(value: string | null) {
+        this.Set('AuthorPersonID', value);
+    }
+
+    /**
+    * * Field Name: AIPromptRunID
+    * * Display Name: AI Prompt Run ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ: AI Prompt Runs (vwAIPromptRuns.ID)
+    * * Description: The MJ: AI Prompt Runs record the draft came from, for an AI note.
+    */
+    get AIPromptRunID(): string | null {
+        return this.Get('AIPromptRunID');
+    }
+    set AIPromptRunID(value: string | null) {
+        this.Set('AIPromptRunID', value);
+    }
+
+    /**
+    * * Field Name: ProposedTasks
+    * * Display Name: Proposed Tasks
+    * * SQL Data Type: nvarchar(MAX)
+    * * Description: JSON: the action items the notes propose, each with a title, an assignee, a due date, its agenda item, and the task's ID once a person accepted it. Nothing is filed without that approval.
+    */
+    get ProposedTasks(): string | null {
+        return this.Get('ProposedTasks');
+    }
+    set ProposedTasks(value: string | null) {
+        this.Set('ProposedTasks', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: Meeting
+    * * Display Name: Meeting
+    * * SQL Data Type: nvarchar(255)
+    */
+    get Meeting(): string {
+        return this.Get('Meeting');
+    }
+
+    /**
+    * * Field Name: AgendaItem
+    * * Display Name: Agenda Item
+    * * SQL Data Type: nvarchar(500)
+    */
+    get AgendaItem(): string | null {
+        return this.Get('AgendaItem');
+    }
+
+    /**
+    * * Field Name: AuthorPerson
+    * * Display Name: Author Person
+    * * SQL Data Type: nvarchar(201)
+    */
+    get AuthorPerson(): string | null {
+        return this.Get('AuthorPerson');
+    }
+
+    /**
+    * * Field Name: AIPromptRun
+    * * Display Name: AI Prompt Run
+    * * SQL Data Type: nvarchar(255)
+    */
+    get AIPromptRun(): string | null {
+        return this.Get('AIPromptRun');
+    }
+}
+
+
+/**
+ * MJ_BizApps_Tasks: Meeting Series - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: MeetingSeries
+ * * Base View: vwMeetingSeries
+ * * @description A recurring meeting. Its occurrences are real Meeting rows, made ahead of time up to a horizon; each keeps its own agenda and attendance, and one can move or be cancelled without touching the rest.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Meeting Series')
+export class mjBizAppsTasksMeetingSeriesEntity extends BaseEntity<mjBizAppsTasksMeetingSeriesEntityType> {
+    /**
+    * Loads the MJ_BizApps_Tasks: Meeting Series record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Meeting Series record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksMeetingSeriesEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    * * Description: Primary key.
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: Name
+    * * Display Name: Name
+    * * SQL Data Type: nvarchar(255)
+    * * Description: The series' title. Each new occurrence starts with it.
+    */
+    get Name(): string {
+        return this.Get('Name');
+    }
+    set Name(value: string) {
+        this.Set('Name', value);
+    }
+
+    /**
+    * * Field Name: Description
+    * * Display Name: Description
+    * * SQL Data Type: nvarchar(MAX)
+    * * Description: The series' purpose, in Markdown. Each new occurrence starts with it.
+    */
+    get Description(): string | null {
+        return this.Get('Description');
+    }
+    set Description(value: string | null) {
+        this.Set('Description', value);
+    }
+
+    /**
+    * * Field Name: TypeID
+    * * Display Name: Type ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meeting Types (vwMeetingTypes.ID)
+    * * Description: The meeting type each occurrence is made from.
+    */
+    get TypeID(): string | null {
+        return this.Get('TypeID');
+    }
+    set TypeID(value: string | null) {
+        this.Set('TypeID', value);
+    }
+
+    /**
+    * * Field Name: OrganizerPersonID
+    * * Display Name: Organizer Person ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+    * * Description: The person who organizes the series. Each occurrence starts with them as its organizer.
+    */
+    get OrganizerPersonID(): string {
+        return this.Get('OrganizerPersonID');
+    }
+    set OrganizerPersonID(value: string) {
+        this.Set('OrganizerPersonID', value);
+    }
+
+    /**
+    * * Field Name: RecurrenceRule
+    * * Display Name: Recurrence Rule
+    * * SQL Data Type: nvarchar(500)
+    * * Description: An RFC 5545 RRULE value, such as FREQ=WEEKLY;BYDAY=TU. Its UNTIL or COUNT ends the series.
+    */
+    get RecurrenceRule(): string {
+        return this.Get('RecurrenceRule');
+    }
+    set RecurrenceRule(value: string) {
+        this.Set('RecurrenceRule', value);
+    }
+
+    /**
+    * * Field Name: TimeZone
+    * * Display Name: Time Zone
+    * * SQL Data Type: nvarchar(64)
+    * * Description: The IANA time zone the rule is expanded in, such as America/Chicago, so a 9:00 meeting stays at 9:00 across daylight-saving changes.
+    */
+    get TimeZone(): string {
+        return this.Get('TimeZone');
+    }
+    set TimeZone(value: string) {
+        this.Set('TimeZone', value);
+    }
+
+    /**
+    * * Field Name: FirstStartsAt
+    * * Display Name: First Starts At
+    * * SQL Data Type: datetimeoffset
+    * * Description: The rule's DTSTART: when the first occurrence starts.
+    */
+    get FirstStartsAt(): Date {
+        return this.Get('FirstStartsAt');
+    }
+    set FirstStartsAt(value: Date) {
+        this.Set('FirstStartsAt', value);
+    }
+
+    /**
+    * * Field Name: DurationMinutes
+    * * Display Name: Duration Minutes
+    * * SQL Data Type: int
+    * * Description: How long each occurrence lasts. More than 0.
+    */
+    get DurationMinutes(): number {
+        return this.Get('DurationMinutes');
+    }
+    set DurationMinutes(value: number) {
+        this.Set('DurationMinutes', value);
+    }
+
+    /**
+    * * Field Name: LocationType
+    * * Display Name: Location Type
+    * * SQL Data Type: nvarchar(20)
+    * * Default Value: Virtual
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Hybrid
+    *   * InPerson
+    *   * Phone
+    *   * Virtual
+    * * Description: The location each new occurrence starts with: Virtual, InPerson, Hybrid or Phone.
+    */
+    get LocationType(): 'Hybrid' | 'InPerson' | 'Phone' | 'Virtual' {
+        return this.Get('LocationType');
+    }
+    set LocationType(value: 'Hybrid' | 'InPerson' | 'Phone' | 'Virtual') {
+        this.Set('LocationType', value);
+    }
+
+    /**
+    * * Field Name: Location
+    * * Display Name: Location
+    * * SQL Data Type: nvarchar(500)
+    * * Description: The room or address each new occurrence starts with.
+    */
+    get Location(): string | null {
+        return this.Get('Location');
+    }
+    set Location(value: string | null) {
+        this.Set('Location', value);
+    }
+
+    /**
+    * * Field Name: VideoProviderID
+    * * Display Name: Video Provider ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Video Providers (vwVideoProviders.ID)
+    * * Description: The video provider each new virtual occurrence is hosted on.
+    */
+    get VideoProviderID(): string | null {
+        return this.Get('VideoProviderID');
+    }
+    set VideoProviderID(value: string | null) {
+        this.Set('VideoProviderID', value);
+    }
+
+    /**
+    * * Field Name: Visibility
+    * * Display Name: Visibility
+    * * SQL Data Type: nvarchar(20)
+    * * Default Value: Standard
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Private
+    *   * Standard
+    * * Description: The visibility each new occurrence starts with: Standard, or Private for its attendees only.
+    */
+    get Visibility(): 'Private' | 'Standard' {
+        return this.Get('Visibility');
+    }
+    set Visibility(value: 'Private' | 'Standard') {
+        this.Set('Visibility', value);
+    }
+
+    /**
+    * * Field Name: Status
+    * * Display Name: Status
+    * * SQL Data Type: nvarchar(20)
+    * * Default Value: Active
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Active
+    *   * Cancelled
+    *   * Ended
+    * * Description: Active while occurrences are still made; Ended once the rule has run out; Cancelled when the series was stopped.
+    */
+    get Status(): 'Active' | 'Cancelled' | 'Ended' {
+        return this.Get('Status');
+    }
+    set Status(value: 'Active' | 'Cancelled' | 'Ended') {
+        this.Set('Status', value);
+    }
+
+    /**
+    * * Field Name: MaterializedThrough
+    * * Display Name: Materialized Through
+    * * SQL Data Type: datetimeoffset
+    * * Description: Occurrences exist up to this point in time. The scheduled job and a save extend it.
+    */
+    get MaterializedThrough(): Date | null {
+        return this.Get('MaterializedThrough');
+    }
+    set MaterializedThrough(value: Date | null) {
+        this.Set('MaterializedThrough', value);
+    }
+
+    /**
+    * * Field Name: CreatedByPersonID
+    * * Display Name: Created By Person ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+    * * Description: The person who created the series, as Task.CreatedByPersonID.
+    */
+    get CreatedByPersonID(): string | null {
+        return this.Get('CreatedByPersonID');
+    }
+    set CreatedByPersonID(value: string | null) {
+        this.Set('CreatedByPersonID', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: Type
+    * * Display Name: Type
+    * * SQL Data Type: nvarchar(100)
+    */
+    get Type(): string | null {
+        return this.Get('Type');
+    }
+
+    /**
+    * * Field Name: OrganizerPerson
+    * * Display Name: Organizer Person
+    * * SQL Data Type: nvarchar(201)
+    */
+    get OrganizerPerson(): string {
+        return this.Get('OrganizerPerson');
+    }
+
+    /**
+    * * Field Name: VideoProvider
+    * * Display Name: Video Provider
+    * * SQL Data Type: nvarchar(100)
+    */
+    get VideoProvider(): string | null {
+        return this.Get('VideoProvider');
+    }
+
+    /**
+    * * Field Name: CreatedByPerson
+    * * Display Name: Created By Person
+    * * SQL Data Type: nvarchar(201)
+    */
+    get CreatedByPerson(): string | null {
+        return this.Get('CreatedByPerson');
+    }
+}
+
+
+/**
+ * MJ_BizApps_Tasks: Meeting Series Attendees - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: MeetingSeriesAttendee
+ * * Base View: vwMeetingSeriesAttendees
+ * * @description Who each new occurrence of a series invites: a person, or a guest by email address. The organizer comes from the series itself.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Meeting Series Attendees')
+export class mjBizAppsTasksMeetingSeriesAttendeeEntity extends BaseEntity<mjBizAppsTasksMeetingSeriesAttendeeEntityType> {
+    /**
+    * Loads the MJ_BizApps_Tasks: Meeting Series Attendees record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Meeting Series Attendees record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksMeetingSeriesAttendeeEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    * * Description: Primary key.
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: SeriesID
+    * * Display Name: Series ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meeting Series (vwMeetingSeries.ID)
+    * * Description: The series each new occurrence of which invites this attendee.
+    */
+    get SeriesID(): string {
+        return this.Get('SeriesID');
+    }
+    set SeriesID(value: string) {
+        this.Set('SeriesID', value);
+    }
+
+    /**
+    * * Field Name: PersonID
+    * * Display Name: Person ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+    * * Description: The person invited, when they are a Person. Either this or Email is set.
+    */
+    get PersonID(): string | null {
+        return this.Get('PersonID');
+    }
+    set PersonID(value: string | null) {
+        this.Set('PersonID', value);
+    }
+
+    /**
+    * * Field Name: UserID
+    * * Display Name: User ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ: Users (vwUsers.ID)
+    * * Description: The person's MemberJunction user, when they have one, filled from the person's account.
+    */
+    get UserID(): string | null {
+        return this.Get('UserID');
+    }
+    set UserID(value: string | null) {
+        this.Set('UserID', value);
+    }
+
+    /**
+    * * Field Name: Email
+    * * Display Name: Email
+    * * SQL Data Type: nvarchar(255)
+    * * Description: A guest's address, or the address a person's invitation goes to.
+    */
+    get Email(): string | null {
+        return this.Get('Email');
+    }
+    set Email(value: string | null) {
+        this.Set('Email', value);
+    }
+
+    /**
+    * * Field Name: DisplayName
+    * * Display Name: Display Name
+    * * SQL Data Type: nvarchar(255)
+    * * Description: A guest's name.
+    */
+    get DisplayName(): string | null {
+        return this.Get('DisplayName');
+    }
+    set DisplayName(value: string | null) {
+        this.Set('DisplayName', value);
+    }
+
+    /**
+    * * Field Name: Role
+    * * Display Name: Role
+    * * SQL Data Type: nvarchar(20)
+    * * Default Value: Required
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Optional
+    *   * Required
+    * * Description: Required or Optional. The organizer is the series' own.
+    */
+    get Role(): 'Optional' | 'Required' {
+        return this.Get('Role');
+    }
+    set Role(value: 'Optional' | 'Required') {
+        this.Set('Role', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: Series
+    * * Display Name: Series
+    * * SQL Data Type: nvarchar(255)
+    */
+    get Series(): string {
+        return this.Get('Series');
+    }
+
+    /**
+    * * Field Name: Person
+    * * Display Name: Person
+    * * SQL Data Type: nvarchar(201)
+    */
+    get Person(): string | null {
+        return this.Get('Person');
+    }
+
+    /**
+    * * Field Name: User
+    * * Display Name: User
+    * * SQL Data Type: nvarchar(100)
+    */
+    get User(): string | null {
+        return this.Get('User');
+    }
+}
+
+
+/**
+ * MJ_BizApps_Tasks: Meeting Types - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: MeetingType
+ * * Base View: vwMeetingTypes
+ * * @description A kind of meeting: General, One-on-one, Team, Client, Review, or one an app adds. Carries the defaults a new meeting of the type starts with and its agenda template.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Meeting Types')
+export class mjBizAppsTasksMeetingTypeEntity extends BaseEntity<mjBizAppsTasksMeetingTypeEntityType> {
+    /**
+    * Loads the MJ_BizApps_Tasks: Meeting Types record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Meeting Types record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksMeetingTypeEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    * * Description: Primary key.
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: Name
+    * * Display Name: Name
+    * * SQL Data Type: nvarchar(100)
+    * * Description: The type's display name. Unique.
+    */
+    get Name(): string {
+        return this.Get('Name');
+    }
+    set Name(value: string) {
+        this.Set('Name', value);
+    }
+
+    /**
+    * * Field Name: Code
+    * * Display Name: Code
+    * * SQL Data Type: nvarchar(50)
+    * * Description: A stable code apps refer to, as TaskType.Code. Unique.
+    */
+    get Code(): string {
+        return this.Get('Code');
+    }
+    set Code(value: string) {
+        this.Set('Code', value);
+    }
+
+    /**
+    * * Field Name: Description
+    * * Display Name: Description
+    * * SQL Data Type: nvarchar(MAX)
+    * * Description: What meetings of this type are for.
+    */
+    get Description(): string | null {
+        return this.Get('Description');
+    }
+    set Description(value: string | null) {
+        this.Set('Description', value);
+    }
+
+    /**
+    * * Field Name: IconClass
+    * * Display Name: Icon Class
+    * * SQL Data Type: nvarchar(100)
+    * * Description: Font Awesome icon class shown beside the type.
+    */
+    get IconClass(): string | null {
+        return this.Get('IconClass');
+    }
+    set IconClass(value: string | null) {
+        this.Set('IconClass', value);
+    }
+
+    /**
+    * * Field Name: DefaultDurationMinutes
+    * * Display Name: Default Duration Minutes
+    * * SQL Data Type: int
+    * * Description: How long a new meeting of this type lasts unless the organizer says otherwise. More than 0.
+    */
+    get DefaultDurationMinutes(): number | null {
+        return this.Get('DefaultDurationMinutes');
+    }
+    set DefaultDurationMinutes(value: number | null) {
+        this.Set('DefaultDurationMinutes', value);
+    }
+
+    /**
+    * * Field Name: DefaultLocationType
+    * * Display Name: Default Location Type
+    * * SQL Data Type: nvarchar(20)
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Hybrid
+    *   * InPerson
+    *   * Phone
+    *   * Virtual
+    * * Description: The location a new meeting of this type starts with: Virtual, InPerson, Hybrid or Phone.
+    */
+    get DefaultLocationType(): 'Hybrid' | 'InPerson' | 'Phone' | 'Virtual' | null {
+        return this.Get('DefaultLocationType');
+    }
+    set DefaultLocationType(value: 'Hybrid' | 'InPerson' | 'Phone' | 'Virtual' | null) {
+        this.Set('DefaultLocationType', value);
+    }
+
+    /**
+    * * Field Name: DefaultVideoProviderID
+    * * Display Name: Default Video Provider ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Video Providers (vwVideoProviders.ID)
+    * * Description: The video provider a new virtual meeting of this type is hosted on.
+    */
+    get DefaultVideoProviderID(): string | null {
+        return this.Get('DefaultVideoProviderID');
+    }
+    set DefaultVideoProviderID(value: string | null) {
+        this.Set('DefaultVideoProviderID', value);
+    }
+
+    /**
+    * * Field Name: DefaultVisibility
+    * * Display Name: Default Visibility
+    * * SQL Data Type: nvarchar(20)
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Private
+    *   * Standard
+    * * Description: The visibility a new meeting of this type starts with: Standard or Private.
+    */
+    get DefaultVisibility(): 'Private' | 'Standard' | null {
+        return this.Get('DefaultVisibility');
+    }
+    set DefaultVisibility(value: 'Private' | 'Standard' | null) {
+        this.Set('DefaultVisibility', value);
+    }
+
+    /**
+    * * Field Name: AgendaTemplate
+    * * Display Name: Agenda Template
+    * * SQL Data Type: nvarchar(MAX)
+    * * Description: JSON: the agenda a new meeting of this type starts with, as items with a title, an agenda item type code, a duration in minutes and sub-items.
+    */
+    get AgendaTemplate(): string | null {
+        return this.Get('AgendaTemplate');
+    }
+    set AgendaTemplate(value: string | null) {
+        this.Set('AgendaTemplate', value);
+    }
+
+    /**
+    * * Field Name: NotesPromptID
+    * * Display Name: Notes Prompt ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ: AI Prompts (vwAIPrompts.ID)
+    * * Description: The MJ: AI Prompts record that drafts notes from a transcript for this type, instead of the shipped prompt.
+    */
+    get NotesPromptID(): string | null {
+        return this.Get('NotesPromptID');
+    }
+    set NotesPromptID(value: string | null) {
+        this.Set('NotesPromptID', value);
+    }
+
+    /**
+    * * Field Name: IsActive
+    * * Display Name: Is Active
+    * * SQL Data Type: bit
+    * * Default Value: 1
+    * * Description: When false, the type is kept for existing meetings but not offered for new ones.
+    */
+    get IsActive(): boolean {
+        return this.Get('IsActive');
+    }
+    set IsActive(value: boolean) {
+        this.Set('IsActive', value);
+    }
+
+    /**
+    * * Field Name: Sequence
+    * * Display Name: Sequence
+    * * SQL Data Type: int
+    * * Default Value: 100
+    * * Description: Display order among types.
+    */
+    get Sequence(): number {
+        return this.Get('Sequence');
+    }
+    set Sequence(value: number) {
+        this.Set('Sequence', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: DefaultVideoProvider
+    * * Display Name: Default Video Provider
+    * * SQL Data Type: nvarchar(100)
+    */
+    get DefaultVideoProvider(): string | null {
+        return this.Get('DefaultVideoProvider');
+    }
+
+    /**
+    * * Field Name: NotesPrompt
+    * * Display Name: Notes Prompt
+    * * SQL Data Type: nvarchar(255)
+    */
+    get NotesPrompt(): string | null {
+        return this.Get('NotesPrompt');
+    }
+}
+
+
+/**
+ * MJ_BizApps_Tasks: Meetings - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: Meeting
+ * * Base View: vwMeetings
+ * * @description One meeting: a single occurrence with its own time, place, attendees, agenda, notes and follow-ups. An occurrence of a series points at its series and keeps the series' original slot as its name.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Meetings')
+export class mjBizAppsTasksMeetingEntity extends BaseEntity<mjBizAppsTasksMeetingEntityType> {
+    /**
+    * Loads the MJ_BizApps_Tasks: Meetings record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Meetings record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksMeetingEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    * * Description: Primary key.
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: Name
+    * * Display Name: Name
+    * * SQL Data Type: nvarchar(255)
+    * * Description: The meeting's title, as Task.Name is a task's.
+    */
+    get Name(): string {
+        return this.Get('Name');
+    }
+    set Name(value: string) {
+        this.Set('Name', value);
+    }
+
+    /**
+    * * Field Name: Description
+    * * Display Name: Description
+    * * SQL Data Type: nvarchar(MAX)
+    * * Description: The meeting's purpose, in Markdown.
+    */
+    get Description(): string | null {
+        return this.Get('Description');
+    }
+    set Description(value: string | null) {
+        this.Set('Description', value);
+    }
+
+    /**
+    * * Field Name: TypeID
+    * * Display Name: Type ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meeting Types (vwMeetingTypes.ID)
+    * * Description: The meeting type it was made from, which gave its defaults and agenda template.
+    */
+    get TypeID(): string | null {
+        return this.Get('TypeID');
+    }
+    set TypeID(value: string | null) {
+        this.Set('TypeID', value);
+    }
+
+    /**
+    * * Field Name: SeriesID
+    * * Display Name: Series ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Meeting Series (vwMeetingSeries.ID)
+    * * Description: The series this meeting is an occurrence of, when it is one.
+    */
+    get SeriesID(): string | null {
+        return this.Get('SeriesID');
+    }
+    set SeriesID(value: string | null) {
+        this.Set('SeriesID', value);
+    }
+
+    /**
+    * * Field Name: OccurrenceStartsAt
+    * * Display Name: Occurrence Starts At
+    * * SQL Data Type: datetimeoffset
+    * * Description: The series' original slot for this occurrence. It names the occurrence after it moves, so the series does not make it again. Set with SeriesID, empty without it.
+    */
+    get OccurrenceStartsAt(): Date | null {
+        return this.Get('OccurrenceStartsAt');
+    }
+    set OccurrenceStartsAt(value: Date | null) {
+        this.Set('OccurrenceStartsAt', value);
+    }
+
+    /**
+    * * Field Name: Status
+    * * Display Name: Status
+    * * SQL Data Type: nvarchar(20)
+    * * Default Value: Scheduled
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Cancelled
+    *   * Completed
+    *   * Draft
+    *   * InProgress
+    *   * Postponed
+    *   * Scheduled
+    * * Description: Draft, Scheduled, Postponed, InProgress, Completed or Cancelled. The server moves it forward: Draft to Scheduled to InProgress to Completed; Scheduled and Postponed either way; anything but Completed may be Cancelled.
+    */
+    get Status(): 'Cancelled' | 'Completed' | 'Draft' | 'InProgress' | 'Postponed' | 'Scheduled' {
+        return this.Get('Status');
+    }
+    set Status(value: 'Cancelled' | 'Completed' | 'Draft' | 'InProgress' | 'Postponed' | 'Scheduled') {
+        this.Set('Status', value);
+    }
+
+    /**
+    * * Field Name: StartsAt
+    * * Display Name: Starts At
+    * * SQL Data Type: datetimeoffset
+    * * Description: When the meeting is planned to start.
+    */
+    get StartsAt(): Date {
+        return this.Get('StartsAt');
+    }
+    set StartsAt(value: Date) {
+        this.Set('StartsAt', value);
+    }
+
+    /**
+    * * Field Name: EndsAt
+    * * Display Name: Ends At
+    * * SQL Data Type: datetimeoffset
+    * * Description: When the meeting is planned to end. Later than StartsAt.
+    */
+    get EndsAt(): Date {
+        return this.Get('EndsAt');
+    }
+    set EndsAt(value: Date) {
+        this.Set('EndsAt', value);
+    }
+
+    /**
+    * * Field Name: TimeZone
+    * * Display Name: Time Zone
+    * * SQL Data Type: nvarchar(64)
+    * * Description: The IANA time zone the meeting is planned in, such as America/Chicago. Display and recurrence use it. Defaults from the organizer's setting, else the business time zone.
+    */
+    get TimeZone(): string {
+        return this.Get('TimeZone');
+    }
+    set TimeZone(value: string) {
+        this.Set('TimeZone', value);
+    }
+
+    /**
+    * * Field Name: LocationType
+    * * Display Name: Location Type
+    * * SQL Data Type: nvarchar(20)
+    * * Default Value: Virtual
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Hybrid
+    *   * InPerson
+    *   * Phone
+    *   * Virtual
+    * * Description: Virtual, InPerson, Hybrid or Phone.
+    */
+    get LocationType(): 'Hybrid' | 'InPerson' | 'Phone' | 'Virtual' {
+        return this.Get('LocationType');
+    }
+    set LocationType(value: 'Hybrid' | 'InPerson' | 'Phone' | 'Virtual') {
+        this.Set('LocationType', value);
+    }
+
+    /**
+    * * Field Name: Location
+    * * Display Name: Location
+    * * SQL Data Type: nvarchar(500)
+    * * Description: A room or an address, for an in-person or hybrid meeting.
+    */
+    get Location(): string | null {
+        return this.Get('Location');
+    }
+    set Location(value: string | null) {
+        this.Set('Location', value);
+    }
+
+    /**
+    * * Field Name: VideoProviderID
+    * * Display Name: Video Provider ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Video Providers (vwVideoProviders.ID)
+    * * Description: The video provider the meeting is hosted on, for a virtual or hybrid meeting.
+    */
+    get VideoProviderID(): string | null {
+        return this.Get('VideoProviderID');
+    }
+    set VideoProviderID(value: string | null) {
+        this.Set('VideoProviderID', value);
+    }
+
+    /**
+    * * Field Name: VideoMeetingID
+    * * Display Name: Video Meeting ID
+    * * SQL Data Type: nvarchar(255)
+    * * Description: The provider's own ID for the meeting, kept to update or delete it there.
+    */
+    get VideoMeetingID(): string | null {
+        return this.Get('VideoMeetingID');
+    }
+    set VideoMeetingID(value: string | null) {
+        this.Set('VideoMeetingID', value);
+    }
+
+    /**
+    * * Field Name: VideoJoinURL
+    * * Display Name: Video Join URL
+    * * SQL Data Type: nvarchar(1000)
+    * * Description: The link attendees join by, from the provider or typed in.
+    */
+    get VideoJoinURL(): string | null {
+        return this.Get('VideoJoinURL');
+    }
+    set VideoJoinURL(value: string | null) {
+        this.Set('VideoJoinURL', value);
+    }
+
+    /**
+    * * Field Name: DialInDetails
+    * * Display Name: Dial In Details
+    * * SQL Data Type: nvarchar(1000)
+    * * Description: Phone numbers and access codes for joining by phone.
+    */
+    get DialInDetails(): string | null {
+        return this.Get('DialInDetails');
+    }
+    set DialInDetails(value: string | null) {
+        this.Set('DialInDetails', value);
+    }
+
+    /**
+    * * Field Name: OrganizerPersonID
+    * * Display Name: Organizer Person ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+    * * Description: The person who organizes the meeting. Their calendar holds its event, and the meeting always has their attendee row.
+    */
+    get OrganizerPersonID(): string {
+        return this.Get('OrganizerPersonID');
+    }
+    set OrganizerPersonID(value: string) {
+        this.Set('OrganizerPersonID', value);
+    }
+
+    /**
+    * * Field Name: Visibility
+    * * Display Name: Visibility
+    * * SQL Data Type: nvarchar(20)
+    * * Default Value: Standard
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Private
+    *   * Standard
+    * * Description: Standard: readable by anyone who reads meetings. Private: readable only by its attendees, the organizer included.
+    */
+    get Visibility(): 'Private' | 'Standard' {
+        return this.Get('Visibility');
+    }
+    set Visibility(value: 'Private' | 'Standard') {
+        this.Set('Visibility', value);
+    }
+
+    /**
+    * * Field Name: ActualStartedAt
+    * * Display Name: Actual Started At
+    * * SQL Data Type: datetimeoffset
+    * * Description: When the live meeting was started.
+    */
+    get ActualStartedAt(): Date | null {
+        return this.Get('ActualStartedAt');
+    }
+    set ActualStartedAt(value: Date | null) {
+        this.Set('ActualStartedAt', value);
+    }
+
+    /**
+    * * Field Name: ActualEndedAt
+    * * Display Name: Actual Ended At
+    * * SQL Data Type: datetimeoffset
+    * * Description: When the live meeting was ended.
+    */
+    get ActualEndedAt(): Date | null {
+        return this.Get('ActualEndedAt');
+    }
+    set ActualEndedAt(value: Date | null) {
+        this.Set('ActualEndedAt', value);
+    }
+
+    /**
+    * * Field Name: CancelledAt
+    * * Display Name: Cancelled At
+    * * SQL Data Type: datetimeoffset
+    * * Description: When the meeting was cancelled. Stamped by the server with the status.
+    */
+    get CancelledAt(): Date | null {
+        return this.Get('CancelledAt');
+    }
+    set CancelledAt(value: Date | null) {
+        this.Set('CancelledAt', value);
+    }
+
+    /**
+    * * Field Name: CancellationReason
+    * * Display Name: Cancellation Reason
+    * * SQL Data Type: nvarchar(500)
+    * * Description: Why the meeting was cancelled, for its attendees.
+    */
+    get CancellationReason(): string | null {
+        return this.Get('CancellationReason');
+    }
+    set CancellationReason(value: string | null) {
+        this.Set('CancellationReason', value);
+    }
+
+    /**
+    * * Field Name: VideoRecordingURL
+    * * Display Name: Video Recording URL
+    * * SQL Data Type: nvarchar(1000)
+    * * Description: Where the provider's recording can be watched.
+    */
+    get VideoRecordingURL(): string | null {
+        return this.Get('VideoRecordingURL');
+    }
+    set VideoRecordingURL(value: string | null) {
+        this.Set('VideoRecordingURL', value);
+    }
+
+    /**
+    * * Field Name: TranscriptFileID
+    * * Display Name: Transcript File ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ: Files (vwFiles.ID)
+    * * Description: The MJ: Files record holding the transcript, uploaded by a person or saved there by the provider's driver. A transcript is a file in MemberJunction's storage, never a URL a user typed.
+    */
+    get TranscriptFileID(): string | null {
+        return this.Get('TranscriptFileID');
+    }
+    set TranscriptFileID(value: string | null) {
+        this.Set('TranscriptFileID', value);
+    }
+
+    /**
+    * * Field Name: CreatedByPersonID
+    * * Display Name: Created By Person ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+    * * Description: The person who created the meeting, as Task.CreatedByPersonID.
+    */
+    get CreatedByPersonID(): string | null {
+        return this.Get('CreatedByPersonID');
+    }
+    set CreatedByPersonID(value: string | null) {
+        this.Set('CreatedByPersonID', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: Type
+    * * Display Name: Type
+    * * SQL Data Type: nvarchar(100)
+    */
+    get Type(): string | null {
+        return this.Get('Type');
+    }
+
+    /**
+    * * Field Name: Series
+    * * Display Name: Series
+    * * SQL Data Type: nvarchar(255)
+    */
+    get Series(): string | null {
+        return this.Get('Series');
+    }
+
+    /**
+    * * Field Name: VideoProvider
+    * * Display Name: Video Provider
+    * * SQL Data Type: nvarchar(100)
+    */
+    get VideoProvider(): string | null {
+        return this.Get('VideoProvider');
+    }
+
+    /**
+    * * Field Name: OrganizerPerson
+    * * Display Name: Organizer Person
+    * * SQL Data Type: nvarchar(201)
+    */
+    get OrganizerPerson(): string {
+        return this.Get('OrganizerPerson');
+    }
+
+    /**
+    * * Field Name: TranscriptFile
+    * * Display Name: Transcript File
+    * * SQL Data Type: nvarchar(500)
+    */
+    get TranscriptFile(): string | null {
+        return this.Get('TranscriptFile');
+    }
+
+    /**
+    * * Field Name: CreatedByPerson
+    * * Display Name: Created By Person
+    * * SQL Data Type: nvarchar(201)
+    */
+    get CreatedByPerson(): string | null {
+        return this.Get('CreatedByPerson');
+    }
+}
+
 
 /**
  * MJ_BizApps_Tasks: Task Activities - strongly typed entity sub-class
@@ -1795,7 +5219,7 @@ export class mjBizAppsTasksTaskActivityEntity extends BaseEntity<mjBizAppsTasksT
     /**
     * * Field Name: Person
     * * Display Name: Person
-    * * SQL Data Type: nvarchar(250)
+    * * SQL Data Type: nvarchar(201)
     */
     get Person(): string | null {
         return this.Get('Person');
@@ -2002,7 +5426,7 @@ export class mjBizAppsTasksTaskAssignmentEntity extends BaseEntity<mjBizAppsTask
     /**
     * * Field Name: AssignedByPerson
     * * Display Name: Assigned By Person
-    * * SQL Data Type: nvarchar(250)
+    * * SQL Data Type: nvarchar(201)
     */
     get AssignedByPerson(): string | null {
         return this.Get('AssignedByPerson');
@@ -2511,7 +5935,7 @@ export class mjBizAppsTasksTaskCheckInEntity extends BaseEntity<mjBizAppsTasksTa
     /**
     * * Field Name: AuthorPerson
     * * Display Name: Author Person Name
-    * * SQL Data Type: nvarchar(250)
+    * * SQL Data Type: nvarchar(201)
     */
     get AuthorPerson(): string | null {
         return this.Get('AuthorPerson');
@@ -2675,7 +6099,7 @@ export class mjBizAppsTasksTaskCommentEntity extends BaseEntity<mjBizAppsTasksTa
     /**
     * * Field Name: Person
     * * Display Name: Person
-    * * SQL Data Type: nvarchar(250)
+    * * SQL Data Type: nvarchar(201)
     */
     get Person(): string {
         return this.Get('Person');
@@ -3038,7 +6462,7 @@ export class mjBizAppsTasksTaskDecisionEntity extends BaseEntity<mjBizAppsTasksT
     /**
     * * Field Name: DecidedByPerson
     * * Display Name: Decided By Person
-    * * SQL Data Type: nvarchar(250)
+    * * SQL Data Type: nvarchar(201)
     */
     get DecidedByPerson(): string | null {
         return this.Get('DecidedByPerson');
@@ -5827,7 +9251,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     /**
     * * Field Name: CreatedByPerson
     * * Display Name: Created By Person
-    * * SQL Data Type: nvarchar(250)
+    * * SQL Data Type: nvarchar(201)
     */
     get CreatedByPerson(): string | null {
         return this.Get('CreatedByPerson');
@@ -5885,5 +9309,214 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     */
     get CommentsCount(): number {
         return this.Get('CommentsCount');
+    }
+}
+
+
+/**
+ * MJ_BizApps_Tasks: Video Providers - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: VideoProvider
+ * * Base View: vwVideoProviders
+ * * @description A video-conferencing provider a meeting can be hosted on: Zoom, Teams or Google Meet. Its secrets live in MemberJunction's credential store; the row holds only the driver and non-secret settings. Ships inactive until a host configures it.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Video Providers')
+export class mjBizAppsTasksVideoProviderEntity extends BaseEntity<mjBizAppsTasksVideoProviderEntityType> {
+    /**
+    * Loads the MJ_BizApps_Tasks: Video Providers record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Video Providers record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksVideoProviderEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    * * Description: Primary key.
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: Name
+    * * Display Name: Name
+    * * SQL Data Type: nvarchar(100)
+    * * Description: The provider's display name. Unique.
+    */
+    get Name(): string {
+        return this.Get('Name');
+    }
+    set Name(value: string) {
+        this.Set('Name', value);
+    }
+
+    /**
+    * * Field Name: Code
+    * * Display Name: Code
+    * * SQL Data Type: nvarchar(50)
+    * * Description: A stable code apps refer to: ZOOM, TEAMS or GOOGLE_MEET. Unique.
+    */
+    get Code(): string {
+        return this.Get('Code');
+    }
+    set Code(value: string) {
+        this.Set('Code', value);
+    }
+
+    /**
+    * * Field Name: DriverClass
+    * * Display Name: Driver Class
+    * * SQL Data Type: nvarchar(255)
+    * * Description: The class the driver registers with MemberJunction's class factory under VideoProviderBase.
+    */
+    get DriverClass(): string {
+        return this.Get('DriverClass');
+    }
+    set DriverClass(value: string) {
+        this.Set('DriverClass', value);
+    }
+
+    /**
+    * * Field Name: Description
+    * * Display Name: Description
+    * * SQL Data Type: nvarchar(MAX)
+    * * Description: What this provider is and when to use it.
+    */
+    get Description(): string | null {
+        return this.Get('Description');
+    }
+    set Description(value: string | null) {
+        this.Set('Description', value);
+    }
+
+    /**
+    * * Field Name: IconClass
+    * * Display Name: Icon Class
+    * * SQL Data Type: nvarchar(100)
+    * * Description: Font Awesome icon class shown beside the provider.
+    */
+    get IconClass(): string | null {
+        return this.Get('IconClass');
+    }
+    set IconClass(value: string | null) {
+        this.Set('IconClass', value);
+    }
+
+    /**
+    * * Field Name: CredentialID
+    * * Display Name: Credential ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ: Credentials (vwCredentials.ID)
+    * * Description: The MJ: Credentials record holding the provider's secrets, decrypted through CredentialEngine. Never stored here.
+    */
+    get CredentialID(): string | null {
+        return this.Get('CredentialID');
+    }
+    set CredentialID(value: string | null) {
+        this.Set('CredentialID', value);
+    }
+
+    /**
+    * * Field Name: Configuration
+    * * Display Name: Configuration
+    * * SQL Data Type: nvarchar(MAX)
+    * * Description: JSON: settings that are not secret, such as the organizer account or default meeting options.
+    */
+    get Configuration(): string | null {
+        return this.Get('Configuration');
+    }
+    set Configuration(value: string | null) {
+        this.Set('Configuration', value);
+    }
+
+    /**
+    * * Field Name: SupportsTranscripts
+    * * Display Name: Supports Transcripts
+    * * SQL Data Type: bit
+    * * Default Value: 0
+    * * Description: When true, the driver can fetch a transcript of a recorded meeting.
+    */
+    get SupportsTranscripts(): boolean {
+        return this.Get('SupportsTranscripts');
+    }
+    set SupportsTranscripts(value: boolean) {
+        this.Set('SupportsTranscripts', value);
+    }
+
+    /**
+    * * Field Name: IsDefault
+    * * Display Name: Is Default
+    * * SQL Data Type: bit
+    * * Default Value: 0
+    * * Description: When true, this is the provider a new virtual meeting uses unless its type says otherwise. One provider at most.
+    */
+    get IsDefault(): boolean {
+        return this.Get('IsDefault');
+    }
+    set IsDefault(value: boolean) {
+        this.Set('IsDefault', value);
+    }
+
+    /**
+    * * Field Name: IsActive
+    * * Display Name: Is Active
+    * * SQL Data Type: bit
+    * * Default Value: 0
+    * * Description: When true, the provider is configured and offered. Ships as 0.
+    */
+    get IsActive(): boolean {
+        return this.Get('IsActive');
+    }
+    set IsActive(value: boolean) {
+        this.Set('IsActive', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: Credential
+    * * Display Name: Credential
+    * * SQL Data Type: nvarchar(200)
+    */
+    get Credential(): string | null {
+        return this.Get('Credential');
     }
 }
