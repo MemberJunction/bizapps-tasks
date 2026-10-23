@@ -19,8 +19,9 @@ import {
     RunView,
     UserInfo,
 } from '@memberjunction/core';
-import { MJEventType, MJGlobal, MJEvent } from '@memberjunction/global';
+import { MJEventType, MJGlobal, MJEvent, UUIDsEqual } from '@memberjunction/global';
 import { Subscription } from 'rxjs';
+import { ResolveUserIDForPerson, ResolveUserIDsForPeople } from '../person-user-link.js';
 
 /** Entity names we listen for */
 const TASKS_ENTITY = 'MJ_BizApps_Tasks: Tasks';
@@ -35,12 +36,6 @@ type TaskTypeActionColumn =
     | 'OnPercentChangeActionID'
     | 'OnRejectActionID'
     | 'OnCancelActionID';
-
-/** Row shape for a Person resolved to its linked MJ UserID. */
-interface PersonLinkRow {
-    ID: string;
-    LinkedUserID: string | null;
-}
 
 /** An extra input param passed to a TaskType action hook. */
 type ActionHookInput = {
@@ -257,8 +252,11 @@ export async function handleAssignmentSave(event: BaseEntityEvent): Promise<void
  */
 async function notifyAssignee(assigneeRecordID: string, taskID: string, roleID: string | null, contextUser: UserInfo): Promise<void> {
     // Resolve the assignee's linked MJ UserID
-    const userID = await getPersonLinkedUserID(assigneeRecordID, contextUser);
-    if (!userID) return;
+    const userID = await getPersonUserID(assigneeRecordID, contextUser);
+    if (!userID) {
+        LogStatus(`[Tasks] Assignee ${assigneeRecordID} of task ${taskID} has no linked user; no in-app notification sent`);
+        return;
+    }
 
     // Load the task to get its name and details
     const rv = new RunView();
@@ -348,8 +346,8 @@ async function handleCommentSave(event: BaseEntityEvent): Promise<void> {
 
     // Get all assignee UserIDs except the author
     const allUserIDs = await getTaskAssigneeUserIDs(taskID, contextUser);
-    const authorUserID = await getPersonLinkedUserID(authorPersonID, contextUser);
-    const notifyUserIDs = allUserIDs.filter(id => id !== authorUserID);
+    const authorUserID = await getPersonUserID(authorPersonID, contextUser);
+    const notifyUserIDs = allUserIDs.filter(id => !UUIDsEqual(id, authorUserID));
 
     if (notifyUserIDs.length === 0) return;
 
@@ -483,7 +481,7 @@ async function invokeTaskTypeActionByTaskID(
 
 /**
  * Returns MJ UserIDs for all people assigned to a task.
- * Two-step: TaskAssignment → Person → LinkedUserID.
+ * Two-step: TaskAssignment → Person → user (see ResolveUserIDsForPeople).
  */
 async function getTaskAssigneeUserIDs(taskID: string, contextUser: UserInfo): Promise<string[]> {
     const rv = new RunView();
@@ -499,38 +497,28 @@ async function getTaskAssigneeUserIDs(taskID: string, contextUser: UserInfo): Pr
     }
 
     const personIDs = assignments.Results.map(a => a.AssigneeRecordID);
-    const inClause = personIDs.map((id: string) => `'${id}'`).join(',');
-
-    const people = await rv.RunView<PersonLinkRow>({
-        EntityName: 'MJ_BizApps_Common: People',
-        ExtraFilter: `ID IN (${inClause}) AND LinkedUserID IS NOT NULL`,
-        Fields: ['ID', 'LinkedUserID'],
-        ResultType: 'simple',
-    }, contextUser);
-
-    if (!people?.Success) {
+    try {
+        return [...(await ResolveUserIDsForPeople(personIDs, Metadata.Provider, contextUser)).values()];
+    } catch (error) {
+        LogError(`[Tasks] Could not resolve the users of task ${taskID}'s assignees: ${errorText(error)}`);
         return [];
     }
-
-    return people.Results
-        .map(p => p.LinkedUserID)
-        .filter((id: string | null): id is string => id != null);
 }
 
 /**
- * Resolves a PersonID to their linked MJ UserID (if any).
+ * Resolves a PersonID to its MJ UserID (if any): the user's People link, else People.LinkedUserID.
  */
-async function getPersonLinkedUserID(personID: string, contextUser: UserInfo): Promise<string | null> {
-    const rv = new RunView();
-    const result = await rv.RunView<PersonLinkRow>({
-        EntityName: 'MJ_BizApps_Common: People',
-        ExtraFilter: `ID='${personID}'`,
-        Fields: ['ID', 'LinkedUserID'],
-        ResultType: 'simple',
-        MaxRows: 1,
-    }, contextUser);
+async function getPersonUserID(personID: string, contextUser: UserInfo): Promise<string | null> {
+    try {
+        return await ResolveUserIDForPerson(personID, Metadata.Provider, contextUser);
+    } catch (error) {
+        LogError(`[Tasks] Could not resolve the user of person ${personID}: ${errorText(error)}`);
+        return null;
+    }
+}
 
-    return result?.Results?.[0]?.LinkedUserID ?? null;
+function errorText(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
 }
 
 /**
