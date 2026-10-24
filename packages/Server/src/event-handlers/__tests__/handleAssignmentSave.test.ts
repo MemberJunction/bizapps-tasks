@@ -23,6 +23,9 @@ vi.mock('@memberjunction/core', () => ({
 vi.mock('@memberjunction/global', () => ({
   MJEventType: { ComponentEvent: 'ComponentEvent' },
   MJGlobal: { Instance: { GetGlobalObjectStore: () => ({}), GetEventListener: () => ({ subscribe: () => ({ unsubscribe() {} }) }) } },
+  // Real-shaped stand-in: sql-guards' GuidLiteral validates every id reaching SQL text.
+  IsValidUUID: (id: unknown): boolean =>
+    typeof id === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id),
 }));
 vi.mock('@memberjunction/actions', () => ({
   ActionEngineServer: { Instance: { Config: vi.fn(), Actions: [{ ID: 'assign-action' }], RunAction: runAction } },
@@ -30,8 +33,14 @@ vi.mock('@memberjunction/actions', () => ({
 
 import { handleAssignmentSave } from '../TaskNotificationHandler.js';
 
+// GuidLiteral refuses non-UUID ids before they reach SQL filter text, so the
+// fixture ids must be real UUID shapes.
+const TASK_ID = '11111111-1111-1111-1111-111111111111';
+const TYPE_ID = '22222222-2222-2222-2222-222222222222';
+const PERSON_ID = '33333333-3333-3333-3333-333333333333';
+
 const task = {
-  Get: (field: string) => ({ ID: 'task-1', Name: 'Approve discount', Status: 'Open', TypeID: 'type-1' } as Record<string, string>)[field],
+  Get: (field: string) => ({ ID: TASK_ID, Name: 'Approve discount', Status: 'Open', TypeID: TYPE_ID } as Record<string, string>)[field],
 };
 
 function mockViews(linkedUserID: string | null): void {
@@ -41,8 +50,8 @@ function mockViews(linkedUserID: string | null): void {
         return Promise.resolve({
           Success: true,
           Results: params.Fields?.includes('LinkedUserID')
-            ? [{ ID: 'person-1', LinkedUserID: linkedUserID }]
-            : [{ ID: 'person-1', FirstName: 'Pat', LastName: 'Doe' }],
+            ? [{ ID: PERSON_ID, LinkedUserID: linkedUserID }]
+            : [{ ID: PERSON_ID, FirstName: 'Pat', LastName: 'Doe' }],
         });
       case 'MJ_BizApps_Tasks: Tasks':
         return Promise.resolve({ Success: true, Results: params.ExtraFilter ? [task] : [] });
@@ -55,7 +64,7 @@ function mockViews(linkedUserID: string | null): void {
 }
 
 function assignmentCreated() {
-  const fields: Record<string, string | null> = { AssigneeRecordID: 'person-1', TaskID: 'task-1', RoleID: null };
+  const fields: Record<string, string | null> = { AssigneeRecordID: PERSON_ID, TaskID: TASK_ID, RoleID: null };
   return {
     type: 'save',
     saveSubType: 'create',
@@ -80,10 +89,10 @@ describe('handleAssignmentSave', () => {
 
     expect(runAction).toHaveBeenCalledOnce();
     expect(paramsPassed()).toMatchObject({
-      TaskID: 'task-1',
+      TaskID: TASK_ID,
       TaskName: 'Approve discount',
-      TaskTypeID: 'type-1',
-      AssigneePersonID: 'person-1',
+      TaskTypeID: TYPE_ID,
+      AssigneePersonID: PERSON_ID,
       AssigneeName: 'Pat Doe',
     });
     expect(saveNotification).toHaveBeenCalledOnce();
@@ -96,7 +105,7 @@ describe('handleAssignmentSave', () => {
 
     expect(saveNotification).not.toHaveBeenCalled();
     expect(runAction).toHaveBeenCalledOnce();
-    expect(paramsPassed().AssigneePersonID).toBe('person-1');
+    expect(paramsPassed().AssigneePersonID).toBe(PERSON_ID);
   });
 
   it('still invokes the OnAssign action when the notification throws', async () => {
