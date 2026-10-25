@@ -21,6 +21,7 @@ import { MJScheduledJobEntity } from '@memberjunction/core-entities';
 import { RegisterClass } from '@memberjunction/global';
 import { BaseScheduledJob, ScheduledJobExecutionContext } from '@memberjunction/scheduling-engine';
 import { ScheduledJobResult, NotificationContent } from '@memberjunction/scheduling-base-types';
+import { GuidLiteral } from '../sql-guards.js';
 
 /** Shape of the TaskNotificationConfig rows loaded from the DB. */
 interface NotificationConfig {
@@ -216,7 +217,7 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
         if (config.NotifyAssignees) {
             const assignments = await rv.RunView<{ AssigneeRecordID: string }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Assignments',
-                ExtraFilter: `TaskID='${task.ID}'`,
+                ExtraFilter: `TaskID=${GuidLiteral(task.ID, 'TaskID')}`,
                 ResultType: 'simple',
             }, contextUser);
 
@@ -240,7 +241,7 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
         const rv = new RunView();
         const result = await rv.RunView<{ ID: string; LinkedUserID: string | null }>({
             EntityName: 'MJ_BizApps_Common: People',
-            ExtraFilter: `ID='${personID}'`,
+            ExtraFilter: `ID=${GuidLiteral(personID, 'PersonID')}`,
             Fields: ['ID', 'LinkedUserID'],
             ResultType: 'simple',
             MaxRows: 1,
@@ -298,7 +299,7 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
         const rv = new RunView();
         const typeResult = await rv.RunView<{ OnOverdueActionID: string | null }>({
             EntityName: 'MJ_BizApps_Tasks: Task Types',
-            ExtraFilter: `ID='${task.TypeID}'`,
+            ExtraFilter: `ID=${GuidLiteral(task.TypeID, 'TypeID')}`,
             ResultType: 'simple',
             MaxRows: 1,
         }, contextUser);
