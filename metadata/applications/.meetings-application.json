@@ -1,0 +1,45 @@
+[
+  {
+    "_comments": [
+      "The Meetings application: a first-class app in Explorer beside Tasks (the meetings plan, § 5).",
+      "DefaultNavItems are ResourceType 'Custom' pointing at DriverClasses that @mj-biz-apps/tasks-ng registers with @RegisterClass(BaseResourceComponent, '<DriverClass>') in T4; Calendar is MemberJunction's view type and appears once A18 is in MJ next.",
+      "T1 ships the record; the resources it names land with T4 in the same minor release."
+    ],
+    "fields": {
+      "Name": "Meetings",
+      "Description": "Meetings and agendas: schedule one-off or recurring meetings, build agendas from templates, invite people and guests, run the live meeting, keep notes and file follow-ups as tasks.",
+      "Icon": "fa-solid fa-calendar-check",
+      "DefaultForNewUser": true,
+      "DefaultNavItems": [
+        {
+          "Label": "My meetings",
+          "Icon": "fa-solid fa-user-clock",
+          "ResourceType": "Custom",
+          "DriverClass": "MyMeetingsSectionResource",
+          "isDefault": true
+        },
+        {
+          "Label": "Meetings",
+          "Icon": "fa-solid fa-calendar-check",
+          "ResourceType": "Custom",
+          "DriverClass": "MeetingsSectionResource",
+          "isDefault": false
+        },
+        {
+          "Label": "Series",
+          "Icon": "fa-solid fa-repeat",
+          "ResourceType": "Custom",
+          "DriverClass": "MeetingSeriesSectionResource",
+          "isDefault": false
+        }
+      ]
+    },
+    "primaryKey": {
+      "ID": "14C40AAC-D873-4206-9735-8EC26A72FADF"
+    },
+    "sync": {
+      "lastModified": "2026-10-19T21:11:19.898Z",
+      "checksum": "bf6f01ab79f0f789a7d9302c235f9529a516dc30b60636ff6223496a918d9d91"
+    }
+  }
+]

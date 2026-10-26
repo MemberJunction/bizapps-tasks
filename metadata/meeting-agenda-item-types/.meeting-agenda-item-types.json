@@ -1,0 +1,132 @@
+[
+  {
+    "fields": {
+      "Name": "Information",
+      "Code": "INFORMATION",
+      "Description": "Something the meeting is told, with no decision asked.",
+      "IconClass": "fa-solid fa-circle-info",
+      "DefaultDurationMinutes": 5,
+      "IsActive": true,
+      "Sequence": 100
+    },
+    "primaryKey": {
+      "ID": "CA657C84-DF86-47A0-B096-9294E9E5689A"
+    },
+    "_comments": [
+      "The agenda item types Tasks ships: a lookup rather than a fixed list, so an app adds its own (Committees adds Vote).",
+      "These rows are metadata. Push them with mj sync push."
+    ],
+    "sync": {
+      "lastModified": "2026-10-19T21:11:22.365Z",
+      "checksum": "c44f4ba1f4d8d6cc40df5114c7c78878b9a8b7d08c8ba031915bf70e7285a3fb"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Discussion",
+      "Code": "DISCUSSION",
+      "Description": "Something the meeting talks through.",
+      "IconClass": "fa-solid fa-comments",
+      "DefaultDurationMinutes": 15,
+      "IsActive": true,
+      "Sequence": 200
+    },
+    "primaryKey": {
+      "ID": "C9B934EA-D3B7-4C57-B514-ADA190D23EA0"
+    },
+    "sync": {
+      "lastModified": "2026-10-19T21:11:22.376Z",
+      "checksum": "7eb0686366da2884347be4cd74a69d2af9404db58b07ab5574495ec3f9cbe4d2"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Decision",
+      "Code": "DECISION",
+      "Description": "Something the meeting settles; its outcome is recorded on the item.",
+      "IconClass": "fa-solid fa-gavel",
+      "DefaultDurationMinutes": 10,
+      "IsActive": true,
+      "Sequence": 300
+    },
+    "primaryKey": {
+      "ID": "D3613068-B072-447B-B487-3F9BE27BCD25"
+    },
+    "sync": {
+      "lastModified": "2026-10-19T21:11:22.388Z",
+      "checksum": "1c1782a1944969723d8c1ce933d62202f13d20ae8320a6dc05e3ebbcad3bc3bb"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Report",
+      "Code": "REPORT",
+      "Description": "A report given to the meeting.",
+      "IconClass": "fa-solid fa-file-lines",
+      "DefaultDurationMinutes": 10,
+      "IsActive": true,
+      "Sequence": 400
+    },
+    "primaryKey": {
+      "ID": "64177922-416C-41E9-991E-C50AF765C81E"
+    },
+    "sync": {
+      "lastModified": "2026-10-19T21:11:22.399Z",
+      "checksum": "bcade0f17636221b9b110fcff4e78d50394bc2fc6442cb77064bb9d792446ea1"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Presentation",
+      "Code": "PRESENTATION",
+      "Description": "Something shown to the meeting.",
+      "IconClass": "fa-solid fa-chalkboard-user",
+      "DefaultDurationMinutes": 20,
+      "IsActive": true,
+      "Sequence": 500
+    },
+    "primaryKey": {
+      "ID": "18F5F490-D474-43BF-92EF-036E32C7A9C8"
+    },
+    "sync": {
+      "lastModified": "2026-10-19T21:11:22.410Z",
+      "checksum": "ae99401e125e0bd173cb59e40a94b457774b3773b72cf8ada6d5d51ab62bb671"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Action review",
+      "Code": "ACTION_REVIEW",
+      "Description": "The follow-ups from last time and the ones captured today.",
+      "IconClass": "fa-solid fa-list-check",
+      "DefaultDurationMinutes": 10,
+      "IsActive": true,
+      "Sequence": 600
+    },
+    "primaryKey": {
+      "ID": "59B4E080-8DE4-41EF-ABA2-1EDA4A4B0E86"
+    },
+    "sync": {
+      "lastModified": "2026-10-19T21:11:22.422Z",
+      "checksum": "6a9d27951ed07de478aabe66888885b0ee39acc68351715a599c8f1fa2a53e09"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Break",
+      "Code": "BREAK",
+      "Description": "A pause.",
+      "IconClass": "fa-solid fa-mug-hot",
+      "DefaultDurationMinutes": 10,
+      "IsActive": true,
+      "Sequence": 700
+    },
+    "primaryKey": {
+      "ID": "8A326396-C37C-4A80-8D1F-D74128AC4114"
+    },
+    "sync": {
+      "lastModified": "2026-10-19T21:11:22.434Z",
+      "checksum": "594a6cda422cda25c3d4ea8e96652bf469c49d2ccfc97c0a0f1d74396a2c9c1f"
+    }
+  }
+]

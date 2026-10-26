@@ -17,8 +17,2343 @@ import { MaxLength } from 'class-validator';
 import * as mj_core_schema_server_object_types from '@memberjunction/server'
 
 
-import { mjBizAppsTasksTaskActivityEntity, mjBizAppsTasksTaskAssignmentEntity, mjBizAppsTasksTaskCategoryEntity, mjBizAppsTasksTaskCheckInEntity, mjBizAppsTasksTaskCommentEntity, mjBizAppsTasksTaskDecisionOutcomeEntity, mjBizAppsTasksTaskDecisionEntity, mjBizAppsTasksTaskDependencyEntity, mjBizAppsTasksTaskLinkEntity, mjBizAppsTasksTaskNotificationConfigEntity, mjBizAppsTasksTaskNotificationLogEntity, mjBizAppsTasksTaskRoleEntity, mjBizAppsTasksTaskTagLinkEntity, mjBizAppsTasksTaskTagEntity, mjBizAppsTasksTaskTemplateItemDependencyEntity, mjBizAppsTasksTaskTemplateItemRoleEntity, mjBizAppsTasksTaskTemplateItemEntity, mjBizAppsTasksTaskTemplateEntity, mjBizAppsTasksTaskTypeStatusEntity, mjBizAppsTasksTaskTypeEntity, mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
+import { mjBizAppsTasksMeetingAgendaItemTypeEntity, mjBizAppsTasksMeetingAgendaItemEntity, mjBizAppsTasksMeetingAttendeeEntity, mjBizAppsTasksMeetingLinkEntity, mjBizAppsTasksMeetingNoteEntity, mjBizAppsTasksMeetingSeriesEntity, mjBizAppsTasksMeetingSeriesAttendeeEntity, mjBizAppsTasksMeetingTypeEntity, mjBizAppsTasksMeetingEntity, mjBizAppsTasksTaskActivityEntity, mjBizAppsTasksTaskAssignmentEntity, mjBizAppsTasksTaskCategoryEntity, mjBizAppsTasksTaskCheckInEntity, mjBizAppsTasksTaskCommentEntity, mjBizAppsTasksTaskDecisionOutcomeEntity, mjBizAppsTasksTaskDecisionEntity, mjBizAppsTasksTaskDependencyEntity, mjBizAppsTasksTaskLinkEntity, mjBizAppsTasksTaskNotificationConfigEntity, mjBizAppsTasksTaskNotificationLogEntity, mjBizAppsTasksTaskRoleEntity, mjBizAppsTasksTaskTagLinkEntity, mjBizAppsTasksTaskTagEntity, mjBizAppsTasksTaskTemplateItemDependencyEntity, mjBizAppsTasksTaskTemplateItemRoleEntity, mjBizAppsTasksTaskTemplateItemEntity, mjBizAppsTasksTaskTemplateEntity, mjBizAppsTasksTaskTypeStatusEntity, mjBizAppsTasksTaskTypeEntity, mjBizAppsTasksTaskEntity, mjBizAppsTasksVideoProviderEntity } from '@mj-biz-apps/tasks-entities';
     
+
+//****************************************************************************
+// ENTITY CLASS for MJ_BizApps_Tasks: Meeting Agenda Item Types
+//****************************************************************************
+@ObjectType({ description: "A kind of agenda item: Information, Discussion, Decision, Report, Presentation, Action review, Break, or one an app adds, such as Committees' Vote. A lookup rather than a fixed list, so apps extend it." })
+export class mjBizAppsTasksMeetingAgendaItemType_ {
+    @Field({description: "Primary key."}) 
+    @MaxLength(36)
+    ID: string;
+        
+    @Field({nullable: true, description: "The type's display name. Unique."}) 
+    @MaxLength(100)
+    Name?: string;
+        
+    @Field({nullable: true, description: "A stable code apps and agenda templates refer to. Unique."}) 
+    @MaxLength(50)
+    Code?: string;
+        
+    @Field({nullable: true, description: "What items of this type are for."}) 
+    Description?: string;
+        
+    @Field({nullable: true, description: "Font Awesome icon class shown beside the item."}) 
+    @MaxLength(100)
+    IconClass?: string;
+        
+    @Field(() => Int, {nullable: true, description: "How long an item of this type takes unless the agenda says otherwise. More than 0."}) 
+    DefaultDurationMinutes?: number;
+        
+    @Field(() => Boolean, {nullable: true, description: "When false, the type is kept for existing items but not offered for new ones."}) 
+    IsActive?: boolean;
+        
+    @Field(() => Int, {nullable: true, description: "Display order among types."}) 
+    Sequence?: number;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
+    ReadableFields___?: string[];
+        
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Meeting Agenda Item Types
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsTasksMeetingAgendaItemTypeInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    Name?: string;
+
+    @Field({ nullable: true })
+    Code?: string;
+
+    @Field({ nullable: true })
+    Description: string | null;
+
+    @Field({ nullable: true })
+    IconClass: string | null;
+
+    @Field(() => Int, { nullable: true })
+    DefaultDurationMinutes: number | null;
+
+    @Field(() => Boolean, { nullable: true })
+    IsActive?: boolean;
+
+    @Field(() => Int, { nullable: true })
+    Sequence?: number;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Meeting Agenda Item Types
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsTasksMeetingAgendaItemTypeInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    Name?: string;
+
+    @Field({ nullable: true })
+    Code?: string;
+
+    @Field({ nullable: true })
+    Description?: string | null;
+
+    @Field({ nullable: true })
+    IconClass?: string | null;
+
+    @Field(() => Int, { nullable: true })
+    DefaultDurationMinutes?: number | null;
+
+    @Field(() => Boolean, { nullable: true })
+    IsActive?: boolean;
+
+    @Field(() => Int, { nullable: true })
+    Sequence?: number;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+//****************************************************************************
+// RESOLVER for MJ_BizApps_Tasks: Meeting Agenda Item Types
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsTasksMeetingAgendaItemTypeViewResult {
+    @Field(() => [mjBizAppsTasksMeetingAgendaItemType_])
+    Results: mjBizAppsTasksMeetingAgendaItemType_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsTasksMeetingAgendaItemType_)
+export class mjBizAppsTasksMeetingAgendaItemTypeResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsTasksMeetingAgendaItemTypeViewResult)
+    async RunmjBizAppsTasksMeetingAgendaItemTypeViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksMeetingAgendaItemTypeViewResult)
+    async RunmjBizAppsTasksMeetingAgendaItemTypeViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksMeetingAgendaItemTypeViewResult)
+    async RunmjBizAppsTasksMeetingAgendaItemTypeDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_Tasks: Meeting Agenda Item Types';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsTasksMeetingAgendaItemType_, { nullable: true })
+    async mjBizAppsTasksMeetingAgendaItemType(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsTasksMeetingAgendaItemType_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Meeting Agenda Item Types', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwMeetingAgendaItemTypes')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Meeting Agenda Item Types', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Tasks: Meeting Agenda Item Types', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @Mutation(() => mjBizAppsTasksMeetingAgendaItemType_)
+    async CreatemjBizAppsTasksMeetingAgendaItemType(
+        @Arg('input', () => CreatemjBizAppsTasksMeetingAgendaItemTypeInput) input: CreatemjBizAppsTasksMeetingAgendaItemTypeInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_Tasks: Meeting Agenda Item Types', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsTasksMeetingAgendaItemType_)
+    async UpdatemjBizAppsTasksMeetingAgendaItemType(
+        @Arg('input', () => UpdatemjBizAppsTasksMeetingAgendaItemTypeInput) input: UpdatemjBizAppsTasksMeetingAgendaItemTypeInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_Tasks: Meeting Agenda Item Types', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsTasksMeetingAgendaItemType_)
+    async DeletemjBizAppsTasksMeetingAgendaItemType(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_Tasks: Meeting Agenda Item Types', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
+// ENTITY CLASS for MJ_BizApps_Tasks: Meeting Agenda Items
+//****************************************************************************
+@ObjectType({ description: "One item on a meeting's agenda, nestable under a parent item of the same meeting, with its type, presenter, planned duration, what happened to it and what was agreed." })
+export class mjBizAppsTasksMeetingAgendaItem_ {
+    @Field({description: "Primary key."}) 
+    @MaxLength(36)
+    ID: string;
+        
+    @Field({nullable: true, description: "The meeting the item is on the agenda of."}) 
+    @MaxLength(36)
+    MeetingID?: string;
+        
+    @Field({nullable: true, description: "The item this one sits under, for a sub-item. Same meeting, no cycle."}) 
+    @MaxLength(36)
+    ParentID?: string;
+        
+    @Field(() => Int, {nullable: true, description: "Order among its siblings."}) 
+    Sequence?: number;
+        
+    @Field({nullable: true, description: "The item's title."}) 
+    @MaxLength(500)
+    Name?: string;
+        
+    @Field({nullable: true, description: "What the item covers, in Markdown."}) 
+    Description?: string;
+        
+    @Field({nullable: true, description: "The agenda item type: Information, Discussion, Decision, and so on."}) 
+    @MaxLength(36)
+    TypeID?: string;
+        
+    @Field({nullable: true, description: "The person who presents the item."}) 
+    @MaxLength(36)
+    PresenterPersonID?: string;
+        
+    @Field(() => Int, {nullable: true, description: "How long the item is planned to take. 0 or more."}) 
+    DurationMinutes?: number;
+        
+    @Field({nullable: true, description: "Planned, InProgress, Done, Deferred or Skipped."}) 
+    @MaxLength(20)
+    Status?: string;
+        
+    @Field({nullable: true, description: "When the item was started, from the live meeting."}) 
+    StartedAt?: Date;
+        
+    @Field({nullable: true, description: "When the item was ended."}) 
+    EndedAt?: Date;
+        
+    @Field({nullable: true, description: "What was agreed, in a sentence or two."}) 
+    Outcome?: string;
+        
+    @Field({nullable: true, description: "The later meeting a deferred item moved to."}) 
+    @MaxLength(36)
+    DeferredToMeetingID?: string;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    Meeting?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(500)
+    Parent?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(100)
+    Type?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(201)
+    PresenterPerson?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    DeferredToMeeting?: string;
+        
+    @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
+    ReadableFields___?: string[];
+        
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Meeting Agenda Items
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsTasksMeetingAgendaItemInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    MeetingID?: string;
+
+    @Field({ nullable: true })
+    ParentID: string | null;
+
+    @Field(() => Int, { nullable: true })
+    Sequence?: number;
+
+    @Field({ nullable: true })
+    Name?: string;
+
+    @Field({ nullable: true })
+    Description: string | null;
+
+    @Field({ nullable: true })
+    TypeID: string | null;
+
+    @Field({ nullable: true })
+    PresenterPersonID: string | null;
+
+    @Field(() => Int, { nullable: true })
+    DurationMinutes: number | null;
+
+    @Field({ nullable: true })
+    Status?: string;
+
+    @Field({ nullable: true })
+    StartedAt: Date | null;
+
+    @Field({ nullable: true })
+    EndedAt: Date | null;
+
+    @Field({ nullable: true })
+    Outcome: string | null;
+
+    @Field({ nullable: true })
+    DeferredToMeetingID: string | null;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Meeting Agenda Items
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsTasksMeetingAgendaItemInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    MeetingID?: string;
+
+    @Field({ nullable: true })
+    ParentID?: string | null;
+
+    @Field(() => Int, { nullable: true })
+    Sequence?: number;
+
+    @Field({ nullable: true })
+    Name?: string;
+
+    @Field({ nullable: true })
+    Description?: string | null;
+
+    @Field({ nullable: true })
+    TypeID?: string | null;
+
+    @Field({ nullable: true })
+    PresenterPersonID?: string | null;
+
+    @Field(() => Int, { nullable: true })
+    DurationMinutes?: number | null;
+
+    @Field({ nullable: true })
+    Status?: string;
+
+    @Field({ nullable: true })
+    StartedAt?: Date | null;
+
+    @Field({ nullable: true })
+    EndedAt?: Date | null;
+
+    @Field({ nullable: true })
+    Outcome?: string | null;
+
+    @Field({ nullable: true })
+    DeferredToMeetingID?: string | null;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+//****************************************************************************
+// RESOLVER for MJ_BizApps_Tasks: Meeting Agenda Items
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsTasksMeetingAgendaItemViewResult {
+    @Field(() => [mjBizAppsTasksMeetingAgendaItem_])
+    Results: mjBizAppsTasksMeetingAgendaItem_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsTasksMeetingAgendaItem_)
+export class mjBizAppsTasksMeetingAgendaItemResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsTasksMeetingAgendaItemViewResult)
+    async RunmjBizAppsTasksMeetingAgendaItemViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksMeetingAgendaItemViewResult)
+    async RunmjBizAppsTasksMeetingAgendaItemViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksMeetingAgendaItemViewResult)
+    async RunmjBizAppsTasksMeetingAgendaItemDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_Tasks: Meeting Agenda Items';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsTasksMeetingAgendaItem_, { nullable: true })
+    async mjBizAppsTasksMeetingAgendaItem(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsTasksMeetingAgendaItem_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Meeting Agenda Items', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwMeetingAgendaItems')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Meeting Agenda Items', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Tasks: Meeting Agenda Items', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @Mutation(() => mjBizAppsTasksMeetingAgendaItem_)
+    async CreatemjBizAppsTasksMeetingAgendaItem(
+        @Arg('input', () => CreatemjBizAppsTasksMeetingAgendaItemInput) input: CreatemjBizAppsTasksMeetingAgendaItemInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_Tasks: Meeting Agenda Items', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsTasksMeetingAgendaItem_)
+    async UpdatemjBizAppsTasksMeetingAgendaItem(
+        @Arg('input', () => UpdatemjBizAppsTasksMeetingAgendaItemInput) input: UpdatemjBizAppsTasksMeetingAgendaItemInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_Tasks: Meeting Agenda Items', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsTasksMeetingAgendaItem_)
+    async DeletemjBizAppsTasksMeetingAgendaItem(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_Tasks: Meeting Agenda Items', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
+// ENTITY CLASS for MJ_BizApps_Tasks: Meeting Attendees
+//****************************************************************************
+@ObjectType({ description: "Someone invited to a meeting: a person, or a guest by email address; their answer to the invitation; and whether they came. A meeting has exactly one Organizer row." })
+export class mjBizAppsTasksMeetingAttendee_ {
+    @Field({description: "Primary key."}) 
+    @MaxLength(36)
+    ID: string;
+        
+    @Field({nullable: true, description: "The meeting the attendee is invited to."}) 
+    @MaxLength(36)
+    MeetingID?: string;
+        
+    @Field({nullable: true, description: "The person invited, when they are a Person. Either this or Email is set."}) 
+    @MaxLength(36)
+    PersonID?: string;
+        
+    @Field({nullable: true, description: "The person's MemberJunction user, when they have one, filled from the person's account. My meetings and the private-meeting filter use it."}) 
+    @MaxLength(36)
+    UserID?: string;
+        
+    @Field({nullable: true, description: "A guest's address, or the address a person's invitation goes to."}) 
+    @MaxLength(255)
+    Email?: string;
+        
+    @Field({nullable: true, description: "A guest's name."}) 
+    @MaxLength(255)
+    DisplayName?: string;
+        
+    @Field({nullable: true, description: "Organizer, Required or Optional. One Organizer row per meeting, kept in step with Meeting.OrganizerPersonID."}) 
+    @MaxLength(20)
+    Role?: string;
+        
+    @Field({nullable: true, description: "The answer to the invitation: None, Accepted, Tentative or Declined."}) 
+    @MaxLength(20)
+    ResponseStatus?: string;
+        
+    @Field({nullable: true, description: "When the invitation was answered."}) 
+    RespondedAt?: Date;
+        
+    @Field({nullable: true, description: "Whether they came: Unknown, Present, Late, LeftEarly, Absent or Excused."}) 
+    @MaxLength(20)
+    AttendanceStatus?: string;
+        
+    @Field({nullable: true, description: "When they joined, from the live meeting or the video provider."}) 
+    JoinedAt?: Date;
+        
+    @Field({nullable: true, description: "When they left."}) 
+    LeftAt?: Date;
+        
+    @Field({nullable: true, description: "A note on their attendance, such as why someone is excused."}) 
+    @MaxLength(500)
+    Notes?: string;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    Meeting?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(201)
+    Person?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(100)
+    User?: string;
+        
+    @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
+    ReadableFields___?: string[];
+        
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Meeting Attendees
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsTasksMeetingAttendeeInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    MeetingID?: string;
+
+    @Field({ nullable: true })
+    PersonID: string | null;
+
+    @Field({ nullable: true })
+    UserID: string | null;
+
+    @Field({ nullable: true })
+    Email: string | null;
+
+    @Field({ nullable: true })
+    DisplayName: string | null;
+
+    @Field({ nullable: true })
+    Role?: string;
+
+    @Field({ nullable: true })
+    ResponseStatus?: string;
+
+    @Field({ nullable: true })
+    RespondedAt: Date | null;
+
+    @Field({ nullable: true })
+    AttendanceStatus?: string;
+
+    @Field({ nullable: true })
+    JoinedAt: Date | null;
+
+    @Field({ nullable: true })
+    LeftAt: Date | null;
+
+    @Field({ nullable: true })
+    Notes: string | null;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Meeting Attendees
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsTasksMeetingAttendeeInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    MeetingID?: string;
+
+    @Field({ nullable: true })
+    PersonID?: string | null;
+
+    @Field({ nullable: true })
+    UserID?: string | null;
+
+    @Field({ nullable: true })
+    Email?: string | null;
+
+    @Field({ nullable: true })
+    DisplayName?: string | null;
+
+    @Field({ nullable: true })
+    Role?: string;
+
+    @Field({ nullable: true })
+    ResponseStatus?: string;
+
+    @Field({ nullable: true })
+    RespondedAt?: Date | null;
+
+    @Field({ nullable: true })
+    AttendanceStatus?: string;
+
+    @Field({ nullable: true })
+    JoinedAt?: Date | null;
+
+    @Field({ nullable: true })
+    LeftAt?: Date | null;
+
+    @Field({ nullable: true })
+    Notes?: string | null;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+//****************************************************************************
+// RESOLVER for MJ_BizApps_Tasks: Meeting Attendees
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsTasksMeetingAttendeeViewResult {
+    @Field(() => [mjBizAppsTasksMeetingAttendee_])
+    Results: mjBizAppsTasksMeetingAttendee_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsTasksMeetingAttendee_)
+export class mjBizAppsTasksMeetingAttendeeResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsTasksMeetingAttendeeViewResult)
+    async RunmjBizAppsTasksMeetingAttendeeViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksMeetingAttendeeViewResult)
+    async RunmjBizAppsTasksMeetingAttendeeViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksMeetingAttendeeViewResult)
+    async RunmjBizAppsTasksMeetingAttendeeDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_Tasks: Meeting Attendees';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsTasksMeetingAttendee_, { nullable: true })
+    async mjBizAppsTasksMeetingAttendee(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsTasksMeetingAttendee_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Meeting Attendees', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwMeetingAttendees')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Meeting Attendees', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Tasks: Meeting Attendees', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @Mutation(() => mjBizAppsTasksMeetingAttendee_)
+    async CreatemjBizAppsTasksMeetingAttendee(
+        @Arg('input', () => CreatemjBizAppsTasksMeetingAttendeeInput) input: CreatemjBizAppsTasksMeetingAttendeeInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_Tasks: Meeting Attendees', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsTasksMeetingAttendee_)
+    async UpdatemjBizAppsTasksMeetingAttendee(
+        @Arg('input', () => UpdatemjBizAppsTasksMeetingAttendeeInput) input: UpdatemjBizAppsTasksMeetingAttendeeInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_Tasks: Meeting Attendees', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsTasksMeetingAttendee_)
+    async DeletemjBizAppsTasksMeetingAttendee(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_Tasks: Meeting Attendees', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
+// ENTITY CLASS for MJ_BizApps_Tasks: Meeting Links
+//****************************************************************************
+@ObjectType({ description: "What a meeting or a series belongs to: any record of any entity, the way TaskLink ties a task to a record. Each new occurrence of a series copies the series' links." })
+export class mjBizAppsTasksMeetingLink_ {
+    @Field({description: "Primary key."}) 
+    @MaxLength(36)
+    ID: string;
+        
+    @Field({nullable: true, description: "The meeting that belongs to the record. Either this or SeriesID is set."}) 
+    @MaxLength(36)
+    MeetingID?: string;
+        
+    @Field({nullable: true, description: "The series that belongs to the record. Either this or MeetingID is set."}) 
+    @MaxLength(36)
+    SeriesID?: string;
+        
+    @Field({nullable: true, description: "The entity of the record the meeting belongs to."}) 
+    @MaxLength(36)
+    EntityID?: string;
+        
+    @Field({nullable: true, description: "The record's primary key, as on TaskLink."}) 
+    @MaxLength(450)
+    RecordID?: string;
+        
+    @Field({nullable: true, description: "Why the meeting belongs to the record."}) 
+    @MaxLength(500)
+    Description?: string;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    Meeting?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    Series?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    Entity?: string;
+        
+    @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
+    ReadableFields___?: string[];
+        
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Meeting Links
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsTasksMeetingLinkInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    MeetingID: string | null;
+
+    @Field({ nullable: true })
+    SeriesID: string | null;
+
+    @Field({ nullable: true })
+    EntityID?: string;
+
+    @Field({ nullable: true })
+    RecordID?: string;
+
+    @Field({ nullable: true })
+    Description: string | null;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Meeting Links
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsTasksMeetingLinkInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    MeetingID?: string | null;
+
+    @Field({ nullable: true })
+    SeriesID?: string | null;
+
+    @Field({ nullable: true })
+    EntityID?: string;
+
+    @Field({ nullable: true })
+    RecordID?: string;
+
+    @Field({ nullable: true })
+    Description?: string | null;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+//****************************************************************************
+// RESOLVER for MJ_BizApps_Tasks: Meeting Links
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsTasksMeetingLinkViewResult {
+    @Field(() => [mjBizAppsTasksMeetingLink_])
+    Results: mjBizAppsTasksMeetingLink_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsTasksMeetingLink_)
+export class mjBizAppsTasksMeetingLinkResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsTasksMeetingLinkViewResult)
+    async RunmjBizAppsTasksMeetingLinkViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksMeetingLinkViewResult)
+    async RunmjBizAppsTasksMeetingLinkViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksMeetingLinkViewResult)
+    async RunmjBizAppsTasksMeetingLinkDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_Tasks: Meeting Links';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsTasksMeetingLink_, { nullable: true })
+    async mjBizAppsTasksMeetingLink(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsTasksMeetingLink_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Meeting Links', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwMeetingLinks')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Meeting Links', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Tasks: Meeting Links', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @Mutation(() => mjBizAppsTasksMeetingLink_)
+    async CreatemjBizAppsTasksMeetingLink(
+        @Arg('input', () => CreatemjBizAppsTasksMeetingLinkInput) input: CreatemjBizAppsTasksMeetingLinkInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_Tasks: Meeting Links', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsTasksMeetingLink_)
+    async UpdatemjBizAppsTasksMeetingLink(
+        @Arg('input', () => UpdatemjBizAppsTasksMeetingLinkInput) input: UpdatemjBizAppsTasksMeetingLinkInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_Tasks: Meeting Links', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsTasksMeetingLink_)
+    async DeletemjBizAppsTasksMeetingLink(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_Tasks: Meeting Links', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
+// ENTITY CLASS for MJ_BizApps_Tasks: Meeting Notes
+//****************************************************************************
+@ObjectType({ description: "The record of what happened in a meeting, or on one of its agenda items: written by a person, or drafted by AI from a transcript with the tasks it proposes." })
+export class mjBizAppsTasksMeetingNote_ {
+    @Field({description: "Primary key."}) 
+    @MaxLength(36)
+    ID: string;
+        
+    @Field({nullable: true, description: "The meeting the note is about."}) 
+    @MaxLength(36)
+    MeetingID?: string;
+        
+    @Field({nullable: true, description: "The agenda item the note is about, for a note on one item."}) 
+    @MaxLength(36)
+    AgendaItemID?: string;
+        
+    @Field({nullable: true, description: "Notes, Summary or Decision."}) 
+    @MaxLength(20)
+    Kind?: string;
+        
+    @Field({nullable: true, description: "The note's title."}) 
+    @MaxLength(255)
+    Title?: string;
+        
+    @Field({nullable: true, description: "The note, in Markdown."}) 
+    Body?: string;
+        
+    @Field({nullable: true, description: "Manual for a person's note; AI for a draft from a transcript."}) 
+    @MaxLength(20)
+    Source?: string;
+        
+    @Field({nullable: true, description: "Draft or Final. Approving minutes is governance and stays with the app that owns it."}) 
+    @MaxLength(20)
+    Status?: string;
+        
+    @Field({nullable: true, description: "The person who wrote the note, for a person's note."}) 
+    @MaxLength(36)
+    AuthorPersonID?: string;
+        
+    @Field({nullable: true, description: "The MJ: AI Prompt Runs record the draft came from, for an AI note."}) 
+    @MaxLength(36)
+    AIPromptRunID?: string;
+        
+    @Field({nullable: true, description: "JSON: the action items the notes propose, each with a title, an assignee, a due date, its agenda item, and the task's ID once a person accepted it. Nothing is filed without that approval."}) 
+    ProposedTasks?: string;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    Meeting?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(500)
+    AgendaItem?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(201)
+    AuthorPerson?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    AIPromptRun?: string;
+        
+    @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
+    ReadableFields___?: string[];
+        
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Meeting Notes
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsTasksMeetingNoteInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    MeetingID?: string;
+
+    @Field({ nullable: true })
+    AgendaItemID: string | null;
+
+    @Field({ nullable: true })
+    Kind?: string;
+
+    @Field({ nullable: true })
+    Title: string | null;
+
+    @Field({ nullable: true })
+    Body?: string;
+
+    @Field({ nullable: true })
+    Source?: string;
+
+    @Field({ nullable: true })
+    Status?: string;
+
+    @Field({ nullable: true })
+    AuthorPersonID: string | null;
+
+    @Field({ nullable: true })
+    AIPromptRunID: string | null;
+
+    @Field({ nullable: true })
+    ProposedTasks: string | null;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Meeting Notes
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsTasksMeetingNoteInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    MeetingID?: string;
+
+    @Field({ nullable: true })
+    AgendaItemID?: string | null;
+
+    @Field({ nullable: true })
+    Kind?: string;
+
+    @Field({ nullable: true })
+    Title?: string | null;
+
+    @Field({ nullable: true })
+    Body?: string;
+
+    @Field({ nullable: true })
+    Source?: string;
+
+    @Field({ nullable: true })
+    Status?: string;
+
+    @Field({ nullable: true })
+    AuthorPersonID?: string | null;
+
+    @Field({ nullable: true })
+    AIPromptRunID?: string | null;
+
+    @Field({ nullable: true })
+    ProposedTasks?: string | null;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+//****************************************************************************
+// RESOLVER for MJ_BizApps_Tasks: Meeting Notes
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsTasksMeetingNoteViewResult {
+    @Field(() => [mjBizAppsTasksMeetingNote_])
+    Results: mjBizAppsTasksMeetingNote_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsTasksMeetingNote_)
+export class mjBizAppsTasksMeetingNoteResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsTasksMeetingNoteViewResult)
+    async RunmjBizAppsTasksMeetingNoteViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksMeetingNoteViewResult)
+    async RunmjBizAppsTasksMeetingNoteViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksMeetingNoteViewResult)
+    async RunmjBizAppsTasksMeetingNoteDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_Tasks: Meeting Notes';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsTasksMeetingNote_, { nullable: true })
+    async mjBizAppsTasksMeetingNote(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsTasksMeetingNote_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Meeting Notes', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwMeetingNotes')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Meeting Notes', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Tasks: Meeting Notes', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @Mutation(() => mjBizAppsTasksMeetingNote_)
+    async CreatemjBizAppsTasksMeetingNote(
+        @Arg('input', () => CreatemjBizAppsTasksMeetingNoteInput) input: CreatemjBizAppsTasksMeetingNoteInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_Tasks: Meeting Notes', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsTasksMeetingNote_)
+    async UpdatemjBizAppsTasksMeetingNote(
+        @Arg('input', () => UpdatemjBizAppsTasksMeetingNoteInput) input: UpdatemjBizAppsTasksMeetingNoteInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_Tasks: Meeting Notes', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsTasksMeetingNote_)
+    async DeletemjBizAppsTasksMeetingNote(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_Tasks: Meeting Notes', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
+// ENTITY CLASS for MJ_BizApps_Tasks: Meeting Series
+//****************************************************************************
+@ObjectType({ description: "A recurring meeting. Its occurrences are real Meeting rows, made ahead of time up to a horizon; each keeps its own agenda and attendance, and one can move or be cancelled without touching the rest." })
+export class mjBizAppsTasksMeetingSeries_ {
+    @Field({description: "Primary key."}) 
+    @MaxLength(36)
+    ID: string;
+        
+    @Field({nullable: true, description: "The series' title. Each new occurrence starts with it."}) 
+    @MaxLength(255)
+    Name?: string;
+        
+    @Field({nullable: true, description: "The series' purpose, in Markdown. Each new occurrence starts with it."}) 
+    Description?: string;
+        
+    @Field({nullable: true, description: "The meeting type each occurrence is made from."}) 
+    @MaxLength(36)
+    TypeID?: string;
+        
+    @Field({nullable: true, description: "The person who organizes the series. Each occurrence starts with them as its organizer."}) 
+    @MaxLength(36)
+    OrganizerPersonID?: string;
+        
+    @Field({nullable: true, description: "An RFC 5545 RRULE value, such as FREQ=WEEKLY;BYDAY=TU. Its UNTIL or COUNT ends the series."}) 
+    @MaxLength(500)
+    RecurrenceRule?: string;
+        
+    @Field({nullable: true, description: "The IANA time zone the rule is expanded in, such as America/Chicago, so a 9:00 meeting stays at 9:00 across daylight-saving changes."}) 
+    @MaxLength(64)
+    TimeZone?: string;
+        
+    @Field({nullable: true, description: "The rule's DTSTART: when the first occurrence starts."}) 
+    FirstStartsAt?: Date;
+        
+    @Field(() => Int, {nullable: true, description: "How long each occurrence lasts. More than 0."}) 
+    DurationMinutes?: number;
+        
+    @Field({nullable: true, description: "The location each new occurrence starts with: Virtual, InPerson, Hybrid or Phone."}) 
+    @MaxLength(20)
+    LocationType?: string;
+        
+    @Field({nullable: true, description: "The room or address each new occurrence starts with."}) 
+    @MaxLength(500)
+    Location?: string;
+        
+    @Field({nullable: true, description: "The video provider each new virtual occurrence is hosted on."}) 
+    @MaxLength(36)
+    VideoProviderID?: string;
+        
+    @Field({nullable: true, description: "The visibility each new occurrence starts with: Standard, or Private for its attendees only."}) 
+    @MaxLength(20)
+    Visibility?: string;
+        
+    @Field({nullable: true, description: "Active while occurrences are still made; Ended once the rule has run out; Cancelled when the series was stopped."}) 
+    @MaxLength(20)
+    Status?: string;
+        
+    @Field({nullable: true, description: "Occurrences exist up to this point in time. The scheduled job and a save extend it."}) 
+    MaterializedThrough?: Date;
+        
+    @Field({nullable: true, description: "The person who created the series, as Task.CreatedByPersonID."}) 
+    @MaxLength(36)
+    CreatedByPersonID?: string;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field({nullable: true}) 
+    @MaxLength(100)
+    Type?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(201)
+    OrganizerPerson?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(100)
+    VideoProvider?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(201)
+    CreatedByPerson?: string;
+        
+    @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
+    ReadableFields___?: string[];
+        
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Meeting Series
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsTasksMeetingSeriesInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    Name?: string;
+
+    @Field({ nullable: true })
+    Description: string | null;
+
+    @Field({ nullable: true })
+    TypeID: string | null;
+
+    @Field({ nullable: true })
+    OrganizerPersonID?: string;
+
+    @Field({ nullable: true })
+    RecurrenceRule?: string;
+
+    @Field({ nullable: true })
+    TimeZone?: string;
+
+    @Field({ nullable: true })
+    FirstStartsAt?: Date;
+
+    @Field(() => Int, { nullable: true })
+    DurationMinutes?: number;
+
+    @Field({ nullable: true })
+    LocationType?: string;
+
+    @Field({ nullable: true })
+    Location: string | null;
+
+    @Field({ nullable: true })
+    VideoProviderID: string | null;
+
+    @Field({ nullable: true })
+    Visibility?: string;
+
+    @Field({ nullable: true })
+    Status?: string;
+
+    @Field({ nullable: true })
+    MaterializedThrough: Date | null;
+
+    @Field({ nullable: true })
+    CreatedByPersonID: string | null;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Meeting Series
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsTasksMeetingSeriesInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    Name?: string;
+
+    @Field({ nullable: true })
+    Description?: string | null;
+
+    @Field({ nullable: true })
+    TypeID?: string | null;
+
+    @Field({ nullable: true })
+    OrganizerPersonID?: string;
+
+    @Field({ nullable: true })
+    RecurrenceRule?: string;
+
+    @Field({ nullable: true })
+    TimeZone?: string;
+
+    @Field({ nullable: true })
+    FirstStartsAt?: Date;
+
+    @Field(() => Int, { nullable: true })
+    DurationMinutes?: number;
+
+    @Field({ nullable: true })
+    LocationType?: string;
+
+    @Field({ nullable: true })
+    Location?: string | null;
+
+    @Field({ nullable: true })
+    VideoProviderID?: string | null;
+
+    @Field({ nullable: true })
+    Visibility?: string;
+
+    @Field({ nullable: true })
+    Status?: string;
+
+    @Field({ nullable: true })
+    MaterializedThrough?: Date | null;
+
+    @Field({ nullable: true })
+    CreatedByPersonID?: string | null;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+//****************************************************************************
+// RESOLVER for MJ_BizApps_Tasks: Meeting Series
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsTasksMeetingSeriesViewResult {
+    @Field(() => [mjBizAppsTasksMeetingSeries_])
+    Results: mjBizAppsTasksMeetingSeries_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsTasksMeetingSeries_)
+export class mjBizAppsTasksMeetingSeriesResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsTasksMeetingSeriesViewResult)
+    async RunmjBizAppsTasksMeetingSeriesViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksMeetingSeriesViewResult)
+    async RunmjBizAppsTasksMeetingSeriesViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksMeetingSeriesViewResult)
+    async RunmjBizAppsTasksMeetingSeriesDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_Tasks: Meeting Series';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsTasksMeetingSeries_, { nullable: true })
+    async mjBizAppsTasksMeetingSeries(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsTasksMeetingSeries_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Meeting Series', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwMeetingSeries')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Meeting Series', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Tasks: Meeting Series', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @Mutation(() => mjBizAppsTasksMeetingSeries_)
+    async CreatemjBizAppsTasksMeetingSeries(
+        @Arg('input', () => CreatemjBizAppsTasksMeetingSeriesInput) input: CreatemjBizAppsTasksMeetingSeriesInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_Tasks: Meeting Series', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsTasksMeetingSeries_)
+    async UpdatemjBizAppsTasksMeetingSeries(
+        @Arg('input', () => UpdatemjBizAppsTasksMeetingSeriesInput) input: UpdatemjBizAppsTasksMeetingSeriesInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_Tasks: Meeting Series', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsTasksMeetingSeries_)
+    async DeletemjBizAppsTasksMeetingSeries(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_Tasks: Meeting Series', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
+// ENTITY CLASS for MJ_BizApps_Tasks: Meeting Series Attendees
+//****************************************************************************
+@ObjectType({ description: "Who each new occurrence of a series invites: a person, or a guest by email address. The organizer comes from the series itself." })
+export class mjBizAppsTasksMeetingSeriesAttendee_ {
+    @Field({description: "Primary key."}) 
+    @MaxLength(36)
+    ID: string;
+        
+    @Field({nullable: true, description: "The series each new occurrence of which invites this attendee."}) 
+    @MaxLength(36)
+    SeriesID?: string;
+        
+    @Field({nullable: true, description: "The person invited, when they are a Person. Either this or Email is set."}) 
+    @MaxLength(36)
+    PersonID?: string;
+        
+    @Field({nullable: true, description: "The person's MemberJunction user, when they have one, filled from the person's account."}) 
+    @MaxLength(36)
+    UserID?: string;
+        
+    @Field({nullable: true, description: "A guest's address, or the address a person's invitation goes to."}) 
+    @MaxLength(255)
+    Email?: string;
+        
+    @Field({nullable: true, description: "A guest's name."}) 
+    @MaxLength(255)
+    DisplayName?: string;
+        
+    @Field({nullable: true, description: "Required or Optional. The organizer is the series' own."}) 
+    @MaxLength(20)
+    Role?: string;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    Series?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(201)
+    Person?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(100)
+    User?: string;
+        
+    @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
+    ReadableFields___?: string[];
+        
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Meeting Series Attendees
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsTasksMeetingSeriesAttendeeInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    SeriesID?: string;
+
+    @Field({ nullable: true })
+    PersonID: string | null;
+
+    @Field({ nullable: true })
+    UserID: string | null;
+
+    @Field({ nullable: true })
+    Email: string | null;
+
+    @Field({ nullable: true })
+    DisplayName: string | null;
+
+    @Field({ nullable: true })
+    Role?: string;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Meeting Series Attendees
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsTasksMeetingSeriesAttendeeInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    SeriesID?: string;
+
+    @Field({ nullable: true })
+    PersonID?: string | null;
+
+    @Field({ nullable: true })
+    UserID?: string | null;
+
+    @Field({ nullable: true })
+    Email?: string | null;
+
+    @Field({ nullable: true })
+    DisplayName?: string | null;
+
+    @Field({ nullable: true })
+    Role?: string;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+//****************************************************************************
+// RESOLVER for MJ_BizApps_Tasks: Meeting Series Attendees
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsTasksMeetingSeriesAttendeeViewResult {
+    @Field(() => [mjBizAppsTasksMeetingSeriesAttendee_])
+    Results: mjBizAppsTasksMeetingSeriesAttendee_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsTasksMeetingSeriesAttendee_)
+export class mjBizAppsTasksMeetingSeriesAttendeeResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsTasksMeetingSeriesAttendeeViewResult)
+    async RunmjBizAppsTasksMeetingSeriesAttendeeViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksMeetingSeriesAttendeeViewResult)
+    async RunmjBizAppsTasksMeetingSeriesAttendeeViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksMeetingSeriesAttendeeViewResult)
+    async RunmjBizAppsTasksMeetingSeriesAttendeeDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_Tasks: Meeting Series Attendees';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsTasksMeetingSeriesAttendee_, { nullable: true })
+    async mjBizAppsTasksMeetingSeriesAttendee(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsTasksMeetingSeriesAttendee_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Meeting Series Attendees', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwMeetingSeriesAttendees')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Meeting Series Attendees', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Tasks: Meeting Series Attendees', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @Mutation(() => mjBizAppsTasksMeetingSeriesAttendee_)
+    async CreatemjBizAppsTasksMeetingSeriesAttendee(
+        @Arg('input', () => CreatemjBizAppsTasksMeetingSeriesAttendeeInput) input: CreatemjBizAppsTasksMeetingSeriesAttendeeInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_Tasks: Meeting Series Attendees', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsTasksMeetingSeriesAttendee_)
+    async UpdatemjBizAppsTasksMeetingSeriesAttendee(
+        @Arg('input', () => UpdatemjBizAppsTasksMeetingSeriesAttendeeInput) input: UpdatemjBizAppsTasksMeetingSeriesAttendeeInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_Tasks: Meeting Series Attendees', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsTasksMeetingSeriesAttendee_)
+    async DeletemjBizAppsTasksMeetingSeriesAttendee(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_Tasks: Meeting Series Attendees', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
+// ENTITY CLASS for MJ_BizApps_Tasks: Meeting Types
+//****************************************************************************
+@ObjectType({ description: "A kind of meeting: General, One-on-one, Team, Client, Review, or one an app adds. Carries the defaults a new meeting of the type starts with and its agenda template." })
+export class mjBizAppsTasksMeetingType_ {
+    @Field({description: "Primary key."}) 
+    @MaxLength(36)
+    ID: string;
+        
+    @Field({nullable: true, description: "The type's display name. Unique."}) 
+    @MaxLength(100)
+    Name?: string;
+        
+    @Field({nullable: true, description: "A stable code apps refer to, as TaskType.Code. Unique."}) 
+    @MaxLength(50)
+    Code?: string;
+        
+    @Field({nullable: true, description: "What meetings of this type are for."}) 
+    Description?: string;
+        
+    @Field({nullable: true, description: "Font Awesome icon class shown beside the type."}) 
+    @MaxLength(100)
+    IconClass?: string;
+        
+    @Field(() => Int, {nullable: true, description: "How long a new meeting of this type lasts unless the organizer says otherwise. More than 0."}) 
+    DefaultDurationMinutes?: number;
+        
+    @Field({nullable: true, description: "The location a new meeting of this type starts with: Virtual, InPerson, Hybrid or Phone."}) 
+    @MaxLength(20)
+    DefaultLocationType?: string;
+        
+    @Field({nullable: true, description: "The video provider a new virtual meeting of this type is hosted on."}) 
+    @MaxLength(36)
+    DefaultVideoProviderID?: string;
+        
+    @Field({nullable: true, description: "The visibility a new meeting of this type starts with: Standard or Private."}) 
+    @MaxLength(20)
+    DefaultVisibility?: string;
+        
+    @Field({nullable: true, description: "JSON: the agenda a new meeting of this type starts with, as items with a title, an agenda item type code, a duration in minutes and sub-items."}) 
+    AgendaTemplate?: string;
+        
+    @Field({nullable: true, description: "The MJ: AI Prompts record that drafts notes from a transcript for this type, instead of the shipped prompt."}) 
+    @MaxLength(36)
+    NotesPromptID?: string;
+        
+    @Field(() => Boolean, {nullable: true, description: "When false, the type is kept for existing meetings but not offered for new ones."}) 
+    IsActive?: boolean;
+        
+    @Field(() => Int, {nullable: true, description: "Display order among types."}) 
+    Sequence?: number;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field({nullable: true}) 
+    @MaxLength(100)
+    DefaultVideoProvider?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    NotesPrompt?: string;
+        
+    @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
+    ReadableFields___?: string[];
+        
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Meeting Types
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsTasksMeetingTypeInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    Name?: string;
+
+    @Field({ nullable: true })
+    Code?: string;
+
+    @Field({ nullable: true })
+    Description: string | null;
+
+    @Field({ nullable: true })
+    IconClass: string | null;
+
+    @Field(() => Int, { nullable: true })
+    DefaultDurationMinutes: number | null;
+
+    @Field({ nullable: true })
+    DefaultLocationType: string | null;
+
+    @Field({ nullable: true })
+    DefaultVideoProviderID: string | null;
+
+    @Field({ nullable: true })
+    DefaultVisibility: string | null;
+
+    @Field({ nullable: true })
+    AgendaTemplate: string | null;
+
+    @Field({ nullable: true })
+    NotesPromptID: string | null;
+
+    @Field(() => Boolean, { nullable: true })
+    IsActive?: boolean;
+
+    @Field(() => Int, { nullable: true })
+    Sequence?: number;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Meeting Types
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsTasksMeetingTypeInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    Name?: string;
+
+    @Field({ nullable: true })
+    Code?: string;
+
+    @Field({ nullable: true })
+    Description?: string | null;
+
+    @Field({ nullable: true })
+    IconClass?: string | null;
+
+    @Field(() => Int, { nullable: true })
+    DefaultDurationMinutes?: number | null;
+
+    @Field({ nullable: true })
+    DefaultLocationType?: string | null;
+
+    @Field({ nullable: true })
+    DefaultVideoProviderID?: string | null;
+
+    @Field({ nullable: true })
+    DefaultVisibility?: string | null;
+
+    @Field({ nullable: true })
+    AgendaTemplate?: string | null;
+
+    @Field({ nullable: true })
+    NotesPromptID?: string | null;
+
+    @Field(() => Boolean, { nullable: true })
+    IsActive?: boolean;
+
+    @Field(() => Int, { nullable: true })
+    Sequence?: number;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+//****************************************************************************
+// RESOLVER for MJ_BizApps_Tasks: Meeting Types
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsTasksMeetingTypeViewResult {
+    @Field(() => [mjBizAppsTasksMeetingType_])
+    Results: mjBizAppsTasksMeetingType_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsTasksMeetingType_)
+export class mjBizAppsTasksMeetingTypeResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsTasksMeetingTypeViewResult)
+    async RunmjBizAppsTasksMeetingTypeViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksMeetingTypeViewResult)
+    async RunmjBizAppsTasksMeetingTypeViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksMeetingTypeViewResult)
+    async RunmjBizAppsTasksMeetingTypeDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_Tasks: Meeting Types';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsTasksMeetingType_, { nullable: true })
+    async mjBizAppsTasksMeetingType(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsTasksMeetingType_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Meeting Types', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwMeetingTypes')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Meeting Types', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Tasks: Meeting Types', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @Mutation(() => mjBizAppsTasksMeetingType_)
+    async CreatemjBizAppsTasksMeetingType(
+        @Arg('input', () => CreatemjBizAppsTasksMeetingTypeInput) input: CreatemjBizAppsTasksMeetingTypeInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_Tasks: Meeting Types', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsTasksMeetingType_)
+    async UpdatemjBizAppsTasksMeetingType(
+        @Arg('input', () => UpdatemjBizAppsTasksMeetingTypeInput) input: UpdatemjBizAppsTasksMeetingTypeInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_Tasks: Meeting Types', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsTasksMeetingType_)
+    async DeletemjBizAppsTasksMeetingType(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_Tasks: Meeting Types', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
+// ENTITY CLASS for MJ_BizApps_Tasks: Meetings
+//****************************************************************************
+@ObjectType({ description: "One meeting: a single occurrence with its own time, place, attendees, agenda, notes and follow-ups. An occurrence of a series points at its series and keeps the series' original slot as its name." })
+export class mjBizAppsTasksMeeting_ {
+    @Field({description: "Primary key."}) 
+    @MaxLength(36)
+    ID: string;
+        
+    @Field({nullable: true, description: "The meeting's title, as Task.Name is a task's."}) 
+    @MaxLength(255)
+    Name?: string;
+        
+    @Field({nullable: true, description: "The meeting's purpose, in Markdown."}) 
+    Description?: string;
+        
+    @Field({nullable: true, description: "The meeting type it was made from, which gave its defaults and agenda template."}) 
+    @MaxLength(36)
+    TypeID?: string;
+        
+    @Field({nullable: true, description: "The series this meeting is an occurrence of, when it is one."}) 
+    @MaxLength(36)
+    SeriesID?: string;
+        
+    @Field({nullable: true, description: "The series' original slot for this occurrence. It names the occurrence after it moves, so the series does not make it again. Set with SeriesID, empty without it."}) 
+    OccurrenceStartsAt?: Date;
+        
+    @Field({nullable: true, description: "Draft, Scheduled, Postponed, InProgress, Completed or Cancelled. The server moves it forward: Draft to Scheduled to InProgress to Completed; Scheduled and Postponed either way; anything but Completed may be Cancelled."}) 
+    @MaxLength(20)
+    Status?: string;
+        
+    @Field({nullable: true, description: "When the meeting is planned to start."}) 
+    StartsAt?: Date;
+        
+    @Field({nullable: true, description: "When the meeting is planned to end. Later than StartsAt."}) 
+    EndsAt?: Date;
+        
+    @Field({nullable: true, description: "The IANA time zone the meeting is planned in, such as America/Chicago. Display and recurrence use it. Defaults from the organizer's setting, else the business time zone."}) 
+    @MaxLength(64)
+    TimeZone?: string;
+        
+    @Field({nullable: true, description: "Virtual, InPerson, Hybrid or Phone."}) 
+    @MaxLength(20)
+    LocationType?: string;
+        
+    @Field({nullable: true, description: "A room or an address, for an in-person or hybrid meeting."}) 
+    @MaxLength(500)
+    Location?: string;
+        
+    @Field({nullable: true, description: "The video provider the meeting is hosted on, for a virtual or hybrid meeting."}) 
+    @MaxLength(36)
+    VideoProviderID?: string;
+        
+    @Field({nullable: true, description: "The provider's own ID for the meeting, kept to update or delete it there."}) 
+    @MaxLength(255)
+    VideoMeetingID?: string;
+        
+    @Field({nullable: true, description: "The link attendees join by, from the provider or typed in."}) 
+    @MaxLength(1000)
+    VideoJoinURL?: string;
+        
+    @Field({nullable: true, description: "Phone numbers and access codes for joining by phone."}) 
+    @MaxLength(1000)
+    DialInDetails?: string;
+        
+    @Field({nullable: true, description: "The person who organizes the meeting. Their calendar holds its event, and the meeting always has their attendee row."}) 
+    @MaxLength(36)
+    OrganizerPersonID?: string;
+        
+    @Field({nullable: true, description: "Standard: readable by anyone who reads meetings. Private: readable only by its attendees, the organizer included."}) 
+    @MaxLength(20)
+    Visibility?: string;
+        
+    @Field({nullable: true, description: "When the live meeting was started."}) 
+    ActualStartedAt?: Date;
+        
+    @Field({nullable: true, description: "When the live meeting was ended."}) 
+    ActualEndedAt?: Date;
+        
+    @Field({nullable: true, description: "When the meeting was cancelled. Stamped by the server with the status."}) 
+    CancelledAt?: Date;
+        
+    @Field({nullable: true, description: "Why the meeting was cancelled, for its attendees."}) 
+    @MaxLength(500)
+    CancellationReason?: string;
+        
+    @Field({nullable: true, description: "Where the provider's recording can be watched."}) 
+    @MaxLength(1000)
+    VideoRecordingURL?: string;
+        
+    @Field({nullable: true, description: "The MJ: Files record holding the transcript, uploaded by a person or saved there by the provider's driver. A transcript is a file in MemberJunction's storage, never a URL a user typed."}) 
+    @MaxLength(36)
+    TranscriptFileID?: string;
+        
+    @Field({nullable: true, description: "The person who created the meeting, as Task.CreatedByPersonID."}) 
+    @MaxLength(36)
+    CreatedByPersonID?: string;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field({nullable: true}) 
+    @MaxLength(100)
+    Type?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    Series?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(100)
+    VideoProvider?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(201)
+    OrganizerPerson?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(500)
+    TranscriptFile?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(201)
+    CreatedByPerson?: string;
+        
+    @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
+    ReadableFields___?: string[];
+        
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Meetings
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsTasksMeetingInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    Name?: string;
+
+    @Field({ nullable: true })
+    Description: string | null;
+
+    @Field({ nullable: true })
+    TypeID: string | null;
+
+    @Field({ nullable: true })
+    SeriesID: string | null;
+
+    @Field({ nullable: true })
+    OccurrenceStartsAt: Date | null;
+
+    @Field({ nullable: true })
+    Status?: string;
+
+    @Field({ nullable: true })
+    StartsAt?: Date;
+
+    @Field({ nullable: true })
+    EndsAt?: Date;
+
+    @Field({ nullable: true })
+    TimeZone?: string;
+
+    @Field({ nullable: true })
+    LocationType?: string;
+
+    @Field({ nullable: true })
+    Location: string | null;
+
+    @Field({ nullable: true })
+    VideoProviderID: string | null;
+
+    @Field({ nullable: true })
+    VideoMeetingID: string | null;
+
+    @Field({ nullable: true })
+    VideoJoinURL: string | null;
+
+    @Field({ nullable: true })
+    DialInDetails: string | null;
+
+    @Field({ nullable: true })
+    OrganizerPersonID?: string;
+
+    @Field({ nullable: true })
+    Visibility?: string;
+
+    @Field({ nullable: true })
+    ActualStartedAt: Date | null;
+
+    @Field({ nullable: true })
+    ActualEndedAt: Date | null;
+
+    @Field({ nullable: true })
+    CancelledAt: Date | null;
+
+    @Field({ nullable: true })
+    CancellationReason: string | null;
+
+    @Field({ nullable: true })
+    VideoRecordingURL: string | null;
+
+    @Field({ nullable: true })
+    TranscriptFileID: string | null;
+
+    @Field({ nullable: true })
+    CreatedByPersonID: string | null;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Meetings
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsTasksMeetingInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    Name?: string;
+
+    @Field({ nullable: true })
+    Description?: string | null;
+
+    @Field({ nullable: true })
+    TypeID?: string | null;
+
+    @Field({ nullable: true })
+    SeriesID?: string | null;
+
+    @Field({ nullable: true })
+    OccurrenceStartsAt?: Date | null;
+
+    @Field({ nullable: true })
+    Status?: string;
+
+    @Field({ nullable: true })
+    StartsAt?: Date;
+
+    @Field({ nullable: true })
+    EndsAt?: Date;
+
+    @Field({ nullable: true })
+    TimeZone?: string;
+
+    @Field({ nullable: true })
+    LocationType?: string;
+
+    @Field({ nullable: true })
+    Location?: string | null;
+
+    @Field({ nullable: true })
+    VideoProviderID?: string | null;
+
+    @Field({ nullable: true })
+    VideoMeetingID?: string | null;
+
+    @Field({ nullable: true })
+    VideoJoinURL?: string | null;
+
+    @Field({ nullable: true })
+    DialInDetails?: string | null;
+
+    @Field({ nullable: true })
+    OrganizerPersonID?: string;
+
+    @Field({ nullable: true })
+    Visibility?: string;
+
+    @Field({ nullable: true })
+    ActualStartedAt?: Date | null;
+
+    @Field({ nullable: true })
+    ActualEndedAt?: Date | null;
+
+    @Field({ nullable: true })
+    CancelledAt?: Date | null;
+
+    @Field({ nullable: true })
+    CancellationReason?: string | null;
+
+    @Field({ nullable: true })
+    VideoRecordingURL?: string | null;
+
+    @Field({ nullable: true })
+    TranscriptFileID?: string | null;
+
+    @Field({ nullable: true })
+    CreatedByPersonID?: string | null;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+//****************************************************************************
+// RESOLVER for MJ_BizApps_Tasks: Meetings
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsTasksMeetingViewResult {
+    @Field(() => [mjBizAppsTasksMeeting_])
+    Results: mjBizAppsTasksMeeting_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsTasksMeeting_)
+export class mjBizAppsTasksMeetingResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsTasksMeetingViewResult)
+    async RunmjBizAppsTasksMeetingViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksMeetingViewResult)
+    async RunmjBizAppsTasksMeetingViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksMeetingViewResult)
+    async RunmjBizAppsTasksMeetingDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_Tasks: Meetings';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsTasksMeeting_, { nullable: true })
+    async mjBizAppsTasksMeeting(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsTasksMeeting_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Meetings', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwMeetings')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Meetings', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Tasks: Meetings', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @Mutation(() => mjBizAppsTasksMeeting_)
+    async CreatemjBizAppsTasksMeeting(
+        @Arg('input', () => CreatemjBizAppsTasksMeetingInput) input: CreatemjBizAppsTasksMeetingInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_Tasks: Meetings', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsTasksMeeting_)
+    async UpdatemjBizAppsTasksMeeting(
+        @Arg('input', () => UpdatemjBizAppsTasksMeetingInput) input: UpdatemjBizAppsTasksMeetingInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_Tasks: Meetings', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsTasksMeeting_)
+    async DeletemjBizAppsTasksMeeting(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_Tasks: Meetings', key, options, provider, userPayload, pubSub);
+    }
+    
+}
 
 //****************************************************************************
 // ENTITY CLASS for MJ_BizApps_Tasks: Task Activities
@@ -63,7 +2398,7 @@ export class mjBizAppsTasksTaskActivity_ {
     Task?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(250)
+    @MaxLength(201)
     Person?: string;
         
     @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
@@ -280,7 +2615,7 @@ export class mjBizAppsTasksTaskAssignment_ {
     Role?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(250)
+    @MaxLength(201)
     AssignedByPerson?: string;
         
     @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
@@ -725,7 +3060,7 @@ export class mjBizAppsTasksTaskCheckIn_ {
     Task?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(250)
+    @MaxLength(201)
     AuthorPerson?: string;
         
     @Field({nullable: true}) 
@@ -971,7 +3306,7 @@ export class mjBizAppsTasksTaskComment_ {
     Task?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(250)
+    @MaxLength(201)
     Person?: string;
         
     @Field({nullable: true}) 
@@ -1375,7 +3710,7 @@ export class mjBizAppsTasksTaskDecision_ {
     Outcome?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(250)
+    @MaxLength(201)
     DecidedByPerson?: string;
         
     @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
@@ -4248,7 +6583,7 @@ export class mjBizAppsTasksTask_ {
     Parent?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(250)
+    @MaxLength(201)
     CreatedByPerson?: string;
         
     @Field({nullable: true}) 
@@ -4591,6 +6926,239 @@ export class mjBizAppsTasksTaskResolver extends ResolverBase {
         const provider = GetReadWriteProvider(providers);
         const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
         return this.DeleteRecord('MJ_BizApps_Tasks: Tasks', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
+// ENTITY CLASS for MJ_BizApps_Tasks: Video Providers
+//****************************************************************************
+@ObjectType({ description: "A video-conferencing provider a meeting can be hosted on: Zoom, Teams or Google Meet. Its secrets live in MemberJunction's credential store; the row holds only the driver and non-secret settings. Ships inactive until a host configures it." })
+export class mjBizAppsTasksVideoProvider_ {
+    @Field({description: "Primary key."}) 
+    @MaxLength(36)
+    ID: string;
+        
+    @Field({nullable: true, description: "The provider's display name. Unique."}) 
+    @MaxLength(100)
+    Name?: string;
+        
+    @Field({nullable: true, description: "A stable code apps refer to: ZOOM, TEAMS or GOOGLE_MEET. Unique."}) 
+    @MaxLength(50)
+    Code?: string;
+        
+    @Field({nullable: true, description: "The class the driver registers with MemberJunction's class factory under VideoProviderBase."}) 
+    @MaxLength(255)
+    DriverClass?: string;
+        
+    @Field({nullable: true, description: "What this provider is and when to use it."}) 
+    Description?: string;
+        
+    @Field({nullable: true, description: "Font Awesome icon class shown beside the provider."}) 
+    @MaxLength(100)
+    IconClass?: string;
+        
+    @Field({nullable: true, description: "The MJ: Credentials record holding the provider's secrets, decrypted through CredentialEngine. Never stored here."}) 
+    @MaxLength(36)
+    CredentialID?: string;
+        
+    @Field({nullable: true, description: "JSON: settings that are not secret, such as the organizer account or default meeting options."}) 
+    Configuration?: string;
+        
+    @Field(() => Boolean, {nullable: true, description: "When true, the driver can fetch a transcript of a recorded meeting."}) 
+    SupportsTranscripts?: boolean;
+        
+    @Field(() => Boolean, {nullable: true, description: "When true, this is the provider a new virtual meeting uses unless its type says otherwise. One provider at most."}) 
+    IsDefault?: boolean;
+        
+    @Field(() => Boolean, {nullable: true, description: "When true, the provider is configured and offered. Ships as 0."}) 
+    IsActive?: boolean;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field({nullable: true}) 
+    @MaxLength(200)
+    Credential?: string;
+        
+    @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
+    ReadableFields___?: string[];
+        
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Video Providers
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsTasksVideoProviderInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    Name?: string;
+
+    @Field({ nullable: true })
+    Code?: string;
+
+    @Field({ nullable: true })
+    DriverClass?: string;
+
+    @Field({ nullable: true })
+    Description: string | null;
+
+    @Field({ nullable: true })
+    IconClass: string | null;
+
+    @Field({ nullable: true })
+    CredentialID: string | null;
+
+    @Field({ nullable: true })
+    Configuration: string | null;
+
+    @Field(() => Boolean, { nullable: true })
+    SupportsTranscripts?: boolean;
+
+    @Field(() => Boolean, { nullable: true })
+    IsDefault?: boolean;
+
+    @Field(() => Boolean, { nullable: true })
+    IsActive?: boolean;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Video Providers
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsTasksVideoProviderInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    Name?: string;
+
+    @Field({ nullable: true })
+    Code?: string;
+
+    @Field({ nullable: true })
+    DriverClass?: string;
+
+    @Field({ nullable: true })
+    Description?: string | null;
+
+    @Field({ nullable: true })
+    IconClass?: string | null;
+
+    @Field({ nullable: true })
+    CredentialID?: string | null;
+
+    @Field({ nullable: true })
+    Configuration?: string | null;
+
+    @Field(() => Boolean, { nullable: true })
+    SupportsTranscripts?: boolean;
+
+    @Field(() => Boolean, { nullable: true })
+    IsDefault?: boolean;
+
+    @Field(() => Boolean, { nullable: true })
+    IsActive?: boolean;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+//****************************************************************************
+// RESOLVER for MJ_BizApps_Tasks: Video Providers
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsTasksVideoProviderViewResult {
+    @Field(() => [mjBizAppsTasksVideoProvider_])
+    Results: mjBizAppsTasksVideoProvider_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsTasksVideoProvider_)
+export class mjBizAppsTasksVideoProviderResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsTasksVideoProviderViewResult)
+    async RunmjBizAppsTasksVideoProviderViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksVideoProviderViewResult)
+    async RunmjBizAppsTasksVideoProviderViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksVideoProviderViewResult)
+    async RunmjBizAppsTasksVideoProviderDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_Tasks: Video Providers';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsTasksVideoProvider_, { nullable: true })
+    async mjBizAppsTasksVideoProvider(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsTasksVideoProvider_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Video Providers', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwVideoProviders')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Video Providers', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Tasks: Video Providers', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @Mutation(() => mjBizAppsTasksVideoProvider_)
+    async CreatemjBizAppsTasksVideoProvider(
+        @Arg('input', () => CreatemjBizAppsTasksVideoProviderInput) input: CreatemjBizAppsTasksVideoProviderInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_Tasks: Video Providers', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsTasksVideoProvider_)
+    async UpdatemjBizAppsTasksVideoProvider(
+        @Arg('input', () => UpdatemjBizAppsTasksVideoProviderInput) input: UpdatemjBizAppsTasksVideoProviderInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_Tasks: Video Providers', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsTasksVideoProvider_)
+    async DeletemjBizAppsTasksVideoProvider(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_Tasks: Video Providers', key, options, provider, userPayload, pubSub);
     }
     
 }

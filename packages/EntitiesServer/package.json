@@ -22,6 +22,7 @@
     "@memberjunction/core": "6.1.6",
     "@memberjunction/core-entities": "6.1.6",
     "@memberjunction/global": "6.1.6",
+    "@mj-biz-apps/common-entities": "5.52.0",
     "typescript": "^5.9.3",
     "vitest": "1.6.1"
   },
@@ -33,7 +34,8 @@
     "@memberjunction/actions": "^6.1.6",
     "@memberjunction/core": "^6.1.6",
     "@memberjunction/core-entities": "^6.1.6",
-    "@memberjunction/global": "^6.1.6"
+    "@memberjunction/global": "^6.1.6",
+    "@mj-biz-apps/common-entities": "^5.47.0"
   },
   "repository": {
     "type": "git",

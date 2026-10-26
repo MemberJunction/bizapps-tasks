@@ -39,8 +39,19 @@ vi.mock('@mj-biz-apps/tasks-entities', () => ({
   mjBizAppsTasksTaskEntity: class {},
   mjBizAppsTasksTaskTypeEntity: class {},
   mjBizAppsTasksTaskTypeStatusEntity: class {},
+  mjBizAppsTasksMeetingEntity: class {},
+  mjBizAppsTasksMeetingSeriesEntity: class {},
+  mjBizAppsTasksMeetingAttendeeEntity: class {},
+  mjBizAppsTasksMeetingSeriesAttendeeEntity: class {},
+  mjBizAppsTasksMeetingAgendaItemEntity: class {},
+  mjBizAppsTasksMeetingLinkEntity: class {},
+  mjBizAppsTasksMeetingNoteEntity: class {},
+  mjBizAppsTasksVideoProviderEntity: class {},
 }));
-vi.mock('@mj-biz-apps/tasks-core', () => ({ TaskService: class {} }));
+vi.mock('@mj-biz-apps/common-entities', () => ({
+  BusinessTimeZoneEngine: { Instance: { Config: async () => undefined, Zone: 'UTC' } },
+}));
+vi.mock('@mj-biz-apps/tasks-core', async () => ({ ...(await vi.importActual<typeof import('@mj-biz-apps/tasks-core')>('@mj-biz-apps/tasks-core')), TaskService: class {} }));
 vi.mock('@memberjunction/core-entities', () => ({ ApplicationSettingEngine: { Instance: {} } }));
 
 describe('@mj-biz-apps/tasks-entities-server', () => {
@@ -48,6 +59,8 @@ describe('@mj-biz-apps/tasks-entities-server', () => {
     const mod = await import('../index.js');
     expect(mod.LoadBizAppsTasksEntitiesServer).toBeTypeOf('function');
     expect(mod.TaskEntityServer).toBeDefined();
+    expect(mod.MeetingEntityServer).toBeDefined();
+    expect(mod.MeetingSeriesEntityServer).toBeDefined();
     expect(mod.TaskCheckInEntityServer).toBeDefined();
     expect(mod.TaskDecisionEntityServer).toBeDefined();
   });
