@@ -4,12 +4,13 @@
  *
  * Every approval workflow (concessions, order review, access overrides, accounting batches and manual
  * entries, close-won) CREATES its assignments as the signed-in requester; none updates or deletes one.
- * So the edit paths can be narrowed without touching routing. On a task whose type is an approval type
- * (`TaskType.IsApproval`):
- *   1. nobody may assign the task to themselves, on create or on update, whatever their role;
+ * So the edit paths can be narrowed without touching routing. Create is never checked: some workflows
+ * (order review, among others) legitimately assign the acting user. On a task whose type is an approval
+ * type (`TaskType.IsApproval`):
+ *   1. nobody may reassign the task to themselves, whatever their role;
  *   2. changing an assignment's task or assignee, or deleting it, is refused unless the user holds a
  *      role the Tasks setting `ApprovalReassignRoles` names. Empty (the default) lets nobody.
- * Any other create or change is accepted as before, and a non-approval task is never checked.
+ * Any other change is accepted as before, and a non-approval task is never checked.
  *
  * CONNECTS TO:
  *   READS:  Tasks · Task Types · MJ_BizApps_Common: People · MJ: User Roles
@@ -56,8 +57,8 @@ export class TaskAssignmentEntityServer extends mjBizAppsTasksTaskAssignmentEnti
     public override async ValidateAsync(): Promise<ValidationResult> {
         const result = await super.ValidateAsync();
         const reassigning = this.IsSaved && ASSIGNEE_FIELDS.some((name) => this.GetFieldByName(name)?.Dirty);
-        if (this.IsSaved && !reassigning) return result;
-        const refusal = await this.failClosed(() => this.saveRefusal(reassigning));
+        if (!reassigning) return result;
+        const refusal = await this.failClosed(() => this.reassignRefusal());
         if (refusal) {
             result.Success = false;
             result.Errors.push(new ValidationErrorInfo(SOURCE, refusal, null));
@@ -71,13 +72,12 @@ export class TaskAssignmentEntityServer extends mjBizAppsTasksTaskAssignmentEnti
         return super.Delete(options);
     }
 
-    /** Why this create or reassignment must not be saved, or null. */
-    private async saveRefusal(reassigning: boolean): Promise<string | null> {
+    /** Why this reassignment must not be saved, or null. */
+    private async reassignRefusal(): Promise<string | null> {
         const user = this.ContextCurrentUser;
         if (!(await this.touchesApprovalTask(user))) return null;
-        if (user && (await this.assigneeIsUser(user))) return SELF_ASSIGN_REFUSAL;
-        if (!reassigning) return null;
         if (!user) return NO_USER_REFUSAL;
+        if (await this.assigneeIsUser(user)) return SELF_ASSIGN_REFUSAL;
         return (await this.holdsReassignRole(user)) ? null : REASSIGN_REFUSAL;
     }
 

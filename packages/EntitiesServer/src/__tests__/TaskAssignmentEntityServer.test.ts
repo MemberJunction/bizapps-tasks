@@ -142,14 +142,18 @@ describe('TaskAssignmentEntityServer', () => {
         expect(result.Success).toBe(true);
     });
 
-    it('refuses creating an approval assignment to yourself', async () => {
-        const result = await created(MY_PERSON).ValidateAsync();
-        expect(result.Success).toBe(false);
-        expect(result.Errors[0].Message).toBe(SELF_ASSIGN_REFUSAL);
+    it('leaves create unchecked, so a workflow may assign the acting user (order review)', async () => {
+        expect((await created(MY_PERSON).ValidateAsync()).Success).toBe(true);
+        expect((await created(USER_ID, USERS_ID).ValidateAsync()).Success).toBe(true);
+        expect(filtersSeen).toEqual([]);
     });
 
-    it('refuses an approval assigned to the signed-in user directly as an MJ: Users row', async () => {
-        const result = await created(USER_ID, USERS_ID).ValidateAsync();
+    it('refuses reassigning an approval to the signed-in user directly as an MJ: Users row', async () => {
+        const a = saved();
+        a.old.set('AssigneeEntityID', PEOPLE_ID);
+        a.AssigneeEntityID = USERS_ID;
+        a.AssigneeRecordID = USER_ID;
+        const result = await a.ValidateAsync();
         expect(result.Success).toBe(false);
         expect(result.Errors[0].Message).toBe(SELF_ASSIGN_REFUSAL);
     });
