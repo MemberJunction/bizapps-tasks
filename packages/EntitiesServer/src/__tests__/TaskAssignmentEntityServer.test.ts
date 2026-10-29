@@ -12,11 +12,14 @@ const CEO_PERSON = 'C0000000-0000-0000-0000-000000000002';
 const OTHER_PERSON = 'C0000000-0000-0000-0000-000000000003';
 
 /** What the fake database returns, per entity. */
+const logError = vi.hoisted(() => vi.fn());
+
 const db = {
     settings: new Map<string, string>(),
     isApproval: true,
     people: [{ ID: MY_PERSON }],
-    userRoles: [] as Array<{ ID: string }>,
+    userRoles: [] as Array<{ ID: string; Role: string }>,
+    roles: ['Finance Admin', 'Integration'],
     failTaskLookup: false,
 };
 const filtersSeen: string[] = [];
@@ -28,9 +31,18 @@ function viewResult(entityName: string, filter: string): { Success: boolean; Res
             return db.failTaskLookup ? { Success: false, Results: [], ErrorMessage: 'database unavailable' } : { Success: true, Results: [{ TypeID: TYPE_ID }] };
         case 'MJ_BizApps_Tasks: Task Types': return { Success: true, Results: [{ IsApproval: db.isApproval }] };
         case 'MJ_BizApps_Common: People': return { Success: true, Results: db.people };
-        case 'MJ: User Roles': return { Success: true, Results: db.userRoles };
+        case 'MJ: User Roles': return { Success: true, Results: userRolesMatching(filter) };
+        case 'MJ: Roles': return { Success: true, Results: db.roles.map((Name) => ({ Name })) };
         default: return { Success: false, Results: [], ErrorMessage: `unexpected entity ${entityName}` };
     }
+}
+
+/** A user's roles, filtered as a case-sensitive collation would apply a `Role IN (...)` clause. */
+function userRolesMatching(filter: string): Array<{ ID: string; Role: string }> {
+    const inList = /Role IN \((.*)\)/.exec(filter)?.[1];
+    if (!inList) return db.userRoles;
+    const names = inList.split(',').map((n) => n.trim().replace(/^'|'$/g, ''));
+    return db.userRoles.filter((r) => names.includes(r.Role));
 }
 
 vi.mock('@memberjunction/global', () => ({
@@ -59,7 +71,7 @@ vi.mock('@memberjunction/core', () => {
     return {
         BaseEntity: class {},
         BaseEntityResult,
-        LogError: vi.fn(),
+        LogError: logError,
         Metadata: { Provider: provider },
         RunView: class {
             async RunView(p: { EntityName: string; ExtraFilter: string }) {
@@ -129,6 +141,8 @@ describe('TaskAssignmentEntityServer', () => {
         db.isApproval = true;
         db.people = [{ ID: MY_PERSON }];
         db.userRoles = [];
+        db.roles = ['Finance Admin', 'Integration'];
+        logError.mockClear();
         db.failTaskLookup = false;
         filtersSeen.length = 0;
     });
@@ -182,15 +196,34 @@ describe('TaskAssignmentEntityServer', () => {
 
     it('lets a holder of an ApprovalReassignRoles role reassign', async () => {
         db.settings.set('ApprovalReassignRoles', 'Finance Admin, Integration');
-        db.userRoles = [{ ID: 'ur-1' }];
+        db.userRoles = [{ ID: 'ur-1', Role: 'Integration' }];
         const result = await saved(OTHER_PERSON).ValidateAsync();
         expect(result.Success).toBe(true);
-        expect(filtersSeen).toContain(`MJ: User Roles: UserID = '${USER_ID}' AND Role IN ('Finance Admin', 'Integration')`);
+        expect(filtersSeen).toContain(`MJ: User Roles: UserID = '${USER_ID}'`);
+    });
+
+    it('matches role names trimmed and case-insensitively, whatever the database collation', async () => {
+        db.settings.set('ApprovalReassignRoles', ' finance admin ,cfo');
+        db.roles = ['Finance Admin', 'CFO'];
+        db.userRoles = [{ ID: 'ur-1', Role: 'Finance Admin' }];
+        const result = await saved(OTHER_PERSON).ValidateAsync();
+        expect(result.Success).toBe(true);
+        expect(logError).not.toHaveBeenCalled();
+    });
+
+    it('logs one warning naming the configured roles that do not exist, and refuses', async () => {
+        db.settings.set('ApprovalReassignRoles', 'Senior Finance, Finance Admin, Nobody');
+        db.userRoles = [{ ID: 'ur-1', Role: 'UI' }];
+        const result = await saved(OTHER_PERSON).ValidateAsync();
+        expect(result.Success).toBe(false);
+        expect(result.Errors[0].Message).toBe(REASSIGN_REFUSAL);
+        expect(logError).toHaveBeenCalledTimes(1);
+        expect(logError.mock.calls[0][0]).toContain("'Senior Finance', 'Nobody', which are not roles");
     });
 
     it('refuses self-assignment even for a holder of an ApprovalReassignRoles role', async () => {
         db.settings.set('ApprovalReassignRoles', 'Finance Admin');
-        db.userRoles = [{ ID: 'ur-1' }];
+        db.userRoles = [{ ID: 'ur-1', Role: 'Finance Admin' }];
         const result = await saved(MY_PERSON).ValidateAsync();
         expect(result.Success).toBe(false);
         expect(result.Errors[0].Message).toBe(SELF_ASSIGN_REFUSAL);
@@ -226,7 +259,7 @@ describe('TaskAssignmentEntityServer', () => {
 
     it('lets a holder of an ApprovalReassignRoles role delete an approval assignment', async () => {
         db.settings.set('ApprovalReassignRoles', 'Finance Admin');
-        db.userRoles = [{ ID: 'ur-1' }];
+        db.userRoles = [{ ID: 'ur-1', Role: 'Finance Admin' }];
         const a = saved();
         expect(await a.Delete()).toBe(true);
         expect(a.deleted).toBe(true);

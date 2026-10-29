@@ -13,7 +13,7 @@
  * Any other change is accepted as before, and a non-approval task is never checked.
  *
  * CONNECTS TO:
- *   READS:  Tasks · Task Types · MJ_BizApps_Common: People · MJ: User Roles
+ *   READS:  Tasks · Task Types · MJ_BizApps_Common: People · MJ: User Roles · MJ: Roles
  *   SETTINGS: ./TasksSettings.ts (ApprovalReassignRoles)
  */
 import {
@@ -36,6 +36,7 @@ export const TASK_ASSIGNMENT_ENTITY = 'MJ_BizApps_Tasks: Task Assignments';
 const TASK_ENTITY = 'MJ_BizApps_Tasks: Tasks';
 const TASK_TYPE_ENTITY = 'MJ_BizApps_Tasks: Task Types';
 const USERS_ENTITY = 'MJ: Users';
+const ROLES_ENTITY = 'MJ: Roles';
 const USER_ROLES_ENTITY = 'MJ: User Roles';
 const SOURCE = 'TaskAssignmentEntityServer';
 
@@ -137,18 +138,37 @@ export class TaskAssignmentEntityServer extends mjBizAppsTasksTaskAssignmentEnti
         return (people.Results ?? []).some((p) => p.ID.toLowerCase() === recordID);
     }
 
-    /** Whether the user holds a role `ApprovalReassignRoles` names. No roles configured lets nobody. */
+    /**
+     * Whether the user holds a role `ApprovalReassignRoles` names, matched trimmed and case-insensitively
+     * in code so the database collation cannot change the answer. No roles configured lets nobody.
+     */
     private async holdsReassignRole(user: UserInfo): Promise<boolean> {
         await TasksSettings.Load(Metadata.Provider, user);
-        const roles = TasksSettings.ApprovalReassignRoles(Metadata.Provider);
-        if (roles.length === 0) return false;
-        const names = roles.map((r) => `'${r.replace(/'/g, "''")}'`).join(', ');
-        const held = await new RunView(this.RunViewProviderToUse).RunView<{ ID: string }>(
-            { EntityName: USER_ROLES_ENTITY, ExtraFilter: `UserID = ${guid(user.ID, 'UserID')} AND Role IN (${names})`, Fields: ['ID'], MaxRows: 1, ResultType: 'simple', BypassCache: true },
+        const allowed = TasksSettings.ApprovalReassignRoles(Metadata.Provider);
+        if (allowed.length === 0) return false;
+        const held = await this.roleNames(USER_ROLES_ENTITY, `UserID = ${guid(user.ID, 'UserID')}`, 'Role', user);
+        if (allowed.some((role) => held.has(role.toLowerCase()))) return true;
+        await this.logUnknownRoles(allowed, user);
+        return false;
+    }
+
+    /** Logs, once per refused check, the configured role names that are not roles: they match nobody. */
+    private async logUnknownRoles(allowed: string[], user: UserInfo): Promise<void> {
+        const known = await this.roleNames(ROLES_ENTITY, '', 'Name', user);
+        const unknown = allowed.filter((role) => !known.has(role.toLowerCase()));
+        if (unknown.length > 0) {
+            LogError(`TaskAssignmentEntityServer: the ApprovalReassignRoles setting names ${unknown.map((r) => `'${r}'`).join(', ')}, which ${unknown.length === 1 ? 'is not a role' : 'are not roles'}; nobody holds ${unknown.length === 1 ? 'it' : 'them'}.`);
+        }
+    }
+
+    /** One name column of a role view, trimmed and lower-cased, read fresh so a role just granted counts. */
+    private async roleNames(entityName: string, filter: string, field: 'Role' | 'Name', user: UserInfo): Promise<Set<string>> {
+        const res = await new RunView(this.RunViewProviderToUse).RunView<Record<typeof field, string | null>>(
+            { EntityName: entityName, ExtraFilter: filter, Fields: [field], ResultType: 'simple', BypassCache: true },
             user,
         );
-        if (!held?.Success) throw new Error(held?.ErrorMessage ?? 'the user role lookup returned no result');
-        return (held.Results?.length ?? 0) > 0;
+        if (!res?.Success) throw new Error(res?.ErrorMessage ?? `the ${entityName} lookup returned no result`);
+        return new Set((res.Results ?? []).map((r) => String(r[field] ?? '').trim().toLowerCase()));
     }
 
     /** Records a refused delete where `LatestResult.CompleteMessage` (and so the caller) reads it. */
