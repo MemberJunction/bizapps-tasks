@@ -28,5 +28,16 @@
       "lastModified": "2026-10-20T01:14:32.551Z",
       "checksum": "61c924cfb7ff21d7abeb187386743aa0dfc00d0ec0ca5113365f2a047f20e53f"
     }
+  },
+  {
+    "fields": {
+      "ApplicationID": "@lookup:MJ: Applications.Name=Tasks",
+      "Name": "ApprovalReassignRoles",
+      "Value": "",
+      "Comments": "Comma-separated NAMES of the MJ roles whose holders may change who an approval task (a task whose type has IsApproval set) is assigned to, or remove its assignee (bc-aidp-next-golive#389). Names match trimmed and case-insensitively; a name that is not a role matches nobody and is logged. Nobody may reassign an approval to themselves, whatever their role. Creating assignments is not checked, so workflow routing is unaffected. Empty, the default, lets nobody reassign or remove an approval's assignee."
+    },
+    "primaryKey": {
+      "ID": "CBF531C2-4DBE-4F63-9CFB-C3266835AD6E"
+    }
   }
 ]

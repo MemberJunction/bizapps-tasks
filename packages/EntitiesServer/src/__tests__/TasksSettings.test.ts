@@ -32,6 +32,12 @@ describe('TasksSettings', () => {
         expect(TasksSettings.PreventSelfApproval(provider)).toBe(false);
     });
 
+    it('reads ApprovalReassignRoles as a comma-separated list, empty by default', () => {
+        expect(TasksSettings.ApprovalReassignRoles(provider)).toEqual([]);
+        settings.set('ApprovalReassignRoles', ' Finance Admin , ,Integration ');
+        expect(TasksSettings.ApprovalReassignRoles(provider)).toEqual(['Finance Admin', 'Integration']);
+    });
+
     it('offers no in-process way to override a setting (the guard has no kill switch)', () => {
         const members = Object.getOwnPropertyNames(TasksSettings);
         expect(members).not.toContain('SetOverride');

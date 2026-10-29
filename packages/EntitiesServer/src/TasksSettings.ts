@@ -30,6 +30,12 @@ export const TASKS_SETTING = {
      * `PreventSelfApproval` is on. They must still be an assignee. Empty exempts nobody.
      */
     SelfApprovalExemptRole: 'SelfApprovalExemptRole',
+    /**
+     * Comma-separated NAMES of the MJ roles whose holders may reassign or remove an assignment on an
+     * approval task (bc-aidp-next-golive#389). Empty lets nobody: workflows only ever create approval
+     * assignments, so nothing else needs to move one.
+     */
+    ApprovalReassignRoles: 'ApprovalReassignRoles',
 } as const;
 
 export type TasksSettingKey = (typeof TASKS_SETTING)[keyof typeof TASKS_SETTING];
@@ -68,5 +74,11 @@ export class TasksSettings {
     public static SelfApprovalExemptRole(provider: IMetadataProvider): string | null {
         const value = this.raw(TASKS_SETTING.SelfApprovalExemptRole, provider)?.trim();
         return value ? value : null;
+    }
+
+    /** The roles that may reassign or remove an approval assignment; empty when none is configured. */
+    public static ApprovalReassignRoles(provider: IMetadataProvider): string[] {
+        const raw = this.raw(TASKS_SETTING.ApprovalReassignRoles, provider) ?? '';
+        return raw.split(',').map((r) => r.trim()).filter((r) => r.length > 0);
     }
 }
