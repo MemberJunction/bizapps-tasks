@@ -1,0 +1,13 @@
+{
+  "entity": "MJ: AI Skills",
+  "filePattern": "**/.*.json",
+  "pull": {
+    "filter": "Name = 'Chief of Staff Tasks & Priorities'",
+    "relatedEntities": {
+      "MJ: AI Agent Skills": {
+        "entity": "MJ: AI Agent Skills",
+        "foreignKey": "SkillID"
+      }
+    }
+  }
+}

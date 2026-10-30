@@ -33,6 +33,9 @@ import {
     LoadTasksSectionResources,
 } from './sections/tasks-sections.component';
 
+// Chief of Staff extension: the "Priorities & To-dos" page added to the Chief of Staff application
+import { LoadChiefOfStaffPrioritiesResource } from './chief-of-staff/chief-of-staff-priorities.component';
+
 @NgModule({
     imports: [
         CommonModule,
@@ -91,4 +94,5 @@ export class BizAppsTasksModule { }
 /** Tree-shaking prevention — call from consuming app bootstrap */
 export function LoadBizAppsTasksClient() {
     LoadTasksSectionResources();
+    LoadChiefOfStaffPrioritiesResource();
 }

@@ -18,5 +18,6 @@ export * from './checks/task-decisions.checks.js';
 export * from './checks/task-templates.checks.js';
 export * from './checks/task-statuses.checks.js';
 export * from './checks/task-action-hooks.checks.js';
+export * from './checks/task-chief-of-staff.checks.js';
 
 export function LoadTasksIntegrationTests(): void {}

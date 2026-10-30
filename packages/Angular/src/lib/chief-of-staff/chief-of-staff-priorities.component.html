@@ -1,0 +1,195 @@
+<mj-page-layout>
+    <mj-page-header
+        Title="Priorities &amp; To-dos"
+        Subtitle="Your priority objectives, their milestones, and your open to-dos and reminders"
+        Icon="fa-solid fa-bullseye">
+
+        <ng-container meta>
+            <mj-stat-badge Icon="fa-solid fa-bullseye" [Count]="Summary.PriorityObjectiveCount" Label="objectives" Variant="info"></mj-stat-badge>
+            @if (Summary.AtRiskCount + Summary.OffTrackCount > 0) {
+                <mj-stat-badge Icon="fa-solid fa-triangle-exclamation" [Count]="Summary.AtRiskCount + Summary.OffTrackCount" Label="at risk or off track" Variant="warning"></mj-stat-badge>
+            }
+            <mj-stat-badge Icon="fa-solid fa-list-check" [Count]="Summary.OpenTodoCount" Label="open to-dos" Variant="default"></mj-stat-badge>
+        </ng-container>
+
+        <ng-container toolbar>
+            <mj-page-search
+                Placeholder="Filter objectives..."
+                [Value]="SearchText"
+                (ValueChange)="OnSearchChange($event)">
+            </mj-page-search>
+            <mj-refresh-button [Loading]="IsLoading" [ShowLabel]="true" (Clicked)="Load()"></mj-refresh-button>
+        </ng-container>
+    </mj-page-header>
+
+    <mj-page-body>
+        @if (Banner) {
+            <div class="cpt-banner" [class.cpt-banner--error]="Banner.Type === 'error'" [class.cpt-banner--success]="Banner.Type === 'success'" role="status">
+                <span>{{ Banner.Message }}</span>
+                <button mjButton variant="flat" size="sm" (click)="DismissBanner()" aria-label="Dismiss notification">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        }
+
+        @if (PersonMessage) {
+            <mj-empty-state Icon="fa-solid fa-user-slash" Title="No People record for your user" [Message]="PersonMessage" />
+        } @else {
+            <div class="cpt-columns">
+                <!-- To-dos & reminders -->
+                <section class="cpt-panel">
+                    <div class="cpt-panel__header">
+                        <div>
+                            <h3 class="cpt-panel__title"><i class="fa-solid fa-list-check"></i> To-dos &amp; Reminders</h3>
+                            <p class="cpt-panel__subtitle">Root tasks of a to-do type, soonest due first</p>
+                        </div>
+                        <span class="cpt-meta">{{ Summary.OpenTodoCount }} open</span>
+                    </div>
+                    @if (Summary.TodoItems.length === 0) {
+                        <mj-empty-state Size="compact" Variant="success" Icon="fa-solid fa-circle-check" Message="No open to-dos." />
+                    } @else {
+                        <div class="cpt-todo-list">
+                            @for (item of Summary.TodoItems; track item.Task.ID) {
+                                <div class="cpt-todo-row" [class.cpt-todo-row--overdue]="item.IsOverdue" (click)="OpenTask(item.Task.ID, $event)">
+                                    <button mjButton variant="icon" size="sm"
+                                            [disabled]="BusyTodoID === item.Task.ID"
+                                            title="Mark done"
+                                            [attr.aria-label]="'Mark ' + item.Task.Name + ' done'"
+                                            (click)="MarkTodoDone(item.Task, $event)">
+                                        <i class="fa-regular" [class.fa-circle]="BusyTodoID !== item.Task.ID" [class.fa-circle-check]="BusyTodoID === item.Task.ID"></i>
+                                    </button>
+                                    <div class="cpt-todo-row__main">
+                                        <div class="cpt-todo-row__name">{{ item.Task.Name }}</div>
+                                        <div class="cpt-todo-row__meta">
+                                            @if (item.Task.DueAt) {
+                                                <span [class.cpt-due--overdue]="item.IsOverdue" [class.cpt-due--today]="item.IsDueToday">
+                                                    {{ item.IsOverdue ? 'Overdue' : item.IsDueToday ? 'Today' : 'Due' }} {{ item.Task.DueAt | date:'short' }}
+                                                </span>
+                                            } @else {
+                                                <span>No due date</span>
+                                            }
+                                            @if (item.Task.Type) {
+                                                <span class="cpt-meta">{{ item.Task.Type }}</span>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </section>
+
+                <!-- Priority objectives -->
+                <section class="cpt-panel cpt-panel--wide">
+                    <div class="cpt-panel__header">
+                        <div>
+                            <h3 class="cpt-panel__title"><i class="fa-solid fa-bullseye"></i> Priority Objectives</h3>
+                            <p class="cpt-panel__subtitle">Objectives you own or hold a milestone under; average progress {{ Summary.AverageProgress }}%</p>
+                        </div>
+                    </div>
+
+                    <div class="cpt-filters">
+                        @for (opt of HealthFilterOptions; track opt.Value) {
+                            <mj-filter-chip [Label]="opt.Label" [Active]="HealthFilter === opt.Value" (Clicked)="OnHealthFilterChange(opt.Value)" />
+                        }
+                    </div>
+
+                    @if (FilteredCards.length === 0) {
+                        <mj-empty-state
+                            Size="compact"
+                            [Variant]="Summary.Cards.length === 0 ? 'empty' : 'no-results'"
+                            Icon="fa-solid fa-bullseye"
+                            [Title]="Summary.Cards.length === 0 ? 'No priority objectives yet' : 'No objectives match your filter'"
+                            [Message]="Summary.Cards.length === 0 ? 'Ask your Chief of Staff to set up your quarterly priorities and milestones.' : 'Try clearing the search or health filter.'"
+                            [ActionText]="HasFilter ? 'Clear Filters' : ''"
+                            (Action)="ClearFilters()" />
+                    } @else {
+                        <div class="cpt-card-list">
+                            @for (card of FilteredCards; track card.Task.ID) {
+                                <article class="cpt-card">
+                                    <div class="cpt-card__header" (click)="ToggleExpanded(card.Task.ID)">
+                                        <div class="cpt-card__title-group">
+                                            <i class="fa-solid cpt-card__chevron" [class.fa-chevron-down]="IsExpanded(card.Task.ID)" [class.fa-chevron-right]="!IsExpanded(card.Task.ID)"></i>
+                                            <div>
+                                                <div class="cpt-card__badges">
+                                                    <span class="cpt-health cpt-health--{{ HealthClass(card.EffectiveHealth) }}">{{ HealthLabel(card.EffectiveHealth) }}</span>
+                                                    @if (card.Task.Priority) {
+                                                        <span class="cpt-priority {{ PriorityClass(card.Task.Priority) }}">{{ card.Task.Priority }}</span>
+                                                    }
+                                                    @if (card.Task.PlanningPeriod) {
+                                                        <span class="cpt-meta">{{ card.Task.PlanningPeriod }}</span>
+                                                    }
+                                                    @if (card.IsOverdue) {
+                                                        <span class="cpt-health cpt-health--offtrack">Overdue</span>
+                                                    }
+                                                </div>
+                                                <h4 class="cpt-card__title">{{ card.Task.Name }}</h4>
+                                                <div class="cpt-people">
+                                                    @if (card.Owner) {
+                                                        <span class="cpt-people__label">Owner</span>
+                                                        <span class="cpt-chip cpt-chip--owner" [class.cpt-chip--me]="card.OwnedByMe">{{ card.Owner.Name }}</span>
+                                                    }
+                                                    @if (card.Assignees.length > 0) {
+                                                        <span class="cpt-people__label">Assigned</span>
+                                                        @for (a of card.Assignees; track a.PersonID) {
+                                                            <span class="cpt-chip" [class.cpt-chip--me]="IsCurrentPerson(a.PersonID)">{{ a.Name }}</span>
+                                                        }
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="cpt-card__progress">
+                                            <span class="cpt-card__pct">{{ card.EffectivePercentComplete }}%</span>
+                                            <span class="cpt-card__count">{{ card.CompletedSubtaskCount }}/{{ card.Subtasks.length }} milestones</span>
+                                        </div>
+                                    </div>
+                                    <div class="cpt-progress"><div class="cpt-progress__fill cpt-progress__fill--{{ HealthClass(card.EffectiveHealth) }}" [style.width.%]="card.EffectivePercentComplete"></div></div>
+
+                                    @if (IsExpanded(card.Task.ID)) {
+                                        <div class="cpt-card__body">
+                                            @if (card.Task.Description) {
+                                                <p class="cpt-card__desc">{{ card.Task.Description }}</p>
+                                            }
+                                            <div class="cpt-card__facts">
+                                                @if (card.MetricProgressLabel) { <span><strong>Metric:</strong> {{ card.MetricProgressLabel }}</span> }
+                                                @if (card.Task.ConfidenceScore != null) { <span><strong>Confidence:</strong> {{ card.Task.ConfidenceScore }}</span> }
+                                                @if (card.Task.DueAt) { <span><strong>Due:</strong> {{ card.Task.DueAt | date:'mediumDate' }}</span> }
+                                                @if (card.Task.NextCheckInDueAt) { <span><strong>Next check-in:</strong> {{ card.Task.NextCheckInDueAt | date:'mediumDate' }}</span> }
+                                                <button mjButton variant="outline" size="sm" (click)="OpenTask(card.Task.ID, $event)">
+                                                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Open
+                                                </button>
+                                            </div>
+                                            @if (card.Milestones.length === 0) {
+                                                <p class="cpt-muted">No milestones{{ card.IsOwner ? '' : ' assigned to you' }}.</p>
+                                            } @else {
+                                                <div class="cpt-milestones">
+                                                    @if (!card.IsOwner && card.Milestones.length < card.Subtasks.length) {
+                                                        <p class="cpt-muted">Showing the {{ card.Milestones.length }} of {{ card.Subtasks.length }} milestones you hold.</p>
+                                                    }
+                                                    @for (m of card.Milestones; track m.Task.ID) {
+                                                        <div class="cpt-milestone" [class.cpt-milestone--mine]="m.HeldByMe" (click)="OpenTask(m.Task.ID, $event)">
+                                                            <span class="cpt-milestone__status">
+                                                                <i class="fa-regular" [class.fa-circle-check]="m.Task.Status === 'Completed'" [class.fa-circle]="m.Task.Status !== 'Completed'"></i>
+                                                            </span>
+                                                            <span class="cpt-milestone__name">{{ m.Task.Name }}</span>
+                                                            @for (h of m.Holders; track h.PersonID) {
+                                                                <span class="cpt-chip" [class.cpt-chip--implicit]="m.IsImplicitlyHeld" [class.cpt-chip--me]="IsCurrentPerson(h.PersonID)">{{ h.Name }}</span>
+                                                            }
+                                                            @if (m.Task.DueAt) {
+                                                                <span class="cpt-muted">{{ m.Task.DueAt | date:'mediumDate' }}</span>
+                                                            }
+                                                        </div>
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                </article>
+                            }
+                        </div>
+                    }
+                </section>
+            </div>
+        }
+    </mj-page-body>
+</mj-page-layout>

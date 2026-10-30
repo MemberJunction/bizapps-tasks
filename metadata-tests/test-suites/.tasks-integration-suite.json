@@ -129,6 +129,21 @@
             "lastModified": "2026-08-20T13:43:44.146Z",
             "checksum": "5bbfc6ffd63dabaeb03c387776d902a45d8239097497881e2d8be49e557f5b84"
           }
+        },
+        {
+          "fields": {
+            "SuiteID": "@parent:ID",
+            "TestID": "@lookup:MJ: Tests.Name=TSK-08 - Chief of Staff Extension",
+            "Sequence": 8,
+            "Status": "Active"
+          },
+          "primaryKey": {
+            "ID": "8DC147EC-EEF7-4474-8547-D14DA54ADB9B"
+          },
+          "sync": {
+            "lastModified": "2026-10-30T16:45:33.149Z",
+            "checksum": "77c19200afd4ef03c1ed2b85c133e770c4c221ca06261b183764cae7b8d712be"
+          }
         }
       ]
     },

@@ -1,0 +1,17 @@
+[
+  {
+    "fields": {
+      "ApplicationID": "@lookup:MJ: Applications.Name=Chief of Staff",
+      "Name": "NavItem.bizapps-tasks.chief-of-staff",
+      "Value": "{\"Label\": \"Priorities & To-dos\", \"Description\": \"Your priority objectives, their milestones, and your open to-dos and reminders, from BizApps Tasks\", \"Icon\": \"fa-solid fa-bullseye\", \"ResourceType\": \"Custom\", \"DriverClass\": \"BizAppsTasksChiefOfStaffPriorities\", \"Sequence\": 15}",
+      "Comments": "Adds the Tasks app's Priorities & To-dos page to the Chief of Staff application, between Overview (10) and Approvals & Wakes (20). Read by BaseApplication.GetNavItems() in MJ core; removed by this app's teardown."
+    },
+    "primaryKey": {
+      "ID": "F7408CCE-B0BB-4DAF-8797-9E2DFD4D73BC"
+    },
+    "sync": {
+      "lastModified": "2026-10-30T16:37:52.536Z",
+      "checksum": "ea93f0277315f33248530ae4afa5abfd5d5c3875d2a8598b6c93e9f2c7e61e3d"
+    }
+  }
+]

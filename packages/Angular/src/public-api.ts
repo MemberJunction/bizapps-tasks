@@ -61,3 +61,4 @@ export * from './lib/pages/my-tasks.page.js';
 export * from './lib/pages/approvals.page.js';
 export * from './lib/pages/templates.page.js';
 export * from './lib/sections/tasks-sections.component.js';
+export * from './lib/chief-of-staff/chief-of-staff-priorities.component.js';
