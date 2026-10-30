@@ -4,7 +4,7 @@ import { Subject } from 'rxjs';
 import { debounceTime, filter, takeUntil } from 'rxjs/operators';
 import { BaseEntity, LogError, RunView, type BaseEntityEvent } from '@memberjunction/core';
 import type { ResourceData } from '@memberjunction/core-entities';
-import { MJEventType, MJGlobal, RegisterClass, UUIDSet, type MJEvent } from '@memberjunction/global';
+import { MJEventType, MJGlobal, RegisterClass, type MJEvent } from '@memberjunction/global';
 import { BaseResourceComponent } from '@memberjunction/ng-shared';
 import {
     MJButtonDirective,
@@ -31,6 +31,7 @@ import {
     ResolvePriorityObjectiveByIDOrName,
     TASK_ASSIGNMENTS_ENTITY_NAME,
     TASKS_ENTITY_NAME,
+    TaskIDSet,
     type HealthFilter,
     type PriorityObjectiveCardViewModel,
     type PrioritySummary,
@@ -111,9 +112,8 @@ export class ChiefOfStaffPrioritiesResource extends BaseResourceComponent implem
     public readonly HealthFilterOptions = HEALTH_FILTERS.map((value) => ({ Value: value, Label: HEALTH_LABELS[value] }));
 
     private currentPersonID: string | null = null;
-    private readonly expanded = new UUIDSet();
+    private readonly expanded = new TaskIDSet();
     private initialParamsApplied = false;
-    private liveReloadPending = false;
 
     public get FilteredCards(): PriorityObjectiveCardViewModel[] {
         return FilterPriorityCards(this.Summary.Cards, this.HealthFilter, this.SearchText);
@@ -129,7 +129,6 @@ export class ChiefOfStaffPrioritiesResource extends BaseResourceComponent implem
         this.initialParamsApplied = true;
         await this.Load();
         this.navigationService.SetAgentClientTools(this, this.agentTools());
-        this.navigationService.ResourceReattached$.pipe(filter((c) => c === this), takeUntil(this.destroy$)).subscribe(() => this.publishAgentContext());
         this.subscribeToLiveChanges();
         this.NotifyLoadComplete();
     }
@@ -323,34 +322,21 @@ export class ChiefOfStaffPrioritiesResource extends BaseResourceComponent implem
 
     // ── Live reload ──────────────────────────────────────────────────────────────────
 
-    /** Reloads once per burst of task or assignment changes; a detached tab reloads when shown again. */
+    /**
+     * Reloads once per burst of task or assignment changes. (MJ 6.2's NavigationService can defer
+     * this for a background tab; this app still builds against 6.1.x, so it reloads either way.)
+     */
     private subscribeToLiveChanges(): void {
         MJGlobal.Instance.GetEventListener(false).pipe(
             filter((event) => IsTasksEntityChange(event)),
             debounceTime(750),
             takeUntil(this.destroy$),
-        ).subscribe(() => {
-            if (this.navigationService.IsResourceDetached(this)) {
-                this.liveReloadPending = true;
-                return;
-            }
-            void this.Load();
-        });
-        this.navigationService.ResourceReattached$.pipe(
-            filter((c) => c === this && this.liveReloadPending),
-            takeUntil(this.destroy$),
-        ).subscribe(() => {
-            this.liveReloadPending = false;
-            void this.Load();
-        });
+        ).subscribe(() => void this.Load());
     }
 
     // ── Agent context and tools ──────────────────────────────────────────────────────
 
     private publishAgentContext(): void {
-        if (this.navigationService.IsResourceDetached(this)) {
-            return;
-        }
         this.navigationService.SetAgentContext(this, BuildPrioritiesAgentContext(this.Summary, this.HealthFilter, this.SearchText));
     }
 

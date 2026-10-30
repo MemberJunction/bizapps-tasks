@@ -5,7 +5,7 @@
  */
 import '@angular/compiler';
 import { describe, expect, it, vi, beforeEach, type Mock } from 'vitest';
-import { MJEventType, UUIDSet, type MJEvent } from '@memberjunction/global';
+import { MJEventType, type MJEvent } from '@memberjunction/global';
 import { BaseEntity } from '@memberjunction/core';
 
 const { runView, resolvePerson } = vi.hoisted(() => ({ runView: vi.fn(), resolvePerson: vi.fn() }));
@@ -30,7 +30,7 @@ vi.mock('../current-person', () => ({
 vi.mock('../open-task-record', () => ({ OpenTaskRecord: vi.fn() }));
 
 import { ChiefOfStaffPrioritiesResource, IsTasksEntityChange } from '../chief-of-staff/chief-of-staff-priorities.component';
-import { BuildPrioritySummary, type PriorityTaskRow } from '@mj-biz-apps/tasks-core';
+import { BuildPrioritySummary, TaskIDSet, type PriorityTaskRow } from '@mj-biz-apps/tasks-core';
 
 type Open = Record<string, unknown>;
 
@@ -53,8 +53,8 @@ function createPage(): Harness {
     const context = vi.fn();
     const entity: FakeTaskEntity = { Load: vi.fn(async (_id: string): Promise<boolean> => true), Save: vi.fn(async (): Promise<boolean> => true), Status: 'Open', LatestResult: null };
     open['cdr'] = { markForCheck: vi.fn() };
-    open['navigationService'] = { IsResourceDetached: () => false, SetAgentContext: context };
-    open['expanded'] = new UUIDSet();
+    open['navigationService'] = { SetAgentContext: context };
+    open['expanded'] = new TaskIDSet();
     open['Summary'] = BuildPrioritySummary([]);
     open['HealthFilter'] = 'all';
     open['SearchText'] = '';

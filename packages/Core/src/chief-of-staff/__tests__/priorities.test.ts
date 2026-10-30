@@ -4,7 +4,6 @@
  * now owns them and adds the "Priorities & To-dos" page to the Chief of Staff application.
  */
 import { describe, it, expect } from 'vitest';
-import { UUIDMap } from '@memberjunction/global';
 import {
     BuildOwnedRootTasksFilter,
     BuildPersonScopedTaskFilter,
@@ -23,6 +22,7 @@ import {
     ResolvePersonTaskScope,
     ResolvePriorityObjectiveByIDOrName,
     TaskAssignee,
+    TaskIDMap,
     TaskScopeQueryRunner,
 } from '../priorities.js';
 
@@ -253,8 +253,8 @@ describe('LoadTaskAssignees', () => {
 });
 
 describe('Assignees, owners and holders', () => {
-    function assigneesWith(entries: Array<[string, string, string?]>): UUIDMap<TaskAssignee[]> {
-        const map = new UUIDMap<TaskAssignee[]>();
+    function assigneesWith(entries: Array<[string, string, string?]>): TaskIDMap<TaskAssignee[]> {
+        const map = new TaskIDMap<TaskAssignee[]>();
         for (const [task, person, name] of entries) {
             map.Set(task, [...(map.Get(task) ?? []), { PersonID: person, Name: name ?? person }]);
         }

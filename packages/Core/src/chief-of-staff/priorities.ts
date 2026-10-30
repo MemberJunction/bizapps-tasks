@@ -11,7 +11,51 @@
  * the objective.
  */
 import type { RunViewParams, UserInfo } from '@memberjunction/core';
-import { EscapeSQLString, GroupByUUID, UUIDMap, UUIDSet, UUIDsEqual } from '@memberjunction/global';
+import { EscapeSQLString, UUIDsEqual } from '@memberjunction/global';
+
+/**
+ * A map keyed by record ID that ignores case: SQL Server returns upper-case UUIDs and PostgreSQL
+ * lower-case, so the same ID can arrive in either spelling. (MJ 6.2 ships `UUIDMap` in
+ * @memberjunction/global; this app still builds against 6.1.x, which does not have it.)
+ */
+export class TaskIDMap<T> {
+    private readonly entries = new Map<string, T>();
+
+    public Get(id: string | null | undefined): T | undefined {
+        return id ? this.entries.get(id.toLowerCase()) : undefined;
+    }
+
+    public Set(id: string, value: T): void {
+        this.entries.set(id.toLowerCase(), value);
+    }
+
+    public Has(id: string | null | undefined): boolean {
+        return !!id && this.entries.has(id.toLowerCase());
+    }
+
+    public Delete(id: string | null | undefined): void {
+        if (id) {
+            this.entries.delete(id.toLowerCase());
+        }
+    }
+}
+
+/** A set of record IDs that ignores case (see {@link TaskIDMap}). */
+export class TaskIDSet {
+    private readonly ids = new TaskIDMap<true>();
+
+    public Has(id: string | null | undefined): boolean {
+        return this.ids.Has(id);
+    }
+
+    public Add(id: string): void {
+        this.ids.Set(id, true);
+    }
+
+    public Delete(id: string | null | undefined): void {
+        this.ids.Delete(id);
+    }
+}
 
 /** Entity holding the people tasks are created by and assigned to. */
 export const PEOPLE_ENTITY_NAME = 'MJ_BizApps_Common: People';
@@ -63,7 +107,7 @@ export interface TaskAssignee {
 }
 
 /** Assignees keyed by task ID (case-insensitive: SQL Server returns upper-case IDs, PostgreSQL lower-case). */
-export type TaskAssigneeMap = UUIDMap<TaskAssignee[]>;
+export type TaskAssigneeMap = TaskIDMap<TaskAssignee[]>;
 
 /** A milestone row under an objective card, with who holds it. */
 export interface MilestoneRowViewModel {
@@ -259,7 +303,12 @@ export function BuildPrioritySummary(
         task.CreatedByPersonID ? { PersonID: task.CreatedByPersonID, Name: task.CreatedByPerson?.trim() || task.CreatedByPersonID } : null;
 
     const childTasks = tasks.filter((t) => !!t.ParentID);
-    const subtasksByParent = GroupByUUID(childTasks, (t) => t.ParentID);
+    const subtasksByParent = new TaskIDMap<PriorityTaskRow[]>();
+    for (const child of childTasks) {
+        const siblings = subtasksByParent.Get(child.ParentID) ?? [];
+        siblings.push(child);
+        subtasksByParent.Set(child.ParentID as string, siblings);
+    }
     const roots = tasks.filter((t) => !t.ParentID && (IsTaskPriorityObjective(t) || subtasksByParent.Has(t.ID)));
 
     let onTrack = 0;
@@ -518,7 +567,7 @@ export async function LoadTaskAssignees(
     taskIDs: readonly string[],
     contextUser?: UserInfo,
 ): Promise<TaskAssigneeMap> {
-    const map: TaskAssigneeMap = new UUIDMap<TaskAssignee[]>();
+    const map: TaskAssigneeMap = new TaskIDMap<TaskAssignee[]>();
     if (taskIDs.length === 0) {
         return map;
     }
@@ -544,7 +593,7 @@ export async function LoadTaskAssignees(
     if (!people.Success) {
         throw new Error(people.ErrorMessage ?? 'Failed to load assignee names.');
     }
-    const nameByPerson = new UUIDMap<string>();
+    const nameByPerson = new TaskIDMap<string>();
     for (const person of people.Results) {
         nameByPerson.Set(person.ID, [person.FirstName, person.LastName].filter((n) => !!n).join(' ').trim() || person.ID);
     }
@@ -570,7 +619,7 @@ function quoteIDList(ids: readonly string[]): string {
 
 /** The distinct, non-empty IDs, first spelling kept, compared case-insensitively. */
 function distinctUUIDs(ids: readonly (string | null | undefined)[]): string[] {
-    const seen = new UUIDSet();
+    const seen = new TaskIDSet();
     const out: string[] = [];
     for (const id of ids) {
         if (id && !seen.Has(id)) {
