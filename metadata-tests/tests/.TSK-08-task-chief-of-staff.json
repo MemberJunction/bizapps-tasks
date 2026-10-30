@@ -1,0 +1,28 @@
+{
+  "fields": {
+    "TypeID": "@lookup:MJ: Test Types.Name=Integration Test",
+    "Name": "TSK-08 - Chief of Staff Extension",
+    "Description": "The Tasks app's extension of MJ core's Chief of Staff: the Tasks skill is installed and granted to the Chief of Staff agent (CS1), the NavItem.* setting adds a well-formed Priorities & To-dos page to the Chief of Staff application (CS2), and a person's task scope covers what they own or hold plus the objective above it, and nothing else (CS3).",
+    "InputDefinition": {},
+    "ExpectedOutcomes": {
+      "summary": "Skill and grant present; nav item well-formed and scoped to the Chief of Staff app; task scope matches ownership and assignment against the real Tasks view."
+    },
+    "Configuration": {
+      "tier": "deterministic",
+      "transport": "server",
+      "checks": [
+        {
+          "type": "task-chief-of-staff"
+        }
+      ]
+    },
+    "Status": "Active"
+  },
+  "primaryKey": {
+    "ID": "37A24BD6-01B0-4757-AA31-8F308FD54B26"
+  },
+  "sync": {
+    "lastModified": "2026-10-30T16:45:32.988Z",
+    "checksum": "238b1726cf56422f4b70a25faa1b0545cdd773e4963366baf3efbcdc90cb1c19"
+  }
+}

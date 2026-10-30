@@ -1,0 +1,39 @@
+[
+  {
+    "fields": {
+      "Name": "Chief of Staff Tasks & Priorities",
+      "Description": "Track the user's priorities, objectives, milestones, assignments and to-dos in BizApps Tasks, scoped to the user's People record. Installed by the BizApps Tasks app.",
+      "Instructions": "@file:templates/chief-of-staff-tasks.skill.md",
+      "Status": "Active",
+      "ActivationMode": "Auto",
+      "Category": "Productivity",
+      "IconClass": "fa-solid fa-bullseye",
+      "CreatedByUserID": "@lookup:MJ: Users.Name=System"
+    },
+    "relatedEntities": {
+      "MJ: AI Agent Skills": [
+        {
+          "fields": {
+            "AgentID": "@lookup:MJ: AI Agents.Name=Chief of Staff",
+            "SkillID": "@parent:ID",
+            "Status": "Active"
+          },
+          "primaryKey": {
+            "ID": "AE2FF0FE-4835-4DD6-A30A-12CFBD912DDE"
+          },
+          "sync": {
+            "lastModified": "2026-10-30T16:37:52.503Z",
+            "checksum": "a6abca0b051bc6cca5a327e2d699ebc65a1d874958d9f0a9d9dd856ef89dcfa3"
+          }
+        }
+      ]
+    },
+    "primaryKey": {
+      "ID": "05ED981A-4F9A-4B78-A5E9-9B383823F43C"
+    },
+    "sync": {
+      "lastModified": "2026-10-30T16:37:52.456Z",
+      "checksum": "bda017bd36d57d83074a0aadf15e0228a86dd4b6a48d471839247762cc75b0f1"
+    }
+  }
+]
