@@ -3,8 +3,8 @@
     "fields": {
       "ApplicationID": "@lookup:MJ: Applications.Name=Tasks",
       "Name": "PreventSelfApproval",
-      "Value": "false",
-      "Comments": "When true, a decision on an approval task (a task whose type has IsApproval set) is accepted only from one of the task's assignees, recorded as that assignee's own decision, and never from the person who created the task (bc-aidp-next-golive#320). Checked on the server for every path that records a decision: the approval panel, the Tasks inbox and other apps' server code. False, the default, accepts every decision as before."
+      "Value": "true",
+      "Comments": "When true, a decision on an approval task (a task whose type has IsApproval set) is accepted only from one of the task's assignees, recorded as that assignee's own decision, and never from the person who created the task (bc-aidp-next-golive#320). Checked on the server for every path that records a decision: the approval panel, the Tasks inbox and other apps' server code. True is the default — the guard is on unless this is explicitly set to false, which accepts every decision unchecked."
     },
     "primaryKey": {
       "ID": "03CB418F-59E6-4838-9DA7-5646502D3D79"
