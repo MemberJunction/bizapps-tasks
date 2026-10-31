@@ -24,6 +24,11 @@ vi.mock('@memberjunction/core', () => {
 
 import { TaskService } from '../TaskService.js';
 
+// IDs that reach an ExtraFilter must be real UUIDs: anything else is refused before SQL text.
+const PARENT_ID = 'B0000000-0000-0000-0000-000000000001';
+const GRANDPARENT_ID = 'B0000000-0000-0000-0000-000000000002';
+const OBJECTIVE_ID = 'B0000000-0000-0000-0000-000000000003';
+
 /**
  * Builds a fake entity object that records Set() / Get() calls and also exposes
  * strongly-typed property access via a Proxy backed by Get/Set.
@@ -70,7 +75,7 @@ describe('TaskService.rollupParentProgress', () => {
     runViewMock.mockResolvedValueOnce({ Results: [] });
     const svc = new TaskService();
 
-    await svc.rollupParentProgress('parent-1');
+    await svc.rollupParentProgress(PARENT_ID);
 
     expect(getEntityObjectMock).not.toHaveBeenCalled();
   });
@@ -87,7 +92,7 @@ describe('TaskService.rollupParentProgress', () => {
     getEntityObjectMock.mockResolvedValueOnce(parent);
 
     const svc = new TaskService();
-    await svc.rollupParentProgress('parent-1');
+    await svc.rollupParentProgress(PARENT_ID);
 
     expect(parent.Set).toHaveBeenCalledWith('PercentComplete', 50);
     expect(parent.Save).toHaveBeenCalledOnce();
@@ -104,7 +109,7 @@ describe('TaskService.rollupParentProgress', () => {
     getEntityObjectMock.mockResolvedValueOnce(parent);
 
     const svc = new TaskService();
-    await svc.rollupParentProgress('parent-1');
+    await svc.rollupParentProgress(PARENT_ID);
 
     expect(parent.Set).toHaveBeenCalledWith('PercentComplete', 25);
   });
@@ -139,7 +144,7 @@ describe('TaskService.rollupParentProgress', () => {
     getEntityObjectMock.mockResolvedValueOnce(parent);
 
     const svc = new TaskService();
-    await svc.rollupParentProgress('objective-1');
+    await svc.rollupParentProgress(OBJECTIVE_ID);
 
     expect(parent.Set).toHaveBeenCalledWith('PercentComplete', 65);
     expect(parent.Set).toHaveBeenCalledWith('HealthStatus', 'AtRisk');
@@ -158,7 +163,7 @@ describe('TaskService.rollupParentProgress', () => {
     getEntityObjectMock.mockResolvedValueOnce(parent);
 
     const svc = new TaskService();
-    await svc.rollupParentProgress('parent-1');
+    await svc.rollupParentProgress(PARENT_ID);
 
     expect(parent.Set).toHaveBeenCalledWith('PercentComplete', 100);
     expect(parent.Set).toHaveBeenCalledWith('Status', 'Completed');
@@ -175,7 +180,7 @@ describe('TaskService.rollupParentProgress', () => {
     getEntityObjectMock.mockResolvedValueOnce(parent);
 
     const svc = new TaskService();
-    await svc.rollupParentProgress('parent-1');
+    await svc.rollupParentProgress(PARENT_ID);
 
     const statusCalls = parent.Set.mock.calls.filter((c: unknown[]) => c[0] === 'Status');
     expect(statusCalls).toHaveLength(0);
@@ -186,18 +191,25 @@ describe('TaskService.rollupParentProgress', () => {
       .mockResolvedValueOnce({ Results: [{ PercentComplete: 100, HoursEstimated: null, Status: 'Completed' }] })
       .mockResolvedValueOnce({ Results: [{ PercentComplete: 50, HoursEstimated: null, Status: 'InProgress' }] });
 
-    const parent = makeFakeEntity({ Status: 'InProgress', ParentID: 'grandparent-1' });
+    const parent = makeFakeEntity({ Status: 'InProgress', ParentID: GRANDPARENT_ID });
     const grandparent = makeFakeEntity({ Status: 'InProgress', ParentID: null });
     getEntityObjectMock
       .mockResolvedValueOnce(parent)
       .mockResolvedValueOnce(grandparent);
 
     const svc = new TaskService();
-    await svc.rollupParentProgress('parent-1');
+    await svc.rollupParentProgress(PARENT_ID);
 
     expect(parent.Save).toHaveBeenCalledOnce();
     expect(grandparent.Save).toHaveBeenCalledOnce();
     expect(grandparent.Set).toHaveBeenCalledWith('PercentComplete', 50);
+  });
+
+  it('refuses a parent ID that is not a UUID before it reaches a filter', async () => {
+    const svc = new TaskService();
+
+    await expect(svc.rollupParentProgress("x' OR 1=1 --")).rejects.toThrow(/is not a valid ID/);
+    expect(runViewMock).not.toHaveBeenCalled();
   });
 });
 

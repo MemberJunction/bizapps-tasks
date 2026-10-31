@@ -1,5 +1,6 @@
 import { BaseEntity, CompositeKey, Metadata, RunView, UserInfo } from "@memberjunction/core";
 import { TaskService } from "./TaskService.js";
+import { GuidLiteral } from "./sql-guards.js";
 
 /**
  * Service for managing task assignments.
@@ -75,12 +76,14 @@ export class TaskAssignmentService {
 
     /**
      * Returns all assignments for a given task.
+     *
+     * @throws when `taskID` is not a UUID — it reaches SQL text, so an invalid value fails loudly.
      */
     async getAssignmentsForTask(taskID: string): Promise<BaseEntity[]> {
         const rv = new RunView();
         const result = await rv.RunView<BaseEntity>({
             EntityName: 'MJ_BizApps_Tasks: Task Assignments',
-            ExtraFilter: `TaskID = '${taskID}'`,
+            ExtraFilter: `TaskID = ${GuidLiteral(taskID, 'TaskID')}`,
             ResultType: 'entity_object',
         });
         return result?.Results ?? [];

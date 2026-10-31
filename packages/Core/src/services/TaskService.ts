@@ -1,4 +1,5 @@
 import { CompositeKey, Metadata, RunView, UserInfo } from "@memberjunction/core";
+import { GuidLiteral } from "./sql-guards.js";
 import type {
     mjBizAppsTasksTaskActivityEntity,
     mjBizAppsTasksTaskEntity,
@@ -44,7 +45,7 @@ export class TaskService {
         const rv = new RunView();
         const children = await rv.RunView<TaskRollupChildRow>({
             EntityName: 'MJ_BizApps_Tasks: Tasks',
-            ExtraFilter: `ParentID = '${parentTaskID}'`,
+            ExtraFilter: `ParentID = ${GuidLiteral(parentTaskID, 'ParentTaskID')}`,
             ResultType: 'simple',
         }, contextUser);
 
