@@ -10,7 +10,7 @@
 
 ## How to review this plan
 
-- §3 holds the decisions, D1 to D19. Each one names the alternative it rejected. Comment on the
+- §3 holds the decisions, D1 to D20. Each one names the alternative it rejected. Comment on the
   decision you disagree with; everything after §3 follows from those decisions.
 - §15 lists the open questions, the places where a reviewer's answer changes what gets built.
 - [Appendix A](#appendix-a-how-this-plan-differs-from-the-original-spec) lists every way this plan
@@ -61,7 +61,7 @@ approvals see no change. **Billing, rates and invoicing stay out of Tasks.**
 
 | What ships in 1.11.0 | |
 |---|---|
-| **Data** | `TaskTimeEntry`, `TaskTimer`, `TaskAgentRun`, `Timesheet`, `TimesheetApproval` (one per part), `TaskTimeApprover`, `TimesheetSchedule`; effort columns on `vwTasks`; `TaskType.RequiresAssigneeDecision`; the Timesheet Approval task type |
+| **Data** | `TaskTimeEntry`, `TaskTimer`, `TaskAgentRun`, `Timesheet`, `TimesheetApproval` (one per part), `TimeApprover`, `TimesheetSchedule`, `TimesheetLink`, `TaskTimeEntryLink`; effort columns on `vwTasks`; `TaskType.RequiresAssigneeDecision`; the Timesheet Approval task type |
 | **Server** | Time entry rules, timer operations, agent-run linking, effort read; periods; finding each project's approvers; submit, withdraw and reopen; gathering part outcomes; locking |
 | **UI** | Timer, log-time dialog, effort section on the task, task form panel; My Time with week and period views, submit and status; project approvers on the task; part summary and approve-all by project in Approvals |
 | **Reporting** | Five queries: by person and day, by root task and day, effort mix by root task, by person and timesheet period, parts awaiting a decision |
@@ -92,7 +92,7 @@ approvals see no change. **Billing, rates and invoicing stay out of Tasks.**
 
 | Not in this plan | Where it goes |
 |---|---|
-| Rates, billing, invoicing, time & materials | A future professional-services app built on bizapps-orders, as a time-and-materials product type. Tasks keeps only what such an app would read: approved timesheets and `IsBillable`. |
+| Rates, billing, invoicing, time & materials | A future professional-services app built on bizapps-orders, as a time-and-materials product type. Tasks keeps only what such an app needs: approved timesheets, `IsBillable`, and polymorphic links so it can record which entries it billed (D20). |
 | Rollups by Collaboration space or client | A host's own reporting, or a Collaboration follow-up (§12.2). Tasks cannot see spaces (D17). |
 | Importing history from another time tracker | A host's own script (§12.3). The schema leaves room for it: `Source = 'Import'`, `SourceSystem`, `ExternalID`. |
 | Capacity, utilization targets, PTO, overtime | Not planned. |
@@ -320,22 +320,33 @@ would show up in every task list, kanban and Gantt.
 `guides/TASK_WORKFLOW_AND_LIFECYCLE_GUIDE.md` §5). A Collaboration space sits above that: it holds
 any number of root tasks, and its sub-spaces hold their own. Not every root task is a project.
 Standalone tasks, objectives and other apps' workflow tasks are root tasks too. That does not matter
-here: only tasks that name approvers do.
+here: only records that name approvers do.
 
-**Naming approvers.** `TaskTimeApprover (TaskID, PersonID)` names who approves time on a task and
-everything below it. It is usually set on a root task. Approvers are not task assignments, so naming
-someone fires no assignment notification or hook, and does not put the project in their My Tasks
-list.
+**Naming approvers.** `TimeApprover (ScopeEntityID, ScopeRecordID, PersonID)` names who approves
+time for a record. The record is a polymorphic pair (D20). It is usually a root task (a project), but
+it can be any record:
+- a task below the root, for a large sub-project;
+- a record an app above Tasks places tasks in, such as a Collaboration space or a client
+  organization;
+- a person, to name that person's own approver.
 
-**Finding the approvers for an entry.** Take the first source that yields anyone:
+Approvers are not task assignments. Naming someone fires no assignment notification or hook, and
+does not put the project in their My Tasks list.
 
-1. **The task chain.** Walk up from the entry's task to the first task that names approvers. A root
-   task covers its whole tree, and a large sub-project can name its own approvers.
-2. **Registered resolvers.** A `BaseTimeApproverResolver` extension point, registered through
-   ClassFactory and consulted in priority order. An app above Tasks plugs in here without Tasks
-   knowing it exists. For example, Collaboration could supply approvers named on a space for the
-   root tasks filed in it (§12.2).
-3. **The person's own approver.**
+**Finding the approvers for an entry.** Build the entry's **scope chain**, nearest first. Take the
+first scope that has `TimeApprover` rows once the submitter is removed:
+
+1. **The task chain:** the entry's task, its parent, and so on up to the root task. A root task
+   covers its whole tree, and a sub-project can name its own approvers.
+2. **Scopes from registered resolvers.** A `BaseTimeApproverResolver` extension point, registered
+   through ClassFactory and consulted in priority order, adds the records a root task sits in,
+   nearest first.
+   - An app above Tasks plugs in here without Tasks knowing it exists. For example, Collaboration
+     adds the space a root task is filed in, then that space's parent spaces (§12.2).
+   - Resolvers only say *where* a task sits. Approvers for those records are `TimeApprover` rows
+     like any others, so the app needs no approver table and no approver screen of its own.
+3. **The submitter's People record:** approvers named directly for this person.
+4. **The fallback approver.**
    - `TimesheetApproverRelationshipType` names a person-to-person Common relationship type. The
      approver is the `ToPersonID` of an active relationship whose `FromPersonID` is the submitter.
      Common ships no reporting type between people, so a host that wants managers to approve adds
@@ -345,9 +356,9 @@ list.
 The submitter is removed at every step; a step that is left with no one passes to the next. If an
 entry has no approver at all, the submit is refused, naming the task.
 
-**Parts.** Submitting groups the period's entries by the source that approves them, so each project
-is one part, and the person's own approver is one part. Each part gets a `TimesheetApproval` row and
-its own approval task.
+**Parts.** Submitting groups the period's entries by the scope record that approves them. Usually
+each project is one part, and the person's own approver is one part. Each part gets a
+`TimesheetApproval` row, keyed by that scope record, and its own approval task.
 
 - **The timesheet is approved only when every part is approved**, like the required checks on a pull
   request. Until then it is `Submitted`.
@@ -397,7 +408,7 @@ Two MJ authorizations sit under a new `Tasks` root:
 
 - **Manage Time Entries:** log, edit or delete other people's entries; discard their timers; link
   their agent runs.
-- **Manage Timesheets:** reopen an approved timesheet; name the approvers on a task; set a person's
+- **Manage Timesheets:** reopen an approved timesheet; name time approvers on any record; set a person's
   submission period.
 
 The pattern is bizapps-collaboration's (`metadata/authorizations`, `metadata/authorization-roles`,
@@ -447,6 +458,31 @@ detail panel.
 **An MJ PR** (§12.1) adds a `BaseShellHeaderItem` registry: every registration is rendered in the
 header's `.header-actions`. Tasks registers its chip once that ships.
 
+### D20. Other apps link in through polymorphic pairs
+
+Apps above Tasks, and records Tasks has never heard of, connect through `EntityID` + `RecordID`
+pairs. That is the pattern `TaskLink` and `TaskAssignment` already use. Every pair is declared with
+MJ's `EntityField.EntityIDFieldName` in `metadata/entities/.polymorphic-fk-entity-fields.json`, so
+MJ's forms, grids, cards and detail panels show the linked record's name as a link, and scope their
+record pickers, with no custom code (§5.10).
+
+| Pair | On | For |
+|---|---|---|
+| `EntityID` + `RecordID` | **`TimesheetLink`**, new | Any app links a timesheet to its own records: a payroll run, a grant's effort report, a contract. Many to many. |
+| `EntityID` + `RecordID` | **`TaskTimeEntryLink`**, new | Any app records that it used an entry, for example a future time-and-materials app linking an invoice line to the entries it billed. Many to many. |
+| `ScopeEntityID` + `ScopeRecordID` | **`TimeApprover`** | The record whose time a person approves: a task, a space, an organization, a person (D12). |
+| `ScopeEntityID` + `ScopeRecordID` | **`TimesheetApproval`** | The record a part of a timesheet covers. That record is what the approver sees, and how a resubmit matches parts across rounds. |
+
+**A linked entry is locked (R8).** An entry that another record links to cannot be changed or
+deleted until that link is removed. That is what lets an app that bills or pays from time trust the
+numbers without Tasks knowing what billing is. Links on a timesheet lock nothing; they only record a
+relationship. Q13 asks whether entry links should lock.
+
+**Time is still logged against tasks (D2).** A polymorphic *anchor* for entries was rejected. Every
+rule here walks the task tree: totals, the scope chain, the My Time grid. An entry anchored to an
+arbitrary record would need a second version of each. An app's record gets time through the tasks
+that are about it (`TaskLink`), the way Issues already does.
+
 ---
 
 ## 4. Architecture
@@ -470,7 +506,7 @@ flowchart TB
         TT["TaskTimer"]
         TAR["TaskAgentRun"]
         TS["Timesheet + TimesheetApproval parts"]
-        TTA["TaskTimeApprover, TimesheetSchedule"]
+        TTA["TimeApprover, TimesheetSchedule,<br/>TimesheetLink, TaskTimeEntryLink"]
         APP["Approval task + TaskLink + TaskDecision<br/>(existing machinery)"]
     end
     subgraph Above["Above Tasks (not in this plan)"]
@@ -504,7 +540,7 @@ flowchart TB
 |---|---|
 | `@mj-biz-apps/tasks-entities` (shared) | Generated entity classes for the new tables; generated Remote Operation classes (`src/generated/remote_operations.ts`). |
 | `@mj-biz-apps/tasks-core` (shared) | **Pure rules, unit-tested:** `SplitIntervalByBusinessDay`, `PeriodFor`, `TimeEntryRefusal`, `CountedAgentRuns`, `ResolveApprovers`, `GroupIntoParts`, `PartSnapshotHash`, `TimesheetStatusFromParts`. **Shared settings reader:** the keys and defaults move here, so browser and server read the same keys; `EntitiesServer` imports it from here (no re-export). **`TimeTrackingService`:** client-side verbs over entities and operations. |
-| `@mj-biz-apps/tasks-entities-server` | Server classes `TaskTimeEntryEntityServer`, `TaskTimerEntityServer`, `TaskAgentRunEntityServer`, `TimesheetEntityServer`, `TimesheetApprovalEntityServer`, `TaskTimeApproverEntityServer`, `TimesheetScheduleEntityServer`, and the `BaseTimeApproverResolver` extension point. `TaskEntityServer` gains the approval-outcome step (§6.5) and a delete refusal for tasks with time entries. `TaskDecisionEntityServer` reads `RequiresAssigneeDecision`. |
+| `@mj-biz-apps/tasks-entities-server` | Server classes `TaskTimeEntryEntityServer`, `TaskTimerEntityServer`, `TaskAgentRunEntityServer`, `TimesheetEntityServer`, `TimesheetApprovalEntityServer`, `TimeApproverEntityServer`, `TimesheetScheduleEntityServer`, `TimesheetLinkEntityServer`, `TaskTimeEntryLinkEntityServer`, and the `BaseTimeApproverResolver` extension point. `TaskEntityServer` gains the approval-outcome step (§6.5) and a delete refusal for tasks with time entries. `TaskDecisionEntityServer` reads `RequiresAssigneeDecision`. |
 | `@mj-biz-apps/tasks-server` | Remote Operation server classes and their `Load…` anchors; the timesheet reconcile sweep (a scheduled job beside `OverdueTaskNotificationJob`). |
 | `@mj-biz-apps/tasks-actions` | **Link Agent Run to Task.** |
 | `@mj-biz-apps/tasks-ng` | Timer UI; log-time dialog; effort section on the task; **My Time** page and section resource; time badges on cards; a Time panel on the Task entity form; period view and submit UI; time approvers on the task; an approval-subject extension point plus the timesheet part panel; approve-all by project in Approvals. |
@@ -528,14 +564,20 @@ erDiagram
     Timesheet ||--o{ TaskTimeEntry : "covers"
     Timesheet ||--|{ TimesheetApproval : "parts"
     TimesheetApproval |o--o| Task : "approval task"
-    TimesheetApproval }o--o| Task : "project it covers"
-    Task ||--o{ TaskTimeApprover : "names approvers"
-    Person ||--o{ TaskTimeApprover : "approves"
+    TimesheetApproval }o--o| AnyRecord : "covers (polymorphic scope)"
+    TimeApprover }o--o| AnyRecord : "approves time for (polymorphic scope)"
+    Person ||--o{ TimeApprover : "approves"
+    Timesheet ||--o{ TimesheetLink : "linked records"
+    TimesheetLink }o--o| AnyRecord : "polymorphic"
+    TaskTimeEntry ||--o{ TaskTimeEntryLink : "linked records"
+    TaskTimeEntryLink }o--o| AnyRecord : "polymorphic"
 ```
 
-**Naming.** The four tables that hang off a task follow Tasks' `Task*` prefix (`TaskTimeEntry`,
-`TaskTimer`, `TaskAgentRun`, `TaskTimeApprover`). A timesheet hangs off a person and a period, so it
-and its parts and schedule are `Timesheet`, `TimesheetApproval` and `TimesheetSchedule`. The entity
+**Naming.** Tables that hang off a task or an entry follow Tasks' `Task*` prefix (`TaskTimeEntry`,
+`TaskTimer`, `TaskAgentRun`, `TaskTimeEntryLink`). A timesheet hangs off a person and a period, so it
+and its parts, links and schedule are `Timesheet`, `TimesheetApproval`, `TimesheetLink` and
+`TimesheetSchedule`. `TimeApprover` can be scoped to any record, so it carries neither prefix.
+`AnyRecord` in the diagram stands for whatever entity a polymorphic pair names. The entity
 names follow, for example `MJ_BizApps_Tasks: Task Time Entries` and `… Timesheets`. Q7 invites other
 names.
 
@@ -701,8 +743,8 @@ CREATE TABLE ${flyway:defaultSchema}.Timesheet (
 CREATE TABLE ${flyway:defaultSchema}.TimesheetApproval (
     ID                       UNIQUEIDENTIFIER NOT NULL DEFAULT NEWSEQUENTIALID(),
     TimesheetID              UNIQUEIDENTIFIER NOT NULL,
-    ScopeKey                 NVARCHAR(200)    NOT NULL,
-    ScopeTaskID              UNIQUEIDENTIFIER NULL,
+    ScopeEntityID            UNIQUEIDENTIFIER NOT NULL,
+    ScopeRecordID            NVARCHAR(450)    NOT NULL,
     ScopeLabel               NVARCHAR(255)    NOT NULL,
     Status                   NVARCHAR(20)     NOT NULL DEFAULT 'Pending',
     ApprovalTaskID           UNIQUEIDENTIFIER NULL,
@@ -712,22 +754,52 @@ CREATE TABLE ${flyway:defaultSchema}.TimesheetApproval (
     DecidedAt                DATETIMEOFFSET   NULL,
     CONSTRAINT PK_TimesheetApproval PRIMARY KEY (ID),
     CONSTRAINT FK_TimesheetApproval_Timesheet    FOREIGN KEY (TimesheetID)    REFERENCES ${flyway:defaultSchema}.Timesheet(ID),
-    CONSTRAINT FK_TimesheetApproval_ScopeTask    FOREIGN KEY (ScopeTaskID)    REFERENCES ${flyway:defaultSchema}.Task(ID),
+    CONSTRAINT FK_TimesheetApproval_ScopeEntity  FOREIGN KEY (ScopeEntityID)  REFERENCES ${mjSchema}.Entity(ID),
     CONSTRAINT FK_TimesheetApproval_ApprovalTask FOREIGN KEY (ApprovalTaskID) REFERENCES ${flyway:defaultSchema}.Task(ID),
-    CONSTRAINT UQ_TimesheetApproval_Scope UNIQUE (TimesheetID, ScopeKey),
+    CONSTRAINT UQ_TimesheetApproval_Scope UNIQUE (TimesheetID, ScopeEntityID, ScopeRecordID),
     CONSTRAINT CK_TimesheetApproval_Status CHECK (Status IN ('Pending', 'Approved', 'Rejected', 'Cancelled'))
 );
 
--- Who approves time on a task and everything below it. Usually set on a root task.
-CREATE TABLE ${flyway:defaultSchema}.TaskTimeApprover (
-    ID        UNIQUEIDENTIFIER NOT NULL DEFAULT NEWSEQUENTIALID(),
-    TaskID    UNIQUEIDENTIFIER NOT NULL,
-    PersonID  UNIQUEIDENTIFIER NOT NULL,
-    CONSTRAINT PK_TaskTimeApprover PRIMARY KEY (ID),
-    CONSTRAINT FK_TaskTimeApprover_Task   FOREIGN KEY (TaskID)   REFERENCES ${flyway:defaultSchema}.Task(ID) ON DELETE CASCADE,
-    CONSTRAINT FK_TaskTimeApprover_Person FOREIGN KEY (PersonID) REFERENCES __mj_BizAppsCommon.Person(ID),
-    CONSTRAINT UQ_TaskTimeApprover UNIQUE (TaskID, PersonID)
+-- Who approves time for a record: usually a root task (a project), or any record a resolver
+-- places tasks in, or a person (that person's own approver). Polymorphic scope (D20).
+CREATE TABLE ${flyway:defaultSchema}.TimeApprover (
+    ID             UNIQUEIDENTIFIER NOT NULL DEFAULT NEWSEQUENTIALID(),
+    ScopeEntityID  UNIQUEIDENTIFIER NOT NULL,
+    ScopeRecordID  NVARCHAR(450)    NOT NULL,
+    PersonID       UNIQUEIDENTIFIER NOT NULL,
+    CONSTRAINT PK_TimeApprover PRIMARY KEY (ID),
+    CONSTRAINT FK_TimeApprover_ScopeEntity FOREIGN KEY (ScopeEntityID) REFERENCES ${mjSchema}.Entity(ID),
+    CONSTRAINT FK_TimeApprover_Person      FOREIGN KEY (PersonID)      REFERENCES __mj_BizAppsCommon.Person(ID),
+    CONSTRAINT UQ_TimeApprover UNIQUE (ScopeEntityID, ScopeRecordID, PersonID)
 );
+CREATE INDEX IX_TimeApprover_Scope ON ${flyway:defaultSchema}.TimeApprover (ScopeEntityID, ScopeRecordID);
+
+-- Any app links a timesheet to its own records (D20). Mirrors TaskLink.
+CREATE TABLE ${flyway:defaultSchema}.TimesheetLink (
+    ID           UNIQUEIDENTIFIER NOT NULL DEFAULT NEWSEQUENTIALID(),
+    TimesheetID  UNIQUEIDENTIFIER NOT NULL,
+    EntityID     UNIQUEIDENTIFIER NOT NULL,
+    RecordID     NVARCHAR(450)    NOT NULL,
+    Description  NVARCHAR(500)    NULL,
+    CONSTRAINT PK_TimesheetLink PRIMARY KEY (ID),
+    CONSTRAINT FK_TimesheetLink_Timesheet FOREIGN KEY (TimesheetID) REFERENCES ${flyway:defaultSchema}.Timesheet(ID),
+    CONSTRAINT FK_TimesheetLink_Entity    FOREIGN KEY (EntityID)    REFERENCES ${mjSchema}.Entity(ID),
+    CONSTRAINT UQ_TimesheetLink UNIQUE (TimesheetID, EntityID, RecordID)
+);
+
+-- Any app records that it used an entry, for example an invoice line that billed it (D20, R8).
+CREATE TABLE ${flyway:defaultSchema}.TaskTimeEntryLink (
+    ID               UNIQUEIDENTIFIER NOT NULL DEFAULT NEWSEQUENTIALID(),
+    TaskTimeEntryID  UNIQUEIDENTIFIER NOT NULL,
+    EntityID         UNIQUEIDENTIFIER NOT NULL,
+    RecordID         NVARCHAR(450)    NOT NULL,
+    Description      NVARCHAR(500)    NULL,
+    CONSTRAINT PK_TaskTimeEntryLink PRIMARY KEY (ID),
+    CONSTRAINT FK_TaskTimeEntryLink_Entry  FOREIGN KEY (TaskTimeEntryID) REFERENCES ${flyway:defaultSchema}.TaskTimeEntry(ID),
+    CONSTRAINT FK_TaskTimeEntryLink_Entity FOREIGN KEY (EntityID)        REFERENCES ${mjSchema}.Entity(ID),
+    CONSTRAINT UQ_TaskTimeEntryLink UNIQUE (TaskTimeEntryID, EntityID, RecordID)
+);
+CREATE INDEX IX_TaskTimeEntryLink_Record ON ${flyway:defaultSchema}.TaskTimeEntryLink (EntityID, RecordID);
 
 -- A person's own submission period, overriding the host default (D11).
 CREATE TABLE ${flyway:defaultSchema}.TimesheetSchedule (
@@ -766,11 +838,11 @@ ALTER TABLE ${flyway:defaultSchema}.TaskType ADD
 
 **`TimesheetApproval`**
 
-- **`ScopeKey`** identifies the part, so a resubmit can match it to the previous round:
-  `task:<id>` for a task that names approvers, `resolver:<name>:<key>` for an extension, `person`
-  for the person's own approver.
-- **`ScopeTaskID`** and **`ScopeLabel`** are what the approver and the person see, for example the
-  project's name.
+- **`ScopeEntityID` + `ScopeRecordID`** is the record the part covers: the task that names its
+  approvers, a record a resolver supplied, or the submitter's People record for the person's own
+  approver. A resubmit matches parts across rounds by it.
+- **`ScopeLabel`** is that record's name when submitted, used in the approval task's name and in My
+  Time. MJ's own polymorphic link rendering shows the live record (§5.10).
 - **`ApprovalTaskID`** is the part's current approval task. Approval tasks from earlier rounds stay
   findable through their `TaskLink` to the part.
 - **`EntrySnapshotHash`** is a hash of the part's entries (IDs, tasks, days, minutes and billable
@@ -806,7 +878,7 @@ These go in two new metadata folders, `metadata/authorizations` and
 |---|---|---|
 | `Tasks` | (root) | Nothing on its own. |
 | `Manage Time Entries` | `Tasks` | Log, edit or delete anyone's entries; discard anyone's timer; link or unlink anyone's agent runs. Locked weeks still need a reopen (D14). |
-| `Manage Timesheets` | `Tasks` | Reopen an approved timesheet, with a reason; name the time approvers on any task; set any person's submission period. |
+| `Manage Timesheets` | `Tasks` | Reopen an approved timesheet, with a reason; name time approvers on any record; set any person's submission period. |
 
 ### 5.9 Metadata shipped
 
@@ -819,10 +891,30 @@ These go in two new metadata folders, `metadata/authorizations` and
 | `remote-operations` (new) | `Tasks.StartTimer`, `Tasks.StopTimer`, `Tasks.GetTaskEffort`, `Tasks.SubmitTimesheet`, `Tasks.WithdrawTimesheet`, `Tasks.ReopenTimesheet`, with their input and output types under `types/`. |
 | `actions` | Link Agent Run to Task. |
 | `queries` (new) | Five queries (§9). |
-| `entities` | Record-change tracking on for Task Time Entries, Timesheets, Timesheet Approvals, Task Time Approvers and Timesheet Schedules; off for Task Timers. |
+| `entities` | Record-change tracking on for Task Time Entries, Timesheets, Timesheet Approvals, Time Approvers, Timesheet Schedules, Timesheet Links and Task Time Entry Links; off for Task Timers. `EntityIDFieldName` declarations for the four polymorphic pairs, in `.polymorphic-fk-entity-fields.json` (§5.10). |
 
 **Shipping.** Feature PRs carry metadata as JSON only. The release's consolidated `Metadata_Sync`
 migration carries it to hosts. That is this repo's release model.
+
+### 5.10 Polymorphic pairs
+
+Each pair below gets an `EntityIDFieldName` declaration in
+`metadata/entities/.polymorphic-fk-entity-fields.json`, in the same file and shape as today's
+`TaskAssignment` and `TaskLink` entries. CodeGen creates both field rows, so each declaration's
+`primaryKey` is an `@lookup` to the existing field, with no `sync` block (MJ's `metadata/CLAUDE.md`).
+
+| Entity | Record ID field | `EntityIDFieldName` |
+|---|---|---|
+| `MJ_BizApps_Tasks: Time Approvers` | `ScopeRecordID` | `ScopeEntityID` |
+| `MJ_BizApps_Tasks: Timesheet Approvals` | `ScopeRecordID` | `ScopeEntityID` |
+| `MJ_BizApps_Tasks: Timesheet Links` | `RecordID` | `EntityID` |
+| `MJ_BizApps_Tasks: Task Time Entry Links` | `RecordID` | `EntityID` |
+
+- **The convention.** `RecordID` is `NVARCHAR(450)`, as on `TaskLink`, so it can hold MJ's
+  composite-key strings as well as GUIDs.
+- **Integrity.** The entity half is a real foreign key to `__mj.Entity`. The record half cannot be.
+  The server classes check that the record exists when a row is created. A row whose record is later
+  deleted is harmless (it never matches) and shows as a broken link (§16).
 
 ---
 
@@ -843,6 +935,7 @@ the pure function `TimeEntryRefusal(facts)` in `tasks-core`, unit-tested on its 
 | R5 | `WorkDate` may not be more than one day after today in the business time zone. | Create, update | "Time can't be logged for a future day." |
 | R6 | The old and new `WorkDate` must not fall in a `Submitted` or `Approved` timesheet for the person (D14). | Create, update, delete | "The period {start} to {end} is {status}. Reopen it to change its time." |
 | R7 | `TimesheetID` follows `WorkDate`. It is the person's timesheet whose period contains the date, if one exists, otherwise `NULL`. | Create, update | (Derived.) |
+| R8 | An entry that a `TaskTimeEntryLink` points at cannot be changed or deleted (D20). | Update, delete | "This entry is used by {record}. Remove that link to change it." |
 
 Deleting a `Task` that has time entries is refused by `TaskEntityServer` with a message that gives
 the count. The foreign key would refuse it anyway, with a worse message. Entries are records of work,
@@ -984,7 +1077,7 @@ function `TimesheetStatusFromParts`:
 3. In one transaction:
    1. Insert or update the `Timesheet` with the snapshot totals.
    2. Stamp `TimesheetID` on every entry of the person in the period.
-   3. For each part, insert or update its `TimesheetApproval` row by `ScopeKey`:
+   3. For each part, insert or update its `TimesheetApproval` row by its scope record:
       - **Keep** an `Approved` part whose `EntrySnapshotHash` is unchanged, unless
         `TimesheetResubmitReapprovesAll` is on.
       - **Otherwise** create its approval task with `CreateApprovalRequest`:
@@ -1036,24 +1129,32 @@ change keep their approval; changed parts are approved again.
 
 ### 6.6 Finding an entry's approvers: `ResolveApprovers(facts)`, a pure function
 
-The server gathers the facts in one batch per submit: the period's tasks and their ancestors, the
-`TaskTimeApprover` rows on them, and the fallback relationships and role holders. The function then
-decides without any database access, in order:
+The server gathers the facts in one batch per submit:
+- the period's tasks and their ancestors;
+- the scope records each registered `BaseTimeApproverResolver` returns for those root tasks;
+- the `TimeApprover` rows for every scope record;
+- the fallback relationships and role holders.
 
-1. **The task chain.** Walk from the entry's task up through `ParentID` to the first task with
-   `TaskTimeApprover` rows. Remove the submitter. If anyone is left, the part is
-   `task:<that task's ID>`, labelled with that task's name.
-2. **Registered resolvers.** Each `BaseTimeApproverResolver` registration, in priority order, is
-   given the entry's root task and the submitter, and may return a scope key, a label and approvers.
-   The resolvers run on the server before the pure step, and their answers are part of its facts.
-   Remove the submitter. The first that leaves anyone wins; the part is
-   `resolver:<name>:<key>`.
-3. **The person's own approver.** Relationships of type `TimesheetApproverRelationshipType` whose
-   `FromPersonID` is the submitter and that are active by their dates give the `ToPersonID`s.
-   Failing that, the People bound to users holding `TimesheetApproverRole`. Remove the submitter.
-   The part is `person`, labelled "{person}'s approver".
-4. **Nobody.** Refuse the submit: "No approver for time on {task}. Name approvers on its project, or
-   set TimesheetApproverRelationshipType or TimesheetApproverRole for the Tasks app."
+The function then decides without any database access. For each entry, its scope chain is, nearest
+first:
+
+1. the task chain, from the entry's task up to its root;
+2. each resolver's records for that root, in resolver priority order and nearest first within each;
+3. the submitter's People record.
+
+The part is the **first scope record in the chain with any `TimeApprover` left after removing the
+submitter**. The part's scope pair is that record, and its label is the record's name.
+
+If no scope qualifies, the **fallback** applies:
+- relationships of type `TimesheetApproverRelationshipType` whose `FromPersonID` is the submitter and
+  that are active by their dates give the `ToPersonID`s;
+- failing that, the People bound to users holding `TimesheetApproverRole`.
+
+Remove the submitter. The part's scope is the submitter's People record, labelled
+"{person}'s approver".
+
+If still nobody, refuse the submit: "No approver for time on {task}. Name approvers on its project,
+or set TimesheetApproverRelationshipType or TimesheetApproverRole for the Tasks app."
 
 Any one of a part's approvers may decide its approval task.
 
@@ -1089,7 +1190,8 @@ The browser saves these directly; the server classes enforce the rules.
 | Task Time Entries | My Time grid, log-time dialog, imports | R1–R7 |
 | Task Timers | Discard only. Start and stop go through the operations. | R2 |
 | Task Agent Runs | Link dialog, the action | A1–A3 |
-| Task Time Approvers | Time approvers on the task | Holders of Manage Timesheets only. |
+| Time Approvers | The time approvers component, on a task, a person, or any record an app shows it on | Holders of Manage Timesheets only. |
+| Timesheet Links, Task Time Entry Links | Apps above Tasks, from their own server code | The entry's or timesheet's person, or a holder of Manage Time Entries. The linked record must exist. |
 | Timesheet Schedules | A person's settings; an administrator's people screen | Holders of Manage Timesheets, or the person themselves when `TimesheetSchedulesSelfService` is on. A change takes effect from the next unsubmitted period (D11). |
 
 Timesheets and their parts are never written directly; only the operations above write them.
@@ -1218,9 +1320,16 @@ Forms and Accounting can register panels for their own approval subjects the sam
 project), with **Approve all** for a group. Approve all records one decision per approval task, so
 each decision still passes D13's assignee rule.
 
-**Naming approvers on a project.** A **Time approvers** control on the task's detail panel and its
-entity form lists the task's `TaskTimeApprover` rows. Holders of Manage Timesheets can edit them. On
-a subtask with none of its own, it shows the inherited approvers and which task they come from.
+**Naming approvers.** The **Time approvers** component takes an entity and a record ID, so it
+works for any scope record.
+- Tasks shows it on the task's detail panel and entity form, and on a person.
+- An app shows it on its own records; Collaboration would show it on a space.
+- Holders of Manage Timesheets can edit it.
+- On a task with no approvers of its own, it shows the approvers that would apply, and the record
+  they come from.
+
+**Linked records.** An entry's and a timesheet's links appear through MJ's standard rendering of
+polymorphic pairs (§5.10), as links to the records. A locked entry (R8) says which record uses it.
 
 ### 8.6 The Task entity form
 
@@ -1241,7 +1350,7 @@ on SQL Server and PostgreSQL. Per-task figures need no query; they are the `vwTa
 | 2 | `Tasks: Logged Time by Root Task and Day` | `StartDate`, `EndDate`, `RootTaskID?` | root task, day | `RootTaskID`, `RootTask`, `WorkDate`, `Minutes`, `BillableMinutes`, `PeopleCount` |
 | 3 | `Tasks: Effort Mix by Root Task` | `StartDate`, `EndDate` | root task | `RootTaskID`, `RootTask`, `HumanMinutes`, `BillableMinutes`, `AgentRunCount`, `AgentCost`, `AgentTokens` (from `vwTaskRootAgentEffort`, §5.5) |
 | 4 | `Tasks: Logged Time by Person and Timesheet Period` | `StartDate`, `EndDate` | person, period | `PersonID`, `Person`, `PeriodType`, `PeriodStart`, `PeriodEnd`, `Status`, `Minutes`, `BillableMinutes` |
-| 5 | `Tasks: Timesheet Parts Awaiting Decision` | `ProjectTaskID?` | part | `TimesheetID`, `Person`, `PeriodStart`, `PeriodEnd`, `ScopeLabel`, `Minutes`, `Approvers`, `SubmittedAt` |
+| 5 | `Tasks: Timesheet Parts Awaiting Decision` | `ScopeEntityID?`, `ScopeRecordID?` | part | `TimesheetID`, `Person`, `PeriodStart`, `PeriodEnd`, `ScopeLabel`, `Minutes`, `Approvers`, `SubmittedAt` |
 
 - **"By week"** is query 4 for people on a weekly period: a person's timesheet period *is* their
   reporting period, whatever its type. Query 1's days can also be rolled up to calendar weeks in the
@@ -1267,7 +1376,8 @@ on SQL Server and PostgreSQL. Per-task figures need no query; they are the `vwTa
 | Approve or reject a part | ❌ | ❌ | ❌ | ✅ (assignee, D13) | ❌ |
 | See a part's entries in Approvals | n/a | ❌ | ❌ | ✅ (that part only) | ❌ |
 | Reopen an approved timesheet | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Name time approvers on a task | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Name time approvers on any record | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Link a record to their own entry or timesheet | ✅ | ❌ | ✅ | ❌ | ❌ |
 | Set a person's submission period | ✅ (own, if self-service is on) | ❌ | ❌ | ❌ | ✅ |
 
 - **Entity permissions.** The new entities get CodeGen's standard grants for the UI, Developer and
@@ -1304,11 +1414,11 @@ bundle-registration test.
 
 | File | Checks |
 |---|---|
-| `time-entries.checks.ts` | Create, edit and delete own entries. Another user is refused. A Manage Time Entries holder succeeds. Duration derived from an interval. Future day refused. A task with entries refuses delete with the count. |
+| `time-entries.checks.ts` | Create, edit and delete own entries. Another user is refused. A Manage Time Entries holder succeeds. Duration derived from an interval. Future day refused. A task with entries refuses delete with the count. A linked entry refuses edit and delete until the link is removed (R8). |
 | `timers.checks.ts` | Start, then stop, makes entries. Starting a second timer stops the first in one transaction. A cross-midnight timer splits by business day. Discard. Refused while the setting is off. |
 | `agent-effort.checks.ts` | Seed a parent run and two child runs. Link a child, then the parent: the child's link is replaced. Totals on `vwTasks` and `GetTaskEffort` match hand-computed values, including a run linked to two tasks in one tree. |
 | `time-reporting.checks.ts` | Each query returns the expected totals against seeded entries and runs (spec criterion). |
-| `timesheets.checks.ts` | A period spanning two projects and unassigned time submits as three parts, each with its own approval task, link and assignees. The timesheet stays `Submitted` until the last part is approved, then turns `Approved`. One rejected part returns the timesheet and cancels the other pending parts. A resubmit keeps an unchanged approved part and re-requests a changed one; with `TimesheetResubmitReapprovesAll` on, it re-requests all. Withdraw and reopen. The lock refuses edits in all paths. A self-decision is refused. An entry with no approver anywhere refuses the submit. Each period type submits the right dates, including a transition and an open-ended period. The sweep repairs a stale `Pending` part. |
+| `timesheets.checks.ts` | A period spanning two projects and unassigned time submits as three parts, each with its own approval task, link and assignees. The timesheet stays `Submitted` until the last part is approved, then turns `Approved`. One rejected part returns the timesheet and cancels the other pending parts. A resubmit keeps an unchanged approved part and re-requests a changed one; with `TimesheetResubmitReapprovesAll` on, it re-requests all. Withdraw and reopen. The lock refuses edits in all paths. A self-decision is refused. An entry with no approver anywhere refuses the submit. Each period type submits the right dates, including a transition and an open-ended period. The sweep repairs a stale `Pending` part. Approvers named on a resolver-supplied record and on the submitter's People record are found in chain order, and each part's scope pair is that record. |
 
 ### UI verification
 
@@ -1339,9 +1449,10 @@ changeset.
   outside members see no time, which is the safe default (§10).
 - Optionally, an **Effort** card on a space's Overview, summing `Tasks.GetTaskEffort` over the
   space's root tasks.
-- Optionally, **time approvers on a space**: a `BaseTimeApproverResolver` that answers for root
-  tasks filed in a space, walking up through parent spaces. Then a space's root tasks, and its
-  sub-spaces' root tasks, need no approvers of their own (D12).
+- Optionally, **time approvers on a space**: a `BaseTimeApproverResolver` that adds the space a root
+  task is filed in, then its parent spaces, to the scope chain. Approvers named on a space, stored as
+  `TimeApprover` rows, then cover every root task in that space and its sub-spaces. Collaboration
+  needs no approver table, and shows Tasks' Time approvers component on its space settings (D12).
 
 ### 12.3 Host-specific work (later)
 
@@ -1366,9 +1477,9 @@ commits in one PR, as reviewers prefer. Each slice builds and passes its own che
 
 | Slice | Contents | Done when |
 |---|---|---|
-| **A: Schema and metadata** | One migration: the seven tables, the `TaskTimeEntry` and `TaskType` columns, the indexes, the `vwTasks` rebuild and `vwTaskRootAgentEffort`, with CodeGen output appended below the DDL, and the PostgreSQL counterpart in `migrations-pg/` from the converter. `mj.config.cjs` gains the `RemoteOperations` output. Metadata JSON for the settings, authorizations, task type, the six Remote Operations and their types, the action, the nav item and the entity settings. Common floor raised to 5.43.0. | **Built from zero:** MJ core 6.1.6, then Common, then Tasks, then `mj sync push`, then CodeGen, gives a clean diff. **Two checks recorded in the PR:** (1) `vwAIAgentRuns.ParentRunIDPath` exists at 6.1.6; (2) a nested-run fixture shows whether a parent's `TotalCost` includes its children (D7). If either fails, the plan's fallback applies and is noted in the PR. |
-| **B: Server** | The shared settings reader in `tasks-core`. The pure rules and their unit tests. The seven server classes and the `BaseTimeApproverResolver` extension point. In `TaskEntityServer`, the delete refusal and the approval-outcome step. `TaskDecisionEntityServer` honouring `RequiresAssigneeDecision`. The six Remote Operations. The sweep. The Link Agent Run to Task action. All five integration check files. | `pnpm run build`, `pnpm test` and `pnpm run test:integration` pass, with counts reported. |
-| **C: UI** | Timer, log-time dialog, effort section, link dialog, card badges and the page-header chip. My Time with week and period views, submit, withdraw and status. Time approvers on the task. A person's schedule. The approval-subject extension point, the part panel and approve-all by project. The Task form panel. | Playwright run with screenshots, in light and dark mode. |
+| **A: Schema and metadata** | One migration: the nine tables, the `TaskTimeEntry` and `TaskType` columns, the indexes, the `vwTasks` rebuild and `vwTaskRootAgentEffort`, with CodeGen output appended below the DDL, and the PostgreSQL counterpart in `migrations-pg/` from the converter. `mj.config.cjs` gains the `RemoteOperations` output. Metadata JSON for the settings, authorizations, task type, the six Remote Operations and their types, the action, the nav item, the entity settings and the four polymorphic declarations. Common floor raised to 5.43.0. | **Built from zero:** MJ core 6.1.6, then Common, then Tasks, then `mj sync push`, then CodeGen, gives a clean diff. **Two checks recorded in the PR:** (1) `vwAIAgentRuns.ParentRunIDPath` exists at 6.1.6; (2) a nested-run fixture shows whether a parent's `TotalCost` includes its children (D7). If either fails, the plan's fallback applies and is noted in the PR. |
+| **B: Server** | The shared settings reader in `tasks-core`. The pure rules and their unit tests. The nine server classes and the `BaseTimeApproverResolver` extension point. In `TaskEntityServer`, the delete refusal and the approval-outcome step. `TaskDecisionEntityServer` honouring `RequiresAssigneeDecision`. The six Remote Operations. The sweep. The Link Agent Run to Task action. All five integration check files. | `pnpm run build`, `pnpm test` and `pnpm run test:integration` pass, with counts reported. |
+| **C: UI** | Timer, log-time dialog, effort section, link dialog, card badges and the page-header chip. My Time with week and period views, submit, withdraw and status. The Time approvers component, on tasks and people. Linked records on entries and timesheets. A person's schedule. The approval-subject extension point, the part panel and approve-all by project. The Task form panel. | Playwright run with screenshots, in light and dark mode. |
 | **D: Reporting and docs** | The five queries. `guides/TIME_TRACKING_GUIDE.md` for users and hosts. The README and the backlog line in `BIZAPPS_TASKS_PLAN.md`. This plan moves to `plans/completed/` when the work merges. | `time-reporting.checks.ts` passes. |
 
 **Development order for the schema:**
@@ -1431,6 +1542,7 @@ commits in one PR, as reviewers prefer. Each slice builds and passes its own che
 | Q10 | On a resubmit, does an approved part whose entries did not change keep its approval? | Yes by default, so one project's correction does not make every other project approve again. `TimesheetResubmitReapprovesAll` turns that off for hosts that want every part approved again. |
 | Q11 | Who may name a project's time approvers? | Holders of Manage Timesheets. A host that wants project leads to name their own grants them that authorization. |
 | Q12 | May people choose their own period type? | Off by default (`TimesheetSchedulesSelfService`); the host decides. |
+| Q13 | Does a link from another record lock the entry (R8)? | Yes, so an app that bills or pays from time can trust it. Timesheet links lock nothing. |
 
 ---
 
@@ -1450,6 +1562,7 @@ commits in one PR, as reviewers prefer. Each slice builds and passes its own che
 | Record-change volume on time entries. | Tracking is on for entries, which are evidence for approvals, and off for timers. Entries are written by people, not synced in bulk by a machine. |
 | MJ deletes old agent runs. | Links cascade away, and those runs' cost leaves history. This is documented in the guide. |
 | Two writers to the approval task (the decision panel and the sweep). | The outcome step is idempotent and keyed on `ApprovalTaskID`. |
+| A polymorphic row outlives its record (a deleted space still named in `TimeApprover`, a deleted invoice line still linked). | The entity half is a real foreign key; the record is checked on create. An orphan never matches a scope chain, and MJ shows it as a broken link. A stale entry link keeps its entry locked (R8) until someone with Manage Time Entries removes it. |
 
 ---
 
@@ -1470,6 +1583,7 @@ commits in one PR, as reviewers prefer. Each slice builds and passes its own che
 | Approval and lock out of scope for v1 | In scope, through Tasks' own approval machinery: a configurable period per host or person, one approval per project, and the timesheet approved only when every part is | D10–D14. |
 | "Stored queries or base views" | MJ Queries plus effort columns on `vwTasks` | §9, §5.5. |
 | "Only the owner or an admin can edit, using MJ's permission model" | The owner rule plus a Manage Time Entries authorization, enforced in the server class | MJ entity permissions cannot express "own rows only" (§10). |
+| (Not in the spec) | Polymorphic pairs on approvers, parts, timesheet links and entry links, declared with `EntityIDFieldName` | Other apps link in without Tasks knowing them (D20). |
 
 ---
 
