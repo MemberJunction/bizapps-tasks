@@ -23,6 +23,8 @@ import { InitTaskNotificationHandler } from './event-handlers/TaskNotificationHa
 // Import scheduled job drivers (registers via @RegisterClass for scheduling engine discovery)
 import './scheduled-jobs/OverdueTaskNotificationJob.js';
 export { OverdueTaskNotificationJob } from './scheduled-jobs/OverdueTaskNotificationJob.js';
+import './scheduled-jobs/MeetingSeriesMaterializationJob.js';
+export { MeetingSeriesMaterializationJob } from './scheduled-jobs/MeetingSeriesMaterializationJob.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 

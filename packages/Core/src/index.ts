@@ -2,3 +2,8 @@ export * from './services/TaskService.js';
 export * from './services/TaskAssignmentService.js';
 export * from './services/TaskTemplateService.js';
 export * from './services/TaskOrchestrationService.js';
+export * from './services/MeetingService.js';
+export * from './services/MeetingSeriesService.js';
+export * from './services/MeetingAgendaService.js';
+export * from './services/MeetingCalendarFile.js';
+export * from './meetings/index.js';

@@ -23,6 +23,7 @@ const ALL_BUNDLES = [
     'task-assignments',
     'task-decisions',
     'task-templates',
+    'meetings',
 ];
 
 const args = process.argv.slice(2);

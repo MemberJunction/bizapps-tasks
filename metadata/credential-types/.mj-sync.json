@@ -8,6 +8,6 @@
     "updateExistingRecords": true,
     "ignoreNullFields": true,
     "ignoreVirtualFields": true,
-    "filter": "Name = 'Teams Channel Webhook'"
+    "filter": "Name IN ('Teams Channel Webhook', 'Video Provider OAuth')"
   }
 }

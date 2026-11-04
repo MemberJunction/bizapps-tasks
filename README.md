@@ -77,7 +77,7 @@ For detailed deep-dives on **Task Types**, **Dynamic Task Type Statuses (`TaskTy
 
 ## What You Get
 
-### 16 Database Tables
+### 26 Database Tables
 
 All tables live in the `__mj_BizAppsTasks` SQL schema, deployed via migrations.
 
@@ -89,16 +89,17 @@ All tables live in the `__mj_BizAppsTasks` SQL schema, deployed via migrations.
 | **Collaboration** | TaskComment, TaskActivity | Threaded discussion and automatic server-authoritative audit log |
 | **Structure** | TaskDependency, TaskTag, TaskTagLink | Dependency graphs, critical paths, and cross-cutting labels |
 | **Templates** | TaskTemplate, TaskTemplateItem, TaskTemplateItemDependency, TaskTemplateItemRole | Reusable task structures for recurring workflows |
+| **Meetings** | Meeting, MeetingSeries, MeetingSeriesAttendee, MeetingAttendee, MeetingAgendaItem, MeetingAgendaItemType, MeetingNote, MeetingLink, MeetingType, VideoProvider | Meetings and agendas as a first-class app: one-off and recurring meetings, who is invited and whether they came, nested agendas with typed items, notes, what a meeting belongs to, and the video providers that host it. Follow-ups are tasks of the `ACTION_ITEM` type linked through `TaskLink`; a transcript is an MJ file; calendar events are MemberJunction's |
 
 ### 6 TypeScript Packages
 
 | Package | NPM Name | Role |
 |---------|----------|------|
 | **Entities** | `@mj-biz-apps/tasks-entities` | Strongly-typed entity classes with Zod validation, custom subclasses for status transitions and cycle detection |
-| **Entities Server** | `@mj-biz-apps/tasks-entities-server` | Authoritative server subclasses (`TaskEntityServer`), dynamic status sync, terminal completion, and action hook dispatching |
+| **Entities Server** | `@mj-biz-apps/tasks-entities-server` | Authoritative server subclasses (`TaskEntityServer`, the `Meeting*EntityServer`s), dynamic status sync, terminal completion, action hook dispatching, and the meetings' rules: times and zone, the status moving forward, the organizer's attendee row, a series' occurrences, the video driver after the commit |
 | **Actions** | `@mj-biz-apps/tasks-actions` | Server-side action handlers and subclasses |
-| **Core** | `@mj-biz-apps/tasks-core` | TaskService, TaskAssignmentService, TaskTemplateService, TaskOrchestrationService |
-| **Server** | `@mj-biz-apps/tasks-server` | GraphQL resolvers, notification handlers, scheduled jobs, and server bootstrap |
+| **Core** | `@mj-biz-apps/tasks-core` | TaskService, TaskAssignmentService, TaskTemplateService, TaskOrchestrationService; MeetingService, MeetingSeriesService, MeetingAgendaService, MeetingCalendarFile, and the pure meetings rules (status moves, recurrence in a zone, agenda trees, the `.ics` file) |
+| **Server** | `@mj-biz-apps/tasks-server` | GraphQL resolvers, notification handlers, scheduled jobs (overdue tasks, meeting series materialization), and server bootstrap |
 | **Angular** | `@mj-biz-apps/tasks-ng` | UI components, generated forms, Kanban, Gantt, and Dashboard |
 
 ### 10 Reusable Angular Components + Full Dashboard App
@@ -262,6 +263,9 @@ Deployed via migrations. Fully customizable per deployment.
 |------------|-----------------|
 | **TaskType** | General, Action Item, Follow-up, Deliverable |
 | **TaskRole** | Primary, Reviewer, Observer |
+| **MeetingType** | General, One-on-one, Team, Client, Review, each with a default length and an agenda template (metadata, `metadata/meeting-types`) |
+| **MeetingAgendaItemType** | Information, Discussion, Decision, Report, Presentation, Action review, Break (metadata) |
+| **VideoProvider** | Zoom, Microsoft Teams, Google Meet, shipped inactive until a host gives each a credential of the *Video Provider OAuth* type and turns it on (metadata) |
 
 ---
 

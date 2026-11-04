@@ -21,6 +21,10 @@ import { LoadTasksSectionResources } from './lib/sections/tasks-sections.compone
 // Form contributions (header + sub-task gantt/kanban)
 import './lib/form-panels/task-forms.module.js';
 
+// Meetings: the app's section resources and the meeting form's panels
+import './lib/sections/meetings-sections.component.js';
+import './lib/form-panels/meeting-forms.module.js';
+
 // Import the class registrations manifest (static code path the bundler can't
 // tree-shake — anchors every @RegisterClass class from tasks-entities).
 import { CLASS_REGISTRATIONS } from './lib/generated/class-registrations-manifest.js';
@@ -61,3 +65,14 @@ export * from './lib/pages/my-tasks.page.js';
 export * from './lib/pages/approvals.page.js';
 export * from './lib/pages/templates.page.js';
 export * from './lib/sections/tasks-sections.component.js';
+
+// Meetings (the meetings plan, § 5)
+export * from './lib/meetings/meeting-data.js';
+export * from './lib/pages/meetings-shared.js';
+export * from './lib/pages/my-meetings.page.js';
+export * from './lib/pages/meetings.page.js';
+export * from './lib/pages/meeting-series.page.js';
+export * from './lib/sections/meetings-sections.component.js';
+export * from './lib/form-panels/meeting-hero.panel.js';
+export * from './lib/form-panels/meeting-sections.panels.js';
+export * from './lib/form-panels/meeting-forms.module.js';

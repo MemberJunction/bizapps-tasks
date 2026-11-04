@@ -1,0 +1,20 @@
+[
+  {
+    "_comments": [
+      "The job type that extends each active meeting series' occurrences up to the horizon (the meetings plan, § 3). Its driver, ScheduledJobMeetingSeriesMaterialization, registers from @mj-biz-apps/tasks-server. Optional Configuration: { \"HorizonDays\": <number> }, default 90."
+    ],
+    "fields": {
+      "Name": "Meeting Series Materialization",
+      "Description": "Extends each active meeting series' occurrences up to the horizon: a slot with no meeting gets one, an untouched future meeting takes the series' current values, and a series whose rule has run out is marked Ended. Optional Configuration: { \"HorizonDays\": <number> }, default 90.",
+      "DriverClass": "ScheduledJobMeetingSeriesMaterialization",
+      "NotificationsAvailable": true
+    },
+    "primaryKey": {
+      "ID": "28024F60-CF1D-4168-900E-852D83E28E7B"
+    },
+    "sync": {
+      "lastModified": "2026-10-19T21:11:22.587Z",
+      "checksum": "a3cb2c1c430d4372cd6d26609d150e16bbbaec12214c1476cf449decab3f34d1"
+    }
+  }
+]

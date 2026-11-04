@@ -1,0 +1,62 @@
+[
+  {
+    "fields": {
+      "Name": "Zoom",
+      "Code": "ZOOM",
+      "DriverClass": "ZoomVideoProvider",
+      "Description": "Zoom, through a Server-to-Server OAuth app. Creates and deletes the meeting, registers attendees, and fetches the transcript of a recorded meeting.",
+      "IconClass": "fa-solid fa-video",
+      "SupportsTranscripts": true,
+      "IsDefault": false,
+      "IsActive": false
+    },
+    "primaryKey": {
+      "ID": "7CF590BE-5C5D-4873-A1E5-4F1AE51FA549"
+    },
+    "_comments": [
+      "The video providers Tasks knows, shipped inactive until a host gives each a credential (MJ: Credentials, type Video Provider OAuth) and turns it on. Their drivers register under DriverClass with MemberJunction's class factory (VideoProviderBase)."
+    ],
+    "sync": {
+      "lastModified": "2026-10-19T21:11:22.544Z",
+      "checksum": "1c5c30bb8807b14750b33a40cf470c6c1e4b914b40dd3132e5000d10020544dd"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Microsoft Teams",
+      "Code": "TEAMS",
+      "DriverClass": "TeamsVideoProvider",
+      "Description": "Microsoft Teams. Until MemberJunction's calendars (A18) create the online meeting with the event, this driver reads the join details back.",
+      "IconClass": "fa-brands fa-microsoft",
+      "SupportsTranscripts": false,
+      "IsDefault": false,
+      "IsActive": false
+    },
+    "primaryKey": {
+      "ID": "41DB5054-D2DF-4068-BA5D-D692340F6D2C"
+    },
+    "sync": {
+      "lastModified": "2026-10-19T21:11:22.556Z",
+      "checksum": "cc5c5bb9e7c639fabf7171f50e08f8d3bffec35ebb00561f97343bb51108ad2c"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Google Meet",
+      "Code": "GOOGLE_MEET",
+      "DriverClass": "GoogleMeetVideoProvider",
+      "Description": "Google Meet. Until MemberJunction's calendars (A18) create the conference with the event, this driver reads the join details back.",
+      "IconClass": "fa-brands fa-google",
+      "SupportsTranscripts": false,
+      "IsDefault": false,
+      "IsActive": false
+    },
+    "primaryKey": {
+      "ID": "40540DFF-9A8F-4114-82EC-988CA8F00D00"
+    },
+    "sync": {
+      "lastModified": "2026-10-19T21:11:22.569Z",
+      "checksum": "c49a5972a3061ce0b1e77d5ad26c0782e4cc30f956e3354c48646fc5c4c093eb"
+    }
+  }
+]
