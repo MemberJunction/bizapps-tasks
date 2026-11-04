@@ -223,8 +223,21 @@ export class MeetingData {
         if (options.through) filters.push(`StartsAt <= '${options.through.toISOString()}'`);
         if (options.extraFilter) filters.push(`(${options.extraFilter})`);
         if (options.mine) {
-            const parts = [`ID IN (SELECT MeetingID FROM [__mj_BizAppsTasks].[vwMeetingAttendees] WHERE UserID = '${this.user.ID}')`];
-            if (personId) parts.push(`OrganizerPersonID = '${personId}'`, `ID IN (SELECT MeetingID FROM [__mj_BizAppsTasks].[vwMeetingAttendees] WHERE PersonID = '${personId}')`);
+            const attendeeFilter = personId
+                ? `UserID = '${this.user.ID}' OR PersonID = '${personId}'`
+                : `UserID = '${this.user.ID}'`;
+            const myAttendeeRows = await this.rows<{ MeetingID: string }>(
+                MEETING_ATTENDEE_ENTITY,
+                attendeeFilter,
+                ['MeetingID'],
+                '',
+                2000,
+            );
+            const myMeetingIds = [...new Set(myAttendeeRows.map((a) => a.MeetingID).filter(Boolean))];
+            const parts: string[] = [];
+            if (personId) parts.push(`OrganizerPersonID = '${personId}'`);
+            if (myMeetingIds.length) parts.push(`ID IN (${myMeetingIds.map((id) => `'${id}'`).join(',')})`);
+            if (!parts.length) return [];
             filters.push(`(${parts.join(' OR ')})`);
         }
         const meetings = await this.rows<MeetingRecordRow>(MEETING_ENTITY, filters.join(' AND '), MEETING_FIELDS, 'StartsAt ASC', 500);
@@ -360,11 +373,16 @@ export class MeetingData {
         if (!links.length) return [];
         const taskIds = [...new Set(links.map((l) => l.TaskID.toUpperCase()))];
         const tasks = await this.rows<{ ID: string; Name: string; Status: string; Priority: string | null; DueAt: string | null }>(TASKS_ENTITY, `ID IN (${taskIds.map((id) => `'${id}'`).join(',')})`, ['ID', 'Name', 'Status', 'Priority', 'DueAt'], 'DueAt ASC', 500);
-        const assignments = await this.rows<{ TaskID: string; Assignee: string | null; AssigneeRecordID: string }>(TASK_ASSIGNMENTS_ENTITY, `TaskID IN (${taskIds.map((id) => `'${id}'`).join(',')})`, ['TaskID', 'Assignee', 'AssigneeRecordID'], '', 2000).catch(() => []);
+        const assignments = await this.rows<{ TaskID: string; AssigneeRecordID: string }>(TASK_ASSIGNMENTS_ENTITY, `TaskID IN (${taskIds.map((id) => `'${id}'`).join(',')})`, ['TaskID', 'AssigneeRecordID'], '', 2000).catch(() => []);
+        const personIds = [...new Set(assignments.map((a) => a.AssigneeRecordID).filter(Boolean))];
+        const people = personIds.length
+            ? await this.rows<PersonRow>(PEOPLE_ENTITY, `ID IN (${personIds.map((id) => `'${id}'`).join(',')})`, ['ID', 'DisplayName', 'FirstName', 'LastName', 'Email'], '', 500).catch(() => [])
+            : [];
+        const nameByPersonId = new Map(people.map((p) => [p.ID.toLowerCase(), this.personName(p)]));
         const itemOf = new Map(links.filter((l) => same(l.EntityID, itemsEntity.ID)).map((l) => [l.TaskID.toLowerCase(), l.RecordID]));
         return tasks.map((t) => ({
             id: t.ID, name: t.Name, status: t.Status, priority: t.Priority, dueAt: t.DueAt ? new Date(t.DueAt) : null,
-            assigneeNames: assignments.filter((a) => same(a.TaskID, t.ID)).map((a) => a.Assignee ?? a.AssigneeRecordID),
+            assigneeNames: assignments.filter((a) => same(a.TaskID, t.ID)).map((a) => nameByPersonId.get(a.AssigneeRecordID.toLowerCase()) ?? a.AssigneeRecordID),
             agendaItemId: itemOf.get(t.ID.toLowerCase()) ?? null,
         }));
     }
