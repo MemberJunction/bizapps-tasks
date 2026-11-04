@@ -18,8 +18,8 @@
   "author": "MemberJunction.com",
   "license": "BUSL-1.1",
   "devDependencies": {
-    "@memberjunction/core": "6.1.6",
-    "@memberjunction/global": "6.1.6",
+    "@memberjunction/core": "6.2.0-edge.7",
+    "@memberjunction/global": "6.2.0-edge.7",
     "typescript": "^5.9.3",
     "vitest": "1.6.1"
   },
@@ -27,8 +27,8 @@
     "@mj-biz-apps/tasks-entities": "^1.10.0"
   },
   "peerDependencies": {
-    "@memberjunction/core": "^6.1.6",
-    "@memberjunction/global": "^6.1.6"
+    "@memberjunction/core": "^6.2.0-edge.7",
+    "@memberjunction/global": "^6.2.0-edge.7"
   },
   "repository": {
     "type": "git",
