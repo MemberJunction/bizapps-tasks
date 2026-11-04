@@ -1,4 +1,4 @@
-import { BaseEntity, RunView, type IMetadataProvider, type UserInfo } from '@memberjunction/core';
+import { RunView, type IMetadataProvider, type UserInfo } from '@memberjunction/core';
 
 export const AI_PROMPTS_ENTITY = 'MJ: AI Prompts';
 export const FILES_ENTITY = 'MJ: Files';
@@ -118,56 +118,56 @@ export function parseJsonFenceOrObject<T = unknown>(raw: unknown): T | null {
  * Executes an `MJ: AI Prompts` record by `promptId`:
  * 1. If a server-side prompt executor is registered (`registerMeetingAIPromptExecutor`), invokes it.
  * 2. Otherwise, if `provider` is a `GraphQLDataProvider` with `ExecuteGQL`, calls the `RunAIPrompt` mutation.
- * 3. Returns `null` when no AI prompt runtime is reachable or the model call fails, allowing callers to fall back.
+ * 3. Throws when the prompt ID is missing, no AI prompt runtime is reachable, or the model call fails.
  */
 export async function executeMeetingAIPrompt<T = unknown>(
     provider: IMetadataProvider,
     promptId: string | null,
     data: Record<string, unknown>,
     contextUser: UserInfo,
-): Promise<ExecutedMeetingPromptResult<T> | null> {
-    if (!promptId) return null;
+): Promise<ExecutedMeetingPromptResult<T>> {
+    if (!promptId) {
+        throw new Error('The meeting AI prompt is not configured or active on this host.');
+    }
 
     if (registeredPromptExecutor) {
-        try {
-            const res = await registeredPromptExecutor(provider, promptId, data, contextUser);
-            if (res?.parsed) return res as ExecutedMeetingPromptResult<T>;
-        } catch {
-            // Fall through to GraphQL or fallback
+        const res = await registeredPromptExecutor(provider, promptId, data, contextUser);
+        if (!res?.parsed) {
+            throw new Error(`AI prompt ${promptId} did not return a parsed result.`);
         }
+        return res as ExecutedMeetingPromptResult<T>;
     }
 
     const gqlProvider = provider as unknown as GraphQLExecutableProvider;
     if (typeof gqlProvider.ExecuteGQL === 'function') {
-        try {
-            const result = await gqlProvider.ExecuteGQL(RUN_AI_PROMPT_MUTATION, {
-                promptId,
-                data: JSON.stringify(data),
-                responseFormat: 'JSON',
-            });
-            const payload = result?.RunAIPrompt as
-                | {
-                      success?: boolean;
-                      output?: string | null;
-                      parsedResult?: unknown;
-                      promptRunId?: string | null;
-                  }
-                | undefined;
-            if (payload?.success) {
-                const parsed = parseJsonFenceOrObject<T>(payload.parsedResult ?? payload.output);
-                if (parsed) {
-                    return {
-                        parsed,
-                        promptRunId: payload.promptRunId ?? null,
-                    };
-                }
-            }
-        } catch {
-            return null;
+        const result = await gqlProvider.ExecuteGQL(RUN_AI_PROMPT_MUTATION, {
+            promptId,
+            data: JSON.stringify(data),
+            responseFormat: 'JSON',
+        });
+        const payload = result?.RunAIPrompt as
+            | {
+                  success?: boolean;
+                  output?: string | null;
+                  parsedResult?: unknown;
+                  promptRunId?: string | null;
+                  error?: string | null;
+              }
+            | undefined;
+        if (!payload?.success) {
+            throw new Error(payload?.error || `RunAIPrompt failed for prompt ${promptId}.`);
         }
+        const parsed = parseJsonFenceOrObject<T>(payload.parsedResult ?? payload.output);
+        if (!parsed) {
+            throw new Error(`RunAIPrompt for prompt ${promptId} did not return valid JSON output.`);
+        }
+        return {
+            parsed,
+            promptRunId: payload.promptRunId ?? null,
+        };
     }
 
-    return null;
+    throw new Error('No AI prompt runtime is available on the current provider.');
 }
 
 function decodeBase64Utf8(base64: string): string {
@@ -183,7 +183,6 @@ function decodeBase64Utf8(base64: string): string {
  * Reads the UTF-8 text of a meeting's `TranscriptFileID` (`MJ: Files` record):
  * 1. Uses the registered server-side transcript file reader (`FileStorageEngine.GetObject`) when on the server.
  * 2. Uses the `GetFileContents` GraphQL query when `provider` is a `GraphQLDataProvider` on the client.
- * 3. Falls back to loading the `MJ: Files` entity and checking `Description` in lightweight test environments.
  */
 export async function readMeetingTranscriptFile(
     provider: IMetadataProvider,
@@ -194,43 +193,24 @@ export async function readMeetingTranscriptFile(
     if (!cleanId) return null;
 
     if (registeredTranscriptFileReader) {
-        try {
-            const content = await registeredTranscriptFileReader(provider, cleanId, contextUser);
-            if (content?.trim()) return content.trim();
-        } catch {
-            // Fall through
-        }
+        const content = await registeredTranscriptFileReader(provider, cleanId, contextUser);
+        if (content?.trim()) return content.trim();
+        return null;
     }
 
     const gqlProvider = provider as unknown as GraphQLExecutableProvider;
     if (typeof gqlProvider.ExecuteGQL === 'function') {
-        try {
-            const result = await gqlProvider.ExecuteGQL(GET_FILE_CONTENTS_QUERY, { fileId: cleanId });
-            const payload = result?.GetFileContents as
-                | {
-                      Success?: boolean;
-                      Base64?: string | null;
-                  }
-                | undefined;
-            if (payload?.Success && payload.Base64) {
-                const decoded = decodeBase64Utf8(payload.Base64).trim();
-                if (decoded) return decoded;
-            }
-        } catch {
-            // Fall through
+        const result = await gqlProvider.ExecuteGQL(GET_FILE_CONTENTS_QUERY, { fileId: cleanId });
+        const payload = result?.GetFileContents as
+            | {
+                  Success?: boolean;
+                  Base64?: string | null;
+              }
+            | undefined;
+        if (payload?.Success && payload.Base64) {
+            const decoded = decodeBase64Utf8(payload.Base64).trim();
+            if (decoded) return decoded;
         }
-    }
-
-    try {
-        const fileEntity = await provider.GetEntityObject<
-            BaseEntity & { Load: (id: string) => Promise<boolean>; Description?: string | null }
-        >(FILES_ENTITY, contextUser);
-        if (await fileEntity.Load(cleanId)) {
-            const desc = fileEntity.Description?.trim();
-            if (desc) return desc;
-        }
-    } catch {
-        // Ignore
     }
 
     return null;

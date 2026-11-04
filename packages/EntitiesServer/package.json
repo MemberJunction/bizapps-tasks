@@ -19,6 +19,7 @@
   "license": "BUSL-1.1",
   "devDependencies": {
     "@memberjunction/actions": "6.2.0-edge.8",
+    "@memberjunction/ai-core-plus": "6.2.0-edge.8",
     "@memberjunction/ai-prompts": "6.2.0-edge.8",
     "@memberjunction/aiengine": "6.2.0-edge.8",
     "@memberjunction/communication-engine": "6.2.0-edge.8",
@@ -38,6 +39,7 @@
   },
   "peerDependencies": {
     "@memberjunction/actions": "^6.2.0-edge.8",
+    "@memberjunction/ai-core-plus": "^6.2.0-edge.8",
     "@memberjunction/ai-prompts": "^6.2.0-edge.8",
     "@memberjunction/aiengine": "^6.2.0-edge.8",
     "@memberjunction/communication-engine": "^6.2.0-edge.8",

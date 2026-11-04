@@ -17,6 +17,8 @@ import {
 } from '../meetings/entity-names.js';
 import { flattenAgendaTemplate, parseAgendaTemplate, type AgendaTemplate, type AgendaTemplateItem } from '../meetings/agenda-template.js';
 import { orderAgenda, type AgendaNode } from '../meetings/agenda.js';
+import { callerAdministersMeetings, callerIsOrganizer } from '../meetings/meeting-access.js';
+import { personIdForUser } from '../meetings/person-user.js';
 
 const TASKS_ENTITY = 'MJ_BizApps_Tasks: Tasks';
 const TASK_LINKS_ENTITY = 'MJ_BizApps_Tasks: Task Links';
@@ -233,6 +235,11 @@ export class MeetingAgendaService {
             throw new Error('The meeting was not found, or you may not see it.');
         }
 
+        const callerPersonId = await personIdForUser(this.provider, contextUser);
+        if (!callerAdministersMeetings(this.provider, contextUser) && !callerIsOrganizer(callerPersonId, meeting.OrganizerPersonID)) {
+            throw new Error('Only the meeting organizer or a meetings administrator can draft an AI meeting agenda.');
+        }
+
         let template: AgendaTemplate | null = null;
         if (meeting.TypeID) {
             const type = await this.provider.GetEntityObject<mjBizAppsTasksMeetingTypeEntity>(MEETING_TYPE_ENTITY, contextUser);
@@ -278,11 +285,10 @@ export class MeetingAgendaService {
                 },
                 contextUser,
             );
-            if (aiResult?.parsed && Array.isArray(aiResult.parsed.items)) {
-                drafted = parseAgendaTemplate(JSON.stringify(aiResult.parsed)) ?? { items: [] };
-            } else {
-                drafted = await this.defaultRunner(contextInput, contextUser);
+            if (!aiResult?.parsed || !Array.isArray(aiResult.parsed.items)) {
+                throw new Error('The AI prompt did not return a valid agenda template.');
             }
+            drafted = parseAgendaTemplate(JSON.stringify(aiResult.parsed)) ?? { items: [] };
         }
 
         if (!drafted.items.length) return [];

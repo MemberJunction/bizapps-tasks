@@ -60,6 +60,7 @@ const provider = {
                 EndsAt: new Date('2026-11-03T16:00:00Z'),
                 SeriesID: null,
                 TypeID: null,
+                OrganizerPersonID: 'P-ADA',
                 Load: async (id: string) => id === 'M1' || id === 'M2',
             };
         }
@@ -74,6 +75,9 @@ beforeEach(() => {
     items = [];
     runViewMock.mockReset();
     runViewMock.mockImplementation(async (params: { EntityName: string; ExtraFilter: string }) => {
+        if (params.EntityName === 'MJ_BizApps_Common: People') {
+            return { Success: true, Results: [{ ID: 'P-ADA' }] };
+        }
         const meetingId = /MeetingID = '([^']+)'/.exec(params.ExtraFilter)?.[1];
         return { Success: true, Results: params.EntityName === ITEMS ? items.filter((r) => !meetingId || r.MeetingID === meetingId).sort((a, b) => (a.Sequence as number) - (b.Sequence as number)) : [] };
     });

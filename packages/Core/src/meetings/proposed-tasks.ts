@@ -85,9 +85,26 @@ export function serializeProposedTasks(tasks: readonly ProposedTask[]): string {
 }
 
 /**
- * Marks one proposed task Accepted with the created task's ID.
- * Refuses when the proposal is missing, already Dismissed, or already Accepted with a different task.
+ * Marks one proposed task Accepted with the created task's ID (or an expiring `in-flight:<epochMs>` claim).
+ * Refuses when the proposal is missing, already Dismissed, or already Accepted with a finalized task ID.
  */
+export const PROPOSED_TASK_CLAIM_TTL_MS = 60_000;
+
+export function isActiveProposedTaskClaim(taskId: string | null | undefined, nowMs: number = Date.now()): boolean {
+    if (!taskId) return false;
+    const trimmed = taskId.trim();
+    if (trimmed === 'in-flight') return true;
+    if (!trimmed.startsWith('in-flight:')) return false;
+    const claimedAtMs = Number(trimmed.slice('in-flight:'.length));
+    return Number.isFinite(claimedAtMs) && nowMs - claimedAtMs < PROPOSED_TASK_CLAIM_TTL_MS;
+}
+
+export function isFinalizedProposedTaskId(taskId: string | null | undefined): boolean {
+    if (!taskId) return false;
+    const trimmed = taskId.trim();
+    return trimmed.length > 0 && trimmed !== 'in-flight' && !trimmed.startsWith('in-flight:');
+}
+
 export function markProposedTaskAccepted(
     tasks: readonly ProposedTask[],
     proposalId: string,
@@ -102,6 +119,13 @@ export function markProposedTaskAccepted(
     }
     if (target.status === 'Accepted') {
         if (target.taskId?.toLowerCase() === cleanTaskId.toLowerCase()) return [...tasks];
+        if (!isFinalizedProposedTaskId(target.taskId)) {
+            return tasks.map((item) =>
+                item.id.toLowerCase() === proposalId.trim().toLowerCase()
+                    ? { ...item, status: 'Accepted', taskId: cleanTaskId }
+                    : item,
+            );
+        }
         throw new Error(`Proposed task "${target.title}" was already accepted as task ${target.taskId}.`);
     }
     return tasks.map((item) =>

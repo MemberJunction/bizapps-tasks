@@ -9,7 +9,11 @@ import {
 } from '../../meetings/entity-names.js';
 import { PEOPLE_ENTITY } from '../../meetings/person-user.js';
 import { parseProposedTasks } from '../../meetings/proposed-tasks.js';
-import { MeetingNotesService } from '../MeetingNotesService.js';
+import {
+    defaultMeetingNotesPromptRunner,
+    MAX_MEETING_TRANSCRIPT_CHARS,
+    MeetingNotesService,
+} from '../MeetingNotesService.js';
 
 const USER = { ID: 'user-ivy' } as unknown as UserInfo;
 const PERSON_IVY = '11111111-1111-4111-8111-111111111111';
@@ -235,19 +239,96 @@ describe('MeetingNotesService', () => {
         expect(world.savedTasks).toHaveLength(1);
     });
 
-    it('uses the built-in fallback extractor when no custom prompt runner is passed', async () => {
+    it('surfaces AI execution failures instead of silently saving a regex fallback, and supports explicit defaultMeetingNotesPromptRunner in tests', async () => {
         const world = buildFakeWorld();
         const service = new MeetingNotesService(world.provider);
+
+        await expect(
+            service.draftFromTranscript(
+                MEETING_ID,
+                'Discussion went well.\nACTION: Jun Park to send updated slides\nTODO: Archive old deck',
+                USER,
+            ),
+        ).rejects.toThrow(/No AI prompt runtime is available|Could not resolve AI prompt/);
 
         const note = await service.draftFromTranscript(
             MEETING_ID,
             'Discussion went well.\nACTION: Jun Park to send updated slides\nTODO: Archive old deck',
             USER,
+            { promptRunner: defaultMeetingNotesPromptRunner },
         );
         const proposals = parseProposedTasks(note.ProposedTasks);
         expect(proposals).toHaveLength(2);
         expect(proposals[0].title).toBe('Jun Park to send updated slides');
         expect(proposals[0].assigneePersonId).toBe(PERSON_JUN);
+    });
+
+    it('enforces the organizer gate and transcript length limit on draftFromTranscript, and recovers from task.Save() failures or expired in-flight claims', async () => {
+        const world = buildFakeWorld();
+        const service = new MeetingNotesService(world.provider);
+
+        // Oversized transcript is rejected
+        await expect(
+            service.draftFromTranscript(
+                MEETING_ID,
+                'x'.repeat(MAX_MEETING_TRANSCRIPT_CHARS + 1),
+                USER,
+                { promptRunner: defaultMeetingNotesPromptRunner },
+            ),
+        ).rejects.toThrow(/exceeds the maximum allowed length/);
+
+        // Non-organizer is rejected
+        const baseRunView = world.provider.RunView.bind(world.provider);
+        (world.provider as unknown as { RunView: typeof world.provider.RunView }).RunView = async (params) => {
+            if (params.EntityName === PEOPLE_ENTITY) {
+                return { Success: true, Results: [{ ID: PERSON_JUN }] } as never;
+            }
+            return baseRunView(params);
+        };
+        await expect(
+            service.draftFromTranscript(
+                MEETING_ID,
+                'ACTION: Jun Park to send updated slides',
+                { ID: 'user-jun' } as unknown as UserInfo,
+                { promptRunner: defaultMeetingNotesPromptRunner },
+            ),
+        ).rejects.toThrow(/Only the meeting organizer/);
+
+        // Restore organizer RunView and verify task.Save() failure rolls back the in-flight claim
+        (world.provider as unknown as { RunView: typeof world.provider.RunView }).RunView = baseRunView;
+        const note = await service.draftFromTranscript(
+            MEETING_ID,
+            'ACTION: Jun Park to send updated slides',
+            USER,
+            { promptRunner: defaultMeetingNotesPromptRunner },
+        );
+        const proposals = parseProposedTasks(note.ProposedTasks);
+        expect(proposals).toHaveLength(1);
+
+        let failNextTaskSave = true;
+        const baseGetEntityObject = world.provider.GetEntityObject.bind(world.provider);
+        (world.provider as unknown as { GetEntityObject: typeof world.provider.GetEntityObject }).GetEntityObject = async (
+            entityName: string,
+            user?: UserInfo,
+        ) => {
+            const obj = await baseGetEntityObject(entityName, user);
+            if (entityName === 'MJ_BizApps_Tasks: Tasks' && failNextTaskSave) {
+                failNextTaskSave = false;
+                (obj as unknown as { Save: () => Promise<boolean> }).Save = async () => {
+                    throw new Error('simulated transient DB failure');
+                };
+            }
+            return obj;
+        };
+
+        await expect(service.acceptProposedTask(note.ID, proposals[0].id, USER)).rejects.toThrow(
+            /simulated transient DB failure/,
+        );
+
+        // Claim was rolled back on failure, so retrying succeeds cleanly
+        const recovered = await service.acceptProposedTask(note.ID, proposals[0].id, USER);
+        expect(recovered.proposal.status).toBe('Accepted');
+        expect(recovered.proposal.taskId).toBe(recovered.task.ID);
     });
 
     it('reads TranscriptFileID via GetFileContents and executes RunAIPrompt when no transcript string is passed', async () => {

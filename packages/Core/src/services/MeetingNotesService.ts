@@ -25,6 +25,8 @@ import {
 import { callerAdministersMeetings, callerIsOrganizer } from '../meetings/meeting-access.js';
 import { PEOPLE_ENTITY, personIdForUser } from '../meetings/person-user.js';
 import {
+    isActiveProposedTaskClaim,
+    isFinalizedProposedTaskId,
     markProposedTaskAccepted,
     markProposedTaskDismissed,
     parseProposedTasks,
@@ -38,6 +40,7 @@ const TASK_TYPES_ENTITY = 'MJ_BizApps_Tasks: Task Types';
 const ACTION_ITEM_CODE = 'ACTION_ITEM';
 
 export const DEFAULT_MEETING_NOTES_PROMPT_NAME = 'Tasks: Meeting Notes from Transcript';
+export const MAX_MEETING_TRANSCRIPT_CHARS = 100_000;
 
 export interface MeetingTranscriptContext {
     meeting: Pick<mjBizAppsTasksMeetingEntity, 'ID' | 'Name' | 'Description' | 'StartsAt' | 'EndsAt' | 'TimeZone' | 'TypeID'>;
@@ -177,12 +180,20 @@ export class MeetingNotesService {
             throw new Error('The meeting was not found, or you may not see it.');
         }
 
+        const callerPersonId = await personIdForUser(this.provider, contextUser);
+        if (!callerAdministersMeetings(this.provider, contextUser) && !callerIsOrganizer(callerPersonId, meeting.OrganizerPersonID)) {
+            throw new Error('Only the meeting organizer or a meetings administrator can draft AI meeting notes.');
+        }
+
         let cleanTranscript = transcript?.trim() ?? '';
         if (!cleanTranscript && meeting.TranscriptFileID) {
             cleanTranscript = (await readMeetingTranscriptFile(this.provider, meeting.TranscriptFileID, contextUser)) ?? '';
         }
         if (!cleanTranscript) {
             throw new Error('A transcript is required to draft AI meeting notes.');
+        }
+        if (cleanTranscript.length > MAX_MEETING_TRANSCRIPT_CHARS) {
+            throw new Error(`Transcript exceeds the maximum allowed length of ${MAX_MEETING_TRANSCRIPT_CHARS} characters.`);
         }
 
         let typePromptId: string | null = null;
@@ -252,14 +263,13 @@ export class MeetingNotesService {
                 },
                 contextUser,
             );
-            if (aiResult?.parsed && typeof aiResult.parsed.summary === 'string' && aiResult.parsed.summary.trim()) {
-                drafted = {
-                    ...aiResult.parsed,
-                    promptRunId: aiResult.promptRunId ?? aiResult.parsed.promptRunId ?? null,
-                };
-            } else {
-                drafted = await this.defaultRunner(contextInput, contextUser);
+            if (!aiResult?.parsed || typeof aiResult.parsed.summary !== 'string' || !aiResult.parsed.summary.trim()) {
+                throw new Error('The AI prompt did not return a valid meeting summary.');
             }
+            drafted = {
+                ...aiResult.parsed,
+                promptRunId: aiResult.promptRunId ?? aiResult.parsed.promptRunId ?? null,
+            };
         }
 
         const proposals = parseProposedTasks(
@@ -278,7 +288,7 @@ export class MeetingNotesService {
             ),
         );
 
-        const authorPersonId = options.authorPersonId ?? (await personIdForUser(this.provider, contextUser)) ?? meeting.OrganizerPersonID;
+        const authorPersonId = options.authorPersonId ?? callerPersonId ?? meeting.OrganizerPersonID;
         const note = await this.provider.GetEntityObject<mjBizAppsTasksMeetingNoteEntity>(MEETING_NOTE_ENTITY, contextUser);
         note.NewRecord();
         note.MeetingID = meeting.ID;
@@ -323,17 +333,19 @@ export class MeetingNotesService {
             throw new Error(`Proposed task "${existing.title}" was already dismissed.`);
         }
         if (existing.status === 'Accepted') {
-            if (existing.taskId && existing.taskId !== 'in-flight') {
+            if (isFinalizedProposedTaskId(existing.taskId)) {
                 const existingTask = await this.provider.GetEntityObject<TaskEntity>(TASKS_ENTITY, contextUser);
                 if (typeof existingTask.Load === 'function') {
-                    await existingTask.Load(existing.taskId);
+                    await existingTask.Load(existing.taskId!);
                 }
                 if (!existingTask.ID) {
-                    (existingTask as { ID: string }).ID = existing.taskId;
+                    (existingTask as { ID: string }).ID = existing.taskId!;
                 }
                 return { note, task: existingTask, proposal: existing };
             }
-            throw new Error(`Proposed task "${existing.title}" is already being accepted.`);
+            if (isActiveProposedTaskClaim(existing.taskId)) {
+                throw new Error(`Proposed task "${existing.title}" is already being accepted.`);
+            }
         }
 
         const typeRes = await RunView.FromMetadataProvider(this.provider).RunView<{ ID: string }>(
@@ -351,9 +363,9 @@ export class MeetingNotesService {
             throw new Error('The Action Item task type (ACTION_ITEM) is not installed.');
         }
 
-        // Claim the proposal on the note first so a retry never files a second task and server note permissions gate the caller
+        // Claim the proposal on the note first with an expiring timestamp so a concurrent call is refused while an interrupted call can recover
         const previousProposedTasks = note.ProposedTasks;
-        const claimedProposals = markProposedTaskAccepted(proposals, proposalId, 'in-flight');
+        const claimedProposals = markProposedTaskAccepted(proposals, proposalId, `in-flight:${Date.now()}`);
         note.ProposedTasks = serializeProposedTasks(claimedProposals);
         if (!(await note.Save())) {
             throw new Error(`The note's proposed tasks were not updated: ${entityFailure(note)}`);
@@ -378,7 +390,15 @@ export class MeetingNotesService {
         task.PercentComplete = 0;
         task.DueAt = dueAt && !Number.isNaN(dueAt.getTime()) ? dueAt : null;
         task.CreatedByPersonID = createdByPersonId;
-        if (!(await task.Save())) {
+        let taskSaved = false;
+        try {
+            taskSaved = await task.Save();
+        } catch (saveError) {
+            note.ProposedTasks = previousProposedTasks;
+            await note.Save();
+            throw saveError;
+        }
+        if (!taskSaved) {
             note.ProposedTasks = previousProposedTasks;
             await note.Save();
             throw new Error(`The action item task was not saved: ${entityFailure(task)}`);

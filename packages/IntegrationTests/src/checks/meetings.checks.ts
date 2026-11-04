@@ -27,11 +27,12 @@ import {
     MeetingNotesService,
     MeetingService,
     VIDEO_PROVIDER_ENTITY,
+    defaultMeetingNotesPromptRunner,
     parseProposedTasks,
 } from '@mj-biz-apps/tasks-core';
 import { FindRows, Quote, RequireSave } from '../wire.js';
 import { LoadMeetingWorld } from '../world/meeting-world.js';
-import { cleanupPersonaProviders, getPersonaContext } from '../persona-provider.js';
+import { cleanupPersonaProviders, getPersonaContext, GetPersonaUser } from '../persona-provider.js';
 
 const MARK = 'TASKS-CHECK meetings';
 const FAKE_DRIVER = 'FakeVideoProvider';
@@ -119,6 +120,7 @@ const checks: NamedCheck[] = [
                 Assert(file.content.includes(`mailto:${world.ivy.email}`) && file.content.includes(`mailto:${world.jun.email}`), 'the .ics carries the organizer and the attendee');
             } finally {
                 if (meetingId) await deleteMeeting(ctx, meetingId);
+                cleanupPersonaProviders(ctx);
             }
         },
     },
@@ -237,6 +239,7 @@ const checks: NamedCheck[] = [
             } finally {
                 await cleanupPersonaProviders(ctx);
                 if (meetingId) await deleteMeeting(ctx, meetingId);
+                cleanupPersonaProviders(ctx);
             }
         },
     },
@@ -365,6 +368,7 @@ const checks: NamedCheck[] = [
             } finally {
                 await cleanupPersonaProviders(ctx);
                 if (meetingId) await deleteMeeting(ctx, meetingId);
+                cleanupPersonaProviders(ctx);
             }
         },
     },
@@ -471,6 +475,7 @@ const checks: NamedCheck[] = [
             } finally {
                 await cleanupPersonaProviders(ctx);
                 if (meetingId) await deleteMeeting(ctx, meetingId);
+                cleanupPersonaProviders(ctx);
             }
         },
     },
@@ -553,11 +558,29 @@ const checks: NamedCheck[] = [
                 });
                 Assert(draftedAgenda.length === 2, `draftAgenda created 2 agenda items (${draftedAgenda.length})`);
 
+                // Non-organizer (Jun) is refused when attempting to trigger AI notes drafting
+                const junUser = await GetPersonaUser(ctx, world.jun.email);
+                let junRefused = false;
+                try {
+                    await notesService.draftFromTranscript(
+                        meeting.ID,
+                        'ACTION: Jun to circulate the variance deck',
+                        junUser,
+                        { promptRunner: defaultMeetingNotesPromptRunner },
+                    );
+                } catch {
+                    junRefused = true;
+                }
+                Assert(junRefused, 'non-organizer (Jun) is refused when attempting draftFromTranscript');
+
                 const note = await notesService.draftFromTranscript(
                     meeting.ID,
                     'Ivy opened the meeting.\nACTION: Jun to circulate the variance deck\nTODO: Schedule follow-up',
                     ctx.User,
-                    { authorPersonId: world.ivy.personId },
+                    {
+                        authorPersonId: world.ivy.personId,
+                        promptRunner: defaultMeetingNotesPromptRunner,
+                    },
                 );
                 Assert(note.Source === 'AI' && note.Status === 'Draft', 'note is AI Draft');
                 const proposals = parseProposedTasks(note.ProposedTasks);
@@ -589,6 +612,7 @@ const checks: NamedCheck[] = [
                     await deleteRows(ctx, 'MJ_BizApps_Tasks: Tasks', `ID = '${createdTaskId}'`);
                 }
                 if (meetingId) await deleteMeeting(ctx, meetingId);
+                cleanupPersonaProviders(ctx);
             }
         },
     },

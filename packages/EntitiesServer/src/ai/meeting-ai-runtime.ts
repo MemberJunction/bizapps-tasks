@@ -15,70 +15,69 @@ const dynamicImport = (specifier: string): Promise<Record<string, unknown>> =>
 /**
  * Server-side AI prompt executor for `MeetingNotesService` and `MeetingAgendaService`:
  * loads the `MJ: AI Prompts` entity for `promptId`, configures `AIEngine`, and runs `AIPromptRunner.ExecutePrompt`.
+ * Throws when the prompt is inactive or execution fails so callers never silently save un-run AI results.
  */
 export async function executeServerMeetingAIPrompt(
     provider: IMetadataProvider,
     promptId: string,
     data: Record<string, unknown>,
     contextUser: UserInfo,
-): Promise<ExecutedMeetingPromptResult | null> {
-    try {
-        const promptEntity = await provider.GetEntityObject<
-            BaseEntity & {
-                ID: string;
-                Name: string;
-                Status: string;
-                Load: (id: string) => Promise<boolean>;
-            }
-        >(AI_PROMPTS_ENTITY, contextUser);
-        if (!(await promptEntity.Load(promptId)) || promptEntity.Status !== 'Active') {
-            return null;
+): Promise<ExecutedMeetingPromptResult> {
+    const promptEntity = await provider.GetEntityObject<
+        BaseEntity & {
+            ID: string;
+            Name: string;
+            Status: string;
+            Load: (id: string) => Promise<boolean>;
         }
-
-        const [aiEngineMod, aiPromptsMod, aiCorePlusMod] = await Promise.all([
-            dynamicImport('@memberjunction/aiengine'),
-            dynamicImport('@memberjunction/ai-prompts'),
-            dynamicImport('@memberjunction/ai-core-plus'),
-        ]);
-
-        const AIEngine = aiEngineMod.AIEngine as {
-            Instance: { Config: (forceRefresh?: boolean, contextUser?: UserInfo, provider?: IMetadataProvider) => Promise<void> };
-        };
-        const AIPromptRunner = aiPromptsMod.AIPromptRunner as new () => {
-            ExecutePrompt: (params: Record<string, unknown>) => Promise<{
-                success?: boolean;
-                result?: unknown;
-                rawResult?: string | null;
-                promptRun?: { ID?: string | null } | null;
-            }>;
-        };
-        const AIPromptParams = aiCorePlusMod.AIPromptParams as new () => Record<string, unknown>;
-
-        await AIEngine.Instance.Config(false, contextUser, provider);
-        const params = new AIPromptParams();
-        params.prompt = promptEntity;
-        params.data = data;
-        params.contextUser = contextUser;
-
-        const runner = new AIPromptRunner();
-        const runResult = await runner.ExecutePrompt(params);
-        if (!runResult?.success) return null;
-
-        const parsed = parseJsonFenceOrObject(runResult.result ?? runResult.rawResult);
-        if (!parsed) return null;
-
-        return {
-            parsed,
-            promptRunId: runResult.promptRun?.ID ?? null,
-        };
-    } catch (error) {
-        LogError(
-            `MeetingAI: server prompt execution for ${promptId} fell back to deterministic builder: ${
-                error instanceof Error ? error.message : String(error)
-            }`,
-        );
-        return null;
+    >(AI_PROMPTS_ENTITY, contextUser);
+    if (!(await promptEntity.Load(promptId)) || promptEntity.Status !== 'Active') {
+        throw new Error(`AI prompt ${promptId} was not found or is not Active.`);
     }
+
+    const [aiEngineMod, aiPromptsMod, aiCorePlusMod] = await Promise.all([
+        dynamicImport('@memberjunction/aiengine'),
+        dynamicImport('@memberjunction/ai-prompts'),
+        dynamicImport('@memberjunction/ai-core-plus'),
+    ]);
+
+    const AIEngine = aiEngineMod.AIEngine as {
+        Instance: { Config: (forceRefresh?: boolean, contextUser?: UserInfo, provider?: IMetadataProvider) => Promise<void> };
+    };
+    const AIPromptRunner = aiPromptsMod.AIPromptRunner as new () => {
+        ExecutePrompt: (params: Record<string, unknown>) => Promise<{
+            success?: boolean;
+            errorMessage?: string | null;
+            result?: unknown;
+            rawResult?: string | null;
+            promptRun?: { ID?: string | null } | null;
+        }>;
+    };
+    const AIPromptParams = aiCorePlusMod.AIPromptParams as new () => Record<string, unknown>;
+
+    await AIEngine.Instance.Config(false, contextUser, provider);
+    const params = new AIPromptParams();
+    params.prompt = promptEntity;
+    params.data = data;
+    params.contextUser = contextUser;
+
+    const runner = new AIPromptRunner();
+    const runResult = await runner.ExecutePrompt(params);
+    if (!runResult?.success) {
+        const reason = runResult?.errorMessage ?? `AI prompt execution failed for "${promptEntity.Name}".`;
+        LogError(`MeetingAI: ${reason}`);
+        throw new Error(reason);
+    }
+
+    const parsed = parseJsonFenceOrObject(runResult.result ?? runResult.rawResult);
+    if (!parsed) {
+        throw new Error(`AI prompt "${promptEntity.Name}" did not return valid JSON output.`);
+    }
+
+    return {
+        parsed,
+        promptRunId: runResult.promptRun?.ID ?? null,
+    };
 }
 
 /**
@@ -96,49 +95,45 @@ export async function readServerMeetingTranscriptFile(
         return null;
     }
 
-    try {
-        const storageMod = await dynamicImport('@memberjunction/storage');
-        const FileStorageEngine = storageMod.FileStorageEngine as {
-            Instance: {
-                Config: (forceRefresh?: boolean, contextUser?: UserInfo, provider?: IMetadataProvider) => Promise<void>;
-                ResolveFileObject?: (
-                    file: { ProviderID: string; ProviderKey: string | null; Name: string },
-                    user: UserInfo,
-                    access: string,
-                    provider: IMetadataProvider,
-                ) => Promise<{ Driver: { GetObject: (params: { fullPath: string }) => Promise<Uint8Array> }; ObjectKey: string } | null>;
-                GetAccountsByProviderID: (providerId: string) => Array<{ ID: string }>;
-                ResolveStorageAccount: () => { account: { ID: string } } | null;
-                GetDriver: (accountId: string, user: UserInfo) => Promise<{ GetObject: (params: { fullPath: string }) => Promise<Uint8Array> }>;
-            };
+    const storageMod = await dynamicImport('@memberjunction/storage');
+    const FileStorageEngine = storageMod.FileStorageEngine as {
+        Instance: {
+            Config: (forceRefresh?: boolean, contextUser?: UserInfo, provider?: IMetadataProvider) => Promise<void>;
+            ResolveFileObject?: (
+                file: { ProviderID: string; ProviderKey: string | null; Name: string },
+                user: UserInfo,
+                access: string,
+                provider: IMetadataProvider,
+            ) => Promise<{ Driver: { GetObject: (params: { fullPath: string }) => Promise<Uint8Array> }; ObjectKey: string } | null>;
+            GetAccountsByProviderID: (providerId: string) => Array<{ ID: string }>;
+            ResolveStorageAccount: () => { account: { ID: string } } | null;
+            GetDriver: (accountId: string, user: UserInfo) => Promise<{ GetObject: (params: { fullPath: string }) => Promise<Uint8Array> }>;
         };
+    };
 
-        await FileStorageEngine.Instance.Config(false, contextUser, provider);
-        if (typeof FileStorageEngine.Instance.ResolveFileObject === 'function') {
-            const resolved = await FileStorageEngine.Instance.ResolveFileObject(
-                { ProviderID: fileEntity.ProviderID, ProviderKey: fileEntity.ProviderKey ?? null, Name: fileEntity.Name },
-                contextUser,
-                'Read',
-                provider,
-            );
-            if (resolved) {
-                const bytes = await resolved.Driver.GetObject({ fullPath: resolved.ObjectKey });
-                if (bytes?.byteLength) return new TextDecoder('utf-8').decode(bytes);
-            }
-        } else if (fileEntity.ProviderKey) {
-            const accounts = FileStorageEngine.Instance.GetAccountsByProviderID(fileEntity.ProviderID);
-            const accountId = accounts[0]?.ID ?? FileStorageEngine.Instance.ResolveStorageAccount()?.account.ID;
-            if (accountId) {
-                const driver = await FileStorageEngine.Instance.GetDriver(accountId, contextUser);
-                const bytes = await driver.GetObject({ fullPath: fileEntity.ProviderKey });
-                if (bytes?.byteLength) return new TextDecoder('utf-8').decode(bytes);
-            }
+    await FileStorageEngine.Instance.Config(false, contextUser, provider);
+    if (typeof FileStorageEngine.Instance.ResolveFileObject === 'function') {
+        const resolved = await FileStorageEngine.Instance.ResolveFileObject(
+            { ProviderID: fileEntity.ProviderID, ProviderKey: fileEntity.ProviderKey ?? null, Name: fileEntity.Name },
+            contextUser,
+            'Read',
+            provider,
+        );
+        if (resolved) {
+            const bytes = await resolved.Driver.GetObject({ fullPath: resolved.ObjectKey });
+            if (bytes?.byteLength) return new TextDecoder('utf-8').decode(bytes);
         }
-    } catch {
-        // Fall through to Description fallback when storage driver is unavailable in tests
+    } else if (fileEntity.ProviderKey) {
+        const accounts = FileStorageEngine.Instance.GetAccountsByProviderID(fileEntity.ProviderID);
+        const accountId = accounts[0]?.ID ?? FileStorageEngine.Instance.ResolveStorageAccount()?.account.ID;
+        if (accountId) {
+            const driver = await FileStorageEngine.Instance.GetDriver(accountId, contextUser);
+            const bytes = await driver.GetObject({ fullPath: fileEntity.ProviderKey });
+            if (bytes?.byteLength) return new TextDecoder('utf-8').decode(bytes);
+        }
     }
 
-    return fileEntity.Description?.trim() || null;
+    return null;
 }
 
 /** Registers the server-side AI prompt executor and transcript file reader for `MeetingNotesService` and `MeetingAgendaService`. */
