@@ -6,7 +6,7 @@ name: Repo checks
 # inside this repo's old build.yml and changes.yml.
 on:
   pull_request:
-    branches: [next, main]
+    branches: [next, next-6.2, main]
     types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:

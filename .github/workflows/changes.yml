@@ -23,7 +23,7 @@ on:
     # `migration-changeset-exempt` to a red PR re-triggers nothing (you have to push a no-op
     # commit), and REMOVING one leaves the stale green standing.
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
-    branches: [next]
+    branches: [next, next-6.2]
 
 concurrency:
   group: changes-${{ github.ref }}
