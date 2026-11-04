@@ -6,6 +6,7 @@ import type {
     mjBizAppsTasksMeetingLinkEntity,
     mjBizAppsTasksMeetingTypeEntity,
 } from '@mj-biz-apps/tasks-entities';
+import { executeMeetingAIPrompt, resolveMeetingPromptId } from '../meetings/ai-prompt-execution.js';
 import {
     MEETING_AGENDA_ITEM_ENTITY,
     MEETING_AGENDA_ITEM_TYPE_ENTITY,
@@ -20,7 +21,7 @@ import { orderAgenda, type AgendaNode } from '../meetings/agenda.js';
 const TASKS_ENTITY = 'MJ_BizApps_Tasks: Tasks';
 const TASK_LINKS_ENTITY = 'MJ_BizApps_Tasks: Task Links';
 
-export const DEFAULT_MEETING_AGENDA_PROMPT_NAME = 'Tasks: Meeting Agenda Draft';
+export const DEFAULT_MEETING_AGENDA_PROMPT_NAME = 'Tasks: Draft Meeting Agenda';
 
 type AgendaItemRow = Pick<mjBizAppsTasksMeetingAgendaItemEntity, 'ID' | 'MeetingID' | 'ParentID' | 'Sequence' | 'Name' | 'Description' | 'TypeID' | 'PresenterPersonID' | 'DurationMinutes' | 'Status'>;
 
@@ -43,6 +44,8 @@ export interface UnfinishedPriorItemSummary {
 
 export interface DraftAgendaContext {
     meeting: Pick<mjBizAppsTasksMeetingEntity, 'ID' | 'Name' | 'Description' | 'StartsAt' | 'EndsAt' | 'SeriesID' | 'TypeID'>;
+    promptId?: string | null;
+    promptName?: string;
     template: AgendaTemplate | null;
     openTasks: OpenLinkedTaskSummary[];
     unfinishedItems: UnfinishedPriorItemSummary[];
@@ -55,10 +58,11 @@ export type MeetingAgendaPromptRunner = (
 
 export interface DraftAgendaOptions {
     promptRunner?: MeetingAgendaPromptRunner;
+    additionalInstructions?: string;
 }
 
 /**
- * Built-in deterministic agenda builder used when no external AI prompt runner is supplied:
+ * Built-in deterministic agenda builder used when no external AI prompt runner or AI model is reachable:
  * combines the meeting type's template, unfinished items from the last occurrence in the series,
  * and open tasks linked to the same records the meeting belongs to.
  */
@@ -216,7 +220,8 @@ export class MeetingAgendaService {
     /**
      * Drafts an agenda for the meeting (the meetings plan, § 8): gathers the meeting type's template, the open tasks
      * linked to what the meeting belongs to (`MeetingLink` → `TaskLink`), and the items the last occurrence in the
-     * series left unfinished, passes them to the prompt runner, and writes the resulting items onto the meeting.
+     * series left unfinished, executes `Tasks: Draft Meeting Agenda` in `MJ: AI Prompts` (or the supplied promptRunner),
+     * and writes the resulting items onto the meeting.
      */
     async draftAgenda(
         meetingId: string,
@@ -236,21 +241,49 @@ export class MeetingAgendaService {
             }
         }
 
-        const [openTasks, unfinishedItems] = await Promise.all([
+        const [promptId, openTasks, unfinishedItems] = await Promise.all([
+            resolveMeetingPromptId(this.provider, null, DEFAULT_MEETING_AGENDA_PROMPT_NAME, contextUser),
             this.loadOpenLinkedTasks(meeting, contextUser),
             this.loadUnfinishedPriorItems(meeting, contextUser),
         ]);
 
-        const runner = options.promptRunner ?? this.defaultRunner;
-        const drafted = await runner(
-            {
-                meeting,
-                template,
-                openTasks,
-                unfinishedItems,
-            },
-            contextUser,
-        );
+        const contextInput: DraftAgendaContext = {
+            meeting,
+            promptId,
+            promptName: DEFAULT_MEETING_AGENDA_PROMPT_NAME,
+            template,
+            openTasks,
+            unfinishedItems,
+        };
+
+        let drafted: AgendaTemplate;
+        if (options.promptRunner) {
+            drafted = await options.promptRunner(contextInput, contextUser);
+        } else {
+            const startsAtMs = meeting.StartsAt instanceof Date ? meeting.StartsAt.getTime() : new Date(String(meeting.StartsAt)).getTime();
+            const endsAtMs = meeting.EndsAt instanceof Date ? meeting.EndsAt.getTime() : new Date(String(meeting.EndsAt)).getTime();
+            const durationMinutes = Number.isFinite(endsAtMs - startsAtMs) && endsAtMs > startsAtMs ? Math.round((endsAtMs - startsAtMs) / 60000) : 60;
+            const aiResult = await executeMeetingAIPrompt<AgendaTemplate>(
+                this.provider,
+                promptId,
+                {
+                    meetingName: meeting.Name,
+                    meetingDescription: meeting.Description ?? '',
+                    startsAt: meeting.StartsAt instanceof Date ? meeting.StartsAt.toISOString() : String(meeting.StartsAt ?? ''),
+                    endsAt: meeting.EndsAt instanceof Date ? meeting.EndsAt.toISOString() : String(meeting.EndsAt ?? ''),
+                    durationMinutes,
+                    templateJson: JSON.stringify(template ?? { items: [] }, null, 2),
+                    openTasksJson: JSON.stringify(openTasks, null, 2),
+                    unfinishedItemsJson: JSON.stringify(unfinishedItems, null, 2),
+                },
+                contextUser,
+            );
+            if (aiResult?.parsed && Array.isArray(aiResult.parsed.items)) {
+                drafted = parseAgendaTemplate(JSON.stringify(aiResult.parsed)) ?? { items: [] };
+            } else {
+                drafted = await this.defaultRunner(contextInput, contextUser);
+            }
+        }
 
         if (!drafted.items.length) return [];
         return this.applyTemplate(meetingId, drafted, contextUser);

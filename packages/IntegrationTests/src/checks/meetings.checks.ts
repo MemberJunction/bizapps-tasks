@@ -498,10 +498,11 @@ const checks: NamedCheck[] = [
                 providerId = fake.ID;
 
                 const videoMeetingId = `fake-${Date.now()}`;
-                const meeting = await service.createMeeting({ name: `${MARK} on video`, organizerPersonId: world.ivy.personId, startsAt: nextWeek(), videoProviderId: fake.ID }, ctx.User);
+                const meeting = await service.createMeeting({ name: `${MARK} on video`, organizerPersonId: world.ivy.personId, startsAt: nextWeek(), status: 'Draft', videoProviderId: fake.ID }, ctx.User);
                 meetingId = meeting.ID;
                 const withVideo = await ctx.Provider.GetEntityObject<mjBizAppsTasksMeetingEntity>(MEETING_ENTITY, ctx.User);
                 Assert(await withVideo.Load(meeting.ID), 'load');
+                withVideo.Status = 'Scheduled';
                 withVideo.VideoMeetingID = videoMeetingId;
                 withVideo.VideoJoinURL = `https://fake.video/${videoMeetingId}`;
                 await RequireSave(withVideo, 'the provider\'s meeting id');
@@ -570,6 +571,14 @@ const checks: NamedCheck[] = [
                 createdTaskId = accepted.task.ID;
                 Assert(accepted.proposal.status === 'Accepted' && accepted.proposal.taskId === createdTaskId, 'first proposal marked Accepted with taskId');
 
+                // Calling acceptProposedTask again on the same proposal is idempotent and returns the existing task
+                const acceptedRetry = await notesService.acceptProposedTask(note.ID, proposals[0].id, ctx.User, {
+                    assigneePersonId: world.jun.personId,
+                    agendaItemId: draftedAgenda[0].ID,
+                    createdByPersonId: world.ivy.personId,
+                });
+                Assert(acceptedRetry.task.ID === createdTaskId, 'acceptProposedTask retry returns the same task idempotently');
+
                 const dismissed = await notesService.dismissProposedTask(note.ID, proposals[1].id, ctx.User);
                 Assert(dismissed.proposal.status === 'Dismissed', 'second proposal marked Dismissed');
             } finally {
@@ -634,6 +643,18 @@ const checks: NamedCheck[] = [
                     () => FindRows<{ Body: string }>(ctx, MEETING_NOTE_ENTITY, `MeetingID = '${meeting.ID}' AND Body LIKE '%${Quote(videoMeetingId)}%'`, ['Body']),
                     (rows) => rows.some((r) => r.Body.includes('updated video meeting')),
                     'the fake driver recorded UpdateMeeting after the commit',
+                );
+
+                // A second edit on a provisioned meeting must also sync (not be dropped by any sticky state)
+                const loadedAgain = await ctx.Provider.GetEntityObject<mjBizAppsTasksMeetingEntity>(MEETING_ENTITY, ctx.User);
+                Assert(await loadedAgain.Load(meeting.ID), 'load provisioned meeting a second time');
+                loadedAgain.Name = `${MARK} auto-provision video (renamed twice)`;
+                await RequireSave(loadedAgain, 'renamed video meeting a second time');
+
+                await eventually(
+                    () => FindRows<{ Body: string }>(ctx, MEETING_NOTE_ENTITY, `MeetingID = '${meeting.ID}' AND Body LIKE '%${Quote(videoMeetingId)}%'`, ['Body']),
+                    (rows) => rows.filter((r) => r.Body.includes('updated video meeting')).length >= 2,
+                    'the fake driver recorded a second UpdateMeeting after the commit',
                 );
             } finally {
                 if (meetingId) await deleteMeeting(ctx, meetingId);

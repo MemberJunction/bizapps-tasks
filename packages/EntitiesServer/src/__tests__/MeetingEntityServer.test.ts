@@ -49,6 +49,10 @@ vi.mock('@memberjunction/core', () => {
             this.dirty.clear();
             return true;
         }
+        public async Delete() {
+            this.IsSaved = false;
+            return true;
+        }
         /** Loads a row as if from the database: values set, nothing dirty, no old values. */
         public seed(values: Record<string, unknown>) {
             Object.assign(this.values, values);
@@ -233,6 +237,24 @@ describe('a meeting\'s status', () => {
         expect(await meeting.Save()).toBe(true);
         expect(runAfterCommitMock).toHaveBeenCalledTimes(1);
         expect(runAfterCommitMock.mock.calls[0][1]).toBe('update video meeting zoom-123');
+    });
+
+    it('lets inbound calendar sync saves pass the organizer gate when MaintainedByCalendarSync is set', async () => {
+        const meeting = scheduled();
+        callerPerson = 'P-SYNC-WORKER';
+        (meeting as unknown as { MaintainedByCalendarSync?: boolean }).MaintainedByCalendarSync = true;
+        meeting.Name = 'Renamed from external calendar';
+        meeting.Status = 'Cancelled';
+        expect((await meeting.ValidateAsync()).Success).toBe(true);
+        expect(await meeting.Save()).toBe(true);
+    });
+
+    it('deletes the video meeting after the commit when a non-cancelled meeting is deleted', async () => {
+        const meeting = scheduled();
+        meeting.seed({ VideoProviderID: 'VP1', VideoMeetingID: 'zoom-456' });
+        expect(await meeting.Delete()).toBe(true);
+        expect(runAfterCommitMock).toHaveBeenCalledTimes(1);
+        expect(runAfterCommitMock.mock.calls[0][1]).toBe('delete video meeting zoom-456');
     });
 });
 

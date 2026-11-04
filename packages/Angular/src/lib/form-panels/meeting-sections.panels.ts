@@ -195,7 +195,7 @@ export class MeetingPeoplePanel extends MeetingSectionPanel {
     template: `
         <mj-collapsible-panel SectionKey="notes" SectionName="Notes" Icon="fa-solid fa-note-sticky">
             @if (detail; as d) {
-                <bizapps-meeting-notes [Notes]="d.notes" [AgendaItems]="d.agenda" [People]="people" [CanWrite]="d.permissions.canWriteNotes" [CanEditAll]="d.permissions.canEdit" [Busy]="busy" [ErrorMessage]="error"
+                <bizapps-meeting-notes [Notes]="d.notes" [AgendaItems]="d.agenda" [People]="people" [CanWrite]="d.permissions.canWriteNotes" [CanEditAll]="d.permissions.canEdit" [TranscriptFileID]="d.transcriptFileId" [TranscriptFileName]="d.transcriptFileName" [Busy]="busy" [ErrorMessage]="error"
                     (SaveRequested)="save($event)" (DeleteRequested)="remove($event)" (TranscriptDraftRequested)="draftFromTranscript($event)" (AcceptProposalRequested)="acceptProposal($event)" (DismissProposalRequested)="dismissProposal($event)" (OpenTaskRequested)="openTask($event)"></bizapps-meeting-notes>
             } @else if (error) { <div class="mjt-error">{{ error }}</div> }
         </mj-collapsible-panel>

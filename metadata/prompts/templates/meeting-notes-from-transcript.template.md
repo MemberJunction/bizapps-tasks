@@ -5,6 +5,22 @@ Given a meeting's details, its agenda items, its attendees, and a raw meeting tr
 2. `summary`: Clear, well-structured Markdown notes covering key discussion points, decisions, and outcomes.
 3. `proposedTasks`: An array of concrete action items agreed upon during the meeting. For each proposed action item, match `assigneePersonId` to an attendee's `PersonID` when the speaker or assignee is clear, and match `agendaItemId` to an agenda item's `ID` when the action item belongs to a specific topic.
 
+### Meeting Details
+- **Title:** {{ meetingName }}
+- **Description:** {{ meetingDescription }}
+- **StartsAt:** {{ startsAt }}
+- **EndsAt:** {{ endsAt }}
+- **TimeZone:** {{ timeZone }}
+
+### Agenda Items
+{{ agendaItemsJson }}
+
+### Attendees
+{{ attendeesJson }}
+
+### Transcript
+{{ transcript }}
+
 Return ONLY valid JSON matching this schema:
 ```json
 {

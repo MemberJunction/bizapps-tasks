@@ -10,6 +10,11 @@ import type {
     TaskEntity,
 } from '@mj-biz-apps/tasks-entities';
 import {
+    executeMeetingAIPrompt,
+    readMeetingTranscriptFile,
+    resolveMeetingPromptId,
+} from '../meetings/ai-prompt-execution.js';
+import {
     MEETING_AGENDA_ITEM_ENTITY,
     MEETING_ATTENDEE_ENTITY,
     MEETING_ENTITY,
@@ -17,6 +22,7 @@ import {
     MEETING_TYPE_ENTITY,
     entityFailure,
 } from '../meetings/entity-names.js';
+import { callerAdministersMeetings, callerIsOrganizer } from '../meetings/meeting-access.js';
 import { PEOPLE_ENTITY, personIdForUser } from '../meetings/person-user.js';
 import {
     markProposedTaskAccepted,
@@ -25,7 +31,6 @@ import {
     serializeProposedTasks,
     type ProposedTask,
 } from '../meetings/proposed-tasks.js';
-import { TaskAssignmentService } from './TaskAssignmentService.js';
 
 const TASKS_ENTITY = 'MJ_BizApps_Tasks: Tasks';
 const TASK_LINKS_ENTITY = 'MJ_BizApps_Tasks: Task Links';
@@ -88,8 +93,8 @@ export interface AcceptedProposedTaskResult {
 }
 
 /**
- * Built-in fallback extractor used when no external AI prompt runner is supplied: builds a clean Markdown summary of
- * the meeting and extracts any explicit `ACTION:` / `TODO:` / `- [ ]` lines from the transcript as proposed tasks.
+ * Built-in fallback extractor used when no external AI prompt runner or AI model is reachable: builds a clean Markdown
+ * summary of the meeting and extracts any explicit `ACTION:` / `TODO:` / `- [ ]` lines from the transcript as proposed tasks.
  */
 export async function defaultMeetingNotesPromptRunner(
     ctx: MeetingTranscriptContext,
@@ -145,10 +150,10 @@ export async function defaultMeetingNotesPromptRunner(
 
 /**
  * AI-assisted meeting notes and proposed tasks (the meetings plan, § 8):
- * - drafts a `MeetingNote` (`Source = 'AI'`, `Status = 'Draft'`) with `ProposedTasks` from a transcript and the
- *   meeting's structured agenda and attendees;
+ * - drafts a `MeetingNote` (`Source = 'AI'`, `Status = 'Draft'`) with `ProposedTasks` from a transcript (or the
+ *   meeting's `TranscriptFileID` in `MJ: Files`) and the meeting's structured agenda and attendees;
  * - accepts a proposed task into a real `ACTION_ITEM` task with a `TaskLink` to the meeting or agenda item and
- *   an optional `TaskAssignment`, recording the created `taskId` on the proposal;
+ *   an optional `TaskAssignment`, recording the created `taskId` on the proposal idempotently;
  * - dismisses a proposed task so it is never filed.
  */
 export class MeetingNotesService {
@@ -158,30 +163,41 @@ export class MeetingNotesService {
     ) {}
 
     /**
-     * Drafts an AI note with proposed tasks from a meeting's transcript.
-     * Uses the meeting type's `NotesPromptID` when present, otherwise the default meeting notes prompt.
+     * Drafts an AI note with proposed tasks from a meeting's transcript (passed directly or read from `meeting.TranscriptFileID`).
+     * Uses the meeting type's `NotesPromptID` when present, otherwise looks up `Tasks: Meeting Notes from Transcript` in `MJ: AI Prompts`.
      */
     async draftFromTranscript(
         meetingId: string,
-        transcript: string,
+        transcript: string | null | undefined,
         contextUser: UserInfo,
         options: DraftFromTranscriptOptions = {},
     ): Promise<mjBizAppsTasksMeetingNoteEntity> {
-        const cleanTranscript = transcript?.trim() ?? '';
-        if (!cleanTranscript) throw new Error('A transcript is required to draft AI meeting notes.');
-
         const meeting = await this.provider.GetEntityObject<mjBizAppsTasksMeetingEntity>(MEETING_ENTITY, contextUser);
         if (!(await meeting.Load(meetingId))) {
             throw new Error('The meeting was not found, or you may not see it.');
         }
 
-        let promptId: string | null = null;
+        let cleanTranscript = transcript?.trim() ?? '';
+        if (!cleanTranscript && meeting.TranscriptFileID) {
+            cleanTranscript = (await readMeetingTranscriptFile(this.provider, meeting.TranscriptFileID, contextUser)) ?? '';
+        }
+        if (!cleanTranscript) {
+            throw new Error('A transcript is required to draft AI meeting notes.');
+        }
+
+        let typePromptId: string | null = null;
         if (meeting.TypeID) {
             const type = await this.provider.GetEntityObject<mjBizAppsTasksMeetingTypeEntity>(MEETING_TYPE_ENTITY, contextUser);
             if (await type.Load(meeting.TypeID)) {
-                promptId = type.NotesPromptID ?? null;
+                typePromptId = type.NotesPromptID ?? null;
             }
         }
+        const promptId = await resolveMeetingPromptId(
+            this.provider,
+            typePromptId,
+            DEFAULT_MEETING_NOTES_PROMPT_NAME,
+            contextUser,
+        );
 
         const rv = RunView.FromMetadataProvider(this.provider);
         const [agendaRes, attendeeRes] = await Promise.all([
@@ -208,18 +224,43 @@ export class MeetingNotesService {
             ),
         ]);
 
-        const runner = options.promptRunner ?? this.defaultRunner;
-        const drafted = await runner(
-            {
-                meeting,
+        const contextInput: MeetingTranscriptContext = {
+            meeting,
+            promptId,
+            promptName: DEFAULT_MEETING_NOTES_PROMPT_NAME,
+            agendaItems: agendaRes.Success ? agendaRes.Results : [],
+            attendees: attendeeRes.Success ? attendeeRes.Results : [],
+            transcript: cleanTranscript,
+        };
+
+        let drafted: DraftedMeetingNotesOutput;
+        if (options.promptRunner) {
+            drafted = await options.promptRunner(contextInput, contextUser);
+        } else {
+            const aiResult = await executeMeetingAIPrompt<DraftedMeetingNotesOutput>(
+                this.provider,
                 promptId,
-                promptName: DEFAULT_MEETING_NOTES_PROMPT_NAME,
-                agendaItems: agendaRes.Success ? agendaRes.Results : [],
-                attendees: attendeeRes.Success ? attendeeRes.Results : [],
-                transcript: cleanTranscript,
-            },
-            contextUser,
-        );
+                {
+                    meetingName: meeting.Name,
+                    meetingDescription: meeting.Description ?? '',
+                    startsAt: meeting.StartsAt instanceof Date ? meeting.StartsAt.toISOString() : String(meeting.StartsAt ?? ''),
+                    endsAt: meeting.EndsAt instanceof Date ? meeting.EndsAt.toISOString() : String(meeting.EndsAt ?? ''),
+                    timeZone: meeting.TimeZone ?? 'UTC',
+                    agendaItemsJson: JSON.stringify(contextInput.agendaItems, null, 2),
+                    attendeesJson: JSON.stringify(contextInput.attendees, null, 2),
+                    transcript: cleanTranscript,
+                },
+                contextUser,
+            );
+            if (aiResult?.parsed && typeof aiResult.parsed.summary === 'string' && aiResult.parsed.summary.trim()) {
+                drafted = {
+                    ...aiResult.parsed,
+                    promptRunId: aiResult.promptRunId ?? aiResult.parsed.promptRunId ?? null,
+                };
+            } else {
+                drafted = await this.defaultRunner(contextInput, contextUser);
+            }
+        }
 
         const proposals = parseProposedTasks(
             JSON.stringify(
@@ -258,8 +299,9 @@ export class MeetingNotesService {
     }
 
     /**
-     * Accepts one proposed task on a note: files an `ACTION_ITEM` task, assigns the person when present, links the task
-     * to the agenda item or meeting through `TaskLink`, and records the created `taskId` on the note's `ProposedTasks`.
+     * Accepts one proposed task on a note idempotently: verifies the caller is the meeting's organizer, the note's author,
+     * or a meetings administrator; marks the proposal `Accepted` on the note before filing the `ACTION_ITEM` task so a
+     * retry never creates a duplicate task; and links and assigns the created task.
      */
     async acceptProposedTask(
         noteId: string,
@@ -272,14 +314,26 @@ export class MeetingNotesService {
             throw new Error('The meeting note was not found, or you may not see it.');
         }
 
+        const callerPersonId = await this.ensureCallerMayManageProposals(note, contextUser);
+
         const proposals = parseProposedTasks(note.ProposedTasks);
         const existing = proposals.find((p) => p.id.toLowerCase() === proposalId.trim().toLowerCase());
         if (!existing) throw new Error(`Proposed task "${proposalId}" was not found on this note.`);
         if (existing.status === 'Dismissed') {
             throw new Error(`Proposed task "${existing.title}" was already dismissed.`);
         }
-        if (existing.status === 'Accepted' && existing.taskId) {
-            throw new Error(`Proposed task "${existing.title}" was already accepted as task ${existing.taskId}.`);
+        if (existing.status === 'Accepted') {
+            if (existing.taskId && existing.taskId !== 'in-flight') {
+                const existingTask = await this.provider.GetEntityObject<TaskEntity>(TASKS_ENTITY, contextUser);
+                if (typeof existingTask.Load === 'function') {
+                    await existingTask.Load(existing.taskId);
+                }
+                if (!existingTask.ID) {
+                    (existingTask as { ID: string }).ID = existing.taskId;
+                }
+                return { note, task: existingTask, proposal: existing };
+            }
+            throw new Error(`Proposed task "${existing.title}" is already being accepted.`);
         }
 
         const typeRes = await RunView.FromMetadataProvider(this.provider).RunView<{ ID: string }>(
@@ -297,9 +351,17 @@ export class MeetingNotesService {
             throw new Error('The Action Item task type (ACTION_ITEM) is not installed.');
         }
 
+        // Claim the proposal on the note first so a retry never files a second task and server note permissions gate the caller
+        const previousProposedTasks = note.ProposedTasks;
+        const claimedProposals = markProposedTaskAccepted(proposals, proposalId, 'in-flight');
+        note.ProposedTasks = serializeProposedTasks(claimedProposals);
+        if (!(await note.Save())) {
+            throw new Error(`The note's proposed tasks were not updated: ${entityFailure(note)}`);
+        }
+
         const createdByPersonId =
             overrides.createdByPersonId ??
-            (await personIdForUser(this.provider, contextUser)) ??
+            callerPersonId ??
             note.AuthorPersonID ??
             null;
 
@@ -317,7 +379,16 @@ export class MeetingNotesService {
         task.DueAt = dueAt && !Number.isNaN(dueAt.getTime()) ? dueAt : null;
         task.CreatedByPersonID = createdByPersonId;
         if (!(await task.Save())) {
+            note.ProposedTasks = previousProposedTasks;
+            await note.Save();
             throw new Error(`The action item task was not saved: ${entityFailure(task)}`);
+        }
+
+        // Persist the created taskId on the note immediately after task creation so any retry returns this task idempotently
+        const updatedProposals = markProposedTaskAccepted(proposals, proposalId, task.ID);
+        note.ProposedTasks = serializeProposedTasks(updatedProposals);
+        if (!(await note.Save())) {
+            throw new Error(`The note's proposed tasks were not updated: ${entityFailure(note)}`);
         }
 
         const targetAgendaItemId =
@@ -357,12 +428,6 @@ export class MeetingNotesService {
             }
         }
 
-        const updatedProposals = markProposedTaskAccepted(proposals, proposalId, task.ID);
-        note.ProposedTasks = serializeProposedTasks(updatedProposals);
-        if (!(await note.Save())) {
-            throw new Error(`The note's proposed tasks were not updated: ${entityFailure(note)}`);
-        }
-
         const acceptedProposal = updatedProposals.find((p) => p.id.toLowerCase() === proposalId.trim().toLowerCase())!;
         return { note, task, proposal: acceptedProposal };
     }
@@ -377,6 +442,7 @@ export class MeetingNotesService {
         if (!(await note.Load(noteId))) {
             throw new Error('The meeting note was not found, or you may not see it.');
         }
+        await this.ensureCallerMayManageProposals(note, contextUser);
         const proposals = parseProposedTasks(note.ProposedTasks);
         const updatedProposals = markProposedTaskDismissed(proposals, proposalId);
         note.ProposedTasks = serializeProposedTasks(updatedProposals);
@@ -386,5 +452,28 @@ export class MeetingNotesService {
         const dismissedProposal = updatedProposals.find((p) => p.id.toLowerCase() === proposalId.trim().toLowerCase())!;
         return { note, proposal: dismissedProposal };
     }
-}
 
+    private async ensureCallerMayManageProposals(
+        note: mjBizAppsTasksMeetingNoteEntity,
+        contextUser: UserInfo,
+    ): Promise<string | null> {
+        const callerPersonId = await personIdForUser(this.provider, contextUser);
+        if (callerAdministersMeetings(this.provider, contextUser)) return callerPersonId;
+
+        const isNoteAuthor =
+            Boolean(callerPersonId && note.AuthorPersonID) &&
+            callerPersonId!.toLowerCase() === note.AuthorPersonID!.toLowerCase();
+        if (isNoteAuthor) return callerPersonId;
+
+        if (note.MeetingID) {
+            const meeting = await this.provider.GetEntityObject<mjBizAppsTasksMeetingEntity>(MEETING_ENTITY, contextUser);
+            if (await meeting.Load(note.MeetingID)) {
+                if (callerIsOrganizer(callerPersonId, meeting.OrganizerPersonID)) {
+                    return callerPersonId;
+                }
+            }
+        }
+
+        throw new Error('Only the meeting organizer, the note author, or a meetings administrator can accept or dismiss proposed tasks.');
+    }
+}

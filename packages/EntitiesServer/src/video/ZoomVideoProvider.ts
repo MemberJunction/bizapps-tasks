@@ -73,11 +73,10 @@ export class ZoomVideoProvider extends VideoProviderBase {
             credValues = (resolved?.values ?? {}) as ZoomCredentialValues;
         }
 
-        const merged: ZoomCredentialValues = { ...configValues, ...credValues };
-        this.clientId = (merged.client_id ?? merged.clientId ?? '').trim();
-        this.clientSecret = (merged.client_secret ?? merged.clientSecret ?? '').trim();
-        this.accountId = (merged.account_id ?? merged.accountId ?? '').trim();
-        this.hostUser = (merged.host_user ?? merged.hostUser ?? 'me').trim() || 'me';
+        this.clientId = (credValues.client_id ?? credValues.clientId ?? configValues.client_id ?? configValues.clientId ?? '').trim();
+        this.clientSecret = (credValues.client_secret ?? credValues.clientSecret ?? '').trim();
+        this.accountId = (credValues.account_id ?? credValues.accountId ?? configValues.account_id ?? configValues.accountId ?? '').trim();
+        this.hostUser = (credValues.host_user ?? credValues.hostUser ?? configValues.host_user ?? configValues.hostUser ?? 'me').trim() || 'me';
         this.configured = Boolean(this.clientId && this.clientSecret && this.accountId);
     }
 

@@ -84,6 +84,8 @@ interface MeetingRecordRow {
     SeriesID: string | null;
     CancellationReason: string | null;
     ActualStartedAt: string | null;
+    TranscriptFileID: string | null;
+    TranscriptFile: string | null;
 }
 
 interface AttendeeRecordRow {
@@ -107,7 +109,7 @@ interface PersonRow {
     Email: string | null;
 }
 
-const MEETING_FIELDS = ['ID', 'Name', 'Description', 'Status', 'Visibility', 'Type', 'TypeID', 'StartsAt', 'EndsAt', 'TimeZone', 'LocationType', 'Location', 'VideoJoinURL', 'OrganizerPersonID', 'OrganizerPerson', 'SeriesID', 'CancellationReason', 'ActualStartedAt'];
+const MEETING_FIELDS = ['ID', 'Name', 'Description', 'Status', 'Visibility', 'Type', 'TypeID', 'StartsAt', 'EndsAt', 'TimeZone', 'LocationType', 'Location', 'VideoJoinURL', 'OrganizerPersonID', 'OrganizerPerson', 'SeriesID', 'CancellationReason', 'ActualStartedAt', 'TranscriptFileID', 'TranscriptFile'];
 const ATTENDEE_FIELDS = ['ID', 'MeetingID', 'PersonID', 'UserID', 'Email', 'DisplayName', 'Person', 'Role', 'ResponseStatus', 'AttendanceStatus'];
 
 const same = (a: string | null | undefined, b: string | null | undefined): boolean => !!a && !!b && a.toLowerCase() === b.toLowerCase();
@@ -130,6 +132,8 @@ export interface MeetingDetail {
     startedAt: Date | null;
     typeId: string | null;
     typeHasTemplate: boolean;
+    transcriptFileId: string | null;
+    transcriptFileName: string | null;
     attendees: AttendeeModel[];
     agenda: AgendaItemModel[];
     notes: NoteModel[];
@@ -298,7 +302,7 @@ export class MeetingData {
         const permissions = meetingPermissions(row.isMine, !!myRow, this.Administers());
         return {
             row, description: record.Description, cancellationReason: record.CancellationReason, startedAt: record.ActualStartedAt ? new Date(record.ActualStartedAt) : null, typeId: record.TypeID,
-            typeHasTemplate: !!record.TypeID && this.typeTemplates.has(record.TypeID.toLowerCase()), attendees, agenda, notes, followUps, links, permissions, myAttendeeId: myRow?.ID ?? null,
+            typeHasTemplate: !!record.TypeID && this.typeTemplates.has(record.TypeID.toLowerCase()), transcriptFileId: record.TranscriptFileID ?? null, transcriptFileName: record.TranscriptFile ?? null, attendees, agenda, notes, followUps, links, permissions, myAttendeeId: myRow?.ID ?? null,
         };
     }
 

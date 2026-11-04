@@ -70,7 +70,8 @@ function buildFakeWorld() {
                     Load: async (id: string) => {
                         const existing = savedNotes.get(id);
                         if (!existing) return false;
-                        Object.assign(row, existing);
+                        const { Load: _l, Save: _s, NewRecord: _n, ...data } = existing;
+                        Object.assign(row, data);
                         return true;
                     },
                     Save: async () => {
@@ -247,6 +248,70 @@ describe('MeetingNotesService', () => {
         expect(proposals).toHaveLength(2);
         expect(proposals[0].title).toBe('Jun Park to send updated slides');
         expect(proposals[0].assigneePersonId).toBe(PERSON_JUN);
+    });
+
+    it('reads TranscriptFileID via GetFileContents and executes RunAIPrompt when no transcript string is passed', async () => {
+        const world = buildFakeWorld();
+        const executeGqlCalls: Array<{ query: string; variables?: Record<string, unknown> }> = [];
+        const baseGetEntityObject = world.provider.GetEntityObject.bind(world.provider);
+        (world.provider as unknown as { GetEntityObject: typeof world.provider.GetEntityObject }).GetEntityObject = async (
+            entityName: string,
+            user?: UserInfo,
+        ) => {
+            const obj = await baseGetEntityObject(entityName, user);
+            if (entityName === MEETING_ENTITY) {
+                (obj as unknown as Record<string, unknown>).TranscriptFileID = 'file-transcript-1';
+            }
+            return obj;
+        };
+        (world.provider as unknown as { ExecuteGQL: (query: string, variables?: Record<string, unknown>) => Promise<Record<string, unknown>> }).ExecuteGQL =
+            async (query: string, variables?: Record<string, unknown>) => {
+                executeGqlCalls.push({ query, variables });
+                if (query.includes('GetFileContents')) {
+                    return {
+                        GetFileContents: {
+                            Success: true,
+                            Base64: Buffer.from('Ivy and Jun reviewed the Q4 forecast.').toString('base64'),
+                        },
+                    };
+                }
+                if (query.includes('RunAIPrompt')) {
+                    return {
+                        RunAIPrompt: {
+                            success: true,
+                            promptRunId: 'ai-run-777',
+                            parsedResult: {
+                                title: 'Q4 Forecast Notes',
+                                summary: '### Key Outcomes\n- Forecast approved.',
+                                proposedTasks: [
+                                    {
+                                        id: 'ai-prop-1',
+                                        title: 'Publish approved forecast',
+                                        assigneePersonId: PERSON_JUN,
+                                        assigneeName: 'Jun Park',
+                                    },
+                                ],
+                            },
+                        },
+                    };
+                }
+                return {};
+            };
+
+        const service = new MeetingNotesService(world.provider);
+        const note = await service.draftFromTranscript(MEETING_ID, null, USER);
+        expect(note.Title).toBe('Q4 Forecast Notes');
+        expect(note.AIPromptRunID).toBe('ai-run-777');
+        expect(executeGqlCalls).toHaveLength(2);
+        const proposals = parseProposedTasks(note.ProposedTasks);
+        expect(proposals).toHaveLength(1);
+        expect(proposals[0].title).toBe('Publish approved forecast');
+
+        // Idempotent accept: calling acceptProposedTask twice returns the same task without creating a duplicate
+        const firstAccept = await service.acceptProposedTask(note.ID, 'ai-prop-1', USER);
+        const secondAccept = await service.acceptProposedTask(note.ID, 'ai-prop-1', USER);
+        expect(secondAccept.task.ID).toBe(firstAccept.task.ID);
+        expect(world.savedTasks).toHaveLength(1);
     });
 });
 

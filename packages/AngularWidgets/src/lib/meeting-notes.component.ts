@@ -47,12 +47,15 @@ import type {
                         </select>
                     </label>
                 </div>
-                <label><span class="mjt-label">Transcript</span><textarea class="mjt-textarea" name="transcript" rows="6" [(ngModel)]="td.transcript" placeholder="Paste the meeting transcript or rough notes here; AI will summarize and propose action items." required></textarea></label>
+                @if (TranscriptFileID) {
+                    <div class="mjt-small mjt-muted"><i class="fa-solid fa-file-lines" aria-hidden="true"></i> Attached transcript file: <span class="mjt-strong">{{ TranscriptFileName || TranscriptFileID }}</span> (used automatically if the box below is left blank)</div>
+                }
+                <label><span class="mjt-label">Transcript{{ TranscriptFileID ? ' (optional override)' : '' }}</span><textarea class="mjt-textarea" name="transcript" rows="6" [(ngModel)]="td.transcript" [placeholder]="TranscriptFileID ? 'Leave blank to draft from the attached transcript file, or paste transcript text here.' : 'Paste the meeting transcript or rough notes here; AI will summarize and propose action items.'" [required]="!TranscriptFileID"></textarea></label>
                 <div class="mjt-row">
                     <span class="mjt-small mjt-muted">Creates a Draft note with proposed action items for review.</span>
                     <span class="mjt-grow"></span>
                     <button mjButton type="button" Variant="secondary" Size="sm" [disabled]="Busy" (click)="transcriptDraft = null">Cancel</button>
-                    <button mjButton type="submit" Variant="primary" Size="sm" [disabled]="Busy || !td.transcript.trim()"><i class="fa-solid fa-wand-magic-sparkles"></i>Draft with AI</button>
+                    <button mjButton type="submit" Variant="primary" Size="sm" [disabled]="Busy || (!td.transcript.trim() && !TranscriptFileID)"><i class="fa-solid fa-wand-magic-sparkles"></i>Draft with AI</button>
                 </div>
             </form>
         }
@@ -149,6 +152,8 @@ export class MeetingNotesComponent {
     @Input() Busy = false;
     @Input() ErrorMessage = '';
     @Input() DefaultAgendaItemID: string | null = null;
+    @Input() TranscriptFileID: string | null = null;
+    @Input() TranscriptFileName: string | null = null;
     @Output() SaveRequested = new EventEmitter<NoteDraft>();
     @Output() DeleteRequested = new EventEmitter<NoteModel>();
     @Output() TranscriptDraftRequested = new EventEmitter<TranscriptDraft>();
@@ -178,7 +183,8 @@ export class MeetingNotesComponent {
     }
 
     protected submitTranscript(): void {
-        if (!this.transcriptDraft?.transcript.trim()) return;
+        if (!this.transcriptDraft) return;
+        if (!this.transcriptDraft.transcript.trim() && !this.TranscriptFileID) return;
         this.TranscriptDraftRequested.emit({
             ...this.transcriptDraft,
             title: this.transcriptDraft.title.trim(),
