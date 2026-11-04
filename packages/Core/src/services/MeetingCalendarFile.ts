@@ -57,8 +57,9 @@ export class MeetingCalendarFile {
                 return who ? { ...who, role: a.Role === 'Optional' ? 'OPT-PARTICIPANT' : 'REQ-PARTICIPANT', status: PARTSTAT[a.ResponseStatus] } : null;
             })
             .filter((a): a is IcsAttendee => a !== null);
+        const uid = options.uid ?? (await this.linkedICalUid(meeting.ID, contextUser)) ?? meeting.ID;
         const content = buildMeetingIcs({
-            uid: options.uid ?? meeting.ID,
+            uid,
             method,
             sequence: options.sequence ?? 0,
             dtstamp: options.dtstamp ?? new Date(),
@@ -73,6 +74,26 @@ export class MeetingCalendarFile {
         });
         const slug = meeting.Name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'meeting';
         return { fileName: `${slug}.ics`, mimeType: 'text/calendar', content };
+    }
+
+    /** The active `MJ: Calendar Event Links` row's iCalendar UID for this meeting (T2), or null when none exists. */
+    private async linkedICalUid(meetingId: string, contextUser: UserInfo): Promise<string | null> {
+        try {
+            const res = await RunView.FromMetadataProvider(this.provider).RunView<{ ICalUID: string | null }>(
+                {
+                    EntityName: 'MJ: Calendar Event Links',
+                    ExtraFilter: `Entity = '${MEETING_ENTITY}' AND Status = 'Active' AND (RecordID = '${meetingId}' OR RecordID = 'ID|${meetingId}') AND ICalUID IS NOT NULL`,
+                    Fields: ['ICalUID'],
+                    ResultType: 'simple',
+                    MaxRows: 1,
+                },
+                contextUser,
+            );
+            if (!res?.Success || !res.Results?.length) return null;
+            return res.Results[0].ICalUID?.trim() || null;
+        } catch {
+            return null;
+        }
     }
 
     private person(row: AttendeeRow | null, person: PersonRow | undefined): IcsPerson | null {

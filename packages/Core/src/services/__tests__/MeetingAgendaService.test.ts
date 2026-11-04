@@ -49,7 +49,23 @@ function fakeItem(): Row {
         },
     });
 }
-const provider = { GetEntityObject: async () => fakeItem() };
+const provider = {
+    GetEntityObject: async (entityName?: string) => {
+        if (entityName === 'MJ_BizApps_Tasks: Meetings') {
+            return {
+                ID: 'M1',
+                Name: 'Board Sync',
+                Description: null,
+                StartsAt: new Date('2026-11-03T15:00:00Z'),
+                EndsAt: new Date('2026-11-03T16:00:00Z'),
+                SeriesID: null,
+                TypeID: null,
+                Load: async (id: string) => id === 'M1' || id === 'M2',
+            };
+        }
+        return fakeItem();
+    },
+};
 const user = { ID: 'U-ADA' };
 const item = (id: string, meeting: string, values: Row = {}): Row => ({ ID: id, MeetingID: meeting, ParentID: null, Sequence: 100, Name: id, Description: null, TypeID: null, PresenterPersonID: null, DurationMinutes: 10, Status: 'Planned', ...values });
 
@@ -101,5 +117,29 @@ describe('carrying an agenda forward', () => {
         items.push(item('D', 'M1', { Status: 'Done' }));
         expect(await new MeetingAgendaService(provider as never).carryForward('M1', 'M2', user as never)).toEqual([]);
         await expect(new MeetingAgendaService(provider as never).carryForward('M1', 'M1', user as never)).rejects.toThrow(/different meeting/);
+    });
+});
+
+describe('drafting an agenda with AI (T3)', () => {
+    it('creates planned agenda items from the AI prompt runner output, spaced by 100 after existing items', async () => {
+        items.push(item('Existing', 'M1', { Sequence: 100 }));
+        const runner = vi.fn().mockResolvedValue({
+            items: [
+                { title: 'Welcome & Check-in', description: 'Quick intros', durationMinutes: 5 },
+                { title: 'Review Open Action Items', description: 'Follow up on prior tasks', durationMinutes: 20 },
+            ],
+        });
+        const service = new MeetingAgendaService(provider as never);
+        const created = await service.draftAgenda('M1', user as never, {
+            promptRunner: runner,
+            additionalInstructions: 'Keep under 30 minutes',
+        });
+
+        expect(runner).toHaveBeenCalledTimes(1);
+        expect(created).toHaveLength(2);
+        expect(created.map((r) => [r.Name, r.Sequence, r.DurationMinutes, r.Status])).toEqual([
+            ['Welcome & Check-in', 200, 5, 'Planned'],
+            ['Review Open Action Items', 300, 20, 'Planned'],
+        ]);
     });
 });

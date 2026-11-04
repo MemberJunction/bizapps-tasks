@@ -25,12 +25,14 @@ import {
     MEETING_TYPE_ENTITY,
     MeetingAgendaService,
     MeetingCalendarFile,
+    MeetingNotesService,
     MeetingService,
     TaskAssignmentService,
     VIDEO_PROVIDER_ENTITY,
     callerAdministersMeetings,
     entityFailure,
     parseAgendaTemplate,
+    parseProposedTasks,
     type MeetingStatusChange,
 } from '@mj-biz-apps/tasks-core';
 import type {
@@ -48,8 +50,10 @@ import type {
     NoteDraft,
     NoteModel,
     PersonOption,
+    ProposedTaskAction,
     ResponseStatus,
     SeriesModel,
+    TranscriptDraft,
     VideoProviderOption,
 } from '@mj-biz-apps/tasks-ng-widgets';
 import type { SeriesDraft } from '@mj-biz-apps/tasks-ng-widgets';
@@ -307,10 +311,22 @@ export class MeetingData {
 
     async LoadNotes(meetingId: string): Promise<NoteModel[]> {
         const personId = await this.CurrentPersonId();
-        const rows = await this.rows<{ ID: string; AgendaItemID: string | null; Kind: NoteModel['kind']; Title: string | null; Body: string; Source: NoteModel['source']; Status: NoteModel['status']; AuthorPersonID: string | null; AuthorPerson: string | null; __mj_UpdatedAt: string }>(
-            MEETING_NOTE_ENTITY, `MeetingID = '${meetingId}'`, ['ID', 'AgendaItemID', 'Kind', 'Title', 'Body', 'Source', 'Status', 'AuthorPersonID', 'AuthorPerson', '__mj_UpdatedAt'], '__mj_UpdatedAt DESC', 500,
+        const rows = await this.rows<{ ID: string; AgendaItemID: string | null; Kind: NoteModel['kind']; Title: string | null; Body: string; Source: NoteModel['source']; Status: NoteModel['status']; AuthorPersonID: string | null; AuthorPerson: string | null; ProposedTasks: string | null; __mj_UpdatedAt: string }>(
+            MEETING_NOTE_ENTITY, `MeetingID = '${meetingId}'`, ['ID', 'AgendaItemID', 'Kind', 'Title', 'Body', 'Source', 'Status', 'AuthorPersonID', 'AuthorPerson', 'ProposedTasks', '__mj_UpdatedAt'], '__mj_UpdatedAt DESC', 500,
         );
-        return rows.map((r) => ({ id: r.ID, agendaItemId: r.AgendaItemID, kind: r.Kind, title: r.Title, body: r.Body, source: r.Source, status: r.Status, authorName: r.AuthorPerson, updatedLabel: dateLabel(r.__mj_UpdatedAt), isMine: !!personId && same(r.AuthorPersonID, personId) }));
+        return rows.map((r) => ({
+            id: r.ID,
+            agendaItemId: r.AgendaItemID,
+            kind: r.Kind,
+            title: r.Title,
+            body: r.Body,
+            source: r.Source,
+            status: r.Status,
+            authorName: r.AuthorPerson,
+            updatedLabel: dateLabel(r.__mj_UpdatedAt),
+            isMine: !!personId && same(r.AuthorPersonID, personId),
+            proposedTasks: parseProposedTasks(r.ProposedTasks),
+        }));
     }
 
     async LoadLinks(meetingId: string): Promise<LinkModel[]> {
@@ -533,6 +549,15 @@ export class MeetingData {
         }
     }
 
+    async DraftAgendaWithAI(meetingId: string): Promise<void> {
+        MeetingData.ForgetDetails();
+        try {
+            await new MeetingAgendaService(Metadata.Provider).draftAgenda(meetingId, this.user);
+        } finally {
+            MeetingData.ForgetDetails();
+        }
+    }
+
     async SetAgendaItemStatus(itemId: string, status: AgendaItemModel['status'], outcome?: string | null): Promise<void> {
         MeetingData.ForgetDetails();
         try {
@@ -580,6 +605,52 @@ export class MeetingData {
             if (!(await note.Delete())) throw new Error(entityFailure(note));
         } finally {
             MeetingData.ForgetDetails(); // the panels read again after the change, never a copy made during it
+        }
+    }
+
+    async DraftNotesFromTranscript(meetingId: string, draft: TranscriptDraft): Promise<void> {
+        MeetingData.ForgetDetails();
+        try {
+            const personId = await this.CurrentPersonId();
+            await new MeetingNotesService(Metadata.Provider).draftFromTranscript(meetingId, draft.transcript, this.user, {
+                title: draft.title || null,
+                kind: draft.kind,
+                agendaItemId: draft.agendaItemId,
+                authorPersonId: personId,
+            });
+        } finally {
+            MeetingData.ForgetDetails();
+        }
+    }
+
+    async AcceptProposedTask(action: ProposedTaskAction): Promise<string> {
+        MeetingData.ForgetDetails();
+        try {
+            const personId = await this.CurrentPersonId();
+            const res = await new MeetingNotesService(Metadata.Provider).acceptProposedTask(
+                action.noteId,
+                action.proposal.id,
+                this.user,
+                {
+                    title: action.title ?? action.proposal.title,
+                    assigneePersonId: action.assigneePersonId !== undefined ? action.assigneePersonId : action.proposal.assigneePersonId,
+                    dueAt: action.dueAt !== undefined ? action.dueAt : action.proposal.dueAt,
+                    agendaItemId: action.agendaItemId !== undefined ? action.agendaItemId : action.proposal.agendaItemId,
+                    createdByPersonId: personId,
+                },
+            );
+            return res.task.ID;
+        } finally {
+            MeetingData.ForgetDetails();
+        }
+    }
+
+    async DismissProposedTask(action: ProposedTaskAction): Promise<void> {
+        MeetingData.ForgetDetails();
+        try {
+            await new MeetingNotesService(Metadata.Provider).dismissProposedTask(action.noteId, action.proposal.id, this.user);
+        } finally {
+            MeetingData.ForgetDetails();
         }
     }
 

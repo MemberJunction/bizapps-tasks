@@ -1,0 +1,36 @@
+[
+  {
+    "fields": {
+      "Name": "Tasks: Meeting Notes from Transcript",
+      "Description": "Summarizes a meeting transcript into structured Markdown notes and extracts proposed action items (ProposedTasks) with optional assignee and due date.",
+      "TypeID": "@lookup:MJ: AI Prompt Types.Name=Chat",
+      "TemplateText": "@file:templates/meeting-notes-from-transcript.template.md",
+      "ResponseFormat": "JSON",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "E1A00001-0000-4000-8000-000000000001"
+    },
+    "sync": {
+      "lastModified": "2026-11-04T06:58:15.448Z",
+      "checksum": "a2a406239347a78f0f13f64b50bb6acff2580f4ddbc5c1a811697f6a62cfe0f9"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Tasks: Draft Meeting Agenda",
+      "Description": "Drafts a structured meeting agenda from the meeting type's template, open linked tasks, and unfinished items from prior occurrences.",
+      "TypeID": "@lookup:MJ: AI Prompt Types.Name=Chat",
+      "TemplateText": "@file:templates/draft-meeting-agenda.template.md",
+      "ResponseFormat": "JSON",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "E1A00001-0000-4000-8000-000000000002"
+    },
+    "sync": {
+      "lastModified": "2026-11-04T06:58:15.485Z",
+      "checksum": "d2ac7171d2b8577a24bdf4372c43885f045bcf7b1d210492429d565bd1130c04"
+    }
+  }
+]

@@ -216,6 +216,24 @@ describe('a meeting\'s status', () => {
         expect(runAfterCommitMock).toHaveBeenCalledTimes(1);
         expect(runAfterCommitMock.mock.calls[0][1]).toBe('cancel video meeting zoom-123');
     });
+
+    it('provisions a video meeting after the commit when VideoProviderID is set and VideoMeetingID is empty', async () => {
+        const meeting = scheduled();
+        meeting.seed({ VideoProviderID: 'VP1', VideoMeetingID: null });
+        meeting.Name = 'Scheduled with Zoom';
+        expect(await meeting.Save()).toBe(true);
+        expect(runAfterCommitMock).toHaveBeenCalledTimes(1);
+        expect(runAfterCommitMock.mock.calls[0][1]).toBe('provision video meeting for M1');
+    });
+
+    it('updates the video meeting after the commit when a meeting with VideoMeetingID is rescheduled or renamed', async () => {
+        const meeting = scheduled();
+        meeting.seed({ VideoProviderID: 'VP1', VideoMeetingID: 'zoom-123' });
+        meeting.Name = 'Rescheduled Board Prep';
+        expect(await meeting.Save()).toBe(true);
+        expect(runAfterCommitMock).toHaveBeenCalledTimes(1);
+        expect(runAfterCommitMock.mock.calls[0][1]).toBe('update video meeting zoom-123');
+    });
 });
 
 describe('a new meeting', () => {

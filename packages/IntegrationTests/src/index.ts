@@ -1,11 +1,14 @@
 import { LoadGeneratedEntities as LoadTaskEntities } from '@mj-biz-apps/tasks-entities';
 import { LoadGeneratedEntities as LoadCommonEntities } from '@mj-biz-apps/common-entities';
 import { LoadBizAppsTasksEntitiesServer } from '@mj-biz-apps/tasks-entities-server';
+import { LoadFakeVideoProvider } from './video-stub.js';
 
 LoadCommonEntities();
 LoadTaskEntities();
 LoadBizAppsTasksEntitiesServer();
+LoadFakeVideoProvider();
 
+export * from './video-stub.js';
 export * from './entity-names.js';
 export * from './wire.js';
 export * from './world/world.js';

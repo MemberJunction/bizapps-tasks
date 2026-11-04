@@ -19,7 +19,7 @@ import {
 import { BusinessTimeZoneEngine } from '@mj-biz-apps/common-entities';
 import { runAfterCommit } from './after-commit.js';
 import { callerOwnsMeeting, meetingCaller } from './meeting-caller.js';
-import { resolveVideoProviderDriver } from './video/VideoProviderBase.js';
+import { resolveVideoProviderDriver, type VideoMeetingInput, type VideoProviderBase } from './video/VideoProviderBase.js';
 
 const fail = (result: ValidationResult, field: string, message: string): ValidationResult => {
     result.Success = false;
@@ -87,16 +87,29 @@ export class MeetingEntityServer extends mjBizAppsTasksMeetingEntity {
         return field?.Dirty ? String(field.OldValue ?? '') : this.OrganizerPersonID;
     }
 
+    private static readonly callerProvidedVideoMeetingIds = new Set<string>();
+
     public override async Save(options?: EntitySaveOptions): Promise<boolean> {
         const isNew = !this.IsSaved;
         const before = this.statusBefore;
+        const maintainedBySync = Boolean(
+            (this as { MaintainedByVideoSync?: boolean; MaintainedByCalendarSync?: boolean }).MaintainedByVideoSync ||
+                (this as { MaintainedByVideoSync?: boolean; MaintainedByCalendarSync?: boolean }).MaintainedByCalendarSync,
+        );
+        if (!maintainedBySync && this.ID && this.VideoMeetingID) {
+            MeetingEntityServer.callerProvidedVideoMeetingIds.add(this.ID.toLowerCase());
+        }
         await this.stampDefaults(isNew);
         // A refused save leaves no stamp behind: the base class validates again inside Save and reports the refusal
         if ((await this.ValidateAsync()).Success) this.stampStatusTimes(before);
         const cancelling = this.Status === 'Cancelled' && before !== 'Cancelled';
         const videoMeetingId = this.VideoMeetingID;
         const videoProviderId = this.VideoProviderID;
+        const videoDetailsChanged = !isNew && this.hasVideoDetailsDirty();
 
+        if (maintainedBySync && this.ID && MeetingEntityServer.callerProvidedVideoMeetingIds.has(this.ID.toLowerCase())) {
+            return true;
+        }
         if (!(await super.Save(options))) return false;
 
         try {
@@ -106,8 +119,38 @@ export class MeetingEntityServer extends mjBizAppsTasksMeetingEntity {
         }
         if (cancelling && videoProviderId && videoMeetingId) {
             runAfterCommit(this.ProviderToUse, `cancel video meeting ${videoMeetingId}`, () => this.deleteVideoMeeting(videoProviderId, videoMeetingId));
+        } else if (!cancelling && this.Status !== 'Draft' && videoProviderId && !videoMeetingId && !maintainedBySync) {
+            const meetingId = this.ID;
+            runAfterCommit(this.ProviderToUse, `provision video meeting for ${meetingId}`, () => this.provisionVideoMeeting(meetingId, videoProviderId));
+        } else if (!cancelling && !isNew && videoProviderId && videoMeetingId && videoDetailsChanged && !maintainedBySync) {
+            const snapshot = this.videoInputSnapshot();
+            runAfterCommit(this.ProviderToUse, `update video meeting ${videoMeetingId}`, () => this.updateVideoMeeting(videoProviderId, videoMeetingId, snapshot));
+        }
+        if (!maintainedBySync && this.Status !== 'Draft' && this.metadataProvider.Applications?.length) {
+            const meetingId = this.ID;
+            runAfterCommit(this.ProviderToUse, `sync calendar event for meeting ${meetingId}`, async () => {
+                const { TasksSettings } = await import('./TasksSettings.js');
+                if (!TasksSettings.DefaultCalendarProviderName(this.metadataProvider)) return;
+                const { MeetingCalendarSyncService } = await import('./calendar/MeetingCalendarSyncService.js');
+                await new MeetingCalendarSyncService(this.metadataProvider).syncMeeting(meetingId, this.ContextCurrentUser);
+            });
         }
         return true;
+    }
+
+    private hasVideoDetailsDirty(): boolean {
+        const watched = new Set(['Name', 'StartsAt', 'EndsAt', 'TimeZone', 'Description']);
+        return this.Fields.some((f) => watched.has(f.CodeName) && f.Dirty);
+    }
+
+    private videoInputSnapshot(): VideoMeetingInput {
+        return {
+            Title: this.Name,
+            StartsAt: this.StartsAt,
+            EndsAt: this.EndsAt,
+            TimeZone: this.TimeZone || 'UTC',
+            Description: this.Description,
+        };
     }
 
     /** Whether the caller is the organizer, or someone who may change every meeting. */
@@ -194,18 +237,67 @@ export class MeetingEntityServer extends mjBizAppsTasksMeetingEntity {
         (row as mjBizAppsTasksMeetingAttendeeEntity & { MaintainedByMeetingServer?: boolean }).MaintainedByMeetingServer = true;
     }
 
+    /** After the commit: provisions a new video meeting and stamps `VideoJoinURL`, `VideoMeetingID`, and `DialInDetails`. */
+    private async provisionVideoMeeting(meetingId: string, videoProviderId: string): Promise<void> {
+        const key = meetingId.toLowerCase();
+        if (MeetingEntityServer.callerProvidedVideoMeetingIds.has(key)) return;
+        const ready = await this.loadConfiguredDriver(videoProviderId, `provision for meeting ${meetingId}`);
+        if (!ready || MeetingEntityServer.callerProvidedVideoMeetingIds.has(key)) return;
+        const user = this.ContextCurrentUser;
+        const meeting = await this.metadataProvider.GetEntityObject<mjBizAppsTasksMeetingEntity>(MEETING_ENTITY, user);
+        if (!(await meeting.Load(meetingId))) return;
+        if (meeting.VideoMeetingID || meeting.Status === 'Cancelled' || MeetingEntityServer.callerProvidedVideoMeetingIds.has(key)) return;
+        const created = await ready.driver.CreateMeeting(
+            {
+                Title: meeting.Name,
+                StartsAt: meeting.StartsAt,
+                EndsAt: meeting.EndsAt,
+                TimeZone: meeting.TimeZone || 'UTC',
+                Description: meeting.Description,
+            },
+            user,
+        );
+        if (MeetingEntityServer.callerProvidedVideoMeetingIds.has(key)) return;
+        (meeting as mjBizAppsTasksMeetingEntity & { MaintainedByVideoSync?: boolean }).MaintainedByVideoSync = true;
+        meeting.VideoJoinURL = created.JoinURL;
+        meeting.VideoMeetingID = created.ProviderMeetingID;
+        if (created.DialInDetails !== undefined) {
+            meeting.DialInDetails = created.DialInDetails;
+        }
+        if (!(await meeting.Save())) {
+            LogError(`MeetingEntityServer: video meeting ${created.ProviderMeetingID} was created for meeting ${meetingId}, but saving VideoJoinURL failed: ${meeting.LatestResult?.Message ?? 'unknown error'}`);
+        }
+    }
+
+    /** After the commit: updates the provider's copy when a meeting moves or is renamed. */
+    private async updateVideoMeeting(videoProviderId: string, videoMeetingId: string, input: VideoMeetingInput): Promise<void> {
+        const ready = await this.loadConfiguredDriver(videoProviderId, `update video meeting ${videoMeetingId}`);
+        if (!ready) return;
+        await ready.driver.UpdateMeeting(videoMeetingId, input, this.ContextCurrentUser);
+    }
+
     /** After the commit: the provider's copy of a cancelled meeting goes. Best effort, logged. */
     private async deleteVideoMeeting(videoProviderId: string, videoMeetingId: string): Promise<void> {
+        const ready = await this.loadConfiguredDriver(videoProviderId, `delete video meeting ${videoMeetingId}`);
+        if (!ready) return;
+        await ready.driver.DeleteMeeting(videoMeetingId, this.ContextCurrentUser);
+    }
+
+    private async loadConfiguredDriver(
+        videoProviderId: string,
+        actionLabel: string,
+    ): Promise<{ provider: mjBizAppsTasksVideoProviderEntity; driver: VideoProviderBase } | null> {
         const user = this.ContextCurrentUser;
         const provider = await this.metadataProvider.GetEntityObject<mjBizAppsTasksVideoProviderEntity>(VIDEO_PROVIDER_ENTITY, user);
-        if (!(await provider.Load(videoProviderId))) return;
+        if (!(await provider.Load(videoProviderId))) return null;
+        if (!provider.DriverClass) return null;
         const driver = resolveVideoProviderDriver(provider.DriverClass);
-        if (!driver) return;
+        if (!driver) return null;
         await driver.Initialize({ ProviderID: provider.ID, CredentialID: provider.CredentialID, Configuration: provider.Configuration }, user);
         if (!driver.IsConfigured) {
-            LogError(`Video provider '${provider.Name}' is not configured; meeting ${videoMeetingId} was not deleted there.`);
-            return;
+            LogError(`Video provider '${provider.Name}' is not configured; could not ${actionLabel}.`);
+            return null;
         }
-        await driver.DeleteMeeting(videoMeetingId, user);
+        return { provider, driver };
     }
 }

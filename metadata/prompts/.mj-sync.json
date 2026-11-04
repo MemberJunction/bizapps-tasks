@@ -1,0 +1,20 @@
+{
+  "entity": "MJ: AI Prompts",
+  "filePattern": "**/.*.json",
+  "ignoreDirectories": ["templates"],
+  "pull": {
+    "createNewFileIfNotFound": true,
+    "newFileName": ".prompts.json",
+    "appendRecordsToExistingFile": true,
+    "updateExistingRecords": true,
+    "ignoreNullFields": true,
+    "ignoreVirtualFields": true,
+    "preserveFields": ["TemplateText"],
+    "lookupFields": {
+      "TypeID": {
+        "entity": "MJ: AI Prompt Types",
+        "field": "Name"
+      }
+    }
+  }
+}

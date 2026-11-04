@@ -342,7 +342,7 @@ function castCoreBooleanInserts(sql) {
  * no implicit boolean=integer operator). Scoped to known boolean column names (MJ-core map ∪ the
  * bizapps table booleans) so integer columns that legitimately equal 0/1 are never touched.
  */
-const BIZAPPS_BOOL_COLS = ['IsActive', 'IsEdited', 'IsTerminal', 'NotifyAssignees', 'NotifyCreator', 'OverdueNotificationsEnabled'];
+const BIZAPPS_BOOL_COLS = ['IsActive', 'IsApproval', 'IsDefault', 'IsEdited', 'IsTerminal', 'NotifyAssignees', 'NotifyCreator', 'OverdueNotificationsEnabled', 'SupportsTranscripts'];
 const BOOL_NAMES = new Set([...Object.values(CORE_BOOL_COLS).flat(), ...BIZAPPS_BOOL_COLS]);
 function castBooleanComparisons(sql) {
   return sql.replace(/"([A-Za-z0-9_]+)"(\s*(?:=|<>)\s*)([01])\b/g, (full, name, op, val) =>

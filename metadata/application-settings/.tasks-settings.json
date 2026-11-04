@@ -28,5 +28,27 @@
       "lastModified": "2026-10-20T01:14:32.551Z",
       "checksum": "61c924cfb7ff21d7abeb187386743aa0dfc00d0ec0ca5113365f2a047f20e53f"
     }
+  },
+  {
+    "fields": {
+      "ApplicationID": "@lookup:MJ: Applications.Name=Tasks",
+      "Name": "DefaultCalendarProviderName",
+      "Value": "",
+      "Comments": "The MJ: Communication Providers name (for example 'Microsoft Graph' or 'Gmail') used to synchronize meetings with an external calendar via CalendarEventLinks (T2). Empty leaves automatic calendar sync off."
+    },
+    "primaryKey": {
+      "ID": "28DDAA01-0000-4000-8000-000000000001"
+    }
+  },
+  {
+    "fields": {
+      "ApplicationID": "@lookup:MJ: Applications.Name=Tasks",
+      "Name": "SharedCalendarMailbox",
+      "Value": "",
+      "Comments": "Optional shared scheduling mailbox address used as the CalendarTarget.Identifier fallback when a meeting's organizer has no email address."
+    },
+    "primaryKey": {
+      "ID": "28DDAA01-0000-4000-8000-000000000002"
+    }
   }
 ]

@@ -1,9 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const runViewMock = vi.fn();
-vi.mock('@memberjunction/core', () => ({
-    RunView: { FromMetadataProvider: () => ({ RunView: (...args: unknown[]) => runViewMock(...args) }) },
-}));
+vi.mock('@memberjunction/core', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@memberjunction/core')>();
+    return {
+        ...actual,
+        RunView: { FromMetadataProvider: () => ({ RunView: (...args: unknown[]) => runViewMock(...args) }) },
+    };
+});
 
 import { peopleEntityIds, personIdForUser, personIdFromUserLink, userIdForPerson } from '../person-user.js';
 import type { IMetadataProvider, UserInfo } from '@memberjunction/core';

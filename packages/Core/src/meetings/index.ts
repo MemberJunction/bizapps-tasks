@@ -7,3 +7,4 @@ export * from './person-user.js';
 export * from './meeting-access.js';
 export * from './agenda-template.js';
 export * from './entity-names.js';
+export * from './proposed-tasks.js';
