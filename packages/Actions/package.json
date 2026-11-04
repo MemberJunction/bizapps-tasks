@@ -18,21 +18,21 @@
   "author": "MemberJunction.com",
   "license": "BUSL-1.1",
   "devDependencies": {
-    "@memberjunction/actions": "6.2.0-edge.7",
-    "@memberjunction/actions-base": "6.2.0-edge.7",
-    "@memberjunction/core": "6.2.0-edge.7",
-    "@memberjunction/core-entities": "6.2.0-edge.7",
-    "@memberjunction/global": "6.2.0-edge.7",
+    "@memberjunction/actions": "6.2.0-edge.8",
+    "@memberjunction/actions-base": "6.2.0-edge.8",
+    "@memberjunction/core": "6.2.0-edge.8",
+    "@memberjunction/core-entities": "6.2.0-edge.8",
+    "@memberjunction/global": "6.2.0-edge.8",
     "typescript": "^5.9.3",
     "vitest": "1.6.1"
   },
   "peerDependencies": {
-    "@memberjunction/core": "^6.2.0-edge.7",
-    "@memberjunction/core-entities": "^6.2.0-edge.7",
-    "@memberjunction/global": "^6.2.0-edge.7",
-    "@memberjunction/actions-base": "^6.2.0-edge.7",
-    "@memberjunction/actions": "^6.2.0-edge.7",
-    "@memberjunction/credentials": "^6.2.0-edge.7"
+    "@memberjunction/core": "^6.2.0-edge.8",
+    "@memberjunction/core-entities": "^6.2.0-edge.8",
+    "@memberjunction/global": "^6.2.0-edge.8",
+    "@memberjunction/actions-base": "^6.2.0-edge.8",
+    "@memberjunction/actions": "^6.2.0-edge.8",
+    "@memberjunction/credentials": "^6.2.0-edge.8"
   },
   "repository": {
     "type": "git",
