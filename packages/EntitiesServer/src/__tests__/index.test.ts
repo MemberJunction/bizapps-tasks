@@ -50,6 +50,15 @@ vi.mock('@mj-biz-apps/tasks-entities', () => ({
 }));
 vi.mock('@mj-biz-apps/common-entities', () => ({
   BusinessTimeZoneEngine: { Instance: { Config: async () => undefined, Zone: 'UTC' } },
+  ResolvePersonIDForUser: vi.fn().mockResolvedValue(null),
+  ResolveUserIDForPerson: vi.fn().mockResolvedValue(null),
+}));
+vi.mock('@memberjunction/credentials', () => ({
+  CredentialEngine: { Instance: { Config: vi.fn(), GetCredential: vi.fn() } },
+}));
+vi.mock('@memberjunction/communication-engine', () => ({
+  BaseCalendarEventLinkHandler: class {},
+  CalendarEventLinks: class {},
 }));
 vi.mock('@mj-biz-apps/tasks-core', async () => ({ ...(await vi.importActual<typeof import('@mj-biz-apps/tasks-core')>('@mj-biz-apps/tasks-core')), TaskService: class {} }));
 vi.mock('@memberjunction/core-entities', () => ({ ApplicationSettingEngine: { Instance: {} } }));

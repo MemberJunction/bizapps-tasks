@@ -20,6 +20,7 @@
     "ml-training-pipelines",
     "ml-models",
     "ml-model-scoring-bindings",
+    "prompts",
     "meeting-agenda-item-types",
     "meeting-types",
     "video-providers",

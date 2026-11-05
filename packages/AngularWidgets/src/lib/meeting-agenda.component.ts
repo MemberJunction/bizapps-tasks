@@ -86,6 +86,7 @@ const STATUS_CLASS: Record<AgendaItemModel['status'], string> = {
                 @if (HasTemplate && !Items.length) {
                     <button mjButton Variant="secondary" Size="sm" [disabled]="Busy" (click)="TemplateRequested.emit()"><i class="fa-solid fa-wand-magic-sparkles"></i>Use the type's template</button>
                 }
+                <button mjButton Variant="secondary" Size="sm" [disabled]="Busy" (click)="DraftAgendaRequested.emit()"><i class="fa-solid fa-wand-magic-sparkles"></i>Draft agenda with AI</button>
                 <button mjButton Variant="primary" Size="sm" [disabled]="Busy" (click)="openDraft(null, null)"><i class="fa-solid fa-plus"></i>Add item</button>
             }
         </div>
@@ -181,6 +182,7 @@ export class MeetingAgendaComponent {
     @Output() ReorderRequested = new EventEmitter<AgendaReorder>();
     @Output() MoveRequested = new EventEmitter<AgendaMove>();
     @Output() TemplateRequested = new EventEmitter<void>();
+    @Output() DraftAgendaRequested = new EventEmitter<void>();
 
     protected draft: AgendaItemDraft | null = null;
     public readonly StatusClass = STATUS_CLASS;

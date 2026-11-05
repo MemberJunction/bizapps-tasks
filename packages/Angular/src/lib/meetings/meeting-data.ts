@@ -25,12 +25,14 @@ import {
     MEETING_TYPE_ENTITY,
     MeetingAgendaService,
     MeetingCalendarFile,
+    MeetingNotesService,
     MeetingService,
     TaskAssignmentService,
     VIDEO_PROVIDER_ENTITY,
     callerAdministersMeetings,
     entityFailure,
     parseAgendaTemplate,
+    parseProposedTasks,
     type MeetingStatusChange,
 } from '@mj-biz-apps/tasks-core';
 import type {
@@ -48,8 +50,10 @@ import type {
     NoteDraft,
     NoteModel,
     PersonOption,
+    ProposedTaskAction,
     ResponseStatus,
     SeriesModel,
+    TranscriptDraft,
     VideoProviderOption,
 } from '@mj-biz-apps/tasks-ng-widgets';
 import type { SeriesDraft } from '@mj-biz-apps/tasks-ng-widgets';
@@ -80,6 +84,8 @@ interface MeetingRecordRow {
     SeriesID: string | null;
     CancellationReason: string | null;
     ActualStartedAt: string | null;
+    TranscriptFileID: string | null;
+    TranscriptFile: string | null;
 }
 
 interface AttendeeRecordRow {
@@ -103,7 +109,7 @@ interface PersonRow {
     Email: string | null;
 }
 
-const MEETING_FIELDS = ['ID', 'Name', 'Description', 'Status', 'Visibility', 'Type', 'TypeID', 'StartsAt', 'EndsAt', 'TimeZone', 'LocationType', 'Location', 'VideoJoinURL', 'OrganizerPersonID', 'OrganizerPerson', 'SeriesID', 'CancellationReason', 'ActualStartedAt'];
+const MEETING_FIELDS = ['ID', 'Name', 'Description', 'Status', 'Visibility', 'Type', 'TypeID', 'StartsAt', 'EndsAt', 'TimeZone', 'LocationType', 'Location', 'VideoJoinURL', 'OrganizerPersonID', 'OrganizerPerson', 'SeriesID', 'CancellationReason', 'ActualStartedAt', 'TranscriptFileID', 'TranscriptFile'];
 const ATTENDEE_FIELDS = ['ID', 'MeetingID', 'PersonID', 'UserID', 'Email', 'DisplayName', 'Person', 'Role', 'ResponseStatus', 'AttendanceStatus'];
 
 const same = (a: string | null | undefined, b: string | null | undefined): boolean => !!a && !!b && a.toLowerCase() === b.toLowerCase();
@@ -126,6 +132,8 @@ export interface MeetingDetail {
     startedAt: Date | null;
     typeId: string | null;
     typeHasTemplate: boolean;
+    transcriptFileId: string | null;
+    transcriptFileName: string | null;
     attendees: AttendeeModel[];
     agenda: AgendaItemModel[];
     notes: NoteModel[];
@@ -215,8 +223,21 @@ export class MeetingData {
         if (options.through) filters.push(`StartsAt <= '${options.through.toISOString()}'`);
         if (options.extraFilter) filters.push(`(${options.extraFilter})`);
         if (options.mine) {
-            const parts = [`ID IN (SELECT MeetingID FROM [__mj_BizAppsTasks].[vwMeetingAttendees] WHERE UserID = '${this.user.ID}')`];
-            if (personId) parts.push(`OrganizerPersonID = '${personId}'`, `ID IN (SELECT MeetingID FROM [__mj_BizAppsTasks].[vwMeetingAttendees] WHERE PersonID = '${personId}')`);
+            const attendeeFilter = personId
+                ? `UserID = '${this.user.ID}' OR PersonID = '${personId}'`
+                : `UserID = '${this.user.ID}'`;
+            const myAttendeeRows = await this.rows<{ MeetingID: string }>(
+                MEETING_ATTENDEE_ENTITY,
+                attendeeFilter,
+                ['MeetingID'],
+                '',
+                2000,
+            );
+            const myMeetingIds = [...new Set(myAttendeeRows.map((a) => a.MeetingID).filter(Boolean))];
+            const parts: string[] = [];
+            if (personId) parts.push(`OrganizerPersonID = '${personId}'`);
+            if (myMeetingIds.length) parts.push(`ID IN (${myMeetingIds.map((id) => `'${id}'`).join(',')})`);
+            if (!parts.length) return [];
             filters.push(`(${parts.join(' OR ')})`);
         }
         const meetings = await this.rows<MeetingRecordRow>(MEETING_ENTITY, filters.join(' AND '), MEETING_FIELDS, 'StartsAt ASC', 500);
@@ -294,7 +315,7 @@ export class MeetingData {
         const permissions = meetingPermissions(row.isMine, !!myRow, this.Administers());
         return {
             row, description: record.Description, cancellationReason: record.CancellationReason, startedAt: record.ActualStartedAt ? new Date(record.ActualStartedAt) : null, typeId: record.TypeID,
-            typeHasTemplate: !!record.TypeID && this.typeTemplates.has(record.TypeID.toLowerCase()), attendees, agenda, notes, followUps, links, permissions, myAttendeeId: myRow?.ID ?? null,
+            typeHasTemplate: !!record.TypeID && this.typeTemplates.has(record.TypeID.toLowerCase()), transcriptFileId: record.TranscriptFileID ?? null, transcriptFileName: record.TranscriptFile ?? null, attendees, agenda, notes, followUps, links, permissions, myAttendeeId: myRow?.ID ?? null,
         };
     }
 
@@ -307,10 +328,22 @@ export class MeetingData {
 
     async LoadNotes(meetingId: string): Promise<NoteModel[]> {
         const personId = await this.CurrentPersonId();
-        const rows = await this.rows<{ ID: string; AgendaItemID: string | null; Kind: NoteModel['kind']; Title: string | null; Body: string; Source: NoteModel['source']; Status: NoteModel['status']; AuthorPersonID: string | null; AuthorPerson: string | null; __mj_UpdatedAt: string }>(
-            MEETING_NOTE_ENTITY, `MeetingID = '${meetingId}'`, ['ID', 'AgendaItemID', 'Kind', 'Title', 'Body', 'Source', 'Status', 'AuthorPersonID', 'AuthorPerson', '__mj_UpdatedAt'], '__mj_UpdatedAt DESC', 500,
+        const rows = await this.rows<{ ID: string; AgendaItemID: string | null; Kind: NoteModel['kind']; Title: string | null; Body: string; Source: NoteModel['source']; Status: NoteModel['status']; AuthorPersonID: string | null; AuthorPerson: string | null; ProposedTasks: string | null; __mj_UpdatedAt: string }>(
+            MEETING_NOTE_ENTITY, `MeetingID = '${meetingId}'`, ['ID', 'AgendaItemID', 'Kind', 'Title', 'Body', 'Source', 'Status', 'AuthorPersonID', 'AuthorPerson', 'ProposedTasks', '__mj_UpdatedAt'], '__mj_UpdatedAt DESC', 500,
         );
-        return rows.map((r) => ({ id: r.ID, agendaItemId: r.AgendaItemID, kind: r.Kind, title: r.Title, body: r.Body, source: r.Source, status: r.Status, authorName: r.AuthorPerson, updatedLabel: dateLabel(r.__mj_UpdatedAt), isMine: !!personId && same(r.AuthorPersonID, personId) }));
+        return rows.map((r) => ({
+            id: r.ID,
+            agendaItemId: r.AgendaItemID,
+            kind: r.Kind,
+            title: r.Title,
+            body: r.Body,
+            source: r.Source,
+            status: r.Status,
+            authorName: r.AuthorPerson,
+            updatedLabel: dateLabel(r.__mj_UpdatedAt),
+            isMine: !!personId && same(r.AuthorPersonID, personId),
+            proposedTasks: parseProposedTasks(r.ProposedTasks),
+        }));
     }
 
     async LoadLinks(meetingId: string): Promise<LinkModel[]> {
@@ -340,11 +373,16 @@ export class MeetingData {
         if (!links.length) return [];
         const taskIds = [...new Set(links.map((l) => l.TaskID.toUpperCase()))];
         const tasks = await this.rows<{ ID: string; Name: string; Status: string; Priority: string | null; DueAt: string | null }>(TASKS_ENTITY, `ID IN (${taskIds.map((id) => `'${id}'`).join(',')})`, ['ID', 'Name', 'Status', 'Priority', 'DueAt'], 'DueAt ASC', 500);
-        const assignments = await this.rows<{ TaskID: string; Assignee: string | null; AssigneeRecordID: string }>(TASK_ASSIGNMENTS_ENTITY, `TaskID IN (${taskIds.map((id) => `'${id}'`).join(',')})`, ['TaskID', 'Assignee', 'AssigneeRecordID'], '', 2000).catch(() => []);
+        const assignments = await this.rows<{ TaskID: string; AssigneeRecordID: string }>(TASK_ASSIGNMENTS_ENTITY, `TaskID IN (${taskIds.map((id) => `'${id}'`).join(',')})`, ['TaskID', 'AssigneeRecordID'], '', 2000).catch(() => []);
+        const personIds = [...new Set(assignments.map((a) => a.AssigneeRecordID).filter(Boolean))];
+        const people = personIds.length
+            ? await this.rows<PersonRow>(PEOPLE_ENTITY, `ID IN (${personIds.map((id) => `'${id}'`).join(',')})`, ['ID', 'DisplayName', 'FirstName', 'LastName', 'Email'], '', 500).catch(() => [])
+            : [];
+        const nameByPersonId = new Map(people.map((p) => [p.ID.toLowerCase(), this.personName(p)]));
         const itemOf = new Map(links.filter((l) => same(l.EntityID, itemsEntity.ID)).map((l) => [l.TaskID.toLowerCase(), l.RecordID]));
         return tasks.map((t) => ({
             id: t.ID, name: t.Name, status: t.Status, priority: t.Priority, dueAt: t.DueAt ? new Date(t.DueAt) : null,
-            assigneeNames: assignments.filter((a) => same(a.TaskID, t.ID)).map((a) => a.Assignee ?? a.AssigneeRecordID),
+            assigneeNames: assignments.filter((a) => same(a.TaskID, t.ID)).map((a) => nameByPersonId.get(a.AssigneeRecordID.toLowerCase()) ?? a.AssigneeRecordID),
             agendaItemId: itemOf.get(t.ID.toLowerCase()) ?? null,
         }));
     }
@@ -533,6 +571,15 @@ export class MeetingData {
         }
     }
 
+    async DraftAgendaWithAI(meetingId: string): Promise<void> {
+        MeetingData.ForgetDetails();
+        try {
+            await new MeetingAgendaService(Metadata.Provider).draftAgenda(meetingId, this.user);
+        } finally {
+            MeetingData.ForgetDetails();
+        }
+    }
+
     async SetAgendaItemStatus(itemId: string, status: AgendaItemModel['status'], outcome?: string | null): Promise<void> {
         MeetingData.ForgetDetails();
         try {
@@ -580,6 +627,52 @@ export class MeetingData {
             if (!(await note.Delete())) throw new Error(entityFailure(note));
         } finally {
             MeetingData.ForgetDetails(); // the panels read again after the change, never a copy made during it
+        }
+    }
+
+    async DraftNotesFromTranscript(meetingId: string, draft: TranscriptDraft): Promise<void> {
+        MeetingData.ForgetDetails();
+        try {
+            const personId = await this.CurrentPersonId();
+            await new MeetingNotesService(Metadata.Provider).draftFromTranscript(meetingId, draft.transcript, this.user, {
+                title: draft.title || null,
+                kind: draft.kind,
+                agendaItemId: draft.agendaItemId,
+                authorPersonId: personId,
+            });
+        } finally {
+            MeetingData.ForgetDetails();
+        }
+    }
+
+    async AcceptProposedTask(action: ProposedTaskAction): Promise<string> {
+        MeetingData.ForgetDetails();
+        try {
+            const personId = await this.CurrentPersonId();
+            const res = await new MeetingNotesService(Metadata.Provider).acceptProposedTask(
+                action.noteId,
+                action.proposal.id,
+                this.user,
+                {
+                    title: action.title ?? action.proposal.title,
+                    assigneePersonId: action.assigneePersonId !== undefined ? action.assigneePersonId : action.proposal.assigneePersonId,
+                    dueAt: action.dueAt !== undefined ? action.dueAt : action.proposal.dueAt,
+                    agendaItemId: action.agendaItemId !== undefined ? action.agendaItemId : action.proposal.agendaItemId,
+                    createdByPersonId: personId,
+                },
+            );
+            return res.task.ID;
+        } finally {
+            MeetingData.ForgetDetails();
+        }
+    }
+
+    async DismissProposedTask(action: ProposedTaskAction): Promise<void> {
+        MeetingData.ForgetDetails();
+        try {
+            await new MeetingNotesService(Metadata.Provider).dismissProposedTask(action.noteId, action.proposal.id, this.user);
+        } finally {
+            MeetingData.ForgetDetails();
         }
     }
 

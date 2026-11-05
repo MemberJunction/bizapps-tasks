@@ -1,20 +1,118 @@
 import { Metadata, RunView, type IMetadataProvider, type UserInfo } from '@memberjunction/core';
-import type { mjBizAppsTasksMeetingAgendaItemEntity, mjBizAppsTasksMeetingAgendaItemTypeEntity } from '@mj-biz-apps/tasks-entities';
-import { MEETING_AGENDA_ITEM_ENTITY, MEETING_AGENDA_ITEM_TYPE_ENTITY, entityFailure } from '../meetings/entity-names.js';
-import { flattenAgendaTemplate, type AgendaTemplate } from '../meetings/agenda-template.js';
+import type {
+    mjBizAppsTasksMeetingAgendaItemEntity,
+    mjBizAppsTasksMeetingAgendaItemTypeEntity,
+    mjBizAppsTasksMeetingEntity,
+    mjBizAppsTasksMeetingLinkEntity,
+    mjBizAppsTasksMeetingTypeEntity,
+} from '@mj-biz-apps/tasks-entities';
+import { executeMeetingAIPrompt, resolveMeetingPromptId } from '../meetings/ai-prompt-execution.js';
+import {
+    MEETING_AGENDA_ITEM_ENTITY,
+    MEETING_AGENDA_ITEM_TYPE_ENTITY,
+    MEETING_ENTITY,
+    MEETING_LINK_ENTITY,
+    MEETING_TYPE_ENTITY,
+    entityFailure,
+} from '../meetings/entity-names.js';
+import { flattenAgendaTemplate, parseAgendaTemplate, type AgendaTemplate, type AgendaTemplateItem } from '../meetings/agenda-template.js';
 import { orderAgenda, type AgendaNode } from '../meetings/agenda.js';
+import { callerAdministersMeetings, callerIsOrganizer } from '../meetings/meeting-access.js';
+import { personIdForUser } from '../meetings/person-user.js';
+
+const TASKS_ENTITY = 'MJ_BizApps_Tasks: Tasks';
+const TASK_LINKS_ENTITY = 'MJ_BizApps_Tasks: Task Links';
+
+export const DEFAULT_MEETING_AGENDA_PROMPT_NAME = 'Tasks: Draft Meeting Agenda';
 
 type AgendaItemRow = Pick<mjBizAppsTasksMeetingAgendaItemEntity, 'ID' | 'MeetingID' | 'ParentID' | 'Sequence' | 'Name' | 'Description' | 'TypeID' | 'PresenterPersonID' | 'DurationMinutes' | 'Status'>;
 
 const AGENDA_FIELDS = ['ID', 'MeetingID', 'ParentID', 'Sequence', 'Name', 'Description', 'TypeID', 'PresenterPersonID', 'DurationMinutes', 'Status'];
 
+export interface OpenLinkedTaskSummary {
+    id: string;
+    name: string;
+    status: string;
+    priority: string | null;
+    dueAt: string | null;
+}
+
+export interface UnfinishedPriorItemSummary {
+    id: string;
+    name: string;
+    description: string | null;
+    durationMinutes: number | null;
+}
+
+export interface DraftAgendaContext {
+    meeting: Pick<mjBizAppsTasksMeetingEntity, 'ID' | 'Name' | 'Description' | 'StartsAt' | 'EndsAt' | 'SeriesID' | 'TypeID'>;
+    promptId?: string | null;
+    promptName?: string;
+    template: AgendaTemplate | null;
+    openTasks: OpenLinkedTaskSummary[];
+    unfinishedItems: UnfinishedPriorItemSummary[];
+}
+
+export type MeetingAgendaPromptRunner = (
+    input: DraftAgendaContext,
+    contextUser: UserInfo,
+) => Promise<AgendaTemplate>;
+
+export interface DraftAgendaOptions {
+    promptRunner?: MeetingAgendaPromptRunner;
+    additionalInstructions?: string;
+}
+
 /**
- * A meeting's agenda (the meetings plan, § 3): the type's template applied to a new meeting, items reordered, and the
- * items a meeting left unfinished carried forward to the next one. Every write goes through the entity, so the agenda
+ * Built-in deterministic agenda builder used when no external AI prompt runner or AI model is reachable:
+ * combines the meeting type's template, unfinished items from the last occurrence in the series,
+ * and open tasks linked to the same records the meeting belongs to.
+ */
+export async function defaultMeetingAgendaPromptRunner(ctx: DraftAgendaContext): Promise<AgendaTemplate> {
+    const items: AgendaTemplateItem[] = ctx.template ? [...ctx.template.items] : [];
+
+    if (ctx.unfinishedItems.length) {
+        items.push({
+            title: 'Carry-over from previous meeting',
+            typeCode: 'DISCUSSION',
+            durationMinutes: ctx.unfinishedItems.reduce((sum, item) => sum + (item.durationMinutes ?? 10), 0),
+            items: ctx.unfinishedItems.map((item) => ({
+                title: item.name,
+                description: item.description,
+                durationMinutes: item.durationMinutes ?? 10,
+                typeCode: 'DISCUSSION',
+            })),
+        });
+    }
+
+    if (ctx.openTasks.length) {
+        items.push({
+            title: 'Open tasks & action items',
+            typeCode: 'ACTION_REVIEW',
+            durationMinutes: Math.max(5, ctx.openTasks.length * 5),
+            items: ctx.openTasks.map((task) => ({
+                title: task.name,
+                description: `Status: ${task.status}${task.priority ? ` · Priority: ${task.priority}` : ''}`,
+                durationMinutes: 5,
+                typeCode: 'ACTION_REVIEW',
+            })),
+        });
+    }
+
+    return { items };
+}
+
+/**
+ * A meeting's agenda (the meetings plan, § 3 and § 8): the type's template applied to a new meeting, items reordered,
+ * the items a meeting left unfinished carried forward to the next one, and AI agenda drafting from the type's template,
+ * open linked tasks, and unfinished items from the last occurrence. Every write goes through the entity, so the agenda
  * item server's rules (parent in the same meeting, no cycle) hold here too.
  */
 export class MeetingAgendaService {
-    constructor(private readonly provider: IMetadataProvider = Metadata.Provider) {}
+    constructor(
+        private readonly provider: IMetadataProvider = Metadata.Provider,
+        private readonly defaultRunner: MeetingAgendaPromptRunner = defaultMeetingAgendaPromptRunner,
+    ) {}
 
     /** The meeting's agenda, in reading order. */
     async itemsOf(meetingId: string, contextUser: UserInfo): Promise<AgendaItemRow[]> {
@@ -119,5 +217,170 @@ export class MeetingAgendaService {
             }
         }
         return made;
+    }
+
+    /**
+     * Drafts an agenda for the meeting (the meetings plan, § 8): gathers the meeting type's template, the open tasks
+     * linked to what the meeting belongs to (`MeetingLink` → `TaskLink`), and the items the last occurrence in the
+     * series left unfinished, executes `Tasks: Draft Meeting Agenda` in `MJ: AI Prompts` (or the supplied promptRunner),
+     * and writes the resulting items onto the meeting.
+     */
+    async draftAgenda(
+        meetingId: string,
+        contextUser: UserInfo,
+        options: DraftAgendaOptions = {},
+    ): Promise<mjBizAppsTasksMeetingAgendaItemEntity[]> {
+        const meeting = await this.provider.GetEntityObject<mjBizAppsTasksMeetingEntity>(MEETING_ENTITY, contextUser);
+        if (!(await meeting.Load(meetingId))) {
+            throw new Error('The meeting was not found, or you may not see it.');
+        }
+
+        const callerPersonId = await personIdForUser(this.provider, contextUser);
+        if (!callerAdministersMeetings(this.provider, contextUser) && !callerIsOrganizer(callerPersonId, meeting.OrganizerPersonID)) {
+            throw new Error('Only the meeting organizer or a meetings administrator can draft an AI meeting agenda.');
+        }
+
+        let template: AgendaTemplate | null = null;
+        if (meeting.TypeID) {
+            const type = await this.provider.GetEntityObject<mjBizAppsTasksMeetingTypeEntity>(MEETING_TYPE_ENTITY, contextUser);
+            if (await type.Load(meeting.TypeID)) {
+                template = parseAgendaTemplate(type.AgendaTemplate);
+            }
+        }
+
+        const [promptId, openTasks, unfinishedItems] = await Promise.all([
+            resolveMeetingPromptId(this.provider, null, DEFAULT_MEETING_AGENDA_PROMPT_NAME, contextUser),
+            this.loadOpenLinkedTasks(meeting, contextUser),
+            this.loadUnfinishedPriorItems(meeting, contextUser),
+        ]);
+
+        const contextInput: DraftAgendaContext = {
+            meeting,
+            promptId,
+            promptName: DEFAULT_MEETING_AGENDA_PROMPT_NAME,
+            template,
+            openTasks,
+            unfinishedItems,
+        };
+
+        let drafted: AgendaTemplate;
+        if (options.promptRunner) {
+            drafted = await options.promptRunner(contextInput, contextUser);
+        } else {
+            const startsAtMs = meeting.StartsAt instanceof Date ? meeting.StartsAt.getTime() : new Date(String(meeting.StartsAt)).getTime();
+            const endsAtMs = meeting.EndsAt instanceof Date ? meeting.EndsAt.getTime() : new Date(String(meeting.EndsAt)).getTime();
+            const durationMinutes = Number.isFinite(endsAtMs - startsAtMs) && endsAtMs > startsAtMs ? Math.round((endsAtMs - startsAtMs) / 60000) : 60;
+            const aiResult = await executeMeetingAIPrompt<AgendaTemplate>(
+                this.provider,
+                promptId,
+                {
+                    meetingName: meeting.Name,
+                    meetingDescription: meeting.Description ?? '',
+                    startsAt: meeting.StartsAt instanceof Date ? meeting.StartsAt.toISOString() : String(meeting.StartsAt ?? ''),
+                    endsAt: meeting.EndsAt instanceof Date ? meeting.EndsAt.toISOString() : String(meeting.EndsAt ?? ''),
+                    durationMinutes,
+                    templateJson: JSON.stringify(template ?? { items: [] }, null, 2),
+                    openTasksJson: JSON.stringify(openTasks, null, 2),
+                    unfinishedItemsJson: JSON.stringify(unfinishedItems, null, 2),
+                },
+                contextUser,
+            );
+            if (!aiResult?.parsed || !Array.isArray(aiResult.parsed.items)) {
+                throw new Error('The AI prompt did not return a valid agenda template.');
+            }
+            drafted = parseAgendaTemplate(JSON.stringify(aiResult.parsed)) ?? { items: [] };
+        }
+
+        if (!drafted.items.length) return [];
+        return this.applyTemplate(meetingId, drafted, contextUser);
+    }
+
+    private async loadOpenLinkedTasks(
+        meeting: Pick<mjBizAppsTasksMeetingEntity, 'ID' | 'SeriesID'>,
+        contextUser: UserInfo,
+    ): Promise<OpenLinkedTaskSummary[]> {
+        const rv = RunView.FromMetadataProvider(this.provider);
+        const clauses = [`MeetingID = '${meeting.ID}'`];
+        if (meeting.SeriesID) clauses.push(`SeriesID = '${meeting.SeriesID}'`);
+
+        const linksRes = await rv.RunView<Pick<mjBizAppsTasksMeetingLinkEntity, 'EntityID' | 'RecordID'>>(
+            {
+                EntityName: MEETING_LINK_ENTITY,
+                ExtraFilter: clauses.join(' OR '),
+                Fields: ['EntityID', 'RecordID'],
+                ResultType: 'simple',
+                MaxRows: 200,
+            },
+            contextUser,
+        );
+        if (!linksRes.Success || !linksRes.Results.length) return [];
+
+        const targetClauses = linksRes.Results.map(
+            (l) => `(EntityID = '${l.EntityID.replace(/'/g, "''")}' AND RecordID = '${l.RecordID.replace(/'/g, "''")}')`,
+        );
+        const taskLinksRes = await rv.RunView<{ TaskID: string }>(
+            {
+                EntityName: TASK_LINKS_ENTITY,
+                ExtraFilter: targetClauses.join(' OR '),
+                Fields: ['TaskID'],
+                ResultType: 'simple',
+                MaxRows: 500,
+            },
+            contextUser,
+        );
+        if (!taskLinksRes.Success || !taskLinksRes.Results.length) return [];
+
+        const taskIds = [...new Set(taskLinksRes.Results.map((r) => r.TaskID))];
+        const tasksRes = await rv.RunView<{ ID: string; Name: string; Status: string; Priority: string | null; DueAt: string | null }>(
+            {
+                EntityName: TASKS_ENTITY,
+                ExtraFilter: `ID IN (${taskIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(',')}) AND Status NOT IN ('Done', 'Completed', 'Cancelled')`,
+                Fields: ['ID', 'Name', 'Status', 'Priority', 'DueAt'],
+                OrderBy: 'DueAt ASC',
+                ResultType: 'simple',
+                MaxRows: 200,
+            },
+            contextUser,
+        );
+        if (!tasksRes.Success) return [];
+        return tasksRes.Results.map((t) => ({
+            id: t.ID,
+            name: t.Name,
+            status: t.Status,
+            priority: t.Priority,
+            dueAt: t.DueAt,
+        }));
+    }
+
+    private async loadUnfinishedPriorItems(
+        meeting: Pick<mjBizAppsTasksMeetingEntity, 'ID' | 'SeriesID' | 'StartsAt'>,
+        contextUser: UserInfo,
+    ): Promise<UnfinishedPriorItemSummary[]> {
+        if (!meeting.SeriesID) return [];
+        const rv = RunView.FromMetadataProvider(this.provider);
+        const startsAtIso = meeting.StartsAt instanceof Date ? meeting.StartsAt.toISOString() : String(meeting.StartsAt);
+        const priorRes = await rv.RunView<{ ID: string }>(
+            {
+                EntityName: MEETING_ENTITY,
+                ExtraFilter: `SeriesID = '${meeting.SeriesID}' AND ID <> '${meeting.ID}' AND StartsAt < '${startsAtIso}' AND Status <> 'Cancelled'`,
+                Fields: ['ID'],
+                OrderBy: 'StartsAt DESC',
+                ResultType: 'simple',
+                MaxRows: 1,
+            },
+            contextUser,
+        );
+        const priorId = priorRes.Success ? priorRes.Results[0]?.ID : undefined;
+        if (!priorId) return [];
+
+        const priorItems = await this.itemsOf(priorId, contextUser);
+        return priorItems
+            .filter((item) => item.Status === 'Planned' || item.Status === 'InProgress')
+            .map((item) => ({
+                id: item.ID,
+                name: item.Name,
+                description: item.Description,
+                durationMinutes: item.DurationMinutes,
+            }));
     }
 }

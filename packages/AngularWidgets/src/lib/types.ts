@@ -74,6 +74,34 @@ export interface AgendaItemDraft {
     durationMinutes: number | null;
 }
 
+export interface ProposedTaskModel {
+    id: string;
+    title: string;
+    description: string | null;
+    assigneePersonId: string | null;
+    assigneeName: string | null;
+    dueAt: string | null;
+    agendaItemId: string | null;
+    status: 'Pending' | 'Accepted' | 'Dismissed';
+    taskId: string | null;
+}
+
+export interface TranscriptDraft {
+    transcript: string;
+    title: string;
+    kind: NoteKind;
+    agendaItemId: string | null;
+}
+
+export interface ProposedTaskAction {
+    noteId: string;
+    proposal: ProposedTaskModel;
+    title?: string;
+    assigneePersonId?: string | null;
+    dueAt?: string | null;
+    agendaItemId?: string | null;
+}
+
 export interface NoteModel {
     id: string;
     agendaItemId: string | null;
@@ -85,6 +113,7 @@ export interface NoteModel {
     authorName: string | null;
     updatedLabel: string;
     isMine: boolean;
+    proposedTasks?: ProposedTaskModel[];
 }
 
 export interface NoteDraft {

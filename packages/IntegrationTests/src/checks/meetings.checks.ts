@@ -22,13 +22,17 @@ import {
     MEETING_NOTE_ENTITY,
     MEETING_SERIES_ATTENDEE_ENTITY,
     MEETING_SERIES_ENTITY,
+    MeetingAgendaService,
     MeetingCalendarFile,
+    MeetingNotesService,
     MeetingService,
     VIDEO_PROVIDER_ENTITY,
+    defaultMeetingNotesPromptRunner,
+    parseProposedTasks,
 } from '@mj-biz-apps/tasks-core';
 import { FindRows, Quote, RequireSave } from '../wire.js';
 import { LoadMeetingWorld } from '../world/meeting-world.js';
-import { cleanupPersonaProviders, getPersonaContext } from '../persona-provider.js';
+import { cleanupPersonaProviders, getPersonaContext, GetPersonaUser } from '../persona-provider.js';
 
 const MARK = 'TASKS-CHECK meetings';
 const FAKE_DRIVER = 'FakeVideoProvider';
@@ -116,6 +120,7 @@ const checks: NamedCheck[] = [
                 Assert(file.content.includes(`mailto:${world.ivy.email}`) && file.content.includes(`mailto:${world.jun.email}`), 'the .ics carries the organizer and the attendee');
             } finally {
                 if (meetingId) await deleteMeeting(ctx, meetingId);
+                cleanupPersonaProviders(ctx);
             }
         },
     },
@@ -234,6 +239,7 @@ const checks: NamedCheck[] = [
             } finally {
                 await cleanupPersonaProviders(ctx);
                 if (meetingId) await deleteMeeting(ctx, meetingId);
+                cleanupPersonaProviders(ctx);
             }
         },
     },
@@ -362,6 +368,7 @@ const checks: NamedCheck[] = [
             } finally {
                 await cleanupPersonaProviders(ctx);
                 if (meetingId) await deleteMeeting(ctx, meetingId);
+                cleanupPersonaProviders(ctx);
             }
         },
     },
@@ -468,6 +475,7 @@ const checks: NamedCheck[] = [
             } finally {
                 await cleanupPersonaProviders(ctx);
                 if (meetingId) await deleteMeeting(ctx, meetingId);
+                cleanupPersonaProviders(ctx);
             }
         },
     },
@@ -495,10 +503,11 @@ const checks: NamedCheck[] = [
                 providerId = fake.ID;
 
                 const videoMeetingId = `fake-${Date.now()}`;
-                const meeting = await service.createMeeting({ name: `${MARK} on video`, organizerPersonId: world.ivy.personId, startsAt: nextWeek(), videoProviderId: fake.ID }, ctx.User);
+                const meeting = await service.createMeeting({ name: `${MARK} on video`, organizerPersonId: world.ivy.personId, startsAt: nextWeek(), status: 'Draft', videoProviderId: fake.ID }, ctx.User);
                 meetingId = meeting.ID;
                 const withVideo = await ctx.Provider.GetEntityObject<mjBizAppsTasksMeetingEntity>(MEETING_ENTITY, ctx.User);
                 Assert(await withVideo.Load(meeting.ID), 'load');
+                withVideo.Status = 'Scheduled';
                 withVideo.VideoMeetingID = videoMeetingId;
                 withVideo.VideoJoinURL = `https://fake.video/${videoMeetingId}`;
                 await RequireSave(withVideo, 'the provider\'s meeting id');
@@ -509,6 +518,167 @@ const checks: NamedCheck[] = [
                     () => FindRows<{ Body: string }>(ctx, MEETING_NOTE_ENTITY, `MeetingID = '${meeting.ID}' AND Body LIKE '%${Quote(videoMeetingId)}%'`, ['Body']),
                     (rows) => rows.some((r) => r.Body.includes('deleted video meeting')),
                     'the fake driver recorded the delete after the commit',
+                );
+            } finally {
+                if (meetingId) await deleteMeeting(ctx, meetingId);
+                if (providerId) await deleteRows(ctx, VIDEO_PROVIDER_ENTITY, `ID = '${providerId}'`);
+            }
+        },
+    },
+    {
+        Id: 'meetings.M9',
+        Name: 'M9 — T3 AI notes and agenda: drafting from a transcript creates an AI Draft note with ProposedTasks, accepting a proposal files an ACTION_ITEM task with TaskLink and TaskAssignment, dismissing marks Dismissed, and drafting an agenda writes Planned items',
+        RequiresMutation: true,
+        Fn: async (ctx: IntegrationCheckContext) => {
+            const world = await LoadMeetingWorld(ctx);
+            const service = new MeetingService(provider(ctx));
+            const notesService = new MeetingNotesService(provider(ctx));
+            const agendaService = new MeetingAgendaService(provider(ctx));
+            let meetingId: string | null = null;
+            let createdTaskId: string | null = null;
+            try {
+                const meeting = await service.createMeeting(
+                    {
+                        name: `${MARK} T3 AI`,
+                        organizerPersonId: world.ivy.personId,
+                        startsAt: nextWeek(),
+                        attendees: [{ personId: world.jun.personId }],
+                    },
+                    ctx.User,
+                );
+                meetingId = meeting.ID;
+
+                const draftedAgenda = await agendaService.draftAgenda(meeting.ID, ctx.User, {
+                    promptRunner: async () => ({
+                        items: [
+                            { title: 'Q4 Variance Review', durationMinutes: 15 },
+                            { title: 'Action Item Triage', durationMinutes: 15 },
+                        ],
+                    }),
+                });
+                Assert(draftedAgenda.length === 2, `draftAgenda created 2 agenda items (${draftedAgenda.length})`);
+
+                // Non-organizer (Jun) is refused when attempting to trigger AI notes drafting
+                const junUser = await GetPersonaUser(ctx, world.jun.email);
+                let junRefused = false;
+                try {
+                    await notesService.draftFromTranscript(
+                        meeting.ID,
+                        'ACTION: Jun to circulate the variance deck',
+                        junUser,
+                        { promptRunner: defaultMeetingNotesPromptRunner },
+                    );
+                } catch {
+                    junRefused = true;
+                }
+                Assert(junRefused, 'non-organizer (Jun) is refused when attempting draftFromTranscript');
+
+                const note = await notesService.draftFromTranscript(
+                    meeting.ID,
+                    'Ivy opened the meeting.\nACTION: Jun to circulate the variance deck\nTODO: Schedule follow-up',
+                    ctx.User,
+                    {
+                        authorPersonId: world.ivy.personId,
+                        promptRunner: defaultMeetingNotesPromptRunner,
+                    },
+                );
+                Assert(note.Source === 'AI' && note.Status === 'Draft', 'note is AI Draft');
+                const proposals = parseProposedTasks(note.ProposedTasks);
+                Assert(proposals.length === 2, `extracted 2 proposed tasks (${proposals.length})`);
+
+                const accepted = await notesService.acceptProposedTask(note.ID, proposals[0].id, ctx.User, {
+                    assigneePersonId: world.jun.personId,
+                    agendaItemId: draftedAgenda[0].ID,
+                    createdByPersonId: world.ivy.personId,
+                });
+                createdTaskId = accepted.task.ID;
+                Assert(accepted.proposal.status === 'Accepted' && accepted.proposal.taskId === createdTaskId, 'first proposal marked Accepted with taskId');
+
+                // Calling acceptProposedTask again on the same proposal is idempotent and returns the existing task
+                const acceptedRetry = await notesService.acceptProposedTask(note.ID, proposals[0].id, ctx.User, {
+                    assigneePersonId: world.jun.personId,
+                    agendaItemId: draftedAgenda[0].ID,
+                    createdByPersonId: world.ivy.personId,
+                });
+                Assert(acceptedRetry.task.ID === createdTaskId, 'acceptProposedTask retry returns the same task idempotently');
+
+                const dismissed = await notesService.dismissProposedTask(note.ID, proposals[1].id, ctx.User);
+                Assert(dismissed.proposal.status === 'Dismissed', 'second proposal marked Dismissed');
+            } finally {
+                if (createdTaskId) {
+                    await deleteRows(ctx, 'MJ_BizApps_Tasks: Task Activities', `TaskID = '${createdTaskId}'`);
+                    await deleteRows(ctx, 'MJ_BizApps_Tasks: Task Assignments', `TaskID = '${createdTaskId}'`);
+                    await deleteRows(ctx, 'MJ_BizApps_Tasks: Task Links', `TaskID = '${createdTaskId}'`);
+                    await deleteRows(ctx, 'MJ_BizApps_Tasks: Tasks', `ID = '${createdTaskId}'`);
+                }
+                if (meetingId) await deleteMeeting(ctx, meetingId);
+                cleanupPersonaProviders(ctx);
+            }
+        },
+    },
+    {
+        Id: 'meetings.M10',
+        Name: 'M10 — video provider lifecycle: scheduling a meeting with a VideoProviderID provisions VideoJoinURL and VideoMeetingID after the commit, and renaming or moving it calls UpdateMeeting after the commit',
+        RequiresMutation: true,
+        Fn: async (ctx: IntegrationCheckContext) => {
+            const world = await LoadMeetingWorld(ctx);
+            const service = new MeetingService(provider(ctx));
+            let meetingId: string | null = null;
+            let providerId: string | null = null;
+            try {
+                const existing = await FindRows<{ ID: string }>(ctx, VIDEO_PROVIDER_ENTITY, `Code = 'FAKE'`, ['ID']);
+                const fake = await ctx.Provider.GetEntityObject<mjBizAppsTasksVideoProviderEntity>(VIDEO_PROVIDER_ENTITY, ctx.User);
+                if (existing[0]) await fake.Load(existing[0].ID);
+                else fake.NewRecord();
+                fake.Name = `${MARK} fake provider`;
+                fake.Code = 'FAKE';
+                fake.DriverClass = FAKE_DRIVER;
+                fake.IsActive = true;
+                fake.IsDefault = false;
+                fake.SupportsTranscripts = false;
+                await RequireSave(fake, 'the fake video provider');
+                providerId = fake.ID;
+
+                const meeting = await service.createMeeting(
+                    {
+                        name: `${MARK} auto-provision video`,
+                        organizerPersonId: world.ivy.personId,
+                        startsAt: nextWeek(),
+                        videoProviderId: fake.ID,
+                    },
+                    ctx.User,
+                );
+                meetingId = meeting.ID;
+
+                const provisioned = await eventually(
+                    () => FindRows<{ VideoJoinURL: string | null; VideoMeetingID: string | null }>(ctx, MEETING_ENTITY, `ID = '${meeting.ID}'`, ['VideoJoinURL', 'VideoMeetingID']),
+                    (rows) => Boolean(rows[0]?.VideoJoinURL && rows[0]?.VideoMeetingID),
+                    'the video provider provisioned VideoJoinURL and VideoMeetingID after the commit',
+                );
+                const videoMeetingId = provisioned[0].VideoMeetingID!;
+                Assert(provisioned[0].VideoJoinURL!.startsWith('https://fake.video/'), `VideoJoinURL was stamped (${provisioned[0].VideoJoinURL})`);
+
+                const loaded = await ctx.Provider.GetEntityObject<mjBizAppsTasksMeetingEntity>(MEETING_ENTITY, ctx.User);
+                Assert(await loaded.Load(meeting.ID), 'load provisioned meeting');
+                loaded.Name = `${MARK} auto-provision video (renamed)`;
+                await RequireSave(loaded, 'renamed video meeting');
+
+                await eventually(
+                    () => FindRows<{ Body: string }>(ctx, MEETING_NOTE_ENTITY, `MeetingID = '${meeting.ID}' AND Body LIKE '%${Quote(videoMeetingId)}%'`, ['Body']),
+                    (rows) => rows.some((r) => r.Body.includes('updated video meeting')),
+                    'the fake driver recorded UpdateMeeting after the commit',
+                );
+
+                // A second edit on a provisioned meeting must also sync (not be dropped by any sticky state)
+                const loadedAgain = await ctx.Provider.GetEntityObject<mjBizAppsTasksMeetingEntity>(MEETING_ENTITY, ctx.User);
+                Assert(await loadedAgain.Load(meeting.ID), 'load provisioned meeting a second time');
+                loadedAgain.Name = `${MARK} auto-provision video (renamed twice)`;
+                await RequireSave(loadedAgain, 'renamed video meeting a second time');
+
+                await eventually(
+                    () => FindRows<{ Body: string }>(ctx, MEETING_NOTE_ENTITY, `MeetingID = '${meeting.ID}' AND Body LIKE '%${Quote(videoMeetingId)}%'`, ['Body']),
+                    (rows) => rows.filter((r) => r.Body.includes('updated video meeting')).length >= 2,
+                    'the fake driver recorded a second UpdateMeeting after the commit',
                 );
             } finally {
                 if (meetingId) await deleteMeeting(ctx, meetingId);

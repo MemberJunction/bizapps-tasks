@@ -216,6 +216,9 @@ importers:
       '@memberjunction/global':
         specifier: 6.2.0-edge.8
         version: 6.2.0-edge.8
+      '@mj-biz-apps/common-entities':
+        specifier: 5.59.0
+        version: 5.59.0(@memberjunction/core@6.2.0-edge.8)(@memberjunction/global@6.2.0-edge.8)
       '@types/luxon':
         specifier: 3.7.6
         version: 3.7.6
@@ -257,18 +260,39 @@ importers:
       '@memberjunction/actions':
         specifier: 6.2.0-edge.8
         version: 6.2.0-edge.8
+      '@memberjunction/ai-core-plus':
+        specifier: 6.2.0-edge.8
+        version: 6.2.0-edge.8
+      '@memberjunction/ai-prompts':
+        specifier: 6.2.0-edge.8
+        version: 6.2.0-edge.8(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(zod@3.25.76))(@smithy/signature-v4@5.7.5)(@types/node@26.6.6)(axios@1.21.0)(chokidar@3.6.0)(encoding@0.1.14)(typescript@5.9.3)(ws@8.22.1)(zod@3.25.76)
+      '@memberjunction/aiengine':
+        specifier: 6.2.0-edge.8
+        version: 6.2.0-edge.8(encoding@0.1.14)(typescript@5.9.3)
+      '@memberjunction/communication-engine':
+        specifier: 6.2.0-edge.8
+        version: 6.2.0-edge.8(@aws-sdk/credential-provider-node@3.972.92)(@modelcontextprotocol/sdk@1.32.2(zod@3.25.76))(@smithy/signature-v4@5.7.5)(@types/node@26.6.6)(axios@1.21.0)(chokidar@3.6.0)(encoding@0.1.14)(typescript@5.9.3)(ws@8.22.1)(zod@3.25.76)
+      '@memberjunction/communication-types':
+        specifier: 6.2.0-edge.8
+        version: 6.2.0-edge.8
       '@memberjunction/core':
         specifier: 6.2.0-edge.8
         version: 6.2.0-edge.8
       '@memberjunction/core-entities':
         specifier: 6.2.0-edge.8
         version: 6.2.0-edge.8
+      '@memberjunction/credentials':
+        specifier: 6.2.0-edge.8
+        version: 6.2.0-edge.8
       '@memberjunction/global':
         specifier: 6.2.0-edge.8
         version: 6.2.0-edge.8
+      '@memberjunction/storage':
+        specifier: 6.2.0-edge.8
+        version: 6.2.0-edge.8(encoding@0.1.14)(typescript@5.9.3)
       '@mj-biz-apps/common-entities':
-        specifier: 5.52.0
-        version: 5.52.0(@memberjunction/core@6.2.0-edge.8)(@memberjunction/global@6.2.0-edge.8)
+        specifier: 5.59.0
+        version: 5.59.0(@memberjunction/core@6.2.0-edge.8)(@memberjunction/global@6.2.0-edge.8)
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -3189,6 +3213,12 @@ packages:
     peerDependencies:
       '@memberjunction/core': ^6.1.5
       '@memberjunction/global': ^6.1.5
+
+  '@mj-biz-apps/common-entities@5.59.0':
+    resolution: {integrity: sha512-D0C8BYevhGs1YPqKD7xR92qn3vB5sY4jt9JIt03lSkhEMBxWZYLYvwG5zWxAj8fbIldk5pqVdbBDjwo43GKwvA==}
+    peerDependencies:
+      '@memberjunction/core': ^6.1.6
+      '@memberjunction/global': ^6.1.6
 
   '@modelcontextprotocol/sdk@1.32.2':
     resolution: {integrity: sha512-SWsVtH/0vULSQStoZ6xxH2K09Li8fXYTMC64ZeogCdpZ3XSi1eCPOByV1OpuJxuI3OcmHhosDWYyii07tpPsLw==}
@@ -10722,7 +10752,41 @@ snapshots:
       - canvas
     optional: true
 
-  '@hyperframes/engine@0.8.134':
+  '@hyperframes/core@0.8.134(@types/node@24.10.11)':
+    dependencies:
+      '@chenglou/pretext': 0.0.5
+      '@hyperframes/lint': 0.8.134
+      '@hyperframes/parsers': 0.8.134
+      '@hyperframes/studio-server': 0.8.134(@types/node@24.10.11)
+      bpm-detective: 2.0.5
+      linkedom: 0.18.15
+      postcss: 8.5.32
+      wawoff2: 2.0.1
+    optionalDependencies:
+      esbuild: 0.25.12
+    transitivePeerDependencies:
+      - '@types/node'
+      - canvas
+    optional: true
+
+  '@hyperframes/core@0.8.134(@types/node@26.6.6)':
+    dependencies:
+      '@chenglou/pretext': 0.0.5
+      '@hyperframes/lint': 0.8.134
+      '@hyperframes/parsers': 0.8.134
+      '@hyperframes/studio-server': 0.8.134(@types/node@26.6.6)
+      bpm-detective: 2.0.5
+      linkedom: 0.18.15
+      postcss: 8.5.32
+      wawoff2: 2.0.1
+    optionalDependencies:
+      esbuild: 0.25.12
+    transitivePeerDependencies:
+      - '@types/node'
+      - canvas
+    optional: true
+
+  '@hyperframes/engine@0.8.134(@types/node@22.20.5)':
     dependencies:
       '@hono/node-server': 2.1.6(hono@4.13.16)
       '@hyperframes/core': 0.8.134(@types/node@22.20.5)
@@ -10732,6 +10796,43 @@ snapshots:
       puppeteer: 25.16.0
       puppeteer-core: 25.16.0
     transitivePeerDependencies:
+      - '@types/node'
+      - bufferutil
+      - canvas
+      - proxy-agent
+      - utf-8-validate
+      - yauzl
+    optional: true
+
+  '@hyperframes/engine@0.8.134(@types/node@24.10.11)':
+    dependencies:
+      '@hono/node-server': 2.1.6(hono@4.13.16)
+      '@hyperframes/core': 0.8.134(@types/node@24.10.11)
+      '@hyperframes/parsers': 0.8.134
+      hono: 4.13.16
+      linkedom: 0.18.15
+      puppeteer: 25.16.0
+      puppeteer-core: 25.16.0
+    transitivePeerDependencies:
+      - '@types/node'
+      - bufferutil
+      - canvas
+      - proxy-agent
+      - utf-8-validate
+      - yauzl
+    optional: true
+
+  '@hyperframes/engine@0.8.134(@types/node@26.6.6)':
+    dependencies:
+      '@hono/node-server': 2.1.6(hono@4.13.16)
+      '@hyperframes/core': 0.8.134(@types/node@26.6.6)
+      '@hyperframes/parsers': 0.8.134
+      hono: 4.13.16
+      linkedom: 0.18.15
+      puppeteer: 25.16.0
+      puppeteer-core: 25.16.0
+    transitivePeerDependencies:
+      - '@types/node'
       - bufferutil
       - canvas
       - proxy-agent
@@ -10768,7 +10869,7 @@ snapshots:
     dependencies:
       '@hono/node-server': 2.1.6(hono@4.13.16)
       '@hyperframes/core': 0.8.134(@types/node@22.20.5)
-      '@hyperframes/engine': 0.8.134
+      '@hyperframes/engine': 0.8.134(@types/node@22.20.5)
       '@hyperframes/lint': 0.8.134
       '@hyperframes/parsers': 0.8.134
       '@hyperframes/studio-server': 0.8.134(@types/node@22.20.5)
@@ -10789,8 +10890,8 @@ snapshots:
   '@hyperframes/producer@0.8.134(@types/node@24.10.11)':
     dependencies:
       '@hono/node-server': 2.1.6(hono@4.13.16)
-      '@hyperframes/core': 0.8.134(@types/node@22.20.5)
-      '@hyperframes/engine': 0.8.134
+      '@hyperframes/core': 0.8.134(@types/node@24.10.11)
+      '@hyperframes/engine': 0.8.134(@types/node@24.10.11)
       '@hyperframes/lint': 0.8.134
       '@hyperframes/parsers': 0.8.134
       '@hyperframes/studio-server': 0.8.134(@types/node@24.10.11)
@@ -10811,8 +10912,8 @@ snapshots:
   '@hyperframes/producer@0.8.134(@types/node@26.6.6)':
     dependencies:
       '@hono/node-server': 2.1.6(hono@4.13.16)
-      '@hyperframes/core': 0.8.134(@types/node@22.20.5)
-      '@hyperframes/engine': 0.8.134
+      '@hyperframes/core': 0.8.134(@types/node@26.6.6)
+      '@hyperframes/engine': 0.8.134(@types/node@26.6.6)
       '@hyperframes/lint': 0.8.134
       '@hyperframes/parsers': 0.8.134
       '@hyperframes/studio-server': 0.8.134(@types/node@26.6.6)
@@ -10846,7 +10947,7 @@ snapshots:
 
   '@hyperframes/studio-server@0.8.134(@types/node@24.10.11)':
     dependencies:
-      '@hyperframes/core': 0.8.134(@types/node@22.20.5)
+      '@hyperframes/core': 0.8.134(@types/node@24.10.11)
       '@hyperframes/parsers': 0.8.134
       hono: 4.13.16
       linkedom: 0.18.15
@@ -10860,7 +10961,7 @@ snapshots:
 
   '@hyperframes/studio-server@0.8.134(@types/node@26.6.6)':
     dependencies:
-      '@hyperframes/core': 0.8.134(@types/node@22.20.5)
+      '@hyperframes/core': 0.8.134(@types/node@26.6.6)
       '@hyperframes/parsers': 0.8.134
       hono: 4.13.16
       linkedom: 0.18.15
@@ -12862,7 +12963,7 @@ snapshots:
       '@memberjunction/core-entities': 6.2.0-edge.8
       '@memberjunction/global': 6.2.0-edge.8
       '@memberjunction/network-utils': 6.2.0-edge.8
-      dotenv: 17.2.4
+      dotenv: 17.4.2
       env-var: 7.5.0
       openai: 6.49.0(@aws-sdk/credential-provider-node@3.972.92)(@smithy/signature-v4@5.7.5)(ws@8.22.1)(zod@3.25.76)
     transitivePeerDependencies:
@@ -13434,7 +13535,7 @@ snapshots:
       '@memberjunction/ai-vectordb': 6.2.0-edge.8
       '@memberjunction/core': 6.2.0-edge.8
       '@memberjunction/global': 6.2.0-edge.8
-      dotenv: 17.2.4
+      dotenv: 17.4.2
       pg: 8.23.1
     transitivePeerDependencies:
       - pg-native
@@ -13470,7 +13571,7 @@ snapshots:
       '@memberjunction/core': 6.2.0-edge.8
       '@memberjunction/global': 6.2.0-edge.8
       '@qdrant/js-client-rest': 1.20.0(typescript@5.9.3)
-      dotenv: 17.2.4
+      dotenv: 17.4.2
     transitivePeerDependencies:
       - supports-color
       - typescript
@@ -13480,7 +13581,7 @@ snapshots:
       '@memberjunction/ai-vectordb': 6.2.0-edge.8
       '@memberjunction/core': 6.2.0-edge.8
       '@memberjunction/global': 6.2.0-edge.8
-      dotenv: 17.2.4
+      dotenv: 17.4.2
     transitivePeerDependencies:
       - supports-color
 
@@ -14257,7 +14358,7 @@ snapshots:
       date-fns: 3.6.0
       date-fns-tz: 3.2.0(date-fns@3.6.0)
       domhandler: 5.0.3
-      dotenv: 17.2.4
+      dotenv: 17.4.2
       officeparser: 6.1.1(encoding@0.1.14)
       openai: 6.49.0(@aws-sdk/credential-provider-node@3.972.92)(@smithy/signature-v4@5.7.5)(ws@8.22.1)(zod@3.25.76)
       pdf-parse: 1.1.4
@@ -14311,7 +14412,7 @@ snapshots:
       date-fns: 3.6.0
       date-fns-tz: 3.2.0(date-fns@3.6.0)
       domhandler: 5.0.3
-      dotenv: 17.2.4
+      dotenv: 17.4.2
       officeparser: 6.1.1(encoding@0.1.14)
       openai: 6.49.0(@aws-sdk/credential-provider-node@3.972.92)(@smithy/signature-v4@5.7.5)(ws@8.22.1)(zod@3.25.76)
       pdf-parse: 1.1.4
@@ -14365,7 +14466,7 @@ snapshots:
       date-fns: 3.6.0
       date-fns-tz: 3.2.0(date-fns@3.6.0)
       domhandler: 5.0.3
-      dotenv: 17.2.4
+      dotenv: 17.4.2
       officeparser: 6.1.1(encoding@0.1.14)
       openai: 6.49.0(@aws-sdk/credential-provider-node@3.972.92)(@smithy/signature-v4@5.7.5)(ws@8.22.1)(zod@3.25.76)
       pdf-parse: 1.1.4
@@ -14419,7 +14520,7 @@ snapshots:
       date-fns: 3.6.0
       date-fns-tz: 3.2.0(date-fns@3.6.0)
       domhandler: 5.0.3
-      dotenv: 17.2.4
+      dotenv: 17.4.2
       officeparser: 6.1.1(encoding@0.1.14)
       openai: 6.49.0(@aws-sdk/credential-provider-node@3.972.92)(@smithy/signature-v4@5.7.5)(ws@8.22.1)(zod@3.25.76)
       pdf-parse: 1.1.4
@@ -15248,7 +15349,7 @@ snapshots:
       '@oclif/plugin-help': 6.3.0
       chalk: 5.6.2
       commander: 14.0.3
-      dotenv: 17.2.4
+      dotenv: 17.4.2
       inquirer: 8.2.7(@types/node@26.6.6)
       mssql: 12.7.13
       mysql2: 3.24.6(@types/node@26.6.6)
@@ -20110,7 +20211,7 @@ snapshots:
   '@memberjunction/video-studio-render-worker@6.2.0-edge.8(@types/node@22.20.5)':
     dependencies:
       '@hyperframes/core': 0.8.134(@types/node@22.20.5)
-      '@hyperframes/engine': 0.8.134
+      '@hyperframes/engine': 0.8.134(@types/node@22.20.5)
       '@hyperframes/lint': 0.8.134
       '@hyperframes/parsers': 0.8.134
       '@hyperframes/producer': 0.8.134(@types/node@22.20.5)
@@ -20129,8 +20230,8 @@ snapshots:
 
   '@memberjunction/video-studio-render-worker@6.2.0-edge.8(@types/node@24.10.11)':
     dependencies:
-      '@hyperframes/core': 0.8.134(@types/node@22.20.5)
-      '@hyperframes/engine': 0.8.134
+      '@hyperframes/core': 0.8.134(@types/node@24.10.11)
+      '@hyperframes/engine': 0.8.134(@types/node@24.10.11)
       '@hyperframes/lint': 0.8.134
       '@hyperframes/parsers': 0.8.134
       '@hyperframes/producer': 0.8.134(@types/node@24.10.11)
@@ -20149,8 +20250,8 @@ snapshots:
 
   '@memberjunction/video-studio-render-worker@6.2.0-edge.8(@types/node@26.6.6)':
     dependencies:
-      '@hyperframes/core': 0.8.134(@types/node@22.20.5)
-      '@hyperframes/engine': 0.8.134
+      '@hyperframes/core': 0.8.134(@types/node@26.6.6)
+      '@hyperframes/engine': 0.8.134(@types/node@26.6.6)
       '@hyperframes/lint': 0.8.134
       '@hyperframes/parsers': 0.8.134
       '@hyperframes/producer': 0.8.134(@types/node@26.6.6)
@@ -20551,6 +20652,12 @@ snapshots:
   '@mixmark-io/domino@2.2.0': {}
 
   '@mj-biz-apps/common-entities@5.52.0(@memberjunction/core@6.2.0-edge.8)(@memberjunction/global@6.2.0-edge.8)':
+    dependencies:
+      '@memberjunction/core': 6.2.0-edge.8
+      '@memberjunction/global': 6.2.0-edge.8
+      zod: 3.25.76
+
+  '@mj-biz-apps/common-entities@5.59.0(@memberjunction/core@6.2.0-edge.8)(@memberjunction/global@6.2.0-edge.8)':
     dependencies:
       '@memberjunction/core': 6.2.0-edge.8
       '@memberjunction/global': 6.2.0-edge.8
@@ -21393,7 +21500,7 @@ snapshots:
 
   '@types/uuid@11.0.0':
     dependencies:
-      uuid: 13.0.2
+      uuid: 14.0.3
 
   '@types/validator@13.15.10': {}
 
@@ -23687,7 +23794,7 @@ snapshots:
     dependencies:
       base64-js: 1.5.1
       ecdsa-sig-formatter: 1.0.11
-      gaxios: 7.1.3
+      gaxios: 7.3.1
       gcp-metadata: 8.1.4
       google-logging-utils: 1.1.3
       gtoken: 8.0.0
@@ -23804,7 +23911,7 @@ snapshots:
 
   gtoken@8.0.0:
     dependencies:
-      gaxios: 7.1.3
+      gaxios: 7.3.1
       jws: 4.0.1
     transitivePeerDependencies:
       - supports-color

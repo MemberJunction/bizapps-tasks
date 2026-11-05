@@ -21,6 +21,8 @@ import {
     type NoteDraft,
     type NoteModel,
     type PersonOption,
+    type ProposedTaskAction,
+    type TranscriptDraft,
 } from '@mj-biz-apps/tasks-ng-widgets';
 import { MeetingData, type MeetingDetail } from '../meetings/meeting-data';
 import { OpenTaskRecord } from '../open-task-record';
@@ -93,7 +95,7 @@ abstract class MeetingSectionPanel extends BaseFormPanel<mjBizAppsTasksMeetingEn
         <mj-collapsible-panel SectionKey="agenda" SectionName="Agenda" Icon="fa-solid fa-list-ol">
             @if (detail; as d) {
                 <bizapps-meeting-agenda [Items]="d.agenda" [ItemTypes]="itemTypes" [People]="people" [MeetingMinutes]="minutes(d.row)" [HasTemplate]="d.typeHasTemplate" [CanEdit]="d.permissions.canEdit && d.row.status !== 'Cancelled' && d.row.status !== 'Completed'" [Busy]="busy" [ErrorMessage]="error"
-                    (SaveRequested)="save($event)" (RemoveRequested)="remove($event)" (ReorderRequested)="reorder($event)" (MoveRequested)="move($event)" (TemplateRequested)="template()"></bizapps-meeting-agenda>
+                    (SaveRequested)="save($event)" (RemoveRequested)="remove($event)" (ReorderRequested)="reorder($event)" (MoveRequested)="move($event)" (TemplateRequested)="template()" (DraftAgendaRequested)="draftWithAi()"></bizapps-meeting-agenda>
             } @else if (error) { <div class="mjt-error">{{ error }}</div> }
         </mj-collapsible-panel>
     `,
@@ -142,6 +144,10 @@ export class MeetingAgendaPanel extends MeetingSectionPanel {
             await this.data.ApplyTemplate(this.meetingId, this.detail.typeId);
         });
     }
+
+    protected draftWithAi(): Promise<void> {
+        return this.run(() => this.data.DraftAgendaWithAI(this.meetingId));
+    }
 }
 
 @RegisterClassEx(BaseFormPanel, {
@@ -189,20 +195,42 @@ export class MeetingPeoplePanel extends MeetingSectionPanel {
     template: `
         <mj-collapsible-panel SectionKey="notes" SectionName="Notes" Icon="fa-solid fa-note-sticky">
             @if (detail; as d) {
-                <bizapps-meeting-notes [Notes]="d.notes" [AgendaItems]="d.agenda" [CanWrite]="d.permissions.canWriteNotes" [CanEditAll]="d.permissions.canEdit" [Busy]="busy" [ErrorMessage]="error"
-                    (SaveRequested)="save($event)" (DeleteRequested)="remove($event)"></bizapps-meeting-notes>
+                <bizapps-meeting-notes [Notes]="d.notes" [AgendaItems]="d.agenda" [People]="people" [CanWrite]="d.permissions.canWriteNotes" [CanEditAll]="d.permissions.canEdit" [TranscriptFileID]="d.transcriptFileId" [TranscriptFileName]="d.transcriptFileName" [Busy]="busy" [ErrorMessage]="error"
+                    (SaveRequested)="save($event)" (DeleteRequested)="remove($event)" (TranscriptDraftRequested)="draftFromTranscript($event)" (AcceptProposalRequested)="acceptProposal($event)" (DismissProposalRequested)="dismissProposal($event)" (OpenTaskRequested)="openTask($event)"></bizapps-meeting-notes>
             } @else if (error) { <div class="mjt-error">{{ error }}</div> }
         </mj-collapsible-panel>
     `,
     styleUrls: ['./task-form.css'],
 })
 export class MeetingNotesPanel extends MeetingSectionPanel {
+    protected override get wantsPeople(): boolean {
+        return true;
+    }
+
     protected save(draft: NoteDraft): Promise<void> {
         return this.run(() => this.data.SaveNote(this.meetingId, draft));
     }
 
     protected remove(note: NoteModel): Promise<void> {
         return this.run(() => this.data.DeleteNote(note.id));
+    }
+
+    protected draftFromTranscript(draft: TranscriptDraft): Promise<void> {
+        return this.run(() => this.data.DraftNotesFromTranscript(this.meetingId, draft));
+    }
+
+    protected acceptProposal(action: ProposedTaskAction): Promise<void> {
+        return this.run(async () => {
+            await this.data.AcceptProposedTask(action);
+        });
+    }
+
+    protected dismissProposal(action: ProposedTaskAction): Promise<void> {
+        return this.run(() => this.data.DismissProposedTask(action));
+    }
+
+    protected openTask(taskId: string): void {
+        OpenTaskRecord(taskId);
     }
 }
 

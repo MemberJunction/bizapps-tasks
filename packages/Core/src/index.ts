@@ -5,5 +5,6 @@ export * from './services/TaskOrchestrationService.js';
 export * from './services/MeetingService.js';
 export * from './services/MeetingSeriesService.js';
 export * from './services/MeetingAgendaService.js';
+export * from './services/MeetingNotesService.js';
 export * from './services/MeetingCalendarFile.js';
 export * from './meetings/index.js';

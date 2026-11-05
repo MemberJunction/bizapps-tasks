@@ -14,6 +14,11 @@ import { MeetingSeriesEntityServer } from './MeetingSeriesEntityServer.js';
 import { MeetingAttendeeEntityServer, MeetingSeriesAttendeeEntityServer } from './MeetingAttendeeEntityServer.js';
 import { MeetingAgendaItemEntityServer, MeetingLinkEntityServer } from './MeetingAgendaItemEntityServer.js';
 import { MeetingNoteEntityServer } from './MeetingNoteEntityServer.js';
+import { ZoomVideoProvider } from './video/ZoomVideoProvider.js';
+import { MeetingCalendarEventLinkHandler } from './calendar/MeetingCalendarEventLinkHandler.js';
+import { registerMeetingServerAIRuntime } from './ai/meeting-ai-runtime.js';
+
+registerMeetingServerAIRuntime();
 
 
 export { TaskEntityServer } from './TaskEntityServer.js';
@@ -27,6 +32,10 @@ export { MeetingAttendeeEntityServer, MeetingSeriesAttendeeEntityServer } from '
 export { MeetingAgendaItemEntityServer, MeetingLinkEntityServer } from './MeetingAgendaItemEntityServer.js';
 export { MeetingNoteEntityServer } from './MeetingNoteEntityServer.js';
 export * from './video/VideoProviderBase.js';
+export { ZoomVideoProvider } from './video/ZoomVideoProvider.js';
+export { MeetingCalendarSyncService, type MeetingCalendarSyncOptions } from './calendar/MeetingCalendarSyncService.js';
+export { MeetingCalendarEventLinkHandler, extractMeetingRecordId } from './calendar/MeetingCalendarEventLinkHandler.js';
+export { registerMeetingServerAIRuntime, executeServerMeetingAIPrompt, readServerMeetingTranscriptFile } from './ai/meeting-ai-runtime.js';
 export { runAfterCommit } from './after-commit.js';
 
 /**
@@ -35,6 +44,7 @@ export { runAfterCommit } from './after-commit.js';
  * subclasses are included in the bundle and registered.
  */
 export function LoadBizAppsTasksEntitiesServer(): void {
+    registerMeetingServerAIRuntime();
     // Reference the classes so bundlers cannot tree-shake the registrations away.
     const anchor = [
         TaskEntityServer,
@@ -47,6 +57,8 @@ export function LoadBizAppsTasksEntitiesServer(): void {
         MeetingAgendaItemEntityServer,
         MeetingLinkEntityServer,
         MeetingNoteEntityServer,
+        ZoomVideoProvider,
+        MeetingCalendarEventLinkHandler,
     ];
     if (!anchor.length) {
         throw new Error('TaskEntityServer anchor missing');

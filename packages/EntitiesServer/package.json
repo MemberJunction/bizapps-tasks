@@ -19,10 +19,17 @@
   "license": "BUSL-1.1",
   "devDependencies": {
     "@memberjunction/actions": "6.2.0-edge.8",
+    "@memberjunction/ai-core-plus": "6.2.0-edge.8",
+    "@memberjunction/ai-prompts": "6.2.0-edge.8",
+    "@memberjunction/aiengine": "6.2.0-edge.8",
+    "@memberjunction/communication-engine": "6.2.0-edge.8",
+    "@memberjunction/communication-types": "6.2.0-edge.8",
     "@memberjunction/core": "6.2.0-edge.8",
     "@memberjunction/core-entities": "6.2.0-edge.8",
+    "@memberjunction/credentials": "6.2.0-edge.8",
     "@memberjunction/global": "6.2.0-edge.8",
-    "@mj-biz-apps/common-entities": "5.52.0",
+    "@memberjunction/storage": "6.2.0-edge.8",
+    "@mj-biz-apps/common-entities": "5.59.0",
     "typescript": "^5.9.3",
     "vitest": "1.6.1"
   },
@@ -32,10 +39,17 @@
   },
   "peerDependencies": {
     "@memberjunction/actions": "^6.2.0-edge.8",
+    "@memberjunction/ai-core-plus": "^6.2.0-edge.8",
+    "@memberjunction/ai-prompts": "^6.2.0-edge.8",
+    "@memberjunction/aiengine": "^6.2.0-edge.8",
+    "@memberjunction/communication-engine": "^6.2.0-edge.8",
+    "@memberjunction/communication-types": "^6.2.0-edge.8",
     "@memberjunction/core": "^6.2.0-edge.8",
     "@memberjunction/core-entities": "^6.2.0-edge.8",
+    "@memberjunction/credentials": "^6.2.0-edge.8",
     "@memberjunction/global": "^6.2.0-edge.8",
-    "@mj-biz-apps/common-entities": "^5.47.0"
+    "@memberjunction/storage": "^6.2.0-edge.8",
+    "@mj-biz-apps/common-entities": "^5.55.0"
   },
   "repository": {
     "type": "git",
