@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Metadata, RunView, CompositeKey } from '@memberjunction/core';
 import { UUIDsEqual } from '@memberjunction/global';
+import { RoleAssigneeName } from '../../role-assignees';
 import type { mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
 
 /**
@@ -1009,7 +1010,7 @@ export class TaskListComponent implements OnInit, OnChanges {
         const taskIDs = this.tasks.map(t => `'${t.ID}'`).join(',');
 
         const [assignments, people] = await Promise.all([
-            rv.RunView<{ TaskID: string; AssigneeRecordID: string; RoleID: string | null; Status: string | null }>({
+            rv.RunView<{ TaskID: string; AssigneeEntityID: string; AssigneeRecordID: string; RoleID: string | null; Status: string | null }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Assignments',
                 ExtraFilter: `TaskID IN (${taskIDs})`,
                 ResultType: 'simple',
@@ -1041,7 +1042,7 @@ export class TaskListComponent implements OnInit, OnChanges {
             if (!task) continue;
             if (!task.Assignees) task.Assignees = [];
             task.Assignees.push({
-                Name: personMap.get(a.AssigneeRecordID) ?? 'Unknown',
+                Name: personMap.get(a.AssigneeRecordID) ?? RoleAssigneeName(a.AssigneeEntityID, a.AssigneeRecordID) ?? 'Unknown',
                 Role: (a.RoleID ? roleMap.get(a.RoleID) : undefined) ?? 'Primary',
                 Status: a.Status ?? 'Pending',
             });

@@ -4,7 +4,7 @@
  * Subscribes to MJGlobal entity events and creates in-app notifications
  * (MJ: User Notifications) for key task events:
  *
- * - Task assigned → notify the assignee
+ * - Task assigned → notify the assignee (every active holder, when the assignee is an MJ role)
  * - Task completed → notify all assignees
  * - Task status changed to Blocked → notify all assignees
  * - Task comment created → notify all assignees except the commenter
@@ -21,6 +21,7 @@ import {
 } from '@memberjunction/core';
 import { MJEventType, MJGlobal, MJEvent } from '@memberjunction/global';
 import { Subscription } from 'rxjs';
+import { IsRoleEntityID, ResolveUserIDsForRoles, RoleName } from '../role-assignees.js';
 
 /** Entity names we listen for */
 const TASKS_ENTITY = 'MJ_BizApps_Tasks: Tasks';
@@ -234,9 +235,15 @@ export async function handleAssignmentSave(event: BaseEntityEvent): Promise<void
     const contextUser = assignment.ContextCurrentUser;
     if (!contextUser) return;
 
+    const assigneeEntityID = assignment.Get('AssigneeEntityID') as string | null;
     const assigneeRecordID = assignment.Get('AssigneeRecordID') as string;
     const taskID = assignment.Get('TaskID') as string;
     const roleID = assignment.Get('RoleID') as string | null;
+
+    if (IsRoleEntityID(assigneeEntityID)) {
+        await handleRoleAssignment(assigneeRecordID, taskID, roleID, contextUser);
+        return;
+    }
 
     // The in-app notification needs a linked MJ user; the OnAssign hook does not. An external
     // channel such as Teams is how an assignee without a linked user learns of the task, so a
@@ -259,7 +266,43 @@ async function notifyAssignee(assigneeRecordID: string, taskID: string, roleID: 
     // Resolve the assignee's linked MJ UserID
     const userID = await getPersonLinkedUserID(assigneeRecordID, contextUser);
     if (!userID) return;
+    await sendAssignmentNotification([userID], taskID, roleID, null, contextUser);
+}
 
+/**
+ * A task assigned to an MJ role (bc-aidp-next-golive#442): every active user holding the role is
+ * notified, and the OnAssign hook names the role in place of a person.
+ */
+async function handleRoleAssignment(mjRoleID: string, taskID: string, roleID: string | null, contextUser: UserInfo): Promise<void> {
+    const mjRoleName = RoleName(mjRoleID) ?? mjRoleID;
+    try {
+        const userIDs = await ResolveUserIDsForRoles([mjRoleID], contextUser);
+        if (userIDs.length === 0) {
+            LogStatus(`[BizAppsTasks] Role ${mjRoleName}, assigned task ${taskID}, has no active members; no in-app notification sent`);
+        } else {
+            await sendAssignmentNotification(userIDs, taskID, roleID, mjRoleName, contextUser);
+        }
+    } catch (err) {
+        LogError(`[BizAppsTasks] Role assignment notification error: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    await invokeTaskTypeActionByTaskID(taskID, 'OnAssignActionID', contextUser, [
+        { Name: 'AssigneePersonID', Value: null },
+        { Name: 'AssigneeName', Value: mjRoleName },
+    ]);
+}
+
+/**
+ * Sends the "You've been assigned" notification to each user. `viaRoleName` names the MJ role the
+ * task was assigned to, when it went to a role rather than to the person.
+ */
+async function sendAssignmentNotification(
+    userIDs: string[],
+    taskID: string,
+    roleID: string | null,
+    viaRoleName: string | null,
+    contextUser: UserInfo,
+): Promise<void> {
     // Load the task to get its name and details
     const rv = new RunView();
     const taskResult = await rv.RunView<{ Name: string; Priority: string; DueAt: string | null }>({
@@ -290,13 +333,16 @@ async function notifyAssignee(assigneeRecordID: string, taskID: string, roleID: 
         if (roleName) roleStr = ` Role: ${roleName}.`;
     }
 
+    const assignedStr = viaRoleName
+        ? `"${taskName}" has been assigned to the ${viaRoleName} role, which you hold.`
+        : `You've been assigned to "${taskName}".`;
     await createNotificationsForUsers(
-        [userID],
+        userIDs,
         `Task Assigned: ${taskName}`,
-        `You've been assigned to "${taskName}". Priority: ${priority}.${roleStr}${dueStr}`,
+        `${assignedStr} Priority: ${priority}.${roleStr}${dueStr}`,
         contextUser
     );
-    LogStatus(`[BizAppsTasks] Sent assignment notification for "${taskName}"`);
+    LogStatus(`[BizAppsTasks] Sent assignment notification for "${taskName}" to ${userIDs.length} user(s)`);
 }
 
 /**
@@ -482,13 +528,13 @@ async function invokeTaskTypeActionByTaskID(
 // ---------------------------------------------------------------------------
 
 /**
- * Returns MJ UserIDs for all people assigned to a task.
- * Two-step: TaskAssignment → Person → LinkedUserID.
+ * Returns MJ UserIDs for everyone assigned to a task, each once: the active holders of an assigned
+ * MJ role, and the linked users of assigned people.
  */
 async function getTaskAssigneeUserIDs(taskID: string, contextUser: UserInfo): Promise<string[]> {
     const rv = new RunView();
 
-    const assignments = await rv.RunView<{ AssigneeRecordID: string }>({
+    const assignments = await rv.RunView<{ AssigneeEntityID: string | null; AssigneeRecordID: string }>({
         EntityName: TASK_ASSIGNMENTS_ENTITY,
         ExtraFilter: `TaskID='${taskID}'`,
         ResultType: 'simple',
@@ -498,7 +544,37 @@ async function getTaskAssigneeUserIDs(taskID: string, contextUser: UserInfo): Pr
         return [];
     }
 
-    const personIDs = assignments.Results.map(a => a.AssigneeRecordID);
+    const roleIDs = assignments.Results.filter(a => IsRoleEntityID(a.AssigneeEntityID)).map(a => a.AssigneeRecordID);
+    const personIDs = assignments.Results.filter(a => !IsRoleEntityID(a.AssigneeEntityID)).map(a => a.AssigneeRecordID);
+    const roleUserIDs = await getRoleAssigneeUserIDs(taskID, roleIDs, contextUser);
+    const personUserIDs = await getPersonAssigneeUserIDs(personIDs, contextUser);
+    return uniqueUserIDs([...roleUserIDs, ...personUserIDs]);
+}
+
+/** The active holders of the task's assigned MJ roles; empty, and logged, when the lookup fails. */
+async function getRoleAssigneeUserIDs(taskID: string, mjRoleIDs: string[], contextUser: UserInfo): Promise<string[]> {
+    if (mjRoleIDs.length === 0) return [];
+    try {
+        return await ResolveUserIDsForRoles(mjRoleIDs, contextUser);
+    } catch (err) {
+        LogError(`[BizAppsTasks] Could not resolve the members of task ${taskID}'s assigned roles: ${err instanceof Error ? err.message : String(err)}`);
+        return [];
+    }
+}
+
+/** Each user ID once, compared case-insensitively. */
+function uniqueUserIDs(userIDs: string[]): string[] {
+    const seen = new Map<string, string>();
+    for (const id of userIDs) {
+        if (!seen.has(id.toLowerCase())) seen.set(id.toLowerCase(), id);
+    }
+    return [...seen.values()];
+}
+
+/** Linked MJ UserIDs of the assigned people. Two-step: Person → LinkedUserID. */
+async function getPersonAssigneeUserIDs(personIDs: string[], contextUser: UserInfo): Promise<string[]> {
+    if (personIDs.length === 0) return [];
+    const rv = new RunView();
     const inClause = personIDs.map((id: string) => `'${id}'`).join(',');
 
     const people = await rv.RunView<PersonLinkRow>({
