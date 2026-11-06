@@ -6,7 +6,7 @@ export default defineConfig({
     include: ['src/**/__tests__/**/*.test.ts'],
     coverage: {
       provider: 'v8',
-      include: ['src/scheduled-jobs/**/*.ts', 'src/event-handlers/**/*.ts'],
+      include: ['src/scheduled-jobs/**/*.ts', 'src/event-handlers/**/*.ts', 'src/notifications/**/*.ts'],
     },
   },
 });

@@ -1,0 +1,62 @@
+[
+  {
+    "_comments": [
+      "Email body for the 'Task Completed' notification type. NotificationEngine renders it with the templateData the Tasks server passes: taskName, title, message. The email subject is the notification title."
+    ],
+    "fields": {
+      "Name": "MJ_BizApps_Tasks: Task Completed - Email",
+      "Description": "Email sent to a task's assignees when the task is marked completed. Rendered by MJ's NotificationEngine with { taskName, title, message }.",
+      "UserID": "@lookup:MJ: Users.Name=System",
+      "IsActive": true
+    },
+    "relatedEntities": {
+      "MJ: Template Contents": [
+        {
+          "fields": {
+            "TemplateID": "@parent:ID",
+            "TypeID": "@lookup:MJ: Template Content Types.Name=HTML",
+            "TemplateText": "@file:templates/task-completed-email.html",
+            "Priority": 100,
+            "IsActive": true
+          },
+          "primaryKey": {
+            "ID": "DB800A95-FC85-4E23-B84A-6B1FBB9A1207"
+          }
+        }
+      ]
+    },
+    "primaryKey": {
+      "ID": "CC8F07F6-6E18-4EF4-943C-392764BB9D1C"
+    }
+  },
+  {
+    "_comments": [
+      "Email body for the 'Task Overdue' notification type. NotificationEngine renders it with the templateData the overdue job passes: taskName, title, message, dueDate, status, priority, isReminder (the body shows all but message). The email subject is the notification title."
+    ],
+    "fields": {
+      "Name": "MJ_BizApps_Tasks: Task Overdue - Email",
+      "Description": "Email sent to a task's assignees and creator when the task is past its due date, and again as a reminder when the task's notification config repeats. Rendered by MJ's NotificationEngine with { taskName, title, message, dueDate, status, priority, isReminder }.",
+      "UserID": "@lookup:MJ: Users.Name=System",
+      "IsActive": true
+    },
+    "relatedEntities": {
+      "MJ: Template Contents": [
+        {
+          "fields": {
+            "TemplateID": "@parent:ID",
+            "TypeID": "@lookup:MJ: Template Content Types.Name=HTML",
+            "TemplateText": "@file:templates/task-overdue-email.html",
+            "Priority": 100,
+            "IsActive": true
+          },
+          "primaryKey": {
+            "ID": "7D604418-AB5A-4B04-B4BC-6ECA6398C987"
+          }
+        }
+      ]
+    },
+    "primaryKey": {
+      "ID": "19AEE883-7E5D-4D16-9C9D-8996486411F3"
+    }
+  }
+]
