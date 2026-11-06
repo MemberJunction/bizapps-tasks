@@ -2,9 +2,10 @@
  * Overdue Task Notification Scheduled Job
  *
  * Runs on a cron schedule (default: daily at 8 AM) to find tasks that are
- * past their DueAt and send in-app notifications to assignees and/or the
- * task creator. Optionally invokes a configured MJ Action for external
- * notification delivery (email, SMS, Teams, etc.).
+ * past their DueAt and send 'Task Overdue' notifications to assignees and/or
+ * the task creator, through MJ's NotificationEngine so in-app and email follow
+ * each user's preferences. Optionally invokes a configured MJ Action for
+ * external notification delivery (email, SMS, Teams, etc.).
  *
  * Configuration is read from the `TaskNotificationConfig` table:
  * - One row with TaskTypeID = NULL serves as the global default
@@ -14,13 +15,15 @@
  * 1. TaskNotificationConfig with matching TaskTypeID → OverdueActionID
  * 2. TaskType.OnOverdueActionID
  * 3. TaskNotificationConfig global default → OverdueActionID
- * 4. Built-in: create MJ: User Notifications (in-app only)
+ *
+ * The 'Task Overdue' notification is sent whether or not an action resolves.
  */
 import { Metadata, RunView, UserInfo, ValidationResult } from '@memberjunction/core';
 import { MJScheduledJobEntity } from '@memberjunction/core-entities';
 import { RegisterClass } from '@memberjunction/global';
 import { BaseScheduledJob, ScheduledJobExecutionContext } from '@memberjunction/scheduling-engine';
 import { ScheduledJobResult, NotificationContent } from '@memberjunction/scheduling-base-types';
+import { sendTaskNotifications, TASK_OVERDUE_NOTIFICATION_TYPE } from '../notifications/sendTaskNotifications.js';
 
 /** Shape of the TaskNotificationConfig rows loaded from the DB. */
 interface NotificationConfig {
@@ -81,7 +84,7 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
                 const recipients = await this.resolveRecipients(task, config, ContextUser);
                 if (recipients.length === 0) continue;
 
-                // Create in-app notifications
+                // Send 'Task Overdue' notifications (never throws)
                 await this.sendNotifications(task, recipients, ContextUser);
 
                 // Invoke action if configured
@@ -266,19 +269,21 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
             : `Task Overdue: ${task.Name}`;
         const message = `"${task.Name}" was due ${dueDate} and is still ${task.Status}. Priority: ${task.Priority}.`;
 
-        const md = new Metadata();
-        for (const userID of userIDs) {
-            try {
-                const notification = await md.GetEntityObject<any>('MJ: User Notifications', contextUser);
-                notification.NewRecord();
-                notification.Set('UserID', userID);
-                notification.Set('Title', title);
-                notification.Set('Message', message);
-                notification.Set('Unread', true);
-                await notification.Save();
-            } catch {
-                this.logError(`Failed to create notification for user ${userID}`);
-            }
+        const sent = await sendTaskNotifications(userIDs, {
+            TypeName: TASK_OVERDUE_NOTIFICATION_TYPE,
+            Title: title,
+            Message: message,
+            TemplateData: {
+                taskName: task.Name,
+                message,
+                dueDate,
+                status: task.Status,
+                priority: task.Priority,
+                isReminder,
+            },
+        }, contextUser);
+        if (sent < userIDs.length) {
+            this.logError(`Sent the overdue notification for task ${task.ID} to ${sent} of ${userIDs.length} recipient(s)`);
         }
     }
 

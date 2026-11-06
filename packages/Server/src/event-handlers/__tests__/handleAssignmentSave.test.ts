@@ -2,21 +2,17 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 type ViewParams = { EntityName: string; ExtraFilter?: string; Fields?: string[] };
 
-const { runView, runAction, saveNotification } = vi.hoisted(() => ({
+const { runView, runAction, sendNotification } = vi.hoisted(() => ({
   runView: vi.fn(),
   runAction: vi.fn(),
-  saveNotification: vi.fn(),
+  sendNotification: vi.fn(),
 }));
 
 vi.mock('@memberjunction/core', () => ({
   BaseEntity: class { static BaseEventCode = 'BaseEntity'; },
   LogError: vi.fn(),
   LogStatus: vi.fn(),
-  Metadata: class {
-    GetEntityObject() {
-      return Promise.resolve({ NewRecord() {}, Set() {}, Save: saveNotification });
-    }
-  },
+  Metadata: class {},
   RunView: class { RunView = runView; },
   UserInfo: class {},
 }));
@@ -24,13 +20,20 @@ vi.mock('@memberjunction/global', () => ({
   MJEventType: { ComponentEvent: 'ComponentEvent' },
   MJGlobal: { Instance: { GetGlobalObjectStore: () => ({}), GetEventListener: () => ({ subscribe: () => ({ unsubscribe() {} }) }) } },
 }));
+vi.mock('@memberjunction/notifications', () => ({
+  NotificationEngine: { Instance: { Config: vi.fn(), SendNotification: sendNotification } },
+}));
 vi.mock('@memberjunction/actions', () => ({
   ActionEngineServer: { Instance: { Config: vi.fn(), Actions: [{ ID: 'assign-action' }], RunAction: runAction } },
 }));
 
 import { handleAssignmentSave } from '../TaskNotificationHandler.js';
 
+// Read as a simple row by the assignment notice and as an entity by the OnAssign hook.
 const task = {
+  Name: 'Approve discount',
+  Priority: 'High',
+  DueAt: null,
   Get: (field: string) => ({ ID: 'task-1', Name: 'Approve discount', Status: 'Open', TypeID: 'type-1' } as Record<string, string>)[field],
 };
 
@@ -69,7 +72,7 @@ const paramsPassed = () =>
 beforeEach(() => {
   vi.clearAllMocks();
   runAction.mockResolvedValue({ Success: true });
-  saveNotification.mockResolvedValue(true);
+  sendNotification.mockResolvedValue({ success: true });
 });
 
 describe('handleAssignmentSave', () => {
@@ -86,7 +89,22 @@ describe('handleAssignmentSave', () => {
       AssigneePersonID: 'person-1',
       AssigneeName: 'Pat Doe',
     });
-    expect(saveNotification).toHaveBeenCalledOnce();
+    expect(sendNotification).toHaveBeenCalledOnce();
+  });
+
+  it('sends the assignment as MJ\'s Task Assignment notification type', async () => {
+    mockViews('user-1');
+
+    await handleAssignmentSave(assignmentCreated());
+
+    expect(sendNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        typeNameOrId: 'Task Assignment',
+        title: 'Task Assigned: Approve discount',
+      }),
+      expect.anything(),
+    );
   });
 
   it('still invokes the OnAssign action when the assignee has no linked user', async () => {
@@ -94,14 +112,14 @@ describe('handleAssignmentSave', () => {
 
     await handleAssignmentSave(assignmentCreated());
 
-    expect(saveNotification).not.toHaveBeenCalled();
+    expect(sendNotification).not.toHaveBeenCalled();
     expect(runAction).toHaveBeenCalledOnce();
     expect(paramsPassed().AssigneePersonID).toBe('person-1');
   });
 
   it('still invokes the OnAssign action when the notification throws', async () => {
     mockViews('user-1');
-    saveNotification.mockRejectedValue(new Error('notification store down'));
+    sendNotification.mockRejectedValue(new Error('notification store down'));
 
     await handleAssignmentSave(assignmentCreated());
 

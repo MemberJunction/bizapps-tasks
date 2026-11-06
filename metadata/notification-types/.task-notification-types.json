@@ -1,0 +1,46 @@
+[
+  {
+    "_comments": [
+      "Sent by the Tasks server (TaskNotificationHandler) to every assignee with a linked user when a task's status becomes Completed. In-app and email on by default; each user can turn either off in Notification Preferences."
+    ],
+    "fields": {
+      "Name": "Task Completed",
+      "Description": "Sent to a task's assignees when the task is marked completed.",
+      "DefaultInApp": true,
+      "DefaultEmail": true,
+      "DefaultSMS": false,
+      "AllowUserPreference": true,
+      "EmailTemplateID": "@lookup:MJ: Templates.Name=MJ_BizApps_Tasks: Task Completed - Email",
+      "SMSTemplateID": null,
+      "Icon": "fa-circle-check",
+      "Color": "#2E7D32",
+      "AutoExpireDays": 30,
+      "Priority": 30
+    },
+    "primaryKey": {
+      "ID": "70112DCC-44C4-4731-B69C-BCC04B5A7AB7"
+    }
+  },
+  {
+    "_comments": [
+      "Sent by the Tasks overdue scheduled job (OverdueTaskNotificationJob) to the assignees and creator a task's notification config names, once the task is past its due date and grace period, and again as a reminder when the config repeats. In-app and email on by default; each user can turn either off in Notification Preferences."
+    ],
+    "fields": {
+      "Name": "Task Overdue",
+      "Description": "Sent when a task is past its due date and not completed or cancelled, and as a repeat reminder when configured.",
+      "DefaultInApp": true,
+      "DefaultEmail": true,
+      "DefaultSMS": false,
+      "AllowUserPreference": true,
+      "EmailTemplateID": "@lookup:MJ: Templates.Name=MJ_BizApps_Tasks: Task Overdue - Email",
+      "SMSTemplateID": null,
+      "Icon": "fa-clock",
+      "Color": "#C62828",
+      "AutoExpireDays": 30,
+      "Priority": 20
+    },
+    "primaryKey": {
+      "ID": "BF4B3A3D-E149-41F7-8C6B-2A6A70AB1EBC"
+    }
+  }
+]

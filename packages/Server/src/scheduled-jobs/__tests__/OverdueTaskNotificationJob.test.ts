@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // vi.hoisted so the hoisted mock factories can reference these spies.
-const { runViewMock, getEntityObjectMock } = vi.hoisted(() => ({
+const { runViewMock, getEntityObjectMock, sendNotificationMock } = vi.hoisted(() => ({
   runViewMock: vi.fn(),
   getEntityObjectMock: vi.fn(),
+  sendNotificationMock: vi.fn(),
 }));
 
 vi.mock('@memberjunction/global', () => ({
@@ -14,6 +15,7 @@ vi.mock('@memberjunction/core', () => {
   class FakeValidationResult { Success = true; Errors: any[] = []; }
   return {
     ValidationResult: FakeValidationResult,
+    LogError: vi.fn(),
     Metadata: class {
       GetEntityObject(...args: any[]) { return getEntityObjectMock(...args); }
     },
@@ -36,6 +38,10 @@ vi.mock('@memberjunction/scheduling-engine', () => ({
 }));
 
 vi.mock('@memberjunction/scheduling-base-types', () => ({}));
+
+vi.mock('@memberjunction/notifications', () => ({
+  NotificationEngine: { Instance: { Config: vi.fn(), SendNotification: sendNotificationMock } },
+}));
 
 import { OverdueTaskNotificationJob } from '../OverdueTaskNotificationJob.js';
 
@@ -94,6 +100,7 @@ beforeEach(() => {
     NewRecord: vi.fn(), Set: vi.fn(), Save: vi.fn(async () => true),
     Get: vi.fn(), InnerLoad: vi.fn(async () => true),
   });
+  sendNotificationMock.mockResolvedValue({ success: true });
 });
 
 afterEach(() => {
@@ -246,5 +253,68 @@ describe('OverdueTaskNotificationJob.FormatNotification', () => {
     const job = new OverdueTaskNotificationJob();
     const content = job.FormatNotification(makeContext(), { Success: true, Details: { tasksNotified: 0 } } as any);
     expect(content.Priority).toBe('Low');
+  });
+});
+
+describe('OverdueTaskNotificationJob — Task Overdue notification', () => {
+  const overdueTask = {
+    ID: 'task-1', Name: 'File quarterly report', TypeID: 'type-1',
+    Status: 'In Progress', Priority: 'High',
+    DueAt: '2026-06-08T12:00:00Z',
+    OverdueNotifiedAt: null as string | null,
+    CreatedByPersonID: null,
+  };
+
+  function wireOverdue(task: typeof overdueTask, repeatHours: number | null = null) {
+    wireRunView({
+      configs: [globalConfig({ OverdueRepeatIntervalHours: repeatHours })],
+      tasks: [task],
+      assignments: [{ AssigneeRecordID: 'person-1' }],
+      people: [{ ID: 'person-1', LinkedUserID: 'user-1' }],
+    });
+  }
+
+  it('sends the Task Overdue type through the engine with the existing title and message', async () => {
+    wireOverdue(overdueTask);
+    const job = new OverdueTaskNotificationJob();
+    await job.Execute(makeContext());
+
+    expect(sendNotificationMock).toHaveBeenCalledOnce();
+    const [params] = sendNotificationMock.mock.calls[0];
+    expect(params).toMatchObject({
+      userId: 'user-1',
+      typeNameOrId: 'Task Overdue',
+      title: 'Task Overdue: File quarterly report',
+      message: '"File quarterly report" was due Jun 8, 2026 and is still In Progress. Priority: High.',
+      templateData: {
+        taskName: 'File quarterly report',
+        dueDate: 'Jun 8, 2026',
+        status: 'In Progress',
+        priority: 'High',
+        isReminder: false,
+      },
+    });
+  });
+
+  it('titles a repeat notification as a reminder', async () => {
+    wireOverdue({ ...overdueTask, OverdueNotifiedAt: '2026-06-08T11:00:00Z' }, 12);
+    const job = new OverdueTaskNotificationJob();
+    await job.Execute(makeContext());
+
+    const [params] = sendNotificationMock.mock.calls[0];
+    expect(params.title).toBe('Overdue Reminder: File quarterly report');
+    expect(params.templateData.isReminder).toBe(true);
+  });
+
+  it('keeps going and stamps the task when the send fails', async () => {
+    wireOverdue(overdueTask);
+    sendNotificationMock.mockResolvedValue({ success: false, errors: ['Notification type not found: Task Overdue'] });
+    const job = new OverdueTaskNotificationJob();
+    const result = await job.Execute(makeContext());
+
+    expect(result.Success).toBe(true);
+    expect(result.Details?.tasksNotified).toBe(1);
+    const stampedTask = (await getEntityObjectMock.mock.results.at(-1)?.value) as { Set: ReturnType<typeof vi.fn> };
+    expect(stampedTask.Set).toHaveBeenCalledWith('OverdueNotifiedAt', expect.any(Date));
   });
 });

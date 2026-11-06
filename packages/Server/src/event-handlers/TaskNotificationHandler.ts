@@ -1,11 +1,11 @@
 /**
  * BizAppsTasks Notification Handler
  *
- * Subscribes to MJGlobal entity events and creates in-app notifications
+ * Subscribes to MJGlobal entity events and creates notifications
  * (MJ: User Notifications) for key task events:
  *
- * - Task assigned → notify the assignee
- * - Task completed → notify all assignees
+ * - Task assigned → notify the assignee ('Task Assignment' type, through NotificationEngine)
+ * - Task completed → notify all assignees ('Task Completed' type, through NotificationEngine)
  * - Task status changed to Blocked → notify all assignees
  * - Task comment created → notify all assignees except the commenter
  * - TaskType action hooks → invoke linked MJ Actions (OnAssign, OnComplete, OnOverdue, OnPercentChange)
@@ -19,8 +19,14 @@ import {
     RunView,
     UserInfo,
 } from '@memberjunction/core';
+import type { MJUserNotificationEntity } from '@memberjunction/core-entities';
 import { MJEventType, MJGlobal, MJEvent } from '@memberjunction/global';
 import { Subscription } from 'rxjs';
+import {
+    sendTaskNotifications,
+    TASK_ASSIGNMENT_NOTIFICATION_TYPE,
+    TASK_COMPLETED_NOTIFICATION_TYPE,
+} from '../notifications/sendTaskNotifications.js';
 
 /** Entity names we listen for */
 const TASKS_ENTITY = 'MJ_BizApps_Tasks: Tasks';
@@ -146,13 +152,14 @@ async function handleTaskSave(event: BaseEntityEvent): Promise<void> {
     if (status === 'Completed') {
         const userIDs = await getTaskAssigneeUserIDs(taskID, contextUser);
         if (userIDs.length > 0) {
-            await createNotificationsForUsers(
-                userIDs,
-                `Task Completed: ${taskName}`,
-                `"${taskName}" has been marked as completed.`,
-                contextUser
-            );
-            LogStatus(`[BizAppsTasks] Sent completion notification for "${taskName}" to ${userIDs.length} assignee(s)`);
+            const message = `"${taskName}" has been marked as completed.`;
+            const sent = await sendTaskNotifications(userIDs, {
+                TypeName: TASK_COMPLETED_NOTIFICATION_TYPE,
+                Title: `Task Completed: ${taskName}`,
+                Message: message,
+                TemplateData: { taskName, message },
+            }, contextUser);
+            LogStatus(`[BizAppsTasks] Sent completion notification for "${taskName}" to ${sent} of ${userIDs.length} assignee(s)`);
         }
 
         // Invoke OnComplete action if configured on TaskType
@@ -290,13 +297,16 @@ async function notifyAssignee(assigneeRecordID: string, taskID: string, roleID: 
         if (roleName) roleStr = ` Role: ${roleName}.`;
     }
 
-    await createNotificationsForUsers(
-        [userID],
-        `Task Assigned: ${taskName}`,
-        `You've been assigned to "${taskName}". Priority: ${priority}.${roleStr}${dueStr}`,
-        contextUser
-    );
-    LogStatus(`[BizAppsTasks] Sent assignment notification for "${taskName}"`);
+    const message = `You've been assigned to "${taskName}". Priority: ${priority}.${roleStr}${dueStr}`;
+    const sent = await sendTaskNotifications([userID], {
+        TypeName: TASK_ASSIGNMENT_NOTIFICATION_TYPE,
+        Title: `Task Assigned: ${taskName}`,
+        Message: message,
+        TemplateData: { taskName, message, priority, dueDate: dueAt },
+    }, contextUser);
+    if (sent > 0) {
+        LogStatus(`[BizAppsTasks] Sent assignment notification for "${taskName}"`);
+    }
 }
 
 /**
@@ -551,7 +561,9 @@ async function getPersonName(personID: string, contextUser: UserInfo): Promise<s
 }
 
 /**
- * Creates an in-app notification for each UserID in the list.
+ * Creates an untyped in-app notification for each UserID in the list. Used for the blocked
+ * and comment notices, which have no notification type yet; completion and assignment go
+ * through {@link sendTaskNotifications}.
  */
 async function createNotificationsForUsers(
     userIDs: string[],
@@ -562,19 +574,19 @@ async function createNotificationsForUsers(
     const md = new Metadata();
 
     const saves = userIDs.map(async (userID) => {
-        const notification = await md.GetEntityObject<any>(
+        const notification = await md.GetEntityObject<MJUserNotificationEntity>(
             'MJ: User Notifications',
             contextUser
         );
         notification.NewRecord();
-        notification.Set('UserID', userID);
-        notification.Set('Title', title);
-        notification.Set('Message', message);
-        notification.Set('Unread', true);
+        notification.UserID = userID;
+        notification.Title = title;
+        notification.Message = message;
+        notification.Unread = true;
 
         const saved = await notification.Save();
         if (!saved) {
-            LogError(`[BizAppsTasks] Failed to save notification for user ${userID}`);
+            LogError(`[BizAppsTasks] Failed to save notification for user ${userID}: ${notification.LatestResult?.CompleteMessage ?? 'unknown error'}`);
         }
     });
 
