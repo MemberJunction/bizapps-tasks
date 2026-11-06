@@ -5,6 +5,8 @@
   },
   "directoryOrder": [
     "entities",
+    "templates",
+    "notification-types",
     "credential-types",
     "action-categories",
     "actions",
