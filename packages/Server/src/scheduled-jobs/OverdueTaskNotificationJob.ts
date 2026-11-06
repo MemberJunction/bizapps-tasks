@@ -21,6 +21,7 @@ import { MJScheduledJobEntity } from '@memberjunction/core-entities';
 import { RegisterClass } from '@memberjunction/global';
 import { BaseScheduledJob, ScheduledJobExecutionContext } from '@memberjunction/scheduling-engine';
 import { ScheduledJobResult, NotificationContent } from '@memberjunction/scheduling-base-types';
+import { IsRoleEntityID, ResolveUserIDsForRoles } from '../role-assignees.js';
 
 /** Shape of the TaskNotificationConfig rows loaded from the DB. */
 interface NotificationConfig {
@@ -214,13 +215,23 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
 
         // Assignees
         if (config.NotifyAssignees) {
-            const assignments = await rv.RunView<{ AssigneeRecordID: string }>({
+            const assignments = await rv.RunView<{ AssigneeEntityID: string | null; AssigneeRecordID: string }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Assignments',
                 ExtraFilter: `TaskID='${task.ID}'`,
                 ResultType: 'simple',
             }, contextUser);
 
-            const personIDs = (assignments?.Results ?? []).map(a => a.AssigneeRecordID);
+            const results = assignments?.Results ?? [];
+            // A task assigned to an MJ role reaches every active holder of the role (bc-aidp-next-golive#442).
+            const roleIDs = results.filter(a => IsRoleEntityID(a.AssigneeEntityID)).map(a => a.AssigneeRecordID);
+            try {
+                for (const uid of await ResolveUserIDsForRoles(roleIDs, contextUser)) userIDs.add(uid);
+            } catch (err) {
+                // One task's failed lookup must not stop the run; its people are still notified.
+                this.logError(`Could not resolve the members of task ${task.ID}'s assigned roles`, err);
+            }
+
+            const personIDs = results.filter(a => !IsRoleEntityID(a.AssigneeEntityID)).map(a => a.AssigneeRecordID);
             for (const personID of personIDs) {
                 const uid = await this.getLinkedUserID(personID, contextUser);
                 if (uid) userIDs.add(uid);

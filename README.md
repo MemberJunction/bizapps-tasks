@@ -161,6 +161,8 @@ All components are standalone with `@if`/`@for` block syntax. No routing -- even
 
 **Polymorphic Assignment** -- TaskAssignment uses `AssigneeEntityID + AssigneeRecordID` to assign tasks to any entity type -- BizAppsCommon People, MJ AI Agents, or future entity types -- without schema changes.
 
+**Role Assignment** -- An assignment whose `AssigneeEntityID` is `MJ: Roles` and `AssigneeRecordID` a Role ID gives the task to everyone who holds that role: it lists in each holder's My Tasks and approval inbox, each active holder is notified on assignment, completion, block, comment and overdue, and any holder may decide an approval assigned to the role. Membership is read when it is needed, so someone who joins the role later sees the open tasks.
+
 **Polymorphic Linking** -- TaskLink replaces dedicated bridge tables. Consuming apps link tasks to their own entities (committees, meetings, agenda items) via `EntityID + RecordID`. A single task can link to multiple records across multiple entity types.
 
 **Sub-task Rollup** -- When a child task's progress changes, the parent's PercentComplete is auto-calculated as a weighted average (by HoursEstimated). Parent Status auto-transitions to Completed when all children complete.
