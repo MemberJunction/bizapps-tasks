@@ -1,4 +1,5 @@
 import { BaseEntity, CompositeKey, Metadata, RunView } from "@memberjunction/core";
+import { requireUuid } from "./sql-guards.js";
 
 /**
  * Service for instantiating tasks from templates.
@@ -28,6 +29,7 @@ export class TaskTemplateService {
         assigneeMap?: Map<string, { entityID: string; recordID: string }>;
     }): Promise<BaseEntity[]> {
         const { templateID, startDate, categoryID, assigneeMap } = params;
+        requireUuid(templateID, 'TemplateID');
         const rv = new RunView();
 
         // 1. Load the template
@@ -141,6 +143,7 @@ export class TaskTemplateService {
     ): Promise<void> {
         if (!assigneeMap || assigneeMap.size === 0) return;
 
+        requireUuid(templateItemID, 'ItemID');
         const rv = new RunView();
         const rolesResult = await rv.RunView<BaseEntity>({
             EntityName: 'MJ_BizApps_Tasks: Task Template Item Roles',

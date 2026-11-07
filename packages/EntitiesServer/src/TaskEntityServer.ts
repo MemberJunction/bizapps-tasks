@@ -20,7 +20,7 @@ import {
     mjBizAppsTasksTaskTypeStatusEntity,
 } from '@mj-biz-apps/tasks-entities';
 import { TaskService } from '@mj-biz-apps/tasks-core';
-import { PrimaryPersonIDForUser } from './UserPeople.js';
+import { GuidLiteral, PrimaryPersonIDForUser } from './UserPeople.js';
 
 /**
  * Action hook trigger types supported on TaskType and TaskTypeStatus.
@@ -513,7 +513,7 @@ export class TaskEntityServer extends TaskEntity {
         const rv = new RunView();
         const result = await rv.RunView<mjBizAppsTasksTaskTypeStatusEntity>({
             EntityName: 'MJ_BizApps_Tasks: Task Type Status',
-            ExtraFilter: `TaskTypeID='${typeID}' AND IsDefault=1 AND IsActive=1`,
+            ExtraFilter: `TaskTypeID=${GuidLiteral(typeID, 'TypeID')} AND IsDefault=1 AND IsActive=1`,
             ResultType: 'entity_object',
             MaxRows: 1,
         }, this.ContextCurrentUser);

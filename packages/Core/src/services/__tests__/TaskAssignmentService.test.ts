@@ -16,6 +16,10 @@ vi.mock('@memberjunction/core', () => ({
 
 import { TaskAssignmentService } from '../TaskAssignmentService.js';
 
+// getAssignmentsForTask rejects non-UUID ids before touching SQL, so fixtures must be real UUIDs.
+const TASK_4 = '44444444-4444-4444-4444-444444444444';
+const TASK_5 = '55555555-5555-5555-5555-555555555555';
+
 function makeFakeEntity(initial: Record<string, any> = {}) {
   const data: Record<string, any> = { ...initial };
   const base = {
@@ -136,19 +140,19 @@ describe('TaskAssignmentService.getAssignmentsForTask', () => {
     runViewMock.mockResolvedValueOnce({ Results: rows });
 
     const svc = new TaskAssignmentService();
-    const result = await svc.getAssignmentsForTask('task-4');
+    const result = await svc.getAssignmentsForTask(TASK_4);
 
     expect(result).toBe(rows);
     expect(runViewMock).toHaveBeenCalledWith(expect.objectContaining({
       EntityName: 'MJ_BizApps_Tasks: Task Assignments',
-      ExtraFilter: "TaskID = 'task-4'",
-    }));
+      ExtraFilter: `TaskID = '${TASK_4}'`,
+    }), undefined);
   });
 
   it('returns an empty array when RunView yields no results', async () => {
     runViewMock.mockResolvedValueOnce(null);
     const svc = new TaskAssignmentService();
-    const result = await svc.getAssignmentsForTask('task-5');
+    const result = await svc.getAssignmentsForTask(TASK_5);
     expect(result).toEqual([]);
   });
 });

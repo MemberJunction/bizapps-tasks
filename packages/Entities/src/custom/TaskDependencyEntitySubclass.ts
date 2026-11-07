@@ -3,6 +3,13 @@ import { RegisterClass } from "@memberjunction/global";
 import { mjBizAppsTasksTaskDependencyEntity } from "../generated/entity_subclasses.js";
 
 /**
+ * Strict UUID shape. Local to this file because this package is shared
+ * (browser + server), so no server-only SQL-guard helper can be imported;
+ * every id the cycle check walks reaches SQL filter text.
+ */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
  * Custom entity subclass for MJ_BizApps_Tasks: Task Dependencies.
  * Prevents circular dependencies by walking the dependency graph
  * before allowing a save.
@@ -63,6 +70,9 @@ export class TaskDependencyEntity extends mjBizAppsTasksTaskDependencyEntity {
         const dependsOnTaskID = this.DependsOnTaskID;
         if (!taskID || !dependsOnTaskID) return;
 
+        // A non-UUID id must never reach the SQL filter text below; skip the walk — the DB FK refuses the save anyway.
+        if (!UUID_RE.test(taskID) || !UUID_RE.test(dependsOnTaskID)) return;
+
         const visited = new Set<string>();
         const queue: string[] = [dependsOnTaskID];
 
@@ -86,7 +96,7 @@ export class TaskDependencyEntity extends mjBizAppsTasksTaskDependencyEntity {
                 EntityName: 'MJ_BizApps_Tasks: Task Dependencies',
                 ExtraFilter: `TaskID = '${current}'`,
                 ResultType: 'simple',
-            });
+            }, this.ContextCurrentUser);
 
             if (upstream?.Results) {
                 for (const dep of upstream.Results) {
