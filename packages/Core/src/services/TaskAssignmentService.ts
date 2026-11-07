@@ -1,5 +1,6 @@
 import { BaseEntity, CompositeKey, Metadata, RunView, UserInfo } from "@memberjunction/core";
 import { TaskService } from "./TaskService.js";
+import { requireUuid } from "./sql-guards.js";
 
 /**
  * Service for managing task assignments.
@@ -54,8 +55,8 @@ export class TaskAssignmentService {
     /**
      * Removes an assignment and logs the removal.
      */
-    async removeAssignment(assignmentID: string, removedByPersonID?: string): Promise<void> {
-        const assignment = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Assignments');
+    async removeAssignment(assignmentID: string, removedByPersonID?: string, contextUser?: UserInfo): Promise<void> {
+        const assignment = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Assignments', contextUser);
         const pk = new CompositeKey([{ FieldName: 'ID', Value: assignmentID }]);
         await assignment.InnerLoad(pk);
 
@@ -70,19 +71,20 @@ export class TaskAssignmentService {
             activityType: 'AssignmentRemoved',
             previousValue: assigneeRecordID,
             description: `Assignee removed from task`,
-        });
+        }, contextUser);
     }
 
     /**
      * Returns all assignments for a given task.
      */
-    async getAssignmentsForTask(taskID: string): Promise<BaseEntity[]> {
+    async getAssignmentsForTask(taskID: string, contextUser?: UserInfo): Promise<BaseEntity[]> {
+        requireUuid(taskID, 'TaskID');
         const rv = new RunView();
         const result = await rv.RunView<BaseEntity>({
             EntityName: 'MJ_BizApps_Tasks: Task Assignments',
             ExtraFilter: `TaskID = '${taskID}'`,
             ResultType: 'entity_object',
-        });
+        }, contextUser);
         return result?.Results ?? [];
     }
 }

@@ -1,4 +1,5 @@
 import { CompositeKey, Metadata, RunView, UserInfo } from "@memberjunction/core";
+import { requireUuid } from "./sql-guards.js";
 import type {
     mjBizAppsTasksTaskActivityEntity,
     mjBizAppsTasksTaskEntity,
@@ -41,6 +42,7 @@ export class TaskService {
      * Recurses up the tree so grandparent objectives also update.
      */
     async rollupParentProgress(parentTaskID: string, contextUser?: UserInfo): Promise<void> {
+        requireUuid(parentTaskID, 'ParentTaskID');
         const rv = new RunView();
         const children = await rv.RunView<TaskRollupChildRow>({
             EntityName: 'MJ_BizApps_Tasks: Tasks',

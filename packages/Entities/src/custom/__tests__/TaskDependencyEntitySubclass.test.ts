@@ -35,6 +35,12 @@ vi.mock('@memberjunction/core', () => {
 
 import { TaskDependencyEntity } from '../TaskDependencyEntitySubclass.js';
 
+// validateNoCycle skips the graph walk for non-UUID ids (the DB FK refuses those anyway),
+// so the cycle-detection fixtures must be real UUIDs.
+const TASK_1 = '00000000-0000-0000-0000-000000000001';
+const TASK_2 = '00000000-0000-0000-0000-000000000002';
+const TASK_3 = '00000000-0000-0000-0000-000000000003';
+
 function makeDep(taskID: string, dependsOnTaskID: string) {
   const d = new TaskDependencyEntity() as any;
   d._data = { TaskID: taskID, DependsOnTaskID: dependsOnTaskID };
@@ -63,7 +69,7 @@ describe('TaskDependencyEntity.ValidateAsync — cycle detection', () => {
     // task-1 depends on task-2; task-2 depends on nothing.
     runViewMock.mockResolvedValue({ Results: [] }); // task-2 has no upstream deps
 
-    const d = makeDep('task-1', 'task-2');
+    const d = makeDep(TASK_1, TASK_2);
     const result = await d.ValidateAsync();
 
     expect(result.Success).toBe(true);
@@ -74,13 +80,13 @@ describe('TaskDependencyEntity.ValidateAsync — cycle detection', () => {
     // Adding task-1 → depends-on task-2, but task-2 → depends-on task-1 already exists.
     // Walk from task-2: its upstream includes task-1 → reaches TaskID → cycle.
     runViewMock.mockImplementation((opts: any) => {
-      if (opts.ExtraFilter === "TaskID = 'task-2'") {
-        return Promise.resolve({ Results: [{ DependsOnTaskID: 'task-1' }] });
+      if (opts.ExtraFilter === `TaskID = '${TASK_2}'`) {
+        return Promise.resolve({ Results: [{ DependsOnTaskID: TASK_1 }] });
       }
       return Promise.resolve({ Results: [] });
     });
 
-    const d = makeDep('task-1', 'task-2');
+    const d = makeDep(TASK_1, TASK_2);
     const result = await d.ValidateAsync();
 
     expect(result.Success).toBe(false);
@@ -89,16 +95,16 @@ describe('TaskDependencyEntity.ValidateAsync — cycle detection', () => {
 
   it('detects a transitive cycle (task-2 → task-3 → task-1)', async () => {
     runViewMock.mockImplementation((opts: any) => {
-      if (opts.ExtraFilter === "TaskID = 'task-2'") {
-        return Promise.resolve({ Results: [{ DependsOnTaskID: 'task-3' }] });
+      if (opts.ExtraFilter === `TaskID = '${TASK_2}'`) {
+        return Promise.resolve({ Results: [{ DependsOnTaskID: TASK_3 }] });
       }
-      if (opts.ExtraFilter === "TaskID = 'task-3'") {
-        return Promise.resolve({ Results: [{ DependsOnTaskID: 'task-1' }] });
+      if (opts.ExtraFilter === `TaskID = '${TASK_3}'`) {
+        return Promise.resolve({ Results: [{ DependsOnTaskID: TASK_1 }] });
       }
       return Promise.resolve({ Results: [] });
     });
 
-    const d = makeDep('task-1', 'task-2');
+    const d = makeDep(TASK_1, TASK_2);
     const result = await d.ValidateAsync();
 
     expect(result.Success).toBe(false);
@@ -109,16 +115,16 @@ describe('TaskDependencyEntity.ValidateAsync — cycle detection', () => {
     // task-2 → task-3 → task-2 (a cycle among others), but none reaches task-1.
     // The visited-set must prevent infinite looping.
     runViewMock.mockImplementation((opts: any) => {
-      if (opts.ExtraFilter === "TaskID = 'task-2'") {
-        return Promise.resolve({ Results: [{ DependsOnTaskID: 'task-3' }] });
+      if (opts.ExtraFilter === `TaskID = '${TASK_2}'`) {
+        return Promise.resolve({ Results: [{ DependsOnTaskID: TASK_3 }] });
       }
-      if (opts.ExtraFilter === "TaskID = 'task-3'") {
-        return Promise.resolve({ Results: [{ DependsOnTaskID: 'task-2' }] });
+      if (opts.ExtraFilter === `TaskID = '${TASK_3}'`) {
+        return Promise.resolve({ Results: [{ DependsOnTaskID: TASK_2 }] });
       }
       return Promise.resolve({ Results: [] });
     });
 
-    const d = makeDep('task-1', 'task-2');
+    const d = makeDep(TASK_1, TASK_2);
     const result = await d.ValidateAsync();
 
     // No path reaches task-1, and visited-set prevents hang → valid.
