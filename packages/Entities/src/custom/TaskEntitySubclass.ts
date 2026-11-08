@@ -10,10 +10,10 @@ import { mjBizAppsTasksTaskEntity } from "../generated/entity_subclasses.js";
  * (activity logging, sub-task rollup) live in TaskEntityServer.
  *
  * Extends the CodeGen-generated entity (per MJ convention) so the strongly-typed
- * field accessors are inherited, and is registered with priority 1 to override the
- * generated base class (priority 0).
+ * field accessors are inherited; registered without an explicit priority so
+ * `ClassFactory` auto-increments above the generated base class's priority 1.
  */
-@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Tasks', 1)
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Tasks')
 export class TaskEntity extends mjBizAppsTasksTaskEntity {
 
     // ---------------------------------------------------------------
@@ -32,7 +32,7 @@ export class TaskEntity extends mjBizAppsTasksTaskEntity {
     }
 
     private validatePercentComplete(result: ValidationResult): void {
-        const pct = this.Get('PercentComplete') as number | null;
+        const pct = this.PercentComplete as number | null;
         if (pct != null && (pct < 0 || pct > 100)) {
             result.Errors.push(new ValidationErrorInfo(
                 'PercentComplete',
@@ -44,8 +44,8 @@ export class TaskEntity extends mjBizAppsTasksTaskEntity {
     }
 
     private validateDueAfterStart(result: ValidationResult): void {
-        const startedAt = this.Get('StartedAt') as Date | null;
-        const dueAt = this.Get('DueAt') as Date | null;
+        const startedAt = this.StartedAt;
+        const dueAt = this.DueAt;
         if (startedAt && dueAt && dueAt <= startedAt) {
             result.Errors.push(new ValidationErrorInfo(
                 'DueAt',
@@ -67,19 +67,19 @@ export class TaskEntity extends mjBizAppsTasksTaskEntity {
         const oldStatus = statusField.OldValue as string | null;
         const newStatus = statusField.Value as string;
 
-        if (newStatus === 'InProgress' && !this.Get('StartedAt')) {
-            this.Set('StartedAt', new Date());
+        if (newStatus === 'InProgress' && !this.StartedAt) {
+            this.StartedAt = new Date();
         }
 
         if (newStatus === 'Completed') {
-            if (!this.Get('CompletedAt')) {
-                this.Set('CompletedAt', new Date());
+            if (!this.CompletedAt) {
+                this.CompletedAt = new Date();
             }
-            this.Set('PercentComplete', 100);
+            this.PercentComplete = 100;
         }
 
         if (oldStatus === 'Completed' && newStatus !== 'Completed' && newStatus !== 'Cancelled') {
-            this.Set('CompletedAt', null);
+            this.CompletedAt = null;
         }
     }
 

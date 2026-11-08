@@ -76,8 +76,42 @@
       "ID": "5961EDE5-B996-4083-BE48-64634B4D8D1C"
     },
     "sync": {
-      "lastModified": "2026-08-20T12:30:43.774Z",
-      "checksum": "7b923fe7371b0fe260bbbe093e44d56e81b346b05ad5f650cfa49a291a0c9c73"
+      "lastModified": "2026-10-20T00:39:33.713Z",
+      "checksum": "6d0e86a0f8c591d1fec33ffe83794c4aac555565a457453712352b068be08026"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Priority Objective",
+      "Code": "PRIORITY_OBJECTIVE",
+      "Description": "Strategic quarterly or annual priority objective (OKR parent) tracked by the user and their Chief of Staff agent",
+      "IconClass": "fa-solid fa-bullseye",
+      "DefaultPriority": "High",
+      "IsApproval": false
+    },
+    "primaryKey": {
+      "ID": "8D42A1B9-3E71-4C5A-9F20-1B6E8D3A9C01"
+    },
+    "sync": {
+      "lastModified": "2026-10-20T00:39:34.921Z",
+      "checksum": "1bed0d685ba330db750b0a0772a6a2653166ae4782fa1e6896ba0c982e951af6"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Key Result",
+      "Code": "KEY_RESULT",
+      "Description": "Measurable key result with baseline, target, and actual values plus periodic check-in cadence",
+      "IconClass": "fa-solid fa-chart-line",
+      "DefaultPriority": "High",
+      "IsApproval": false
+    },
+    "primaryKey": {
+      "ID": "8D42A1B9-3E71-4C5A-9F20-1B6E8D3A9C02"
+    },
+    "sync": {
+      "lastModified": "2026-10-20T00:39:34.948Z",
+      "checksum": "e27811b0ffaea682f55262bc7eb0b58419c2dd831a92715c81ace75306ad30b8"
     }
   }
 ]

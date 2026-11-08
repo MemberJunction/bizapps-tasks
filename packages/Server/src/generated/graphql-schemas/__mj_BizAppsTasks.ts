@@ -17,7 +17,7 @@ import { MaxLength } from 'class-validator';
 import * as mj_core_schema_server_object_types from '@memberjunction/server'
 
 
-import { mjBizAppsTasksTaskActivityEntity, mjBizAppsTasksTaskAssignmentEntity, mjBizAppsTasksTaskCategoryEntity, mjBizAppsTasksTaskCommentEntity, mjBizAppsTasksTaskDecisionOutcomeEntity, mjBizAppsTasksTaskDecisionEntity, mjBizAppsTasksTaskDependencyEntity, mjBizAppsTasksTaskLinkEntity, mjBizAppsTasksTaskNotificationConfigEntity, mjBizAppsTasksTaskNotificationLogEntity, mjBizAppsTasksTaskRoleEntity, mjBizAppsTasksTaskTagLinkEntity, mjBizAppsTasksTaskTagEntity, mjBizAppsTasksTaskTemplateItemDependencyEntity, mjBizAppsTasksTaskTemplateItemRoleEntity, mjBizAppsTasksTaskTemplateItemEntity, mjBizAppsTasksTaskTemplateEntity, mjBizAppsTasksTaskTypeStatusEntity, mjBizAppsTasksTaskTypeEntity, mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
+import { mjBizAppsTasksTaskActivityEntity, mjBizAppsTasksTaskAssignmentEntity, mjBizAppsTasksTaskCategoryEntity, mjBizAppsTasksTaskCheckInEntity, mjBizAppsTasksTaskCommentEntity, mjBizAppsTasksTaskDecisionOutcomeEntity, mjBizAppsTasksTaskDecisionEntity, mjBizAppsTasksTaskDependencyEntity, mjBizAppsTasksTaskLinkEntity, mjBizAppsTasksTaskNotificationConfigEntity, mjBizAppsTasksTaskNotificationLogEntity, mjBizAppsTasksTaskRoleEntity, mjBizAppsTasksTaskTagLinkEntity, mjBizAppsTasksTaskTagEntity, mjBizAppsTasksTaskTemplateItemDependencyEntity, mjBizAppsTasksTaskTemplateItemRoleEntity, mjBizAppsTasksTaskTemplateItemEntity, mjBizAppsTasksTaskTemplateEntity, mjBizAppsTasksTaskTypeStatusEntity, mjBizAppsTasksTaskTypeEntity, mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
     
 
 //****************************************************************************
@@ -63,7 +63,7 @@ export class mjBizAppsTasksTaskActivity_ {
     Task?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(201)
+    @MaxLength(250)
     Person?: string;
         
     @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
@@ -280,7 +280,7 @@ export class mjBizAppsTasksTaskAssignment_ {
     Role?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(201)
+    @MaxLength(250)
     AssignedByPerson?: string;
         
     @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
@@ -662,6 +662,278 @@ export class mjBizAppsTasksTaskCategoryResolver extends ResolverBase {
 }
 
 //****************************************************************************
+// ENTITY CLASS for MJ_BizApps_Tasks: Task Check Ins
+//****************************************************************************
+@ObjectType({ description: "Structured periodic progress check-ins for tasks, priorities, and OKRs, authored by users or AI agents such as Chief of Staff." })
+export class mjBizAppsTasksTaskCheckIn_ {
+    @Field() 
+    @MaxLength(36)
+    ID: string;
+        
+    @Field({nullable: true, description: "The task, priority objective, or key result this check-in updates."}) 
+    @MaxLength(36)
+    TaskID?: string;
+        
+    @Field({nullable: true, description: "Optional Person record who authored or approved the check-in."}) 
+    @MaxLength(36)
+    AuthorPersonID?: string;
+        
+    @Field({nullable: true, description: "Optional MemberJunction User who authored or submitted the check-in."}) 
+    @MaxLength(36)
+    AuthorUserID?: string;
+        
+    @Field({nullable: true, description: "Optional AI Agent (e.g., Chief of Staff) that synthesized and recorded this check-in."}) 
+    @MaxLength(36)
+    ReportedByAIAgentID?: string;
+        
+    @Field({nullable: true, description: "Timestamp when the check-in occurred."}) 
+    CheckInAt?: Date;
+        
+    @Field({nullable: true, description: "Health status reported at check-in: OnTrack, AtRisk, OffTrack, Completed, or Paused."}) 
+    @MaxLength(20)
+    HealthStatus?: string;
+        
+    @Field(() => Int, {nullable: true, description: "Confidence score (0-100) reported at the time of check-in."}) 
+    ConfidenceScore?: number;
+        
+    @Field(() => Float, {nullable: true, description: "Metric value prior to this check-in."}) 
+    PreviousValue?: number;
+        
+    @Field(() => Float, {nullable: true, description: "Updated metric value reported in this check-in."}) 
+    NewValue?: number;
+        
+    @Field(() => Int, {nullable: true, description: "Percent complete (0-100) reported or computed in this check-in."}) 
+    PercentComplete?: number;
+        
+    @Field({nullable: true, description: "Narrative summary of accomplishments and status since the last check-in."}) 
+    Summary?: string;
+        
+    @Field({nullable: true, description: "Risks, impediments, or cross-team blockers surfaced during the check-in."}) 
+    Blockers?: string;
+        
+    @Field({nullable: true, description: "Planned next steps and commitments before the next check-in."}) 
+    NextSteps?: string;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    Task?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(250)
+    AuthorPerson?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(100)
+    AuthorUser?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    ReportedByAIAgent?: string;
+        
+    @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
+    ReadableFields___?: string[];
+        
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Task Check Ins
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsTasksTaskCheckInInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    TaskID?: string;
+
+    @Field({ nullable: true })
+    AuthorPersonID: string | null;
+
+    @Field({ nullable: true })
+    AuthorUserID: string | null;
+
+    @Field({ nullable: true })
+    ReportedByAIAgentID: string | null;
+
+    @Field({ nullable: true })
+    CheckInAt?: Date;
+
+    @Field({ nullable: true })
+    HealthStatus?: string;
+
+    @Field(() => Int, { nullable: true })
+    ConfidenceScore: number | null;
+
+    @Field(() => Float, { nullable: true })
+    PreviousValue: number | null;
+
+    @Field(() => Float, { nullable: true })
+    NewValue: number | null;
+
+    @Field(() => Int, { nullable: true })
+    PercentComplete: number | null;
+
+    @Field({ nullable: true })
+    Summary?: string;
+
+    @Field({ nullable: true })
+    Blockers: string | null;
+
+    @Field({ nullable: true })
+    NextSteps: string | null;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Task Check Ins
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsTasksTaskCheckInInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    TaskID?: string;
+
+    @Field({ nullable: true })
+    AuthorPersonID?: string | null;
+
+    @Field({ nullable: true })
+    AuthorUserID?: string | null;
+
+    @Field({ nullable: true })
+    ReportedByAIAgentID?: string | null;
+
+    @Field({ nullable: true })
+    CheckInAt?: Date;
+
+    @Field({ nullable: true })
+    HealthStatus?: string;
+
+    @Field(() => Int, { nullable: true })
+    ConfidenceScore?: number | null;
+
+    @Field(() => Float, { nullable: true })
+    PreviousValue?: number | null;
+
+    @Field(() => Float, { nullable: true })
+    NewValue?: number | null;
+
+    @Field(() => Int, { nullable: true })
+    PercentComplete?: number | null;
+
+    @Field({ nullable: true })
+    Summary?: string;
+
+    @Field({ nullable: true })
+    Blockers?: string | null;
+
+    @Field({ nullable: true })
+    NextSteps?: string | null;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+//****************************************************************************
+// RESOLVER for MJ_BizApps_Tasks: Task Check Ins
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsTasksTaskCheckInViewResult {
+    @Field(() => [mjBizAppsTasksTaskCheckIn_])
+    Results: mjBizAppsTasksTaskCheckIn_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsTasksTaskCheckIn_)
+export class mjBizAppsTasksTaskCheckInResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsTasksTaskCheckInViewResult)
+    async RunmjBizAppsTasksTaskCheckInViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTaskCheckInViewResult)
+    async RunmjBizAppsTasksTaskCheckInViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTaskCheckInViewResult)
+    async RunmjBizAppsTasksTaskCheckInDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_Tasks: Task Check Ins';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsTasksTaskCheckIn_, { nullable: true })
+    async mjBizAppsTasksTaskCheckIn(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsTasksTaskCheckIn_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Check Ins', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskCheckIns')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Check Ins', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Check Ins', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @Mutation(() => mjBizAppsTasksTaskCheckIn_)
+    async CreatemjBizAppsTasksTaskCheckIn(
+        @Arg('input', () => CreatemjBizAppsTasksTaskCheckInInput) input: CreatemjBizAppsTasksTaskCheckInInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_Tasks: Task Check Ins', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsTasksTaskCheckIn_)
+    async UpdatemjBizAppsTasksTaskCheckIn(
+        @Arg('input', () => UpdatemjBizAppsTasksTaskCheckInInput) input: UpdatemjBizAppsTasksTaskCheckInInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_Tasks: Task Check Ins', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsTasksTaskCheckIn_)
+    async DeletemjBizAppsTasksTaskCheckIn(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_Tasks: Task Check Ins', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
 // ENTITY CLASS for MJ_BizApps_Tasks: Task Comments
 //****************************************************************************
 @ObjectType()
@@ -699,7 +971,7 @@ export class mjBizAppsTasksTaskComment_ {
     Task?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(201)
+    @MaxLength(250)
     Person?: string;
         
     @Field({nullable: true}) 
@@ -876,24 +1148,24 @@ export class mjBizAppsTasksTaskDecisionOutcome_ {
     @MaxLength(36)
     ID: string;
         
-    @Field({nullable: true, description: `Human-readable outcome label (e.g. Approved, Rejected, Approved With Conditions).`}) 
+    @Field({nullable: true, description: "Human-readable outcome label (e.g. Approved, Rejected, Approved With Conditions)."}) 
     @MaxLength(100)
     Name?: string;
         
-    @Field({nullable: true, description: `Stable machine code for the outcome, used by orchestration code to map outcome to task status (e.g. Approved, Rejected, ApprovedWithConditions).`}) 
+    @Field({nullable: true, description: "Stable machine code for the outcome, used by orchestration code to map outcome to task status (e.g. Approved, Rejected, ApprovedWithConditions)."}) 
     @MaxLength(50)
     Code?: string;
         
     @Field({nullable: true}) 
     Description?: string;
         
-    @Field(() => Int, {nullable: true, description: `Display ordering for the outcome in decision pickers.`}) 
+    @Field(() => Int, {nullable: true, description: "Display ordering for the outcome in decision pickers."}) 
     Sequence?: number;
         
-    @Field(() => Boolean, {nullable: true, description: `When 1, recording this outcome closes the approval (terminal). When 0, the decision is interim and the task remains open.`}) 
+    @Field(() => Boolean, {nullable: true, description: "When 1, recording this outcome closes the approval (terminal). When 0, the decision is interim and the task remains open."}) 
     IsTerminal?: boolean;
         
-    @Field(() => Boolean, {nullable: true, description: `When 0, the outcome is hidden from new decision pickers but preserved on historical decisions.`}) 
+    @Field(() => Boolean, {nullable: true, description: "When 0, the outcome is hidden from new decision pickers but preserved on historical decisions."}) 
     IsActive?: boolean;
         
     @Field() 
@@ -1066,25 +1338,25 @@ export class mjBizAppsTasksTaskDecision_ {
     @MaxLength(36)
     ID: string;
         
-    @Field({nullable: true, description: `The task this decision was recorded against.`}) 
+    @Field({nullable: true, description: "The task this decision was recorded against."}) 
     @MaxLength(36)
     TaskID?: string;
         
-    @Field({nullable: true, description: `The decision outcome (FK to TaskDecisionOutcome).`}) 
+    @Field({nullable: true, description: "The decision outcome (FK to TaskDecisionOutcome)."}) 
     @MaxLength(36)
     OutcomeID?: string;
         
-    @Field({nullable: true, description: `The Person who made the decision.`}) 
+    @Field({nullable: true, description: "The Person who made the decision."}) 
     @MaxLength(36)
     DecidedByPersonID?: string;
         
-    @Field({nullable: true, description: `When the decision was recorded.`}) 
+    @Field({nullable: true, description: "When the decision was recorded."}) 
     DecidedAt?: Date;
         
-    @Field({nullable: true, description: `Free-text rationale or conditions attached to the decision.`}) 
+    @Field({nullable: true, description: "Free-text rationale or conditions attached to the decision."}) 
     DecisionNotes?: string;
         
-    @Field({nullable: true, description: `Optional link to the specific TaskAssignment this decision belongs to, for per-assignee decisions in multi-approver flows. Null for a task-level decision.`}) 
+    @Field({nullable: true, description: "Optional link to the specific TaskAssignment this decision belongs to, for per-assignee decisions in multi-approver flows. Null for a task-level decision."}) 
     @MaxLength(36)
     TaskAssignmentID?: string;
         
@@ -1103,7 +1375,7 @@ export class mjBizAppsTasksTaskDecision_ {
     Outcome?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(201)
+    @MaxLength(250)
     DecidedByPerson?: string;
         
     @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
@@ -3251,38 +3523,38 @@ export class mjBizAppsTasksTaskTemplateResolver extends ResolverBase {
 //****************************************************************************
 // ENTITY CLASS for MJ_BizApps_Tasks: Task Type Status
 //****************************************************************************
-@ObjectType({ description: `Dynamic domain statuses and lifecycle stages configured per Task Type.` })
+@ObjectType({ description: "Dynamic domain statuses and lifecycle stages configured per Task Type." })
 export class mjBizAppsTasksTaskTypeStatus_ {
     @Field() 
     @MaxLength(36)
     ID: string;
         
-    @Field({nullable: true, description: `The Task Type this status belongs to.`}) 
+    @Field({nullable: true, description: "The Task Type this status belongs to."}) 
     @MaxLength(36)
     TaskTypeID?: string;
         
-    @Field({nullable: true, description: `Display name of the status (e.g. Legal Review, Redlining, Pending Signature).`}) 
+    @Field({nullable: true, description: "Display name of the status (e.g. Legal Review, Redlining, Pending Signature)."}) 
     @MaxLength(100)
     Name?: string;
         
-    @Field({nullable: true, description: `Stable machine code for this status within its Task Type (e.g. LEGAL_REVIEW, REDLINING).`}) 
+    @Field({nullable: true, description: "Stable machine code for this status within its Task Type (e.g. LEGAL_REVIEW, REDLINING)."}) 
     @MaxLength(50)
     Code?: string;
         
     @Field({nullable: true}) 
     Description?: string;
         
-    @Field({nullable: true, description: `The standard macro-lifecycle state this domain status maps to (Open, InProgress, Blocked, Completed, Cancelled). Ensures progress rollup and Gantt calculations remain consistent.`}) 
+    @Field({nullable: true, description: "The standard macro-lifecycle state this domain status maps to (Open, InProgress, Blocked, Completed, Cancelled). Ensures progress rollup and Gantt calculations remain consistent."}) 
     @MaxLength(20)
     MacroStatus?: string;
         
-    @Field(() => Int, {nullable: true, description: `Ordering sequence for pickers, stage progression bars, and Kanban columns.`}) 
+    @Field(() => Int, {nullable: true, description: "Ordering sequence for pickers, stage progression bars, and Kanban columns."}) 
     Sequence?: number;
         
-    @Field(() => Boolean, {nullable: true, description: `Whether this is the initial default status when a task of this type is created.`}) 
+    @Field(() => Boolean, {nullable: true, description: "Whether this is the initial default status when a task of this type is created."}) 
     IsDefault?: boolean;
         
-    @Field(() => Boolean, {nullable: true, description: `Whether this status represents a closed terminal state for the task.`}) 
+    @Field(() => Boolean, {nullable: true, description: "Whether this status represents a closed terminal state for the task."}) 
     IsTerminal?: boolean;
         
     @Field({nullable: true}) 
@@ -3293,11 +3565,11 @@ export class mjBizAppsTasksTaskTypeStatus_ {
     @MaxLength(100)
     IconClass?: string;
         
-    @Field({nullable: true, description: `Action invoked when a task enters this specific status.`}) 
+    @Field({nullable: true, description: "Action invoked when a task enters this specific status."}) 
     @MaxLength(36)
     OnEnterActionID?: string;
         
-    @Field({nullable: true, description: `Action invoked when a task leaves this specific status.`}) 
+    @Field({nullable: true, description: "Action invoked when a task leaves this specific status."}) 
     @MaxLength(36)
     OnExitActionID?: string;
         
@@ -3568,28 +3840,28 @@ export class mjBizAppsTasksTaskType_ {
     @Field() 
     _mj__UpdatedAt: Date;
         
-    @Field({nullable: true, description: `Action invoked when a task of this type transitions to a rejected decision (post-commit, non-blocking). Used by approval workflows.`}) 
+    @Field({nullable: true, description: "Action invoked when a task of this type transitions to a rejected decision (post-commit, non-blocking). Used by approval workflows."}) 
     @MaxLength(36)
     OnRejectActionID?: string;
         
-    @Field({nullable: true, description: `Action invoked when a task of this type transitions to Cancelled (post-commit, non-blocking).`}) 
+    @Field({nullable: true, description: "Action invoked when a task of this type transitions to Cancelled (post-commit, non-blocking)."}) 
     @MaxLength(36)
     OnCancelActionID?: string;
         
-    @Field({nullable: true, description: `Stable unique machine code for programmatic lookups and cross-app metadata references.`}) 
+    @Field({nullable: true, description: "Stable unique machine code for programmatic lookups and cross-app metadata references."}) 
     @MaxLength(50)
     Code?: string;
         
-    @Field({nullable: true, description: `Action invoked when a task of this type is first created (e.g. kicks off a task graph workflow, initialization agent, or subtask template generator).`}) 
+    @Field({nullable: true, description: "Action invoked when a task of this type is first created (e.g. kicks off a task graph workflow, initialization agent, or subtask template generator)."}) 
     @MaxLength(36)
     OnCreateActionID?: string;
         
-    @Field({nullable: true, description: `Action invoked whenever a task of this type changes status.`}) 
+    @Field({nullable: true, description: "Action invoked whenever a task of this type changes status."}) 
     @MaxLength(36)
     OnStatusChangeActionID?: string;
         
-    @Field(() => Boolean, {description: `When true, tasks of this type are approvals: they appear in the approvals inbox of each assignee, who records a decision on them.`}) 
-    IsApproval: boolean;
+    @Field(() => Boolean, {nullable: true, description: "When true, tasks of this type are approvals: they appear in the approvals inbox of each assignee, who records a decision on them."}) 
+    IsApproval?: boolean;
         
     @Field({nullable: true}) 
     @MaxLength(425)
@@ -3908,19 +4180,60 @@ export class mjBizAppsTasksTask_ {
     @Field() 
     _mj__UpdatedAt: Date;
         
-    @Field({nullable: true, description: `Optional reference to the dynamic TaskTypeStatus definition for tasks with type-specific lifecycles.`}) 
+    @Field({nullable: true, description: "Optional reference to the dynamic TaskTypeStatus definition for tasks with type-specific lifecycles."}) 
     @MaxLength(36)
     TaskTypeStatusID?: string;
         
-    @Field(() => Float, {nullable: true, description: `Predicted probability (0.0000 - 1.0000) that this task breaches its target due date or SLA.`}) 
+    @Field(() => Float, {nullable: true, description: "Predicted probability (0.0000 - 1.0000) that this task breaches its target due date or SLA."}) 
     PredictedSLABreachProbability?: number;
         
-    @Field({nullable: true, description: `Operational SLA breach risk tier: Low (<0.30), Medium (0.30-0.70), High (>0.70), or Critical.`}) 
+    @Field({nullable: true, description: "Operational SLA breach risk tier: Low (<0.30), Medium (0.30-0.70), High (>0.70), or Critical."}) 
     @MaxLength(20)
     PredictedSLARiskBand?: string;
         
-    @Field({nullable: true, description: `Timestamp when this task was last scored by the predictive SLA breach model.`}) 
+    @Field({nullable: true, description: "Timestamp when this task was last scored by the predictive SLA breach model."}) 
     PredictedSLAScoredAt?: Date;
+        
+    @Field({nullable: true, description: "Qualitative health status for priority/OKR tracking: OnTrack, AtRisk, OffTrack, Completed, or Paused."}) 
+    @MaxLength(20)
+    HealthStatus?: string;
+        
+    @Field(() => Int, {nullable: true, description: "Owner confidence score (0-100) that this task, key result, or objective will hit its target on time."}) 
+    ConfidenceScore?: number;
+        
+    @Field(() => Float, {nullable: true, description: "Starting baseline value for measurable key results or quantitative deliverables."}) 
+    BaselineValue?: number;
+        
+    @Field(() => Float, {nullable: true, description: "Target goal value for measurable key results or quantitative deliverables."}) 
+    TargetValue?: number;
+        
+    @Field(() => Float, {nullable: true, description: "Latest actual measured value for this key result or deliverable, updated automatically by TaskCheckIn records."}) 
+    CurrentValue?: number;
+        
+    @Field({nullable: true, description: "Unit of measure for BaselineValue, TargetValue, and CurrentValue (e.g., %, USD, Days, Customers, NPS)."}) 
+    @MaxLength(50)
+    UnitOfMeasure?: string;
+        
+    @Field({nullable: true, description: "Direction of improvement for quantitative metrics: Increase, Decrease, or Maintain."}) 
+    @MaxLength(20)
+    MetricDirection?: string;
+        
+    @Field(() => Float, {nullable: true, description: "Relative weight (default 1.00) when rolling up child task or key result progress into a parent objective."}) 
+    RollupWeight?: number;
+        
+    @Field({nullable: true, description: "Planning horizon or OKR cycle identifier (e.g., 2026-Q4, FY2027, H1-2026)."}) 
+    @MaxLength(50)
+    PlanningPeriod?: string;
+        
+    @Field({nullable: true, description: "Expected progress check-in frequency: Daily, Weekly, BiWeekly, Monthly, Quarterly, or None."}) 
+    @MaxLength(20)
+    CheckInCadence?: string;
+        
+    @Field({nullable: true, description: "Timestamp when the most recent TaskCheckIn was recorded for this task."}) 
+    LastCheckInAt?: Date;
+        
+    @Field({nullable: true, description: "Timestamp when the next progress check-in is due based on CheckInCadence; used by Chief of Staff to nudge owners."}) 
+    NextCheckInDueAt?: Date;
         
     @Field({nullable: true}) 
     @MaxLength(100)
@@ -3935,7 +4248,7 @@ export class mjBizAppsTasksTask_ {
     Parent?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(201)
+    @MaxLength(250)
     CreatedByPerson?: string;
         
     @Field({nullable: true}) 
@@ -3946,17 +4259,17 @@ export class mjBizAppsTasksTask_ {
     @MaxLength(36)
     RootParentID?: string;
         
-    @Field({nullable: true, description: `Indicates whether the task breached its SLA (Met vs. Breached). Ground truth target for predictive models.`}) 
+    @Field({nullable: true}) 
     @MaxLength(8)
     IsSLABreached?: string;
         
-    @Field(() => Int, {nullable: true, description: `Number of days between task start/creation and SLA target due date.`}) 
+    @Field(() => Int, {nullable: true}) 
     LeadDays?: number;
         
-    @Field(() => Int, {nullable: true, description: `Total number of team members assigned to this task.`}) 
+    @Field(() => Int, {nullable: true}) 
     AssignmentsCount?: number;
         
-    @Field(() => Int, {nullable: true, description: `Total number of comments recorded on this task.`}) 
+    @Field(() => Int, {nullable: true}) 
     CommentsCount?: number;
         
     @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
@@ -4038,6 +4351,42 @@ export class CreatemjBizAppsTasksTaskInput {
     @Field({ nullable: true })
     PredictedSLAScoredAt: Date | null;
 
+    @Field({ nullable: true })
+    HealthStatus: string | null;
+
+    @Field(() => Int, { nullable: true })
+    ConfidenceScore: number | null;
+
+    @Field(() => Float, { nullable: true })
+    BaselineValue: number | null;
+
+    @Field(() => Float, { nullable: true })
+    TargetValue: number | null;
+
+    @Field(() => Float, { nullable: true })
+    CurrentValue: number | null;
+
+    @Field({ nullable: true })
+    UnitOfMeasure: string | null;
+
+    @Field({ nullable: true })
+    MetricDirection: string | null;
+
+    @Field(() => Float, { nullable: true })
+    RollupWeight?: number;
+
+    @Field({ nullable: true })
+    PlanningPeriod: string | null;
+
+    @Field({ nullable: true })
+    CheckInCadence: string | null;
+
+    @Field({ nullable: true })
+    LastCheckInAt: Date | null;
+
+    @Field({ nullable: true })
+    NextCheckInDueAt: Date | null;
+
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
 }
@@ -4116,6 +4465,42 @@ export class UpdatemjBizAppsTasksTaskInput {
 
     @Field({ nullable: true })
     PredictedSLAScoredAt?: Date | null;
+
+    @Field({ nullable: true })
+    HealthStatus?: string | null;
+
+    @Field(() => Int, { nullable: true })
+    ConfidenceScore?: number | null;
+
+    @Field(() => Float, { nullable: true })
+    BaselineValue?: number | null;
+
+    @Field(() => Float, { nullable: true })
+    TargetValue?: number | null;
+
+    @Field(() => Float, { nullable: true })
+    CurrentValue?: number | null;
+
+    @Field({ nullable: true })
+    UnitOfMeasure?: string | null;
+
+    @Field({ nullable: true })
+    MetricDirection?: string | null;
+
+    @Field(() => Float, { nullable: true })
+    RollupWeight?: number;
+
+    @Field({ nullable: true })
+    PlanningPeriod?: string | null;
+
+    @Field({ nullable: true })
+    CheckInCadence?: string | null;
+
+    @Field({ nullable: true })
+    LastCheckInAt?: Date | null;
+
+    @Field({ nullable: true })
+    NextCheckInDueAt?: Date | null;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];
