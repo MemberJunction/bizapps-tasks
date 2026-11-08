@@ -22,6 +22,7 @@ export class mjBizAppsTasksTaskFormComponent extends BaseFormComponent {
             { sectionKey: 'ownershipAndAudit', sectionName: 'Ownership and Audit', isExpanded: true },
             { sectionKey: 'predictiveSLAMetrics', sectionName: 'Predictive SLA Metrics', isExpanded: true },
             { sectionKey: 'performanceAndMetrics', sectionName: 'Performance and Metrics', isExpanded: true },
+            { sectionKey: 'details', sectionName: 'Details', isExpanded: true },
             { sectionKey: 'systemMetadata', sectionName: 'System Metadata', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskDependenciesDependsOnTaskID', sectionName: 'Task Dependencies (Depends On Task ID)', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskDependenciesTaskID', sectionName: 'Task Dependencies (Task ID)', isExpanded: false },
@@ -33,7 +34,13 @@ export class mjBizAppsTasksTaskFormComponent extends BaseFormComponent {
             { sectionKey: 'mJBizAppsTasksTaskTagLinks', sectionName: 'Task Tag Links', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskNotificationLogs', sectionName: 'Task Notification Logs', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskDecisions', sectionName: 'Task Decisions', isExpanded: false },
-            { sectionKey: 'mJBizAppsTasksTaskCheckIns', sectionName: 'Task Check Ins', isExpanded: false }
+            { sectionKey: 'mJBizAppsTasksTaskCheckIns', sectionName: 'Task Check Ins', isExpanded: false },
+            { sectionKey: 'mJBizAppsTasksTaskAgentRuns', sectionName: 'Task Agent Runs', isExpanded: false },
+            { sectionKey: 'mJBizAppsTasksTaskTimers', sectionName: 'Task Timers', isExpanded: false },
+            { sectionKey: 'mJBizAppsTasksTimesheetApprovalsScopeTaskID', sectionName: 'Timesheet Approvals (Scope Task ID)', isExpanded: false },
+            { sectionKey: 'mJBizAppsTasksTimesheetApprovalsApprovalTaskID', sectionName: 'Timesheet Approvals (Approval Task ID)', isExpanded: false },
+            { sectionKey: 'mJBizAppsTasksTaskTimeEntries', sectionName: 'Task Time Entries', isExpanded: false },
+            { sectionKey: 'mJBizAppsTasksTimeApprovers', sectionName: 'Time Approvers', isExpanded: false }
         ]);
     }
 }

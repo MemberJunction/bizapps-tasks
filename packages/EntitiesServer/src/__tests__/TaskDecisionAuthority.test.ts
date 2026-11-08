@@ -29,8 +29,30 @@ describe('TaskDecisionRefusal', () => {
         expect(TaskDecisionRefusal(facts())).toBeNull();
     });
 
-    it('accepts anything while PreventSelfApproval is off (the neutral default)', () => {
-        expect(TaskDecisionRefusal(facts({ PreventSelfApproval: false, Assignments: [], TaskCreatedByPersonID: APPROVER_PERSON }))).toBeNull();
+    it('accepts anything while PreventSelfApproval is off and RequiresAssigneeDecision is false (the neutral default)', () => {
+        expect(TaskDecisionRefusal(facts({ PreventSelfApproval: false, RequiresAssigneeDecision: false, Assignments: [], TaskCreatedByPersonID: APPROVER_PERSON }))).toBeNull();
+    });
+
+    it('enforces assignee and no-self-approval rules when RequiresAssigneeDecision is true even if PreventSelfApproval is false (D13)', () => {
+        expect(
+            TaskDecisionRefusal(
+                facts({
+                    PreventSelfApproval: false,
+                    RequiresAssigneeDecision: true,
+                    Assignments: [],
+                }),
+            ),
+        ).toMatch(/not assigned to you/);
+
+        expect(
+            TaskDecisionRefusal(
+                facts({
+                    PreventSelfApproval: false,
+                    RequiresAssigneeDecision: true,
+                    TaskCreatedByPersonID: APPROVER_PERSON,
+                }),
+            ),
+        ).toMatch(/Nobody may approve their own request/);
     });
 
     it('never checks a task whose type is not an approval type', () => {

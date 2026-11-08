@@ -1,5 +1,5 @@
 import { BaseEntity, EntitySaveOptions, EntityDeleteOptions, CompositeKey, ValidationResult, ValidationErrorInfo, ValidationErrorType, Metadata, ProviderType, DatabaseProviderBase, RunView } from "@memberjunction/core";
-import { RegisterClass } from "@memberjunction/global";
+import { RegisterClass, UUIDsEqual } from "@memberjunction/global";
 import { z } from "zod";
 
      
@@ -73,6 +73,68 @@ export const mjBizAppsTasksTaskActivitySchema = z.object({
 });
 
 export type mjBizAppsTasksTaskActivityEntityType = z.infer<typeof mjBizAppsTasksTaskActivitySchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Task Agent Runs
+ */
+export const mjBizAppsTasksTaskAgentRunSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key for the task agent run link.`),
+    TaskID: z.string().describe(`
+        * * Field Name: TaskID
+        * * Display Name: Task ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
+        * * Description: The task the AI agent run contributed to.`),
+    AIAgentRunID: z.string().describe(`
+        * * Field Name: AIAgentRunID
+        * * Display Name: AI Agent Run ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: AI Agent Runs (vwAIAgentRuns.ID)
+        * * Description: The MemberJunction AI Agent Run linked to the task.`),
+    Role: z.union([z.literal('Assisted'), z.literal('Executed'), z.literal('Planned'), z.literal('Reviewed'), z.literal('Triaged')]).describe(`
+        * * Field Name: Role
+        * * Display Name: Role
+        * * SQL Data Type: nvarchar(30)
+        * * Default Value: Executed
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Assisted
+    *   * Executed
+    *   * Planned
+    *   * Reviewed
+    *   * Triaged
+        * * Description: How the agent run contributed to the task: Executed, Assisted, Reviewed, Planned, or Triaged.`),
+    Notes: z.string().nullable().describe(`
+        * * Field Name: Notes
+        * * Display Name: Notes
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: Optional notes describing what the agent run did for the task.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Task: z.string().describe(`
+        * * Field Name: Task
+        * * Display Name: Task
+        * * SQL Data Type: nvarchar(255)`),
+    AIAgentRun: z.string().nullable().describe(`
+        * * Field Name: AIAgentRun
+        * * Display Name: AI Agent Run
+        * * SQL Data Type: nvarchar(255)`),
+});
+
+export type mjBizAppsTasksTaskAgentRunEntityType = z.infer<typeof mjBizAppsTasksTaskAgentRunSchema>;
 
 /**
  * zod schema definition for the entity MJ_BizApps_Tasks: Task Assignments
@@ -1120,6 +1182,218 @@ export const mjBizAppsTasksTaskTemplateSchema = z.object({
 export type mjBizAppsTasksTaskTemplateEntityType = z.infer<typeof mjBizAppsTasksTaskTemplateSchema>;
 
 /**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Task Time Entries
+ */
+export const mjBizAppsTasksTaskTimeEntrySchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key for the task time entry.`),
+    TaskID: z.string().describe(`
+        * * Field Name: TaskID
+        * * Display Name: Task ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
+        * * Description: The task this time entry is logged against.`),
+    PersonID: z.string().describe(`
+        * * Field Name: PersonID
+        * * Display Name: Person ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: The Person who performed the work.`),
+    WorkDate: z.date().describe(`
+        * * Field Name: WorkDate
+        * * Display Name: Work Date
+        * * SQL Data Type: date
+        * * Description: Business calendar date the work was performed on.`),
+    Minutes: z.number().describe(`
+        * * Field Name: Minutes
+        * * Display Name: Minutes
+        * * SQL Data Type: int
+        * * Description: Duration of work in whole minutes (1 to 1440).`),
+    StartedAt: z.date().nullable().describe(`
+        * * Field Name: StartedAt
+        * * Display Name: Started At
+        * * SQL Data Type: datetimeoffset
+        * * Description: Optional timestamp when the work interval started (populated for timer-backed entries).`),
+    EndedAt: z.date().nullable().describe(`
+        * * Field Name: EndedAt
+        * * Display Name: Ended At
+        * * SQL Data Type: datetimeoffset
+        * * Description: Optional timestamp when the work interval ended (populated for timer-backed entries).`),
+    Notes: z.string().nullable().describe(`
+        * * Field Name: Notes
+        * * Display Name: Notes
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: Narrative description of what was accomplished during this time entry.`),
+    Source: z.union([z.literal('Agent'), z.literal('Imported'), z.literal('Manual'), z.literal('Timer')]).describe(`
+        * * Field Name: Source
+        * * Display Name: Source
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: Manual
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Agent
+    *   * Imported
+    *   * Manual
+    *   * Timer
+        * * Description: How the time entry was created: Manual, Timer, Imported, or Agent.`),
+    IsBillable: z.boolean().describe(`
+        * * Field Name: IsBillable
+        * * Display Name: Is Billable
+        * * SQL Data Type: bit
+        * * Default Value: 0
+        * * Description: Whether this time entry is billable to a client or external party.`),
+    TimesheetID: z.string().nullable().describe(`
+        * * Field Name: TimesheetID
+        * * Display Name: Timesheet ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Timesheets (vwTimesheets.ID)
+        * * Description: Optional Timesheet this time entry has been attached to.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Task: z.string().describe(`
+        * * Field Name: Task
+        * * Display Name: Task
+        * * SQL Data Type: nvarchar(255)`),
+    Person: z.string().describe(`
+        * * Field Name: Person
+        * * Display Name: Person
+        * * SQL Data Type: nvarchar(250)`),
+});
+
+export type mjBizAppsTasksTaskTimeEntryEntityType = z.infer<typeof mjBizAppsTasksTaskTimeEntrySchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Task Time Entry Links
+ */
+export const mjBizAppsTasksTaskTimeEntryLinkSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key for the task time entry link.`),
+    TaskTimeEntryID: z.string().describe(`
+        * * Field Name: TaskTimeEntryID
+        * * Display Name: Task Time Entry ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Task Time Entries (vwTaskTimeEntries.ID)
+        * * Description: The TaskTimeEntry being linked.`),
+    EntityID: z.string().describe(`
+        * * Field Name: EntityID
+        * * Display Name: Entity ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: Entities (vwEntities.ID)
+        * * Description: Target MemberJunction Entity ID for the linked external record.`),
+    RecordID: z.string().describe(`
+        * * Field Name: RecordID
+        * * Display Name: Record ID
+        * * SQL Data Type: nvarchar(450)
+        * * Description: Primary key value of the linked record in EntityID.`),
+    Relationship: z.union([z.literal('Commit'), z.literal('InvoiceLine'), z.literal('JournalEntryLine'), z.literal('PullRequest'), z.literal('Related')]).describe(`
+        * * Field Name: Relationship
+        * * Display Name: Relationship
+        * * SQL Data Type: nvarchar(30)
+        * * Default Value: Related
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Commit
+    *   * InvoiceLine
+    *   * JournalEntryLine
+    *   * PullRequest
+    *   * Related
+        * * Description: Semantic relationship of the linked record to the time entry: InvoiceLine, JournalEntryLine, Commit, PullRequest, or Related.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Entity: z.string().describe(`
+        * * Field Name: Entity
+        * * Display Name: Entity
+        * * SQL Data Type: nvarchar(255)`),
+});
+
+export type mjBizAppsTasksTaskTimeEntryLinkEntityType = z.infer<typeof mjBizAppsTasksTaskTimeEntryLinkSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Task Timers
+ */
+export const mjBizAppsTasksTaskTimerSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key for the running timer.`),
+    TaskID: z.string().describe(`
+        * * Field Name: TaskID
+        * * Display Name: Task ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
+        * * Description: The task currently being timed.`),
+    PersonID: z.string().describe(`
+        * * Field Name: PersonID
+        * * Display Name: Person ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: The Person whose stopwatch is running (unique across TaskTimer).`),
+    StartedAt: z.date().describe(`
+        * * Field Name: StartedAt
+        * * Display Name: Started At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: sysdatetimeoffset()
+        * * Description: Timestamp when the timer was started.`),
+    Notes: z.string().nullable().describe(`
+        * * Field Name: Notes
+        * * Display Name: Notes
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: Draft work notes carried over into the resulting TaskTimeEntry rows when the timer stops.`),
+    IsBillable: z.boolean().describe(`
+        * * Field Name: IsBillable
+        * * Display Name: Is Billable
+        * * SQL Data Type: bit
+        * * Default Value: 0
+        * * Description: Billable flag carried over into the resulting TaskTimeEntry rows when the timer stops.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Task: z.string().describe(`
+        * * Field Name: Task
+        * * Display Name: Task
+        * * SQL Data Type: nvarchar(255)`),
+    Person: z.string().describe(`
+        * * Field Name: Person
+        * * Display Name: Person
+        * * SQL Data Type: nvarchar(250)`),
+});
+
+export type mjBizAppsTasksTaskTimerEntityType = z.infer<typeof mjBizAppsTasksTaskTimerSchema>;
+
+/**
  * zod schema definition for the entity MJ_BizApps_Tasks: Task Type Status
  */
 export const mjBizAppsTasksTaskTypeStatusSchema = z.object({
@@ -1332,6 +1606,12 @@ export const mjBizAppsTasksTaskTypeSchema = z.object({
         * * SQL Data Type: bit
         * * Default Value: 0
         * * Description: When true, tasks of this type are approvals: they appear in the approvals inbox of each assignee, who records a decision on them.`),
+    RequiresAssigneeDecision: z.boolean().describe(`
+        * * Field Name: RequiresAssigneeDecision
+        * * Display Name: Requires Assignee Decision
+        * * SQL Data Type: bit
+        * * Default Value: 0
+        * * Description: When true on an approval task type, only an assigned approver (and never the task creator unless exempt) may record a decision on tasks of this type, regardless of the global PreventSelfApproval setting.`),
     OnAssignAction: z.string().nullable().describe(`
         * * Field Name: OnAssignAction
         * * Display Name: On Assign Action
@@ -1628,9 +1908,469 @@ export const mjBizAppsTasksTaskSchema = z.object({
         * * Field Name: CommentsCount
         * * Display Name: Comments Count
         * * SQL Data Type: int`),
+    LoggedMinutes: z.number().describe(`
+        * * Field Name: LoggedMinutes
+        * * Display Name: Logged Minutes
+        * * SQL Data Type: int`),
+    AgentRunCount: z.number().describe(`
+        * * Field Name: AgentRunCount
+        * * Display Name: Agent Run Count
+        * * SQL Data Type: int`),
+    AgentCost: z.number().describe(`
+        * * Field Name: AgentCost
+        * * Display Name: Agent Cost
+        * * SQL Data Type: decimal(38, 8)`),
+    AgentTokens: z.number().describe(`
+        * * Field Name: AgentTokens
+        * * Display Name: Agent Tokens
+        * * SQL Data Type: int`),
 });
 
 export type mjBizAppsTasksTaskEntityType = z.infer<typeof mjBizAppsTasksTaskSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Time Approvers
+ */
+export const mjBizAppsTasksTimeApproverSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key for the time approver rule.`),
+    ApproverPersonID: z.string().describe(`
+        * * Field Name: ApproverPersonID
+        * * Display Name: Approver Person ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: The Person who is granted time approval authority by this rule.`),
+    WorkerPersonID: z.string().nullable().describe(`
+        * * Field Name: WorkerPersonID
+        * * Display Name: Worker Person ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: Optional Worker Person whose time this rule applies to (NULL matches any worker).`),
+    ScopeTaskID: z.string().nullable().describe(`
+        * * Field Name: ScopeTaskID
+        * * Display Name: Scope Task ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
+        * * Description: Optional project/parent Task this rule scopes approval to (NULL matches any task).`),
+    IncludeDescendants: z.boolean().describe(`
+        * * Field Name: IncludeDescendants
+        * * Display Name: Include Descendants
+        * * SQL Data Type: bit
+        * * Default Value: 1
+        * * Description: When ScopeTaskID is set, whether sub-tasks beneath ScopeTaskID also match this rule.`),
+    ScopeEntityID: z.string().nullable().describe(`
+        * * Field Name: ScopeEntityID
+        * * Display Name: Scope Entity ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: Entities (vwEntities.ID)
+        * * Description: Optional MJ Entity ID when scoping approval to tasks linked to an external record via TaskLink.`),
+    ScopeRecordID: z.string().nullable().describe(`
+        * * Field Name: ScopeRecordID
+        * * Display Name: Scope Record ID
+        * * SQL Data Type: nvarchar(450)
+        * * Description: Companion record ID in ScopeEntityID when scoping approval to tasks linked via TaskLink.`),
+    EffectiveFrom: z.date().nullable().describe(`
+        * * Field Name: EffectiveFrom
+        * * Display Name: Effective From
+        * * SQL Data Type: date
+        * * Description: Optional start date from which this approver rule is effective.`),
+    EffectiveTo: z.date().nullable().describe(`
+        * * Field Name: EffectiveTo
+        * * Display Name: Effective To
+        * * SQL Data Type: date
+        * * Description: Optional end date through which this approver rule is effective.`),
+    IsActive: z.boolean().describe(`
+        * * Field Name: IsActive
+        * * Display Name: Is Active
+        * * SQL Data Type: bit
+        * * Default Value: 1
+        * * Description: Whether this approver rule is currently active.`),
+    Notes: z.string().nullable().describe(`
+        * * Field Name: Notes
+        * * Display Name: Notes
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: Optional administrative notes about this approver rule.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    ApproverPerson: z.string().describe(`
+        * * Field Name: ApproverPerson
+        * * Display Name: Approver Person
+        * * SQL Data Type: nvarchar(250)`),
+    WorkerPerson: z.string().nullable().describe(`
+        * * Field Name: WorkerPerson
+        * * Display Name: Worker Person
+        * * SQL Data Type: nvarchar(250)`),
+    ScopeTask: z.string().nullable().describe(`
+        * * Field Name: ScopeTask
+        * * Display Name: Scope Task
+        * * SQL Data Type: nvarchar(255)`),
+    ScopeEntity: z.string().nullable().describe(`
+        * * Field Name: ScopeEntity
+        * * Display Name: Scope Entity
+        * * SQL Data Type: nvarchar(255)`),
+});
+
+export type mjBizAppsTasksTimeApproverEntityType = z.infer<typeof mjBizAppsTasksTimeApproverSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Timesheet Approvals
+ */
+export const mjBizAppsTasksTimesheetApprovalSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key for the timesheet approval part.`),
+    TimesheetID: z.string().describe(`
+        * * Field Name: TimesheetID
+        * * Display Name: Timesheet ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Timesheets (vwTimesheets.ID)
+        * * Description: The Timesheet this approval slice belongs to.`),
+    SubmissionRound: z.number().describe(`
+        * * Field Name: SubmissionRound
+        * * Display Name: Submission Round
+        * * SQL Data Type: int
+        * * Default Value: 1
+        * * Description: Submission round number (1 on initial submit, incremented on each resubmit).`),
+    ScopeTaskID: z.string().nullable().describe(`
+        * * Field Name: ScopeTaskID
+        * * Display Name: Scope Task ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
+        * * Description: Root project task for this approval slice, or NULL for the whole-timesheet / unassigned slice.`),
+    ApprovalTaskID: z.string().describe(`
+        * * Field Name: ApprovalTaskID
+        * * Display Name: Approval Task ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
+        * * Description: The approval Task created in the Tasks inbox for this slice.`),
+    Minutes: z.number().describe(`
+        * * Field Name: Minutes
+        * * Display Name: Minutes
+        * * SQL Data Type: int
+        * * Default Value: 0
+        * * Description: Total minutes in this approval slice at submission time.`),
+    BillableMinutes: z.number().describe(`
+        * * Field Name: BillableMinutes
+        * * Display Name: Billable Minutes
+        * * SQL Data Type: int
+        * * Default Value: 0
+        * * Description: Total billable minutes in this approval slice at submission time.`),
+    EntryCount: z.number().describe(`
+        * * Field Name: EntryCount
+        * * Display Name: Entry Count
+        * * SQL Data Type: int
+        * * Default Value: 0
+        * * Description: Number of TaskTimeEntry rows included in this approval slice.`),
+    SnapshotHash: z.string().describe(`
+        * * Field Name: SnapshotHash
+        * * Display Name: Snapshot Hash
+        * * SQL Data Type: nvarchar(64)
+        * * Description: Deterministic SHA-256 hex digest of the slice time entries, used to carry forward unchanged Approved parts across resubmissions.`),
+    Status: z.union([z.literal('Approved'), z.literal('Canceled'), z.literal('Pending'), z.literal('Rejected')]).describe(`
+        * * Field Name: Status
+        * * Display Name: Status
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: Pending
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Approved
+    *   * Canceled
+    *   * Pending
+    *   * Rejected
+        * * Description: Current status of this approval slice: Pending, Approved, Rejected, or Canceled.`),
+    DecidedByPersonID: z.string().nullable().describe(`
+        * * Field Name: DecidedByPersonID
+        * * Display Name: Decided By Person ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: The Person who recorded the approval or rejection decision.`),
+    DecidedAt: z.date().nullable().describe(`
+        * * Field Name: DecidedAt
+        * * Display Name: Decided At
+        * * SQL Data Type: datetimeoffset
+        * * Description: Timestamp when the decision on this slice was recorded.`),
+    DecisionNotes: z.string().nullable().describe(`
+        * * Field Name: DecisionNotes
+        * * Display Name: Decision Notes
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: Notes or feedback provided by the approver when deciding this slice.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    ScopeTask: z.string().nullable().describe(`
+        * * Field Name: ScopeTask
+        * * Display Name: Scope Task
+        * * SQL Data Type: nvarchar(255)`),
+    ApprovalTask: z.string().describe(`
+        * * Field Name: ApprovalTask
+        * * Display Name: Approval Task
+        * * SQL Data Type: nvarchar(255)`),
+    DecidedByPerson: z.string().nullable().describe(`
+        * * Field Name: DecidedByPerson
+        * * Display Name: Decided By Person
+        * * SQL Data Type: nvarchar(250)`),
+});
+
+export type mjBizAppsTasksTimesheetApprovalEntityType = z.infer<typeof mjBizAppsTasksTimesheetApprovalSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Timesheet Links
+ */
+export const mjBizAppsTasksTimesheetLinkSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key for the timesheet link.`),
+    TimesheetID: z.string().describe(`
+        * * Field Name: TimesheetID
+        * * Display Name: Timesheet ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Timesheets (vwTimesheets.ID)
+        * * Description: The Timesheet being linked.`),
+    EntityID: z.string().describe(`
+        * * Field Name: EntityID
+        * * Display Name: Entity ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: Entities (vwEntities.ID)
+        * * Description: Target MemberJunction Entity ID for the linked external record.`),
+    RecordID: z.string().describe(`
+        * * Field Name: RecordID
+        * * Display Name: Record ID
+        * * SQL Data Type: nvarchar(450)
+        * * Description: Primary key value of the linked record in EntityID.`),
+    Relationship: z.union([z.literal('ExpenseReport'), z.literal('Invoice'), z.literal('PayrollBatch'), z.literal('Related')]).describe(`
+        * * Field Name: Relationship
+        * * Display Name: Relationship
+        * * SQL Data Type: nvarchar(30)
+        * * Default Value: Related
+    * * Value List Type: List
+    * * Possible Values 
+    *   * ExpenseReport
+    *   * Invoice
+    *   * PayrollBatch
+    *   * Related
+        * * Description: Semantic relationship of the linked record to the timesheet: PayrollBatch, Invoice, ExpenseReport, or Related.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Entity: z.string().describe(`
+        * * Field Name: Entity
+        * * Display Name: Entity
+        * * SQL Data Type: nvarchar(255)`),
+});
+
+export type mjBizAppsTasksTimesheetLinkEntityType = z.infer<typeof mjBizAppsTasksTimesheetLinkSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Timesheet Schedules
+ */
+export const mjBizAppsTasksTimesheetScheduleSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key for the timesheet schedule.`),
+    PersonID: z.string().nullable().describe(`
+        * * Field Name: PersonID
+        * * Display Name: Person ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: Optional Person this schedule applies to (NULL for organization/entity-scoped or global schedules).`),
+    ScopeEntityID: z.string().nullable().describe(`
+        * * Field Name: ScopeEntityID
+        * * Display Name: Scope Entity ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: Entities (vwEntities.ID)
+        * * Description: Optional MJ Entity ID when scoping the schedule to an organization or department record.`),
+    ScopeRecordID: z.string().nullable().describe(`
+        * * Field Name: ScopeRecordID
+        * * Display Name: Scope Record ID
+        * * SQL Data Type: nvarchar(450)
+        * * Description: Companion record ID in ScopeEntityID for entity-scoped schedules.`),
+    Cadence: z.union([z.literal('BiWeekly'), z.literal('Monthly'), z.literal('SemiMonthly'), z.literal('Weekly')]).describe(`
+        * * Field Name: Cadence
+        * * Display Name: Cadence
+        * * SQL Data Type: nvarchar(20)
+    * * Value List Type: List
+    * * Possible Values 
+    *   * BiWeekly
+    *   * Monthly
+    *   * SemiMonthly
+    *   * Weekly
+        * * Description: Timesheet period cadence: Weekly, BiWeekly, SemiMonthly, or Monthly.`),
+    WeekStartDay: z.union([z.literal('Monday'), z.literal('Saturday'), z.literal('Sunday')]).describe(`
+        * * Field Name: WeekStartDay
+        * * Display Name: Week Start Day
+        * * SQL Data Type: nvarchar(10)
+        * * Default Value: Monday
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Monday
+    *   * Saturday
+    *   * Sunday
+        * * Description: First day of the work week for Weekly and BiWeekly cadences: Monday, Sunday, or Saturday.`),
+    BiWeeklyAnchorDate: z.date().describe(`
+        * * Field Name: BiWeeklyAnchorDate
+        * * Display Name: Bi Weekly Anchor Date
+        * * SQL Data Type: date
+        * * Default Value: 2026-01-05
+        * * Description: Anchor date (which must fall on WeekStartDay) defining the 14-day boundary for BiWeekly cadences.`),
+    EffectiveFrom: z.date().describe(`
+        * * Field Name: EffectiveFrom
+        * * Display Name: Effective From
+        * * SQL Data Type: date
+        * * Description: Inclusive start date from which this schedule is effective (must fall on a period boundary).`),
+    EffectiveTo: z.date().nullable().describe(`
+        * * Field Name: EffectiveTo
+        * * Display Name: Effective To
+        * * SQL Data Type: date
+        * * Description: Optional inclusive end date through which this schedule is effective.`),
+    Notes: z.string().nullable().describe(`
+        * * Field Name: Notes
+        * * Display Name: Notes
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: Optional notes explaining this schedule or cadence change.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Person: z.string().nullable().describe(`
+        * * Field Name: Person
+        * * Display Name: Person
+        * * SQL Data Type: nvarchar(250)`),
+    ScopeEntity: z.string().nullable().describe(`
+        * * Field Name: ScopeEntity
+        * * Display Name: Scope Entity
+        * * SQL Data Type: nvarchar(255)`),
+});
+
+export type mjBizAppsTasksTimesheetScheduleEntityType = z.infer<typeof mjBizAppsTasksTimesheetScheduleSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Timesheets
+ */
+export const mjBizAppsTasksTimesheetSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key for the timesheet.`),
+    PersonID: z.string().describe(`
+        * * Field Name: PersonID
+        * * Display Name: Person ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: The Person whose time entries are covered by this timesheet.`),
+    PeriodStart: z.date().describe(`
+        * * Field Name: PeriodStart
+        * * Display Name: Period Start
+        * * SQL Data Type: date
+        * * Description: Inclusive start date of the timesheet period.`),
+    PeriodEnd: z.date().describe(`
+        * * Field Name: PeriodEnd
+        * * Display Name: Period End
+        * * SQL Data Type: date
+        * * Description: Inclusive end date of the timesheet period.`),
+    Status: z.union([z.literal('Approved'), z.literal('Draft'), z.literal('Rejected'), z.literal('Submitted')]).describe(`
+        * * Field Name: Status
+        * * Display Name: Status
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: Draft
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Approved
+    *   * Draft
+    *   * Rejected
+    *   * Submitted
+        * * Description: Lifecycle status of the timesheet: Draft, Submitted, Approved, or Rejected.`),
+    SubmittedAt: z.date().nullable().describe(`
+        * * Field Name: SubmittedAt
+        * * Display Name: Submitted At
+        * * SQL Data Type: datetimeoffset
+        * * Description: Timestamp when the timesheet was most recently submitted.`),
+    SubmittedByUserID: z.string().nullable().describe(`
+        * * Field Name: SubmittedByUserID
+        * * Display Name: Submitted By User ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: Users (vwUsers.ID)
+        * * Description: The MemberJunction User who submitted the timesheet.`),
+    TotalMinutes: z.number().describe(`
+        * * Field Name: TotalMinutes
+        * * Display Name: Total Minutes
+        * * SQL Data Type: int
+        * * Default Value: 0
+        * * Description: Total minutes across all time entries attached to this timesheet.`),
+    BillableMinutes: z.number().describe(`
+        * * Field Name: BillableMinutes
+        * * Display Name: Billable Minutes
+        * * SQL Data Type: int
+        * * Default Value: 0
+        * * Description: Total billable minutes across all time entries attached to this timesheet.`),
+    Notes: z.string().nullable().describe(`
+        * * Field Name: Notes
+        * * Display Name: Notes
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: Worker notes or comments submitted with the timesheet.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Person: z.string().describe(`
+        * * Field Name: Person
+        * * Display Name: Person
+        * * SQL Data Type: nvarchar(250)`),
+    SubmittedByUser: z.string().nullable().describe(`
+        * * Field Name: SubmittedByUser
+        * * Display Name: Submitted By User
+        * * SQL Data Type: nvarchar(100)`),
+});
+
+export type mjBizAppsTasksTimesheetEntityType = z.infer<typeof mjBizAppsTasksTimesheetSchema>;
  
  
 
@@ -1799,6 +2539,152 @@ export class mjBizAppsTasksTaskActivityEntity extends BaseEntity<mjBizAppsTasksT
     */
     get Person(): string | null {
         return this.Get('Person');
+    }
+}
+
+
+/**
+ * MJ_BizApps_Tasks: Task Agent Runs - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: TaskAgentRun
+ * * Base View: vwTaskAgentRuns
+ * * @description Links a task to a MemberJunction AI Agent Run so agent effort (runs, tokens, cost, wall-clock duration) is attributed alongside human time.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Task Agent Runs')
+export class mjBizAppsTasksTaskAgentRunEntity extends BaseEntity<mjBizAppsTasksTaskAgentRunEntityType> {
+    /**
+    * Loads the MJ_BizApps_Tasks: Task Agent Runs record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Task Agent Runs record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksTaskAgentRunEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    * * Description: Primary key for the task agent run link.
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: TaskID
+    * * Display Name: Task ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
+    * * Description: The task the AI agent run contributed to.
+    */
+    get TaskID(): string {
+        return this.Get('TaskID');
+    }
+    set TaskID(value: string) {
+        this.Set('TaskID', value);
+    }
+
+    /**
+    * * Field Name: AIAgentRunID
+    * * Display Name: AI Agent Run ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ: AI Agent Runs (vwAIAgentRuns.ID)
+    * * Description: The MemberJunction AI Agent Run linked to the task.
+    */
+    get AIAgentRunID(): string {
+        return this.Get('AIAgentRunID');
+    }
+    set AIAgentRunID(value: string) {
+        this.Set('AIAgentRunID', value);
+    }
+
+    /**
+    * * Field Name: Role
+    * * Display Name: Role
+    * * SQL Data Type: nvarchar(30)
+    * * Default Value: Executed
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Assisted
+    *   * Executed
+    *   * Planned
+    *   * Reviewed
+    *   * Triaged
+    * * Description: How the agent run contributed to the task: Executed, Assisted, Reviewed, Planned, or Triaged.
+    */
+    get Role(): 'Assisted' | 'Executed' | 'Planned' | 'Reviewed' | 'Triaged' {
+        return this.Get('Role');
+    }
+    set Role(value: 'Assisted' | 'Executed' | 'Planned' | 'Reviewed' | 'Triaged') {
+        this.Set('Role', value);
+    }
+
+    /**
+    * * Field Name: Notes
+    * * Display Name: Notes
+    * * SQL Data Type: nvarchar(MAX)
+    * * Description: Optional notes describing what the agent run did for the task.
+    */
+    get Notes(): string | null {
+        return this.Get('Notes');
+    }
+    set Notes(value: string | null) {
+        this.Set('Notes', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: Task
+    * * Display Name: Task
+    * * SQL Data Type: nvarchar(255)
+    */
+    get Task(): string {
+        return this.Get('Task');
+    }
+
+    /**
+    * * Field Name: AIAgentRun
+    * * Display Name: AI Agent Run
+    * * SQL Data Type: nvarchar(255)
+    */
+    get AIAgentRun(): string | null {
+        return this.Get('AIAgentRun');
     }
 }
 
@@ -3097,7 +3983,7 @@ export class mjBizAppsTasksTaskDependencyEntity extends BaseEntity<mjBizAppsTask
     * @method
     */
     public ValidateTaskIDNotEqualToDependsOnTaskID(result: ValidationResult) {
-    	if (this.TaskID != null && this.DependsOnTaskID != null && this.TaskID === this.DependsOnTaskID) {
+    	if (this.TaskID != null && this.DependsOnTaskID != null && UUIDsEqual(this.TaskID, this.DependsOnTaskID)) {
     		result.Errors.push(new ValidationErrorInfo(
     			"DependsOnTaskID",
     			"A task cannot depend on itself. TaskID and DependsOnTaskID must be different.",
@@ -4006,7 +4892,7 @@ export class mjBizAppsTasksTaskTemplateItemDependencyEntity extends BaseEntity<m
     * @method
     */
     public ValidateItemIDNotEqualToDependsOnItemID(result: ValidationResult) {
-    	if (this.ItemID != null && this.DependsOnItemID != null && this.ItemID === this.DependsOnItemID) {
+    	if (this.ItemID != null && this.DependsOnItemID != null && UUIDsEqual(this.ItemID, this.DependsOnItemID)) {
     		result.Errors.push(new ValidationErrorInfo(
     			"DependsOnItemID",
     			"An item cannot depend on itself. ItemID and DependsOnItemID must be different.",
@@ -4601,6 +5487,572 @@ export class mjBizAppsTasksTaskTemplateEntity extends BaseEntity<mjBizAppsTasksT
 
 
 /**
+ * MJ_BizApps_Tasks: Task Time Entries - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: TaskTimeEntry
+ * * Base View: vwTaskTimeEntries
+ * * @description Individual time entries logged by a person against a task on a specific business calendar date.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Task Time Entries')
+export class mjBizAppsTasksTaskTimeEntryEntity extends BaseEntity<mjBizAppsTasksTaskTimeEntryEntityType> {
+    /**
+    * Loads the MJ_BizApps_Tasks: Task Time Entries record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Task Time Entries record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksTaskTimeEntryEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * Validate() method override for MJ_BizApps_Tasks: Task Time Entries entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
+    * * Minutes: Minutes worked must be greater than 0 and cannot exceed 1,440 minutes (24 hours) in a single entry.
+    * * Table-Level: If both start and end times are recorded, the end time must be at or after the start time.
+    * @public
+    * @method
+    * @override
+    */
+    public override Validate(): ValidationResult {
+        const result = super.Validate();
+        this.ValidateMinutesRange(result);
+        this.ValidateEndedAtOnOrAfterStartedAt(result);
+        result.Success = result.Success && (result.Errors.length === 0);
+
+        return result;
+    }
+
+    /**
+    * Minutes worked must be greater than 0 and cannot exceed 1,440 minutes (24 hours) in a single entry.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateMinutesRange(result: ValidationResult) {
+    	if (this.Minutes != null && (this.Minutes <= 0 || this.Minutes > 1440)) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"Minutes",
+    			"Minutes worked must be greater than 0 and cannot exceed 1440 (24 hours).",
+    			this.Minutes,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    }
+
+    /**
+    * If both start and end times are recorded, the end time must be at or after the start time.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateEndedAtOnOrAfterStartedAt(result: ValidationResult) {
+    	if (this.StartedAt != null && this.EndedAt != null && new Date(this.EndedAt).getTime() < new Date(this.StartedAt).getTime()) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"EndedAt",
+    			"End time must be on or after the start time.",
+    			this.EndedAt,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    * * Description: Primary key for the task time entry.
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: TaskID
+    * * Display Name: Task ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
+    * * Description: The task this time entry is logged against.
+    */
+    get TaskID(): string {
+        return this.Get('TaskID');
+    }
+    set TaskID(value: string) {
+        this.Set('TaskID', value);
+    }
+
+    /**
+    * * Field Name: PersonID
+    * * Display Name: Person ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+    * * Description: The Person who performed the work.
+    */
+    get PersonID(): string {
+        return this.Get('PersonID');
+    }
+    set PersonID(value: string) {
+        this.Set('PersonID', value);
+    }
+
+    /**
+    * * Field Name: WorkDate
+    * * Display Name: Work Date
+    * * SQL Data Type: date
+    * * Description: Business calendar date the work was performed on.
+    */
+    get WorkDate(): Date {
+        return this.Get('WorkDate');
+    }
+    set WorkDate(value: Date) {
+        this.Set('WorkDate', value);
+    }
+
+    /**
+    * * Field Name: Minutes
+    * * Display Name: Minutes
+    * * SQL Data Type: int
+    * * Description: Duration of work in whole minutes (1 to 1440).
+    */
+    get Minutes(): number {
+        return this.Get('Minutes');
+    }
+    set Minutes(value: number) {
+        this.Set('Minutes', value);
+    }
+
+    /**
+    * * Field Name: StartedAt
+    * * Display Name: Started At
+    * * SQL Data Type: datetimeoffset
+    * * Description: Optional timestamp when the work interval started (populated for timer-backed entries).
+    */
+    get StartedAt(): Date | null {
+        return this.Get('StartedAt');
+    }
+    set StartedAt(value: Date | null) {
+        this.Set('StartedAt', value);
+    }
+
+    /**
+    * * Field Name: EndedAt
+    * * Display Name: Ended At
+    * * SQL Data Type: datetimeoffset
+    * * Description: Optional timestamp when the work interval ended (populated for timer-backed entries).
+    */
+    get EndedAt(): Date | null {
+        return this.Get('EndedAt');
+    }
+    set EndedAt(value: Date | null) {
+        this.Set('EndedAt', value);
+    }
+
+    /**
+    * * Field Name: Notes
+    * * Display Name: Notes
+    * * SQL Data Type: nvarchar(MAX)
+    * * Description: Narrative description of what was accomplished during this time entry.
+    */
+    get Notes(): string | null {
+        return this.Get('Notes');
+    }
+    set Notes(value: string | null) {
+        this.Set('Notes', value);
+    }
+
+    /**
+    * * Field Name: Source
+    * * Display Name: Source
+    * * SQL Data Type: nvarchar(20)
+    * * Default Value: Manual
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Agent
+    *   * Imported
+    *   * Manual
+    *   * Timer
+    * * Description: How the time entry was created: Manual, Timer, Imported, or Agent.
+    */
+    get Source(): 'Agent' | 'Imported' | 'Manual' | 'Timer' {
+        return this.Get('Source');
+    }
+    set Source(value: 'Agent' | 'Imported' | 'Manual' | 'Timer') {
+        this.Set('Source', value);
+    }
+
+    /**
+    * * Field Name: IsBillable
+    * * Display Name: Is Billable
+    * * SQL Data Type: bit
+    * * Default Value: 0
+    * * Description: Whether this time entry is billable to a client or external party.
+    */
+    get IsBillable(): boolean {
+        return this.Get('IsBillable');
+    }
+    set IsBillable(value: boolean) {
+        this.Set('IsBillable', value);
+    }
+
+    /**
+    * * Field Name: TimesheetID
+    * * Display Name: Timesheet ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Timesheets (vwTimesheets.ID)
+    * * Description: Optional Timesheet this time entry has been attached to.
+    */
+    get TimesheetID(): string | null {
+        return this.Get('TimesheetID');
+    }
+    set TimesheetID(value: string | null) {
+        this.Set('TimesheetID', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: Task
+    * * Display Name: Task
+    * * SQL Data Type: nvarchar(255)
+    */
+    get Task(): string {
+        return this.Get('Task');
+    }
+
+    /**
+    * * Field Name: Person
+    * * Display Name: Person
+    * * SQL Data Type: nvarchar(250)
+    */
+    get Person(): string {
+        return this.Get('Person');
+    }
+}
+
+
+/**
+ * MJ_BizApps_Tasks: Task Time Entry Links - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: TaskTimeEntryLink
+ * * Base View: vwTaskTimeEntryLinks
+ * * @description Polymorphic links from a TaskTimeEntry to external records such as invoice lines, journal entry lines, commits, or pull requests.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Task Time Entry Links')
+export class mjBizAppsTasksTaskTimeEntryLinkEntity extends BaseEntity<mjBizAppsTasksTaskTimeEntryLinkEntityType> {
+    /**
+    * Loads the MJ_BizApps_Tasks: Task Time Entry Links record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Task Time Entry Links record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksTaskTimeEntryLinkEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    * * Description: Primary key for the task time entry link.
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: TaskTimeEntryID
+    * * Display Name: Task Time Entry ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Task Time Entries (vwTaskTimeEntries.ID)
+    * * Description: The TaskTimeEntry being linked.
+    */
+    get TaskTimeEntryID(): string {
+        return this.Get('TaskTimeEntryID');
+    }
+    set TaskTimeEntryID(value: string) {
+        this.Set('TaskTimeEntryID', value);
+    }
+
+    /**
+    * * Field Name: EntityID
+    * * Display Name: Entity ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ: Entities (vwEntities.ID)
+    * * Description: Target MemberJunction Entity ID for the linked external record.
+    */
+    get EntityID(): string {
+        return this.Get('EntityID');
+    }
+    set EntityID(value: string) {
+        this.Set('EntityID', value);
+    }
+
+    /**
+    * * Field Name: RecordID
+    * * Display Name: Record ID
+    * * SQL Data Type: nvarchar(450)
+    * * Description: Primary key value of the linked record in EntityID.
+    */
+    get RecordID(): string {
+        return this.Get('RecordID');
+    }
+    set RecordID(value: string) {
+        this.Set('RecordID', value);
+    }
+
+    /**
+    * * Field Name: Relationship
+    * * Display Name: Relationship
+    * * SQL Data Type: nvarchar(30)
+    * * Default Value: Related
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Commit
+    *   * InvoiceLine
+    *   * JournalEntryLine
+    *   * PullRequest
+    *   * Related
+    * * Description: Semantic relationship of the linked record to the time entry: InvoiceLine, JournalEntryLine, Commit, PullRequest, or Related.
+    */
+    get Relationship(): 'Commit' | 'InvoiceLine' | 'JournalEntryLine' | 'PullRequest' | 'Related' {
+        return this.Get('Relationship');
+    }
+    set Relationship(value: 'Commit' | 'InvoiceLine' | 'JournalEntryLine' | 'PullRequest' | 'Related') {
+        this.Set('Relationship', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: Entity
+    * * Display Name: Entity
+    * * SQL Data Type: nvarchar(255)
+    */
+    get Entity(): string {
+        return this.Get('Entity');
+    }
+}
+
+
+/**
+ * MJ_BizApps_Tasks: Task Timers - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: TaskTimer
+ * * Base View: vwTaskTimers
+ * * @description Currently running task stopwatch per person. At most one row per PersonID exists at any time; stopping a timer deletes the row and writes TaskTimeEntry rows.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Task Timers')
+export class mjBizAppsTasksTaskTimerEntity extends BaseEntity<mjBizAppsTasksTaskTimerEntityType> {
+    /**
+    * Loads the MJ_BizApps_Tasks: Task Timers record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Task Timers record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksTaskTimerEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    * * Description: Primary key for the running timer.
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: TaskID
+    * * Display Name: Task ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
+    * * Description: The task currently being timed.
+    */
+    get TaskID(): string {
+        return this.Get('TaskID');
+    }
+    set TaskID(value: string) {
+        this.Set('TaskID', value);
+    }
+
+    /**
+    * * Field Name: PersonID
+    * * Display Name: Person ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+    * * Description: The Person whose stopwatch is running (unique across TaskTimer).
+    */
+    get PersonID(): string {
+        return this.Get('PersonID');
+    }
+    set PersonID(value: string) {
+        this.Set('PersonID', value);
+    }
+
+    /**
+    * * Field Name: StartedAt
+    * * Display Name: Started At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: sysdatetimeoffset()
+    * * Description: Timestamp when the timer was started.
+    */
+    get StartedAt(): Date {
+        return this.Get('StartedAt');
+    }
+    set StartedAt(value: Date) {
+        this.Set('StartedAt', value);
+    }
+
+    /**
+    * * Field Name: Notes
+    * * Display Name: Notes
+    * * SQL Data Type: nvarchar(MAX)
+    * * Description: Draft work notes carried over into the resulting TaskTimeEntry rows when the timer stops.
+    */
+    get Notes(): string | null {
+        return this.Get('Notes');
+    }
+    set Notes(value: string | null) {
+        this.Set('Notes', value);
+    }
+
+    /**
+    * * Field Name: IsBillable
+    * * Display Name: Is Billable
+    * * SQL Data Type: bit
+    * * Default Value: 0
+    * * Description: Billable flag carried over into the resulting TaskTimeEntry rows when the timer stops.
+    */
+    get IsBillable(): boolean {
+        return this.Get('IsBillable');
+    }
+    set IsBillable(value: boolean) {
+        this.Set('IsBillable', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: Task
+    * * Display Name: Task
+    * * SQL Data Type: nvarchar(255)
+    */
+    get Task(): string {
+        return this.Get('Task');
+    }
+
+    /**
+    * * Field Name: Person
+    * * Display Name: Person
+    * * SQL Data Type: nvarchar(250)
+    */
+    get Person(): string {
+        return this.Get('Person');
+    }
+}
+
+
+/**
  * MJ_BizApps_Tasks: Task Type Status - strongly typed entity sub-class
  * * Schema: __mj_BizAppsTasks
  * * Base Table: TaskTypeStatus
@@ -5135,6 +6587,20 @@ export class mjBizAppsTasksTaskTypeEntity extends BaseEntity<mjBizAppsTasksTaskT
     }
     set IsApproval(value: boolean) {
         this.Set('IsApproval', value);
+    }
+
+    /**
+    * * Field Name: RequiresAssigneeDecision
+    * * Display Name: Requires Assignee Decision
+    * * SQL Data Type: bit
+    * * Default Value: 0
+    * * Description: When true on an approval task type, only an assigned approver (and never the task creator unless exempt) may record a decision on tasks of this type, regardless of the global PreventSelfApproval setting.
+    */
+    get RequiresAssigneeDecision(): boolean {
+        return this.Get('RequiresAssigneeDecision');
+    }
+    set RequiresAssigneeDecision(value: boolean) {
+        this.Set('RequiresAssigneeDecision', value);
     }
 
     /**
@@ -5885,5 +7351,1397 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     */
     get CommentsCount(): number {
         return this.Get('CommentsCount');
+    }
+
+    /**
+    * * Field Name: LoggedMinutes
+    * * Display Name: Logged Minutes
+    * * SQL Data Type: int
+    */
+    get LoggedMinutes(): number {
+        return this.Get('LoggedMinutes');
+    }
+
+    /**
+    * * Field Name: AgentRunCount
+    * * Display Name: Agent Run Count
+    * * SQL Data Type: int
+    */
+    get AgentRunCount(): number {
+        return this.Get('AgentRunCount');
+    }
+
+    /**
+    * * Field Name: AgentCost
+    * * Display Name: Agent Cost
+    * * SQL Data Type: decimal(38, 8)
+    */
+    get AgentCost(): number {
+        return this.Get('AgentCost');
+    }
+
+    /**
+    * * Field Name: AgentTokens
+    * * Display Name: Agent Tokens
+    * * SQL Data Type: int
+    */
+    get AgentTokens(): number {
+        return this.Get('AgentTokens');
+    }
+}
+
+
+/**
+ * MJ_BizApps_Tasks: Time Approvers - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: TimeApprover
+ * * Base View: vwTimeApprovers
+ * * @description Configurable directory of who approves whose time, optionally scoped to a specific worker, root project task, or external entity record.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Time Approvers')
+export class mjBizAppsTasksTimeApproverEntity extends BaseEntity<mjBizAppsTasksTimeApproverEntityType> {
+    /**
+    * Loads the MJ_BizApps_Tasks: Time Approvers record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Time Approvers record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksTimeApproverEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * Validate() method override for MJ_BizApps_Tasks: Time Approvers entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
+    * * Table-Level: The effective end date must be on or after the effective start date when both dates are provided.
+    * * Table-Level: Scope entity and scope record must either both be specified or both be left empty to ensure consistent scoping.
+    * * Table-Level: The worker person cannot be the same as the approver person.
+    * @public
+    * @method
+    * @override
+    */
+    public override Validate(): ValidationResult {
+        const result = super.Validate();
+        this.ValidateEffectiveToOnOrAfterEffectiveFrom(result);
+        this.ValidateScopeEntityAndRecordPair(result);
+        this.ValidateWorkerPersonIDNotEqualToApproverPersonID(result);
+        result.Success = result.Success && (result.Errors.length === 0);
+
+        return result;
+    }
+
+    /**
+    * The effective end date must be on or after the effective start date when both dates are provided.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateEffectiveToOnOrAfterEffectiveFrom(result: ValidationResult) {
+    	if (this.EffectiveFrom != null && this.EffectiveTo != null && this.EffectiveTo < this.EffectiveFrom) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"EffectiveTo",
+    			"Effective To date must be on or after the Effective From date.",
+    			this.EffectiveTo,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    }
+
+    /**
+    * Scope entity and scope record must either both be specified or both be left empty to ensure consistent scoping.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    	public ValidateScopeEntityAndRecordPair(result: ValidationResult) {
+    		const hasEntity = this.ScopeEntityID != null;
+    		const hasRecord = this.ScopeRecordID != null && this.ScopeRecordID.trim() !== "";
+    
+    		if ((hasEntity && !hasRecord) || (!hasEntity && hasRecord)) {
+    			result.Errors.push(new ValidationErrorInfo(
+    				"ScopeEntityID",
+    				"Scope Entity and Scope Record must either both be provided or both be left empty.",
+    				this.ScopeEntityID,
+    				ValidationErrorType.Failure
+    			));
+    		}
+    	}
+
+    /**
+    * The worker person cannot be the same as the approver person.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateWorkerPersonIDNotEqualToApproverPersonID(result: ValidationResult) {
+    	if (this.WorkerPersonID != null && UUIDsEqual(this.WorkerPersonID, this.ApproverPersonID)) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"WorkerPersonID",
+    			"The worker cannot be the same person as the approver.",
+    			this.WorkerPersonID,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    * * Description: Primary key for the time approver rule.
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: ApproverPersonID
+    * * Display Name: Approver Person ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+    * * Description: The Person who is granted time approval authority by this rule.
+    */
+    get ApproverPersonID(): string {
+        return this.Get('ApproverPersonID');
+    }
+    set ApproverPersonID(value: string) {
+        this.Set('ApproverPersonID', value);
+    }
+
+    /**
+    * * Field Name: WorkerPersonID
+    * * Display Name: Worker Person ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+    * * Description: Optional Worker Person whose time this rule applies to (NULL matches any worker).
+    */
+    get WorkerPersonID(): string | null {
+        return this.Get('WorkerPersonID');
+    }
+    set WorkerPersonID(value: string | null) {
+        this.Set('WorkerPersonID', value);
+    }
+
+    /**
+    * * Field Name: ScopeTaskID
+    * * Display Name: Scope Task ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
+    * * Description: Optional project/parent Task this rule scopes approval to (NULL matches any task).
+    */
+    get ScopeTaskID(): string | null {
+        return this.Get('ScopeTaskID');
+    }
+    set ScopeTaskID(value: string | null) {
+        this.Set('ScopeTaskID', value);
+    }
+
+    /**
+    * * Field Name: IncludeDescendants
+    * * Display Name: Include Descendants
+    * * SQL Data Type: bit
+    * * Default Value: 1
+    * * Description: When ScopeTaskID is set, whether sub-tasks beneath ScopeTaskID also match this rule.
+    */
+    get IncludeDescendants(): boolean {
+        return this.Get('IncludeDescendants');
+    }
+    set IncludeDescendants(value: boolean) {
+        this.Set('IncludeDescendants', value);
+    }
+
+    /**
+    * * Field Name: ScopeEntityID
+    * * Display Name: Scope Entity ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ: Entities (vwEntities.ID)
+    * * Description: Optional MJ Entity ID when scoping approval to tasks linked to an external record via TaskLink.
+    */
+    get ScopeEntityID(): string | null {
+        return this.Get('ScopeEntityID');
+    }
+    set ScopeEntityID(value: string | null) {
+        this.Set('ScopeEntityID', value);
+    }
+
+    /**
+    * * Field Name: ScopeRecordID
+    * * Display Name: Scope Record ID
+    * * SQL Data Type: nvarchar(450)
+    * * Description: Companion record ID in ScopeEntityID when scoping approval to tasks linked via TaskLink.
+    */
+    get ScopeRecordID(): string | null {
+        return this.Get('ScopeRecordID');
+    }
+    set ScopeRecordID(value: string | null) {
+        this.Set('ScopeRecordID', value);
+    }
+
+    /**
+    * * Field Name: EffectiveFrom
+    * * Display Name: Effective From
+    * * SQL Data Type: date
+    * * Description: Optional start date from which this approver rule is effective.
+    */
+    get EffectiveFrom(): Date | null {
+        return this.Get('EffectiveFrom');
+    }
+    set EffectiveFrom(value: Date | null) {
+        this.Set('EffectiveFrom', value);
+    }
+
+    /**
+    * * Field Name: EffectiveTo
+    * * Display Name: Effective To
+    * * SQL Data Type: date
+    * * Description: Optional end date through which this approver rule is effective.
+    */
+    get EffectiveTo(): Date | null {
+        return this.Get('EffectiveTo');
+    }
+    set EffectiveTo(value: Date | null) {
+        this.Set('EffectiveTo', value);
+    }
+
+    /**
+    * * Field Name: IsActive
+    * * Display Name: Is Active
+    * * SQL Data Type: bit
+    * * Default Value: 1
+    * * Description: Whether this approver rule is currently active.
+    */
+    get IsActive(): boolean {
+        return this.Get('IsActive');
+    }
+    set IsActive(value: boolean) {
+        this.Set('IsActive', value);
+    }
+
+    /**
+    * * Field Name: Notes
+    * * Display Name: Notes
+    * * SQL Data Type: nvarchar(MAX)
+    * * Description: Optional administrative notes about this approver rule.
+    */
+    get Notes(): string | null {
+        return this.Get('Notes');
+    }
+    set Notes(value: string | null) {
+        this.Set('Notes', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: ApproverPerson
+    * * Display Name: Approver Person
+    * * SQL Data Type: nvarchar(250)
+    */
+    get ApproverPerson(): string {
+        return this.Get('ApproverPerson');
+    }
+
+    /**
+    * * Field Name: WorkerPerson
+    * * Display Name: Worker Person
+    * * SQL Data Type: nvarchar(250)
+    */
+    get WorkerPerson(): string | null {
+        return this.Get('WorkerPerson');
+    }
+
+    /**
+    * * Field Name: ScopeTask
+    * * Display Name: Scope Task
+    * * SQL Data Type: nvarchar(255)
+    */
+    get ScopeTask(): string | null {
+        return this.Get('ScopeTask');
+    }
+
+    /**
+    * * Field Name: ScopeEntity
+    * * Display Name: Scope Entity
+    * * SQL Data Type: nvarchar(255)
+    */
+    get ScopeEntity(): string | null {
+        return this.Get('ScopeEntity');
+    }
+}
+
+
+/**
+ * MJ_BizApps_Tasks: Timesheet Approvals - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: TimesheetApproval
+ * * Base View: vwTimesheetApprovals
+ * * @description Per-project approval slice of a submitted timesheet, backed by a real approval Task in the Tasks inbox.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Timesheet Approvals')
+export class mjBizAppsTasksTimesheetApprovalEntity extends BaseEntity<mjBizAppsTasksTimesheetApprovalEntityType> {
+    /**
+    * Loads the MJ_BizApps_Tasks: Timesheet Approvals record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Timesheet Approvals record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksTimesheetApprovalEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * Validate() method override for MJ_BizApps_Tasks: Timesheet Approvals entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
+    * * SubmissionRound: Submission round must be 1 or greater.
+    * * Table-Level: Minutes, billable minutes, and entry count must all be non-negative (zero or greater), and billable minutes cannot exceed the total minutes recorded.
+    * @public
+    * @method
+    * @override
+    */
+    public override Validate(): ValidationResult {
+        const result = super.Validate();
+        this.ValidateSubmissionRoundMinimum(result);
+        this.ValidateTimesheetMinutesAndEntryCount(result);
+        result.Success = result.Success && (result.Errors.length === 0);
+
+        return result;
+    }
+
+    /**
+    * Submission round must be 1 or greater.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    	public ValidateSubmissionRoundMinimum(result: ValidationResult) {
+    		if (this.SubmissionRound != null && this.SubmissionRound < 1) {
+    			result.Errors.push(new ValidationErrorInfo(
+    				"SubmissionRound",
+    				"Submission round must be at least 1.",
+    				this.SubmissionRound,
+    				ValidationErrorType.Failure
+    			));
+    		}
+    	}
+
+    /**
+    * Minutes, billable minutes, and entry count must all be non-negative (zero or greater), and billable minutes cannot exceed the total minutes recorded.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateTimesheetMinutesAndEntryCount(result: ValidationResult) {
+    	if (this.Minutes != null && this.Minutes < 0) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"Minutes",
+    			"Minutes cannot be negative.",
+    			this.Minutes,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    	if (this.BillableMinutes != null && this.BillableMinutes < 0) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"BillableMinutes",
+    			"Billable minutes cannot be negative.",
+    			this.BillableMinutes,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    	if (this.BillableMinutes != null && this.Minutes != null && this.BillableMinutes > this.Minutes) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"BillableMinutes",
+    			"Billable minutes cannot exceed total minutes.",
+    			this.BillableMinutes,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    	if (this.EntryCount != null && this.EntryCount < 0) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"EntryCount",
+    			"Entry count cannot be negative.",
+    			this.EntryCount,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    * * Description: Primary key for the timesheet approval part.
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: TimesheetID
+    * * Display Name: Timesheet ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Timesheets (vwTimesheets.ID)
+    * * Description: The Timesheet this approval slice belongs to.
+    */
+    get TimesheetID(): string {
+        return this.Get('TimesheetID');
+    }
+    set TimesheetID(value: string) {
+        this.Set('TimesheetID', value);
+    }
+
+    /**
+    * * Field Name: SubmissionRound
+    * * Display Name: Submission Round
+    * * SQL Data Type: int
+    * * Default Value: 1
+    * * Description: Submission round number (1 on initial submit, incremented on each resubmit).
+    */
+    get SubmissionRound(): number {
+        return this.Get('SubmissionRound');
+    }
+    set SubmissionRound(value: number) {
+        this.Set('SubmissionRound', value);
+    }
+
+    /**
+    * * Field Name: ScopeTaskID
+    * * Display Name: Scope Task ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
+    * * Description: Root project task for this approval slice, or NULL for the whole-timesheet / unassigned slice.
+    */
+    get ScopeTaskID(): string | null {
+        return this.Get('ScopeTaskID');
+    }
+    set ScopeTaskID(value: string | null) {
+        this.Set('ScopeTaskID', value);
+    }
+
+    /**
+    * * Field Name: ApprovalTaskID
+    * * Display Name: Approval Task ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
+    * * Description: The approval Task created in the Tasks inbox for this slice.
+    */
+    get ApprovalTaskID(): string {
+        return this.Get('ApprovalTaskID');
+    }
+    set ApprovalTaskID(value: string) {
+        this.Set('ApprovalTaskID', value);
+    }
+
+    /**
+    * * Field Name: Minutes
+    * * Display Name: Minutes
+    * * SQL Data Type: int
+    * * Default Value: 0
+    * * Description: Total minutes in this approval slice at submission time.
+    */
+    get Minutes(): number {
+        return this.Get('Minutes');
+    }
+    set Minutes(value: number) {
+        this.Set('Minutes', value);
+    }
+
+    /**
+    * * Field Name: BillableMinutes
+    * * Display Name: Billable Minutes
+    * * SQL Data Type: int
+    * * Default Value: 0
+    * * Description: Total billable minutes in this approval slice at submission time.
+    */
+    get BillableMinutes(): number {
+        return this.Get('BillableMinutes');
+    }
+    set BillableMinutes(value: number) {
+        this.Set('BillableMinutes', value);
+    }
+
+    /**
+    * * Field Name: EntryCount
+    * * Display Name: Entry Count
+    * * SQL Data Type: int
+    * * Default Value: 0
+    * * Description: Number of TaskTimeEntry rows included in this approval slice.
+    */
+    get EntryCount(): number {
+        return this.Get('EntryCount');
+    }
+    set EntryCount(value: number) {
+        this.Set('EntryCount', value);
+    }
+
+    /**
+    * * Field Name: SnapshotHash
+    * * Display Name: Snapshot Hash
+    * * SQL Data Type: nvarchar(64)
+    * * Description: Deterministic SHA-256 hex digest of the slice time entries, used to carry forward unchanged Approved parts across resubmissions.
+    */
+    get SnapshotHash(): string {
+        return this.Get('SnapshotHash');
+    }
+    set SnapshotHash(value: string) {
+        this.Set('SnapshotHash', value);
+    }
+
+    /**
+    * * Field Name: Status
+    * * Display Name: Status
+    * * SQL Data Type: nvarchar(20)
+    * * Default Value: Pending
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Approved
+    *   * Canceled
+    *   * Pending
+    *   * Rejected
+    * * Description: Current status of this approval slice: Pending, Approved, Rejected, or Canceled.
+    */
+    get Status(): 'Approved' | 'Canceled' | 'Pending' | 'Rejected' {
+        return this.Get('Status');
+    }
+    set Status(value: 'Approved' | 'Canceled' | 'Pending' | 'Rejected') {
+        this.Set('Status', value);
+    }
+
+    /**
+    * * Field Name: DecidedByPersonID
+    * * Display Name: Decided By Person ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+    * * Description: The Person who recorded the approval or rejection decision.
+    */
+    get DecidedByPersonID(): string | null {
+        return this.Get('DecidedByPersonID');
+    }
+    set DecidedByPersonID(value: string | null) {
+        this.Set('DecidedByPersonID', value);
+    }
+
+    /**
+    * * Field Name: DecidedAt
+    * * Display Name: Decided At
+    * * SQL Data Type: datetimeoffset
+    * * Description: Timestamp when the decision on this slice was recorded.
+    */
+    get DecidedAt(): Date | null {
+        return this.Get('DecidedAt');
+    }
+    set DecidedAt(value: Date | null) {
+        this.Set('DecidedAt', value);
+    }
+
+    /**
+    * * Field Name: DecisionNotes
+    * * Display Name: Decision Notes
+    * * SQL Data Type: nvarchar(MAX)
+    * * Description: Notes or feedback provided by the approver when deciding this slice.
+    */
+    get DecisionNotes(): string | null {
+        return this.Get('DecisionNotes');
+    }
+    set DecisionNotes(value: string | null) {
+        this.Set('DecisionNotes', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: ScopeTask
+    * * Display Name: Scope Task
+    * * SQL Data Type: nvarchar(255)
+    */
+    get ScopeTask(): string | null {
+        return this.Get('ScopeTask');
+    }
+
+    /**
+    * * Field Name: ApprovalTask
+    * * Display Name: Approval Task
+    * * SQL Data Type: nvarchar(255)
+    */
+    get ApprovalTask(): string {
+        return this.Get('ApprovalTask');
+    }
+
+    /**
+    * * Field Name: DecidedByPerson
+    * * Display Name: Decided By Person
+    * * SQL Data Type: nvarchar(250)
+    */
+    get DecidedByPerson(): string | null {
+        return this.Get('DecidedByPerson');
+    }
+}
+
+
+/**
+ * MJ_BizApps_Tasks: Timesheet Links - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: TimesheetLink
+ * * Base View: vwTimesheetLinks
+ * * @description Polymorphic links from a Timesheet to external records such as payroll batches, invoices, or expense reports.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Timesheet Links')
+export class mjBizAppsTasksTimesheetLinkEntity extends BaseEntity<mjBizAppsTasksTimesheetLinkEntityType> {
+    /**
+    * Loads the MJ_BizApps_Tasks: Timesheet Links record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Timesheet Links record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksTimesheetLinkEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    * * Description: Primary key for the timesheet link.
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: TimesheetID
+    * * Display Name: Timesheet ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Timesheets (vwTimesheets.ID)
+    * * Description: The Timesheet being linked.
+    */
+    get TimesheetID(): string {
+        return this.Get('TimesheetID');
+    }
+    set TimesheetID(value: string) {
+        this.Set('TimesheetID', value);
+    }
+
+    /**
+    * * Field Name: EntityID
+    * * Display Name: Entity ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ: Entities (vwEntities.ID)
+    * * Description: Target MemberJunction Entity ID for the linked external record.
+    */
+    get EntityID(): string {
+        return this.Get('EntityID');
+    }
+    set EntityID(value: string) {
+        this.Set('EntityID', value);
+    }
+
+    /**
+    * * Field Name: RecordID
+    * * Display Name: Record ID
+    * * SQL Data Type: nvarchar(450)
+    * * Description: Primary key value of the linked record in EntityID.
+    */
+    get RecordID(): string {
+        return this.Get('RecordID');
+    }
+    set RecordID(value: string) {
+        this.Set('RecordID', value);
+    }
+
+    /**
+    * * Field Name: Relationship
+    * * Display Name: Relationship
+    * * SQL Data Type: nvarchar(30)
+    * * Default Value: Related
+    * * Value List Type: List
+    * * Possible Values 
+    *   * ExpenseReport
+    *   * Invoice
+    *   * PayrollBatch
+    *   * Related
+    * * Description: Semantic relationship of the linked record to the timesheet: PayrollBatch, Invoice, ExpenseReport, or Related.
+    */
+    get Relationship(): 'ExpenseReport' | 'Invoice' | 'PayrollBatch' | 'Related' {
+        return this.Get('Relationship');
+    }
+    set Relationship(value: 'ExpenseReport' | 'Invoice' | 'PayrollBatch' | 'Related') {
+        this.Set('Relationship', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: Entity
+    * * Display Name: Entity
+    * * SQL Data Type: nvarchar(255)
+    */
+    get Entity(): string {
+        return this.Get('Entity');
+    }
+}
+
+
+/**
+ * MJ_BizApps_Tasks: Timesheet Schedules - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: TimesheetSchedule
+ * * Base View: vwTimesheetSchedules
+ * * @description Effective-dated timesheet period cadence schedule, globally or scoped to a specific Person or external entity record.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Timesheet Schedules')
+export class mjBizAppsTasksTimesheetScheduleEntity extends BaseEntity<mjBizAppsTasksTimesheetScheduleEntityType> {
+    /**
+    * Loads the MJ_BizApps_Tasks: Timesheet Schedules record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Timesheet Schedules record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksTimesheetScheduleEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * Validate() method override for MJ_BizApps_Tasks: Timesheet Schedules entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
+    * * Table-Level: Effective to date must be on or after the effective from date, ensuring the validity period is chronologically correct.
+    * * Table-Level: A record cannot be assigned to both a specific person and a scope entity at the same time; at least one of these assignments must remain empty.
+    * * Table-Level: Scope entity and scope record must either both be provided or both be left empty.
+    * @public
+    * @method
+    * @override
+    */
+    public override Validate(): ValidationResult {
+        const result = super.Validate();
+        this.ValidateEffectiveToOnOrAfterEffectiveFrom(result);
+        this.ValidatePersonIDAndScopeEntityIDMutualExclusivity(result);
+        this.ValidateScopeEntityIDAndScopeRecordIDCoexistence(result);
+        result.Success = result.Success && (result.Errors.length === 0);
+
+        return result;
+    }
+
+    /**
+    * Effective to date must be on or after the effective from date, ensuring the validity period is chronologically correct.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateEffectiveToOnOrAfterEffectiveFrom(result: ValidationResult) {
+    	if (this.EffectiveTo != null && this.EffectiveFrom != null && this.EffectiveTo < this.EffectiveFrom) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"EffectiveTo",
+    			"Effective To date must be on or after the Effective From date.",
+    			this.EffectiveTo,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    }
+
+    /**
+    * A record cannot be assigned to both a specific person and a scope entity at the same time; at least one of these assignments must remain empty.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    	public ValidatePersonIDAndScopeEntityIDMutualExclusivity(result: ValidationResult) {
+    		if (this.PersonID != null && this.ScopeEntityID != null) {
+    			result.Errors.push(new ValidationErrorInfo(
+    				"PersonID",
+    				"A record cannot have both a Person and a Scope Entity specified.",
+    				this.PersonID,
+    				ValidationErrorType.Failure
+    			));
+    		}
+    	}
+
+    /**
+    * Scope entity and scope record must either both be provided or both be left empty.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateScopeEntityIDAndScopeRecordIDCoexistence(result: ValidationResult) {
+    	const hasEntity = this.ScopeEntityID != null;
+    	const hasRecord = this.ScopeRecordID != null && this.ScopeRecordID.trim() !== "";
+    
+    	if ((hasEntity && !hasRecord) || (!hasEntity && hasRecord)) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"ScopeEntityID",
+    			"Both Scope Entity and Scope Record must be provided together, or both must be omitted.",
+    			this.ScopeEntityID,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    * * Description: Primary key for the timesheet schedule.
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: PersonID
+    * * Display Name: Person ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+    * * Description: Optional Person this schedule applies to (NULL for organization/entity-scoped or global schedules).
+    */
+    get PersonID(): string | null {
+        return this.Get('PersonID');
+    }
+    set PersonID(value: string | null) {
+        this.Set('PersonID', value);
+    }
+
+    /**
+    * * Field Name: ScopeEntityID
+    * * Display Name: Scope Entity ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ: Entities (vwEntities.ID)
+    * * Description: Optional MJ Entity ID when scoping the schedule to an organization or department record.
+    */
+    get ScopeEntityID(): string | null {
+        return this.Get('ScopeEntityID');
+    }
+    set ScopeEntityID(value: string | null) {
+        this.Set('ScopeEntityID', value);
+    }
+
+    /**
+    * * Field Name: ScopeRecordID
+    * * Display Name: Scope Record ID
+    * * SQL Data Type: nvarchar(450)
+    * * Description: Companion record ID in ScopeEntityID for entity-scoped schedules.
+    */
+    get ScopeRecordID(): string | null {
+        return this.Get('ScopeRecordID');
+    }
+    set ScopeRecordID(value: string | null) {
+        this.Set('ScopeRecordID', value);
+    }
+
+    /**
+    * * Field Name: Cadence
+    * * Display Name: Cadence
+    * * SQL Data Type: nvarchar(20)
+    * * Value List Type: List
+    * * Possible Values 
+    *   * BiWeekly
+    *   * Monthly
+    *   * SemiMonthly
+    *   * Weekly
+    * * Description: Timesheet period cadence: Weekly, BiWeekly, SemiMonthly, or Monthly.
+    */
+    get Cadence(): 'BiWeekly' | 'Monthly' | 'SemiMonthly' | 'Weekly' {
+        return this.Get('Cadence');
+    }
+    set Cadence(value: 'BiWeekly' | 'Monthly' | 'SemiMonthly' | 'Weekly') {
+        this.Set('Cadence', value);
+    }
+
+    /**
+    * * Field Name: WeekStartDay
+    * * Display Name: Week Start Day
+    * * SQL Data Type: nvarchar(10)
+    * * Default Value: Monday
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Monday
+    *   * Saturday
+    *   * Sunday
+    * * Description: First day of the work week for Weekly and BiWeekly cadences: Monday, Sunday, or Saturday.
+    */
+    get WeekStartDay(): 'Monday' | 'Saturday' | 'Sunday' {
+        return this.Get('WeekStartDay');
+    }
+    set WeekStartDay(value: 'Monday' | 'Saturday' | 'Sunday') {
+        this.Set('WeekStartDay', value);
+    }
+
+    /**
+    * * Field Name: BiWeeklyAnchorDate
+    * * Display Name: Bi Weekly Anchor Date
+    * * SQL Data Type: date
+    * * Default Value: 2026-01-05
+    * * Description: Anchor date (which must fall on WeekStartDay) defining the 14-day boundary for BiWeekly cadences.
+    */
+    get BiWeeklyAnchorDate(): Date {
+        return this.Get('BiWeeklyAnchorDate');
+    }
+    set BiWeeklyAnchorDate(value: Date) {
+        this.Set('BiWeeklyAnchorDate', value);
+    }
+
+    /**
+    * * Field Name: EffectiveFrom
+    * * Display Name: Effective From
+    * * SQL Data Type: date
+    * * Description: Inclusive start date from which this schedule is effective (must fall on a period boundary).
+    */
+    get EffectiveFrom(): Date {
+        return this.Get('EffectiveFrom');
+    }
+    set EffectiveFrom(value: Date) {
+        this.Set('EffectiveFrom', value);
+    }
+
+    /**
+    * * Field Name: EffectiveTo
+    * * Display Name: Effective To
+    * * SQL Data Type: date
+    * * Description: Optional inclusive end date through which this schedule is effective.
+    */
+    get EffectiveTo(): Date | null {
+        return this.Get('EffectiveTo');
+    }
+    set EffectiveTo(value: Date | null) {
+        this.Set('EffectiveTo', value);
+    }
+
+    /**
+    * * Field Name: Notes
+    * * Display Name: Notes
+    * * SQL Data Type: nvarchar(MAX)
+    * * Description: Optional notes explaining this schedule or cadence change.
+    */
+    get Notes(): string | null {
+        return this.Get('Notes');
+    }
+    set Notes(value: string | null) {
+        this.Set('Notes', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: Person
+    * * Display Name: Person
+    * * SQL Data Type: nvarchar(250)
+    */
+    get Person(): string | null {
+        return this.Get('Person');
+    }
+
+    /**
+    * * Field Name: ScopeEntity
+    * * Display Name: Scope Entity
+    * * SQL Data Type: nvarchar(255)
+    */
+    get ScopeEntity(): string | null {
+        return this.Get('ScopeEntity');
+    }
+}
+
+
+/**
+ * MJ_BizApps_Tasks: Timesheets - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: Timesheet
+ * * Base View: vwTimesheets
+ * * @description Period timesheet header for a person, grouping task time entries across a date range for submission and approval.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Timesheets')
+export class mjBizAppsTasksTimesheetEntity extends BaseEntity<mjBizAppsTasksTimesheetEntityType> {
+    /**
+    * Loads the MJ_BizApps_Tasks: Timesheets record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Timesheets record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksTimesheetEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * Validate() method override for MJ_BizApps_Tasks: Timesheets entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
+    * * Table-Level: Period end date must be on or after the period start date.
+    * * Table-Level: Total minutes and billable minutes must both be zero or positive, and billable minutes cannot exceed total minutes.
+    * @public
+    * @method
+    * @override
+    */
+    public override Validate(): ValidationResult {
+        const result = super.Validate();
+        this.ValidatePeriodEndOnOrAfterPeriodStart(result);
+        this.ValidateTotalAndBillableMinutes(result);
+        result.Success = result.Success && (result.Errors.length === 0);
+
+        return result;
+    }
+
+    /**
+    * Period end date must be on or after the period start date.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidatePeriodEndOnOrAfterPeriodStart(result: ValidationResult) {
+    	if (this.PeriodStart != null && this.PeriodEnd != null && this.PeriodEnd < this.PeriodStart) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"PeriodEnd",
+    			"The period end date must be on or after the period start date.",
+    			this.PeriodEnd,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    }
+
+    /**
+    * Total minutes and billable minutes must both be zero or positive, and billable minutes cannot exceed total minutes.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    public ValidateTotalAndBillableMinutes(result: ValidationResult) {
+    	if (this.TotalMinutes != null && this.TotalMinutes < 0) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"TotalMinutes",
+    			"Total minutes cannot be negative.",
+    			this.TotalMinutes,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    
+    	if (this.BillableMinutes != null && this.BillableMinutes < 0) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"BillableMinutes",
+    			"Billable minutes cannot be negative.",
+    			this.BillableMinutes,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    
+    	if (this.TotalMinutes != null && this.BillableMinutes != null && this.BillableMinutes > this.TotalMinutes) {
+    		result.Errors.push(new ValidationErrorInfo(
+    			"BillableMinutes",
+    			"Billable minutes cannot exceed total minutes.",
+    			this.BillableMinutes,
+    			ValidationErrorType.Failure
+    		));
+    	}
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    * * Description: Primary key for the timesheet.
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: PersonID
+    * * Display Name: Person ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+    * * Description: The Person whose time entries are covered by this timesheet.
+    */
+    get PersonID(): string {
+        return this.Get('PersonID');
+    }
+    set PersonID(value: string) {
+        this.Set('PersonID', value);
+    }
+
+    /**
+    * * Field Name: PeriodStart
+    * * Display Name: Period Start
+    * * SQL Data Type: date
+    * * Description: Inclusive start date of the timesheet period.
+    */
+    get PeriodStart(): Date {
+        return this.Get('PeriodStart');
+    }
+    set PeriodStart(value: Date) {
+        this.Set('PeriodStart', value);
+    }
+
+    /**
+    * * Field Name: PeriodEnd
+    * * Display Name: Period End
+    * * SQL Data Type: date
+    * * Description: Inclusive end date of the timesheet period.
+    */
+    get PeriodEnd(): Date {
+        return this.Get('PeriodEnd');
+    }
+    set PeriodEnd(value: Date) {
+        this.Set('PeriodEnd', value);
+    }
+
+    /**
+    * * Field Name: Status
+    * * Display Name: Status
+    * * SQL Data Type: nvarchar(20)
+    * * Default Value: Draft
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Approved
+    *   * Draft
+    *   * Rejected
+    *   * Submitted
+    * * Description: Lifecycle status of the timesheet: Draft, Submitted, Approved, or Rejected.
+    */
+    get Status(): 'Approved' | 'Draft' | 'Rejected' | 'Submitted' {
+        return this.Get('Status');
+    }
+    set Status(value: 'Approved' | 'Draft' | 'Rejected' | 'Submitted') {
+        this.Set('Status', value);
+    }
+
+    /**
+    * * Field Name: SubmittedAt
+    * * Display Name: Submitted At
+    * * SQL Data Type: datetimeoffset
+    * * Description: Timestamp when the timesheet was most recently submitted.
+    */
+    get SubmittedAt(): Date | null {
+        return this.Get('SubmittedAt');
+    }
+    set SubmittedAt(value: Date | null) {
+        this.Set('SubmittedAt', value);
+    }
+
+    /**
+    * * Field Name: SubmittedByUserID
+    * * Display Name: Submitted By User ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ: Users (vwUsers.ID)
+    * * Description: The MemberJunction User who submitted the timesheet.
+    */
+    get SubmittedByUserID(): string | null {
+        return this.Get('SubmittedByUserID');
+    }
+    set SubmittedByUserID(value: string | null) {
+        this.Set('SubmittedByUserID', value);
+    }
+
+    /**
+    * * Field Name: TotalMinutes
+    * * Display Name: Total Minutes
+    * * SQL Data Type: int
+    * * Default Value: 0
+    * * Description: Total minutes across all time entries attached to this timesheet.
+    */
+    get TotalMinutes(): number {
+        return this.Get('TotalMinutes');
+    }
+    set TotalMinutes(value: number) {
+        this.Set('TotalMinutes', value);
+    }
+
+    /**
+    * * Field Name: BillableMinutes
+    * * Display Name: Billable Minutes
+    * * SQL Data Type: int
+    * * Default Value: 0
+    * * Description: Total billable minutes across all time entries attached to this timesheet.
+    */
+    get BillableMinutes(): number {
+        return this.Get('BillableMinutes');
+    }
+    set BillableMinutes(value: number) {
+        this.Set('BillableMinutes', value);
+    }
+
+    /**
+    * * Field Name: Notes
+    * * Display Name: Notes
+    * * SQL Data Type: nvarchar(MAX)
+    * * Description: Worker notes or comments submitted with the timesheet.
+    */
+    get Notes(): string | null {
+        return this.Get('Notes');
+    }
+    set Notes(value: string | null) {
+        this.Set('Notes', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: Person
+    * * Display Name: Person
+    * * SQL Data Type: nvarchar(250)
+    */
+    get Person(): string {
+        return this.Get('Person');
+    }
+
+    /**
+    * * Field Name: SubmittedByUser
+    * * Display Name: Submitted By User
+    * * SQL Data Type: nvarchar(100)
+    */
+    get SubmittedByUser(): string | null {
+        return this.Get('SubmittedByUser');
     }
 }

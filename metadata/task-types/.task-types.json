@@ -113,5 +113,23 @@
       "lastModified": "2026-10-20T00:39:34.948Z",
       "checksum": "e27811b0ffaea682f55262bc7eb0b58419c2dd831a92715c81ace75306ad30b8"
     }
+  },
+  {
+    "fields": {
+      "Name": "Timesheet Approval",
+      "Code": "TIMESHEET_APPROVAL",
+      "Description": "Approval task for a submitted timesheet or project slice of a timesheet. Deciding this task updates the corresponding TimesheetApproval and Timesheet status.",
+      "IconClass": "fa-solid fa-business-time",
+      "DefaultPriority": "High",
+      "IsApproval": true,
+      "RequiresAssigneeDecision": true
+    },
+    "primaryKey": {
+      "ID": "A1B2C3D4-4444-4A44-8444-444444444401"
+    },
+    "sync": {
+      "lastModified": "2026-11-08T21:47:01.688Z",
+      "checksum": "de2d21ada13fa2c3626b06502255792a7fd0b94c015e0b236584a5ba6a40f1a3"
+    }
   }
 ]

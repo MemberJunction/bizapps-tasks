@@ -5,6 +5,7 @@ import { BaseResourceComponent } from '@memberjunction/ng-shared';
 import type { ResourceData } from '@memberjunction/core-entities';
 import { TasksDashboardPageComponent } from '../pages/tasks-dashboard.page';
 import { MyTasksPageComponent } from '../pages/my-tasks.page';
+import { MyTimePageComponent } from '../pages/my-time.page';
 import { ApprovalsPageComponent } from '../pages/approvals.page';
 import { TemplatesPageComponent } from '../pages/templates.page';
 
@@ -113,6 +114,33 @@ export class TemplatesSectionResource extends BaseResourceComponent {
 
     async GetResourceIconClass(_data: ResourceData): Promise<string> {
         return 'fa-solid fa-copy';
+    }
+}
+
+/**
+ * 5. My Time Section Resource — Weekly & Period Timesheet Tab
+ */
+@Component({
+    selector: 'bizapps-my-time-section-resource',
+    standalone: true,
+    imports: [CommonModule, MyTimePageComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `<bizapps-my-time-page></bizapps-my-time-page>`,
+    styles: [`:host { display: block; width: 100%; height: 100%; }`],
+})
+@RegisterClass(BaseResourceComponent, 'MyTimeSectionResource')
+export class MyTimeSectionResource extends BaseResourceComponent {
+    override ngOnInit(): void {
+        super.ngOnInit();
+        this.NotifyLoadComplete();
+    }
+
+    async GetResourceDisplayName(_data: ResourceData): Promise<string> {
+        return 'My Time';
+    }
+
+    async GetResourceIconClass(_data: ResourceData): Promise<string> {
+        return 'fa-solid fa-stopwatch';
     }
 }
 

@@ -1,0 +1,361 @@
+[
+  {
+    "fields": {
+      "Name": "Time Logged by Person and Period",
+      "CategoryID": "@lookup:MJ: Query Categories.Name=Tasks",
+      "UserQuestion": "How much billable and non-billable time has each person logged per day across a date range?",
+      "Description": "Daily and total minutes (billable vs. non-billable) logged per person across an optional date range and person filter.",
+      "SQL": "@file:SQL/time-logged-by-person-and-period.sql",
+      "TechnicalDescription": "Aggregates __mj_BizAppsTasks.vwTaskTimeEntries by PersonID, Person, and WorkDate, with optional Nunjucks filters for StartDate, EndDate, and PersonID.",
+      "Status": "Approved",
+      "QualityRank": 9,
+      "ExecutionCostRank": 2,
+      "UsesTemplate": true
+    },
+    "relatedEntities": {
+      "MJ: Query Parameters": [
+        {
+          "fields": {
+            "QueryID": "@parent:ID",
+            "Name": "StartDate",
+            "Type": "date",
+            "IsRequired": false,
+            "Description": "Optional inclusive start date (YYYY-MM-DD) for WorkDate.",
+            "DetectionMethod": "Manual"
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-7777-4A77-8777-777777777711"
+          }
+        },
+        {
+          "fields": {
+            "QueryID": "@parent:ID",
+            "Name": "EndDate",
+            "Type": "date",
+            "IsRequired": false,
+            "Description": "Optional inclusive end date (YYYY-MM-DD) for WorkDate.",
+            "DetectionMethod": "Manual"
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-7777-4A77-8777-777777777712"
+          }
+        },
+        {
+          "fields": {
+            "QueryID": "@parent:ID",
+            "Name": "PersonID",
+            "Type": "string",
+            "IsRequired": false,
+            "Description": "Optional Person UUID filter.",
+            "DetectionMethod": "Manual"
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-7777-4A77-8777-777777777713"
+          }
+        }
+      ]
+    },
+    "primaryKey": {
+      "ID": "A1B2C3D4-7777-4A77-8777-777777777701"
+    },
+    "sync": {
+      "lastModified": "2026-11-08T21:57:48.623Z",
+      "checksum": "47c37f71de0a31dbc0610ec17cfce446cac747d2d01d27ad503513f526676a79"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Task Effort vs Estimate Rollup",
+      "CategoryID": "@lookup:MJ: Query Categories.Name=Tasks",
+      "UserQuestion": "How does rolled-up logged time and AI agent cost compare against estimated minutes across root project tasks?",
+      "Description": "Root tasks and their sub-trees with EstimatedMinutes, RolledUpLoggedMinutes, VarianceMinutes, PercentOfEstimate, RolledUpAgentRunCount, AgentTotalCost, and AgentTotalTokens.",
+      "SQL": "@file:SQL/task-effort-vs-estimate-rollup.sql",
+      "TechnicalDescription": "Groups __mj_BizAppsTasks.vwTasks by RootParentID and joins back to root tasks (ParentID IS NULL) with optional Nunjucks filters for RootTaskID, CategoryID, and OnlyOverEstimate.",
+      "Status": "Approved",
+      "QualityRank": 9,
+      "ExecutionCostRank": 3,
+      "UsesTemplate": true
+    },
+    "relatedEntities": {
+      "MJ: Query Parameters": [
+        {
+          "fields": {
+            "QueryID": "@parent:ID",
+            "Name": "RootTaskID",
+            "Type": "string",
+            "IsRequired": false,
+            "Description": "Optional Root Task UUID filter.",
+            "DetectionMethod": "Manual"
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-7777-4A77-8777-777777777721"
+          }
+        },
+        {
+          "fields": {
+            "QueryID": "@parent:ID",
+            "Name": "CategoryID",
+            "Type": "string",
+            "IsRequired": false,
+            "Description": "Optional Task Category UUID filter.",
+            "DetectionMethod": "Manual"
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-7777-4A77-8777-777777777722"
+          }
+        },
+        {
+          "fields": {
+            "QueryID": "@parent:ID",
+            "Name": "OnlyOverEstimate",
+            "Type": "string",
+            "IsRequired": false,
+            "Description": "When 'true' or '1', filters to root tasks whose rolled-up logged minutes exceed EstimatedMinutes.",
+            "DetectionMethod": "Manual"
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-7777-4A77-8777-777777777723"
+          }
+        }
+      ]
+    },
+    "primaryKey": {
+      "ID": "A1B2C3D4-7777-4A77-8777-777777777702"
+    },
+    "sync": {
+      "lastModified": "2026-11-08T23:21:23.081Z",
+      "checksum": "644313e0fb0b10672d4d1cd9d829e283cd1dd4825c77690ff3b882f4ba3f9245"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Agent Effort and Cost by Task",
+      "CategoryID": "@lookup:MJ: Query Categories.Name=Tasks",
+      "UserQuestion": "Which tasks incurred AI agent runs, tokens, and model cost, deduplicated across parent and child runs?",
+      "Description": "Tasks with linked AI agent runs (deduplicated against ancestor runs linked to the same task), total tokens, total cost, and wall-clock seconds.",
+      "SQL": "@file:SQL/agent-effort-and-cost-by-task.sql",
+      "TechnicalDescription": "Joins __mj_BizAppsTasks.TaskAgentRun to __mj_BizAppsTasks.vwTasks and __mj.vwAIAgentRuns, excluding runs whose ParentRunIDPath contains another run linked to the same task. Optional Nunjucks filters for StartDate, EndDate, AgentID, and RootTaskID.",
+      "Status": "Approved",
+      "QualityRank": 9,
+      "ExecutionCostRank": 3,
+      "UsesTemplate": true
+    },
+    "relatedEntities": {
+      "MJ: Query Parameters": [
+        {
+          "fields": {
+            "QueryID": "@parent:ID",
+            "Name": "StartDate",
+            "Type": "date",
+            "IsRequired": false,
+            "Description": "Optional inclusive start date for agent run StartedAt.",
+            "DetectionMethod": "Manual"
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-7777-4A77-8777-777777777731"
+          }
+        },
+        {
+          "fields": {
+            "QueryID": "@parent:ID",
+            "Name": "EndDate",
+            "Type": "date",
+            "IsRequired": false,
+            "Description": "Optional inclusive end date for agent run StartedAt.",
+            "DetectionMethod": "Manual"
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-7777-4A77-8777-777777777732"
+          }
+        },
+        {
+          "fields": {
+            "QueryID": "@parent:ID",
+            "Name": "AgentID",
+            "Type": "string",
+            "IsRequired": false,
+            "Description": "Optional AI Agent UUID filter.",
+            "DetectionMethod": "Manual"
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-7777-4A77-8777-777777777733"
+          }
+        },
+        {
+          "fields": {
+            "QueryID": "@parent:ID",
+            "Name": "RootTaskID",
+            "Type": "string",
+            "IsRequired": false,
+            "Description": "Optional Root Task UUID filter.",
+            "DetectionMethod": "Manual"
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-7777-4A77-8777-777777777734"
+          }
+        }
+      ]
+    },
+    "primaryKey": {
+      "ID": "A1B2C3D4-7777-4A77-8777-777777777703"
+    },
+    "sync": {
+      "lastModified": "2026-11-08T21:57:49.046Z",
+      "checksum": "53b9dde254f45a7b9b88dec1e3e2e1f6cee56f8d205aa60e6cd183953a798fdf"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Timesheet Approval Status Summary",
+      "CategoryID": "@lookup:MJ: Query Categories.Name=Tasks",
+      "UserQuestion": "What is the submission and per-project approval status of timesheets across a period?",
+      "Description": "Timesheets and their latest submission round approval part counts (Approved, Pending, Rejected) with optional period, status, and approver filters.",
+      "SQL": "@file:SQL/timesheet-approval-status-summary.sql",
+      "TechnicalDescription": "Reads __mj_BizAppsTasks.vwTimesheets joined to the latest SubmissionRound in __mj_BizAppsTasks.TimesheetApproval. Optional Nunjucks filters for PeriodStart, PeriodEnd, Status, and ApproverPersonID.",
+      "Status": "Approved",
+      "QualityRank": 9,
+      "ExecutionCostRank": 2,
+      "UsesTemplate": true
+    },
+    "relatedEntities": {
+      "MJ: Query Parameters": [
+        {
+          "fields": {
+            "QueryID": "@parent:ID",
+            "Name": "PeriodStart",
+            "Type": "date",
+            "IsRequired": false,
+            "Description": "Optional inclusive period start filter.",
+            "DetectionMethod": "Manual"
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-7777-4A77-8777-777777777741"
+          }
+        },
+        {
+          "fields": {
+            "QueryID": "@parent:ID",
+            "Name": "PeriodEnd",
+            "Type": "date",
+            "IsRequired": false,
+            "Description": "Optional inclusive period end filter.",
+            "DetectionMethod": "Manual"
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-7777-4A77-8777-777777777742"
+          }
+        },
+        {
+          "fields": {
+            "QueryID": "@parent:ID",
+            "Name": "Status",
+            "Type": "string",
+            "IsRequired": false,
+            "Description": "Optional Timesheet status filter (Draft, Submitted, Approved, Rejected).",
+            "DetectionMethod": "Manual"
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-7777-4A77-8777-777777777743"
+          }
+        },
+        {
+          "fields": {
+            "QueryID": "@parent:ID",
+            "Name": "ApproverPersonID",
+            "Type": "string",
+            "IsRequired": false,
+            "Description": "Optional Approver Person UUID filter.",
+            "DetectionMethod": "Manual"
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-7777-4A77-8777-777777777744"
+          }
+        }
+      ]
+    },
+    "primaryKey": {
+      "ID": "A1B2C3D4-7777-4A77-8777-777777777704"
+    },
+    "sync": {
+      "lastModified": "2026-11-08T23:44:00.276Z",
+      "checksum": "4be83fcd04d2921896947e3bf3c003b532d401371db4afa6a3f4b34e87493fdd"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Logged Time by Linked Record",
+      "CategoryID": "@lookup:MJ: Query Categories.Name=Tasks",
+      "UserQuestion": "How much human time, billable time, and AI agent cost has been logged across tasks linked to an external record?",
+      "Description": "Total human minutes, billable minutes, and AI agent cost across all tasks (and their descendant sub-tasks) linked to an external entity/record via TaskLink.",
+      "SQL": "@file:SQL/logged-time-by-linked-record.sql",
+      "TechnicalDescription": "Joins __mj_BizAppsTasks.vwTaskLinks to __mj_BizAppsTasks.vwTasks (matching TaskID or RootParentID) and aggregates __mj_BizAppsTasks.TaskTimeEntry. Optional Nunjucks filters for EntityName, RecordID, StartDate, and EndDate.",
+      "Status": "Approved",
+      "QualityRank": 9,
+      "ExecutionCostRank": 3,
+      "UsesTemplate": true
+    },
+    "relatedEntities": {
+      "MJ: Query Parameters": [
+        {
+          "fields": {
+            "QueryID": "@parent:ID",
+            "Name": "EntityName",
+            "Type": "string",
+            "IsRequired": false,
+            "Description": "Optional target Entity Name filter on TaskLink.",
+            "DetectionMethod": "Manual"
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-7777-4A77-8777-777777777751"
+          }
+        },
+        {
+          "fields": {
+            "QueryID": "@parent:ID",
+            "Name": "RecordID",
+            "Type": "string",
+            "IsRequired": false,
+            "Description": "Optional target RecordID filter on TaskLink.",
+            "DetectionMethod": "Manual"
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-7777-4A77-8777-777777777752"
+          }
+        },
+        {
+          "fields": {
+            "QueryID": "@parent:ID",
+            "Name": "StartDate",
+            "Type": "date",
+            "IsRequired": false,
+            "Description": "Optional inclusive start date for TaskTimeEntry.WorkDate.",
+            "DetectionMethod": "Manual"
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-7777-4A77-8777-777777777753"
+          }
+        },
+        {
+          "fields": {
+            "QueryID": "@parent:ID",
+            "Name": "EndDate",
+            "Type": "date",
+            "IsRequired": false,
+            "Description": "Optional inclusive end date for TaskTimeEntry.WorkDate.",
+            "DetectionMethod": "Manual"
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-7777-4A77-8777-777777777754"
+          }
+        }
+      ]
+    },
+    "primaryKey": {
+      "ID": "A1B2C3D4-7777-4A77-8777-777777777705"
+    },
+    "sync": {
+      "lastModified": "2026-11-08T21:57:49.503Z",
+      "checksum": "9bbcf989714bf84df947ed7a7d6422ad8e9e182b7e7d2c388b5c66bbe7ecdba7"
+    }
+  }
+]

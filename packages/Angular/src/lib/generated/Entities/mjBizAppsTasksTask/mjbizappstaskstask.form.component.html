@@ -387,6 +387,48 @@
 
     </mj-collapsible-panel>
 
+    <!-- Details Section -->
+    <mj-collapsible-panel
+        SectionKey="details"
+        SectionName="Details"
+        Icon="fa fa-align-left"
+        [Form]="this"
+        [FormContext]="formContext">
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="LoggedMinutes"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="AgentRunCount"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="AgentCost"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="AgentTokens"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+
+    </mj-collapsible-panel>
+
     <!-- System Metadata Section -->
     <mj-collapsible-panel
         SectionKey="systemMetadata"
@@ -688,6 +730,156 @@
                 [ShowToolbar]="true"
                 (Navigate)="OnFormNavigate($event)"
                 (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskCheckIns', $event.totalRowCount)"
+                >
+            </mj-explorer-entity-data-grid>
+        </div>
+        }
+    </mj-collapsible-panel>
+
+    <!-- Task Agent Runs Section -->
+    <mj-collapsible-panel
+        SectionKey="mJBizAppsTasksTaskAgentRuns"
+        SectionName="Task Agent Runs"
+        Icon="fa fa-table"
+        Variant="related-entity"
+        [Form]="this"
+        [FormContext]="formContext"
+        [BadgeCount]="GetSectionRowCount('mJBizAppsTasksTaskAgentRuns')"
+        [DefaultExpanded]="false">
+        @if (record.IsSaved) {
+        <div>
+            <mj-explorer-entity-data-grid
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Agent Runs','TaskID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Agent Runs','TaskID')"
+                [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskAgentRuns')"
+                [ShowToolbar]="true"
+                (Navigate)="OnFormNavigate($event)"
+                (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskAgentRuns', $event.totalRowCount)"
+                >
+            </mj-explorer-entity-data-grid>
+        </div>
+        }
+    </mj-collapsible-panel>
+
+    <!-- Task Timers Section -->
+    <mj-collapsible-panel
+        SectionKey="mJBizAppsTasksTaskTimers"
+        SectionName="Task Timers"
+        Icon="fa fa-table"
+        Variant="related-entity"
+        [Form]="this"
+        [FormContext]="formContext"
+        [BadgeCount]="GetSectionRowCount('mJBizAppsTasksTaskTimers')"
+        [DefaultExpanded]="false">
+        @if (record.IsSaved) {
+        <div>
+            <mj-explorer-entity-data-grid
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Timers','TaskID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Timers','TaskID')"
+                [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskTimers')"
+                [ShowToolbar]="true"
+                (Navigate)="OnFormNavigate($event)"
+                (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskTimers', $event.totalRowCount)"
+                >
+            </mj-explorer-entity-data-grid>
+        </div>
+        }
+    </mj-collapsible-panel>
+
+    <!-- Timesheet Approvals (Scope Task ID) Section -->
+    <mj-collapsible-panel
+        SectionKey="mJBizAppsTasksTimesheetApprovalsScopeTaskID"
+        SectionName="Timesheet Approvals (Scope Task ID)"
+        Icon="fa fa-table"
+        Variant="related-entity"
+        [Form]="this"
+        [FormContext]="formContext"
+        [BadgeCount]="GetSectionRowCount('mJBizAppsTasksTimesheetApprovalsScopeTaskID')"
+        [DefaultExpanded]="false">
+        @if (record.IsSaved) {
+        <div>
+            <mj-explorer-entity-data-grid
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Timesheet Approvals','ScopeTaskID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Timesheet Approvals','ScopeTaskID')"
+                [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTimesheetApprovalsScopeTaskID')"
+                [ShowToolbar]="true"
+                (Navigate)="OnFormNavigate($event)"
+                (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTimesheetApprovalsScopeTaskID', $event.totalRowCount)"
+                >
+            </mj-explorer-entity-data-grid>
+        </div>
+        }
+    </mj-collapsible-panel>
+
+    <!-- Timesheet Approvals (Approval Task ID) Section -->
+    <mj-collapsible-panel
+        SectionKey="mJBizAppsTasksTimesheetApprovalsApprovalTaskID"
+        SectionName="Timesheet Approvals (Approval Task ID)"
+        Icon="fa fa-table"
+        Variant="related-entity"
+        [Form]="this"
+        [FormContext]="formContext"
+        [BadgeCount]="GetSectionRowCount('mJBizAppsTasksTimesheetApprovalsApprovalTaskID')"
+        [DefaultExpanded]="false">
+        @if (record.IsSaved) {
+        <div>
+            <mj-explorer-entity-data-grid
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Timesheet Approvals','ApprovalTaskID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Timesheet Approvals','ApprovalTaskID')"
+                [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTimesheetApprovalsApprovalTaskID')"
+                [ShowToolbar]="true"
+                (Navigate)="OnFormNavigate($event)"
+                (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTimesheetApprovalsApprovalTaskID', $event.totalRowCount)"
+                >
+            </mj-explorer-entity-data-grid>
+        </div>
+        }
+    </mj-collapsible-panel>
+
+    <!-- Task Time Entries Section -->
+    <mj-collapsible-panel
+        SectionKey="mJBizAppsTasksTaskTimeEntries"
+        SectionName="Task Time Entries"
+        Icon="fa fa-table"
+        Variant="related-entity"
+        [Form]="this"
+        [FormContext]="formContext"
+        [BadgeCount]="GetSectionRowCount('mJBizAppsTasksTaskTimeEntries')"
+        [DefaultExpanded]="false">
+        @if (record.IsSaved) {
+        <div>
+            <mj-explorer-entity-data-grid
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Task Time Entries','TaskID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Task Time Entries','TaskID')"
+                [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTaskTimeEntries')"
+                [ShowToolbar]="true"
+                (Navigate)="OnFormNavigate($event)"
+                (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTaskTimeEntries', $event.totalRowCount)"
+                >
+            </mj-explorer-entity-data-grid>
+        </div>
+        }
+    </mj-collapsible-panel>
+
+    <!-- Time Approvers Section -->
+    <mj-collapsible-panel
+        SectionKey="mJBizAppsTasksTimeApprovers"
+        SectionName="Time Approvers"
+        Icon="fa fa-table"
+        Variant="related-entity"
+        [Form]="this"
+        [FormContext]="formContext"
+        [BadgeCount]="GetSectionRowCount('mJBizAppsTasksTimeApprovers')"
+        [DefaultExpanded]="false">
+        @if (record.IsSaved) {
+        <div>
+            <mj-explorer-entity-data-grid
+                [Params]="BuildRelationshipViewParamsByEntityName('MJ_BizApps_Tasks: Time Approvers','ScopeTaskID')"
+                [NewRecordValues]="NewRecordValues('MJ_BizApps_Tasks: Time Approvers','ScopeTaskID')"
+                [AllowLoad]="IsSectionExpanded('mJBizAppsTasksTimeApprovers')"
+                [ShowToolbar]="true"
+                (Navigate)="OnFormNavigate($event)"
+                (AfterDataLoad)="SetSectionRowCount('mJBizAppsTasksTimeApprovers', $event.totalRowCount)"
                 >
             </mj-explorer-entity-data-grid>
         </div>

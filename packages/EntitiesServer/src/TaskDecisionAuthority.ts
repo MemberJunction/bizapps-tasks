@@ -1,12 +1,13 @@
 /**
- * Who may record a decision on an approval task — the pure rule (bc-aidp-next-golive#320 §3).
+ * Who may record a decision on an approval task — the pure rule (bc-aidp-next-golive#320 §3 & D13).
  *
  * The tasks app records a decision from anywhere that can save a Task Decision: the in-app approval
  * panel (which runs in the browser), the Tasks inbox, or another app's server code. Before this rule
  * nothing checked the decider, so anyone allowed to create a Task Decision could approve any task,
  * including one they asked for themselves.
  *
- * When the Tasks setting `PreventSelfApproval` is on, a decision on an approval-type task
+ * When the Tasks setting `PreventSelfApproval` is on, OR when the task's `TaskType` sets
+ * `RequiresAssigneeDecision` (D13, e.g. `TIMESHEET_APPROVAL`), a decision on an approval-type task
  * (`TaskType.IsApproval`) is refused unless:
  *   1. the decision is attributed to the deciding user's own Person, or to nobody;
  *   2. the deciding user holds an ACTIVE (Pending or InProgress) assignment on the task — assigned
@@ -19,7 +20,8 @@
  *      holds for callers that never pass a creator. A task whose creating user has no Person (a
  *      service account) still has no creator, and is nobody's own request.
  *
- * Off (the default), every decision is accepted as before. A non-approval task is never checked.
+ * When neither `PreventSelfApproval` nor `RequiresAssigneeDecision` is set, every decision is accepted
+ * as before. A non-approval task is never checked.
  *
  * Kept free of MJ so the rule is unit-tested on its own; TaskDecisionEntityServer gathers the facts.
  */
@@ -40,6 +42,8 @@ export const ACTIVE_ASSIGNMENT_STATUSES: readonly DecisionAssignmentFact['Status
 export interface TaskDecisionFacts {
     /** The Tasks `PreventSelfApproval` setting. */
     PreventSelfApproval: boolean;
+    /** Whether the task's `TaskType` has `RequiresAssigneeDecision` enabled (D13). */
+    RequiresAssigneeDecision?: boolean;
     /** Whether the task's type is an approval type. */
     IsApprovalTask: boolean;
     /** The user saving the decision. */
@@ -79,7 +83,8 @@ export function DeciderAssignments(facts: TaskDecisionFacts): DecisionAssignment
  * @returns a sentence for the person deciding, or null.
  */
 export function TaskDecisionRefusal(facts: TaskDecisionFacts): string | null {
-    if (!facts.PreventSelfApproval || !facts.IsApprovalTask) return null;
+    const guardActive = facts.PreventSelfApproval || facts.RequiresAssigneeDecision === true;
+    if (!guardActive || !facts.IsApprovalTask) return null;
 
     if (facts.DecidedByPersonID && !facts.DeciderPersonIDs.some((p) => same(p, facts.DecidedByPersonID))) {
         return 'This decision names someone other than you as the person deciding. A decision can only be recorded as your own.';

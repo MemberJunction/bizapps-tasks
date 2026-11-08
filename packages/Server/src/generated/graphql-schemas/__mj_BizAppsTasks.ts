@@ -17,7 +17,7 @@ import { MaxLength } from 'class-validator';
 import * as mj_core_schema_server_object_types from '@memberjunction/server'
 
 
-import { mjBizAppsTasksTaskActivityEntity, mjBizAppsTasksTaskAssignmentEntity, mjBizAppsTasksTaskCategoryEntity, mjBizAppsTasksTaskCheckInEntity, mjBizAppsTasksTaskCommentEntity, mjBizAppsTasksTaskDecisionOutcomeEntity, mjBizAppsTasksTaskDecisionEntity, mjBizAppsTasksTaskDependencyEntity, mjBizAppsTasksTaskLinkEntity, mjBizAppsTasksTaskNotificationConfigEntity, mjBizAppsTasksTaskNotificationLogEntity, mjBizAppsTasksTaskRoleEntity, mjBizAppsTasksTaskTagLinkEntity, mjBizAppsTasksTaskTagEntity, mjBizAppsTasksTaskTemplateItemDependencyEntity, mjBizAppsTasksTaskTemplateItemRoleEntity, mjBizAppsTasksTaskTemplateItemEntity, mjBizAppsTasksTaskTemplateEntity, mjBizAppsTasksTaskTypeStatusEntity, mjBizAppsTasksTaskTypeEntity, mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
+import { mjBizAppsTasksTaskActivityEntity, mjBizAppsTasksTaskAgentRunEntity, mjBizAppsTasksTaskAssignmentEntity, mjBizAppsTasksTaskCategoryEntity, mjBizAppsTasksTaskCheckInEntity, mjBizAppsTasksTaskCommentEntity, mjBizAppsTasksTaskDecisionOutcomeEntity, mjBizAppsTasksTaskDecisionEntity, mjBizAppsTasksTaskDependencyEntity, mjBizAppsTasksTaskLinkEntity, mjBizAppsTasksTaskNotificationConfigEntity, mjBizAppsTasksTaskNotificationLogEntity, mjBizAppsTasksTaskRoleEntity, mjBizAppsTasksTaskTagLinkEntity, mjBizAppsTasksTaskTagEntity, mjBizAppsTasksTaskTemplateItemDependencyEntity, mjBizAppsTasksTaskTemplateItemRoleEntity, mjBizAppsTasksTaskTemplateItemEntity, mjBizAppsTasksTaskTemplateEntity, mjBizAppsTasksTaskTimeEntryEntity, mjBizAppsTasksTaskTimeEntryLinkEntity, mjBizAppsTasksTaskTimerEntity, mjBizAppsTasksTaskTypeStatusEntity, mjBizAppsTasksTaskTypeEntity, mjBizAppsTasksTaskEntity, mjBizAppsTasksTimeApproverEntity, mjBizAppsTasksTimesheetApprovalEntity, mjBizAppsTasksTimesheetLinkEntity, mjBizAppsTasksTimesheetScheduleEntity, mjBizAppsTasksTimesheetEntity } from '@mj-biz-apps/tasks-entities';
     
 
 //****************************************************************************
@@ -217,6 +217,187 @@ export class mjBizAppsTasksTaskActivityResolver extends ResolverBase {
         const provider = GetReadWriteProvider(providers);
         const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
         return this.DeleteRecord('MJ_BizApps_Tasks: Task Activities', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
+// ENTITY CLASS for MJ_BizApps_Tasks: Task Agent Runs
+//****************************************************************************
+@ObjectType({ description: "Links a task to a MemberJunction AI Agent Run so agent effort (runs, tokens, cost, wall-clock duration) is attributed alongside human time." })
+export class mjBizAppsTasksTaskAgentRun_ {
+    @Field({description: "Primary key for the task agent run link."}) 
+    @MaxLength(36)
+    ID: string;
+        
+    @Field({nullable: true, description: "The task the AI agent run contributed to."}) 
+    @MaxLength(36)
+    TaskID?: string;
+        
+    @Field({nullable: true, description: "The MemberJunction AI Agent Run linked to the task."}) 
+    @MaxLength(36)
+    AIAgentRunID?: string;
+        
+    @Field({nullable: true, description: "How the agent run contributed to the task: Executed, Assisted, Reviewed, Planned, or Triaged."}) 
+    @MaxLength(30)
+    Role?: string;
+        
+    @Field({nullable: true, description: "Optional notes describing what the agent run did for the task."}) 
+    Notes?: string;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    Task?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    AIAgentRun?: string;
+        
+    @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
+    ReadableFields___?: string[];
+        
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Task Agent Runs
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsTasksTaskAgentRunInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    TaskID?: string;
+
+    @Field({ nullable: true })
+    AIAgentRunID?: string;
+
+    @Field({ nullable: true })
+    Role?: string;
+
+    @Field({ nullable: true })
+    Notes: string | null;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Task Agent Runs
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsTasksTaskAgentRunInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    TaskID?: string;
+
+    @Field({ nullable: true })
+    AIAgentRunID?: string;
+
+    @Field({ nullable: true })
+    Role?: string;
+
+    @Field({ nullable: true })
+    Notes?: string | null;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+//****************************************************************************
+// RESOLVER for MJ_BizApps_Tasks: Task Agent Runs
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsTasksTaskAgentRunViewResult {
+    @Field(() => [mjBizAppsTasksTaskAgentRun_])
+    Results: mjBizAppsTasksTaskAgentRun_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsTasksTaskAgentRun_)
+export class mjBizAppsTasksTaskAgentRunResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsTasksTaskAgentRunViewResult)
+    async RunmjBizAppsTasksTaskAgentRunViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTaskAgentRunViewResult)
+    async RunmjBizAppsTasksTaskAgentRunViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTaskAgentRunViewResult)
+    async RunmjBizAppsTasksTaskAgentRunDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_Tasks: Task Agent Runs';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsTasksTaskAgentRun_, { nullable: true })
+    async mjBizAppsTasksTaskAgentRun(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsTasksTaskAgentRun_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Agent Runs', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskAgentRuns')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Agent Runs', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Agent Runs', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @Mutation(() => mjBizAppsTasksTaskAgentRun_)
+    async CreatemjBizAppsTasksTaskAgentRun(
+        @Arg('input', () => CreatemjBizAppsTasksTaskAgentRunInput) input: CreatemjBizAppsTasksTaskAgentRunInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_Tasks: Task Agent Runs', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsTasksTaskAgentRun_)
+    async UpdatemjBizAppsTasksTaskAgentRun(
+        @Arg('input', () => UpdatemjBizAppsTasksTaskAgentRunInput) input: UpdatemjBizAppsTasksTaskAgentRunInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_Tasks: Task Agent Runs', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsTasksTaskAgentRun_)
+    async DeletemjBizAppsTasksTaskAgentRun(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_Tasks: Task Agent Runs', key, options, provider, userPayload, pubSub);
     }
     
 }
@@ -3521,6 +3702,609 @@ export class mjBizAppsTasksTaskTemplateResolver extends ResolverBase {
 }
 
 //****************************************************************************
+// ENTITY CLASS for MJ_BizApps_Tasks: Task Time Entries
+//****************************************************************************
+@ObjectType({ description: "Individual time entries logged by a person against a task on a specific business calendar date." })
+export class mjBizAppsTasksTaskTimeEntry_ {
+    @Field({description: "Primary key for the task time entry."}) 
+    @MaxLength(36)
+    ID: string;
+        
+    @Field({nullable: true, description: "The task this time entry is logged against."}) 
+    @MaxLength(36)
+    TaskID?: string;
+        
+    @Field({nullable: true, description: "The Person who performed the work."}) 
+    @MaxLength(36)
+    PersonID?: string;
+        
+    @Field({nullable: true, description: "Business calendar date the work was performed on."}) 
+    WorkDate?: Date;
+        
+    @Field(() => Int, {nullable: true, description: "Duration of work in whole minutes (1 to 1440)."}) 
+    Minutes?: number;
+        
+    @Field({nullable: true, description: "Optional timestamp when the work interval started (populated for timer-backed entries)."}) 
+    StartedAt?: Date;
+        
+    @Field({nullable: true, description: "Optional timestamp when the work interval ended (populated for timer-backed entries)."}) 
+    EndedAt?: Date;
+        
+    @Field({nullable: true, description: "Narrative description of what was accomplished during this time entry."}) 
+    Notes?: string;
+        
+    @Field({nullable: true, description: "How the time entry was created: Manual, Timer, Imported, or Agent."}) 
+    @MaxLength(20)
+    Source?: string;
+        
+    @Field(() => Boolean, {nullable: true, description: "Whether this time entry is billable to a client or external party."}) 
+    IsBillable?: boolean;
+        
+    @Field({nullable: true, description: "Optional Timesheet this time entry has been attached to."}) 
+    @MaxLength(36)
+    TimesheetID?: string;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    Task?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(250)
+    Person?: string;
+        
+    @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
+    ReadableFields___?: string[];
+        
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Task Time Entries
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsTasksTaskTimeEntryInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    TaskID?: string;
+
+    @Field({ nullable: true })
+    PersonID?: string;
+
+    @Field({ nullable: true })
+    WorkDate?: Date;
+
+    @Field(() => Int, { nullable: true })
+    Minutes?: number;
+
+    @Field({ nullable: true })
+    StartedAt: Date | null;
+
+    @Field({ nullable: true })
+    EndedAt: Date | null;
+
+    @Field({ nullable: true })
+    Notes: string | null;
+
+    @Field({ nullable: true })
+    Source?: string;
+
+    @Field(() => Boolean, { nullable: true })
+    IsBillable?: boolean;
+
+    @Field({ nullable: true })
+    TimesheetID: string | null;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Task Time Entries
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsTasksTaskTimeEntryInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    TaskID?: string;
+
+    @Field({ nullable: true })
+    PersonID?: string;
+
+    @Field({ nullable: true })
+    WorkDate?: Date;
+
+    @Field(() => Int, { nullable: true })
+    Minutes?: number;
+
+    @Field({ nullable: true })
+    StartedAt?: Date | null;
+
+    @Field({ nullable: true })
+    EndedAt?: Date | null;
+
+    @Field({ nullable: true })
+    Notes?: string | null;
+
+    @Field({ nullable: true })
+    Source?: string;
+
+    @Field(() => Boolean, { nullable: true })
+    IsBillable?: boolean;
+
+    @Field({ nullable: true })
+    TimesheetID?: string | null;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+//****************************************************************************
+// RESOLVER for MJ_BizApps_Tasks: Task Time Entries
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsTasksTaskTimeEntryViewResult {
+    @Field(() => [mjBizAppsTasksTaskTimeEntry_])
+    Results: mjBizAppsTasksTaskTimeEntry_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsTasksTaskTimeEntry_)
+export class mjBizAppsTasksTaskTimeEntryResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsTasksTaskTimeEntryViewResult)
+    async RunmjBizAppsTasksTaskTimeEntryViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTaskTimeEntryViewResult)
+    async RunmjBizAppsTasksTaskTimeEntryViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTaskTimeEntryViewResult)
+    async RunmjBizAppsTasksTaskTimeEntryDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_Tasks: Task Time Entries';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsTasksTaskTimeEntry_, { nullable: true })
+    async mjBizAppsTasksTaskTimeEntry(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsTasksTaskTimeEntry_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Time Entries', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskTimeEntries')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Time Entries', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Time Entries', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @Mutation(() => mjBizAppsTasksTaskTimeEntry_)
+    async CreatemjBizAppsTasksTaskTimeEntry(
+        @Arg('input', () => CreatemjBizAppsTasksTaskTimeEntryInput) input: CreatemjBizAppsTasksTaskTimeEntryInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_Tasks: Task Time Entries', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsTasksTaskTimeEntry_)
+    async UpdatemjBizAppsTasksTaskTimeEntry(
+        @Arg('input', () => UpdatemjBizAppsTasksTaskTimeEntryInput) input: UpdatemjBizAppsTasksTaskTimeEntryInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_Tasks: Task Time Entries', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsTasksTaskTimeEntry_)
+    async DeletemjBizAppsTasksTaskTimeEntry(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_Tasks: Task Time Entries', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
+// ENTITY CLASS for MJ_BizApps_Tasks: Task Time Entry Links
+//****************************************************************************
+@ObjectType({ description: "Polymorphic links from a TaskTimeEntry to external records such as invoice lines, journal entry lines, commits, or pull requests." })
+export class mjBizAppsTasksTaskTimeEntryLink_ {
+    @Field({description: "Primary key for the task time entry link."}) 
+    @MaxLength(36)
+    ID: string;
+        
+    @Field({nullable: true, description: "The TaskTimeEntry being linked."}) 
+    @MaxLength(36)
+    TaskTimeEntryID?: string;
+        
+    @Field({nullable: true, description: "Target MemberJunction Entity ID for the linked external record."}) 
+    @MaxLength(36)
+    EntityID?: string;
+        
+    @Field({nullable: true, description: "Primary key value of the linked record in EntityID."}) 
+    @MaxLength(450)
+    RecordID?: string;
+        
+    @Field({nullable: true, description: "Semantic relationship of the linked record to the time entry: InvoiceLine, JournalEntryLine, Commit, PullRequest, or Related."}) 
+    @MaxLength(30)
+    Relationship?: string;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    Entity?: string;
+        
+    @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
+    ReadableFields___?: string[];
+        
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Task Time Entry Links
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsTasksTaskTimeEntryLinkInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    TaskTimeEntryID?: string;
+
+    @Field({ nullable: true })
+    EntityID?: string;
+
+    @Field({ nullable: true })
+    RecordID?: string;
+
+    @Field({ nullable: true })
+    Relationship?: string;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Task Time Entry Links
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsTasksTaskTimeEntryLinkInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    TaskTimeEntryID?: string;
+
+    @Field({ nullable: true })
+    EntityID?: string;
+
+    @Field({ nullable: true })
+    RecordID?: string;
+
+    @Field({ nullable: true })
+    Relationship?: string;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+//****************************************************************************
+// RESOLVER for MJ_BizApps_Tasks: Task Time Entry Links
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsTasksTaskTimeEntryLinkViewResult {
+    @Field(() => [mjBizAppsTasksTaskTimeEntryLink_])
+    Results: mjBizAppsTasksTaskTimeEntryLink_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsTasksTaskTimeEntryLink_)
+export class mjBizAppsTasksTaskTimeEntryLinkResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsTasksTaskTimeEntryLinkViewResult)
+    async RunmjBizAppsTasksTaskTimeEntryLinkViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTaskTimeEntryLinkViewResult)
+    async RunmjBizAppsTasksTaskTimeEntryLinkViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTaskTimeEntryLinkViewResult)
+    async RunmjBizAppsTasksTaskTimeEntryLinkDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_Tasks: Task Time Entry Links';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsTasksTaskTimeEntryLink_, { nullable: true })
+    async mjBizAppsTasksTaskTimeEntryLink(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsTasksTaskTimeEntryLink_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Time Entry Links', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskTimeEntryLinks')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Time Entry Links', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Time Entry Links', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @Mutation(() => mjBizAppsTasksTaskTimeEntryLink_)
+    async CreatemjBizAppsTasksTaskTimeEntryLink(
+        @Arg('input', () => CreatemjBizAppsTasksTaskTimeEntryLinkInput) input: CreatemjBizAppsTasksTaskTimeEntryLinkInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_Tasks: Task Time Entry Links', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsTasksTaskTimeEntryLink_)
+    async UpdatemjBizAppsTasksTaskTimeEntryLink(
+        @Arg('input', () => UpdatemjBizAppsTasksTaskTimeEntryLinkInput) input: UpdatemjBizAppsTasksTaskTimeEntryLinkInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_Tasks: Task Time Entry Links', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsTasksTaskTimeEntryLink_)
+    async DeletemjBizAppsTasksTaskTimeEntryLink(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_Tasks: Task Time Entry Links', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
+// ENTITY CLASS for MJ_BizApps_Tasks: Task Timers
+//****************************************************************************
+@ObjectType({ description: "Currently running task stopwatch per person. At most one row per PersonID exists at any time; stopping a timer deletes the row and writes TaskTimeEntry rows." })
+export class mjBizAppsTasksTaskTimer_ {
+    @Field({description: "Primary key for the running timer."}) 
+    @MaxLength(36)
+    ID: string;
+        
+    @Field({nullable: true, description: "The task currently being timed."}) 
+    @MaxLength(36)
+    TaskID?: string;
+        
+    @Field({nullable: true, description: "The Person whose stopwatch is running (unique across TaskTimer)."}) 
+    @MaxLength(36)
+    PersonID?: string;
+        
+    @Field({nullable: true, description: "Timestamp when the timer was started."}) 
+    StartedAt?: Date;
+        
+    @Field({nullable: true, description: "Draft work notes carried over into the resulting TaskTimeEntry rows when the timer stops."}) 
+    Notes?: string;
+        
+    @Field(() => Boolean, {nullable: true, description: "Billable flag carried over into the resulting TaskTimeEntry rows when the timer stops."}) 
+    IsBillable?: boolean;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    Task?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(250)
+    Person?: string;
+        
+    @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
+    ReadableFields___?: string[];
+        
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Task Timers
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsTasksTaskTimerInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    TaskID?: string;
+
+    @Field({ nullable: true })
+    PersonID?: string;
+
+    @Field({ nullable: true })
+    StartedAt?: Date;
+
+    @Field({ nullable: true })
+    Notes: string | null;
+
+    @Field(() => Boolean, { nullable: true })
+    IsBillable?: boolean;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Task Timers
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsTasksTaskTimerInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    TaskID?: string;
+
+    @Field({ nullable: true })
+    PersonID?: string;
+
+    @Field({ nullable: true })
+    StartedAt?: Date;
+
+    @Field({ nullable: true })
+    Notes?: string | null;
+
+    @Field(() => Boolean, { nullable: true })
+    IsBillable?: boolean;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+//****************************************************************************
+// RESOLVER for MJ_BizApps_Tasks: Task Timers
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsTasksTaskTimerViewResult {
+    @Field(() => [mjBizAppsTasksTaskTimer_])
+    Results: mjBizAppsTasksTaskTimer_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsTasksTaskTimer_)
+export class mjBizAppsTasksTaskTimerResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsTasksTaskTimerViewResult)
+    async RunmjBizAppsTasksTaskTimerViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTaskTimerViewResult)
+    async RunmjBizAppsTasksTaskTimerViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTaskTimerViewResult)
+    async RunmjBizAppsTasksTaskTimerDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_Tasks: Task Timers';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsTasksTaskTimer_, { nullable: true })
+    async mjBizAppsTasksTaskTimer(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsTasksTaskTimer_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Timers', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskTimers')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Timers', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Timers', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @Mutation(() => mjBizAppsTasksTaskTimer_)
+    async CreatemjBizAppsTasksTaskTimer(
+        @Arg('input', () => CreatemjBizAppsTasksTaskTimerInput) input: CreatemjBizAppsTasksTaskTimerInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_Tasks: Task Timers', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsTasksTaskTimer_)
+    async UpdatemjBizAppsTasksTaskTimer(
+        @Arg('input', () => UpdatemjBizAppsTasksTaskTimerInput) input: UpdatemjBizAppsTasksTaskTimerInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_Tasks: Task Timers', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsTasksTaskTimer_)
+    async DeletemjBizAppsTasksTaskTimer(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_Tasks: Task Timers', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
 // ENTITY CLASS for MJ_BizApps_Tasks: Task Type Status
 //****************************************************************************
 @ObjectType({ description: "Dynamic domain statuses and lifecycle stages configured per Task Type." })
@@ -3863,6 +4647,9 @@ export class mjBizAppsTasksTaskType_ {
     @Field(() => Boolean, {nullable: true, description: "When true, tasks of this type are approvals: they appear in the approvals inbox of each assignee, who records a decision on them."}) 
     IsApproval?: boolean;
         
+    @Field(() => Boolean, {nullable: true, description: "When true on an approval task type, only an assigned approver (and never the task creator unless exempt) may record a decision on tasks of this type, regardless of the global PreventSelfApproval setting."}) 
+    RequiresAssigneeDecision?: boolean;
+        
     @Field({nullable: true}) 
     @MaxLength(425)
     OnAssignAction?: string;
@@ -3953,6 +4740,9 @@ export class CreatemjBizAppsTasksTaskTypeInput {
     @Field(() => Boolean, { nullable: true })
     IsApproval?: boolean;
 
+    @Field(() => Boolean, { nullable: true })
+    RequiresAssigneeDecision?: boolean;
+
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
 }
@@ -4010,6 +4800,9 @@ export class UpdatemjBizAppsTasksTaskTypeInput {
 
     @Field(() => Boolean, { nullable: true })
     IsApproval?: boolean;
+
+    @Field(() => Boolean, { nullable: true })
+    RequiresAssigneeDecision?: boolean;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];
@@ -4271,6 +5064,18 @@ export class mjBizAppsTasksTask_ {
         
     @Field(() => Int, {nullable: true}) 
     CommentsCount?: number;
+        
+    @Field(() => Int, {nullable: true}) 
+    LoggedMinutes?: number;
+        
+    @Field(() => Int, {nullable: true}) 
+    AgentRunCount?: number;
+        
+    @Field(() => Float, {nullable: true}) 
+    AgentCost?: number;
+        
+    @Field(() => Int, {nullable: true}) 
+    AgentTokens?: number;
         
     @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
     ReadableFields___?: string[];
@@ -4591,6 +5396,1143 @@ export class mjBizAppsTasksTaskResolver extends ResolverBase {
         const provider = GetReadWriteProvider(providers);
         const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
         return this.DeleteRecord('MJ_BizApps_Tasks: Tasks', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
+// ENTITY CLASS for MJ_BizApps_Tasks: Time Approvers
+//****************************************************************************
+@ObjectType({ description: "Configurable directory of who approves whose time, optionally scoped to a specific worker, root project task, or external entity record." })
+export class mjBizAppsTasksTimeApprover_ {
+    @Field({description: "Primary key for the time approver rule."}) 
+    @MaxLength(36)
+    ID: string;
+        
+    @Field({nullable: true, description: "The Person who is granted time approval authority by this rule."}) 
+    @MaxLength(36)
+    ApproverPersonID?: string;
+        
+    @Field({nullable: true, description: "Optional Worker Person whose time this rule applies to (NULL matches any worker)."}) 
+    @MaxLength(36)
+    WorkerPersonID?: string;
+        
+    @Field({nullable: true, description: "Optional project/parent Task this rule scopes approval to (NULL matches any task)."}) 
+    @MaxLength(36)
+    ScopeTaskID?: string;
+        
+    @Field(() => Boolean, {nullable: true, description: "When ScopeTaskID is set, whether sub-tasks beneath ScopeTaskID also match this rule."}) 
+    IncludeDescendants?: boolean;
+        
+    @Field({nullable: true, description: "Optional MJ Entity ID when scoping approval to tasks linked to an external record via TaskLink."}) 
+    @MaxLength(36)
+    ScopeEntityID?: string;
+        
+    @Field({nullable: true, description: "Companion record ID in ScopeEntityID when scoping approval to tasks linked via TaskLink."}) 
+    @MaxLength(450)
+    ScopeRecordID?: string;
+        
+    @Field({nullable: true, description: "Optional start date from which this approver rule is effective."}) 
+    EffectiveFrom?: Date;
+        
+    @Field({nullable: true, description: "Optional end date through which this approver rule is effective."}) 
+    EffectiveTo?: Date;
+        
+    @Field(() => Boolean, {nullable: true, description: "Whether this approver rule is currently active."}) 
+    IsActive?: boolean;
+        
+    @Field({nullable: true, description: "Optional administrative notes about this approver rule."}) 
+    Notes?: string;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field({nullable: true}) 
+    @MaxLength(250)
+    ApproverPerson?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(250)
+    WorkerPerson?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    ScopeTask?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    ScopeEntity?: string;
+        
+    @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
+    ReadableFields___?: string[];
+        
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Time Approvers
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsTasksTimeApproverInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    ApproverPersonID?: string;
+
+    @Field({ nullable: true })
+    WorkerPersonID: string | null;
+
+    @Field({ nullable: true })
+    ScopeTaskID: string | null;
+
+    @Field(() => Boolean, { nullable: true })
+    IncludeDescendants?: boolean;
+
+    @Field({ nullable: true })
+    ScopeEntityID: string | null;
+
+    @Field({ nullable: true })
+    ScopeRecordID: string | null;
+
+    @Field({ nullable: true })
+    EffectiveFrom: Date | null;
+
+    @Field({ nullable: true })
+    EffectiveTo: Date | null;
+
+    @Field(() => Boolean, { nullable: true })
+    IsActive?: boolean;
+
+    @Field({ nullable: true })
+    Notes: string | null;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Time Approvers
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsTasksTimeApproverInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    ApproverPersonID?: string;
+
+    @Field({ nullable: true })
+    WorkerPersonID?: string | null;
+
+    @Field({ nullable: true })
+    ScopeTaskID?: string | null;
+
+    @Field(() => Boolean, { nullable: true })
+    IncludeDescendants?: boolean;
+
+    @Field({ nullable: true })
+    ScopeEntityID?: string | null;
+
+    @Field({ nullable: true })
+    ScopeRecordID?: string | null;
+
+    @Field({ nullable: true })
+    EffectiveFrom?: Date | null;
+
+    @Field({ nullable: true })
+    EffectiveTo?: Date | null;
+
+    @Field(() => Boolean, { nullable: true })
+    IsActive?: boolean;
+
+    @Field({ nullable: true })
+    Notes?: string | null;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+//****************************************************************************
+// RESOLVER for MJ_BizApps_Tasks: Time Approvers
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsTasksTimeApproverViewResult {
+    @Field(() => [mjBizAppsTasksTimeApprover_])
+    Results: mjBizAppsTasksTimeApprover_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsTasksTimeApprover_)
+export class mjBizAppsTasksTimeApproverResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsTasksTimeApproverViewResult)
+    async RunmjBizAppsTasksTimeApproverViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTimeApproverViewResult)
+    async RunmjBizAppsTasksTimeApproverViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTimeApproverViewResult)
+    async RunmjBizAppsTasksTimeApproverDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_Tasks: Time Approvers';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsTasksTimeApprover_, { nullable: true })
+    async mjBizAppsTasksTimeApprover(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsTasksTimeApprover_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Time Approvers', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTimeApprovers')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Time Approvers', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Tasks: Time Approvers', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @Mutation(() => mjBizAppsTasksTimeApprover_)
+    async CreatemjBizAppsTasksTimeApprover(
+        @Arg('input', () => CreatemjBizAppsTasksTimeApproverInput) input: CreatemjBizAppsTasksTimeApproverInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_Tasks: Time Approvers', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsTasksTimeApprover_)
+    async UpdatemjBizAppsTasksTimeApprover(
+        @Arg('input', () => UpdatemjBizAppsTasksTimeApproverInput) input: UpdatemjBizAppsTasksTimeApproverInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_Tasks: Time Approvers', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsTasksTimeApprover_)
+    async DeletemjBizAppsTasksTimeApprover(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_Tasks: Time Approvers', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
+// ENTITY CLASS for MJ_BizApps_Tasks: Timesheet Approvals
+//****************************************************************************
+@ObjectType({ description: "Per-project approval slice of a submitted timesheet, backed by a real approval Task in the Tasks inbox." })
+export class mjBizAppsTasksTimesheetApproval_ {
+    @Field({description: "Primary key for the timesheet approval part."}) 
+    @MaxLength(36)
+    ID: string;
+        
+    @Field({nullable: true, description: "The Timesheet this approval slice belongs to."}) 
+    @MaxLength(36)
+    TimesheetID?: string;
+        
+    @Field(() => Int, {nullable: true, description: "Submission round number (1 on initial submit, incremented on each resubmit)."}) 
+    SubmissionRound?: number;
+        
+    @Field({nullable: true, description: "Root project task for this approval slice, or NULL for the whole-timesheet / unassigned slice."}) 
+    @MaxLength(36)
+    ScopeTaskID?: string;
+        
+    @Field({nullable: true, description: "The approval Task created in the Tasks inbox for this slice."}) 
+    @MaxLength(36)
+    ApprovalTaskID?: string;
+        
+    @Field(() => Int, {nullable: true, description: "Total minutes in this approval slice at submission time."}) 
+    Minutes?: number;
+        
+    @Field(() => Int, {nullable: true, description: "Total billable minutes in this approval slice at submission time."}) 
+    BillableMinutes?: number;
+        
+    @Field(() => Int, {nullable: true, description: "Number of TaskTimeEntry rows included in this approval slice."}) 
+    EntryCount?: number;
+        
+    @Field({nullable: true, description: "Deterministic SHA-256 hex digest of the slice time entries, used to carry forward unchanged Approved parts across resubmissions."}) 
+    @MaxLength(64)
+    SnapshotHash?: string;
+        
+    @Field({nullable: true, description: "Current status of this approval slice: Pending, Approved, Rejected, or Canceled."}) 
+    @MaxLength(20)
+    Status?: string;
+        
+    @Field({nullable: true, description: "The Person who recorded the approval or rejection decision."}) 
+    @MaxLength(36)
+    DecidedByPersonID?: string;
+        
+    @Field({nullable: true, description: "Timestamp when the decision on this slice was recorded."}) 
+    DecidedAt?: Date;
+        
+    @Field({nullable: true, description: "Notes or feedback provided by the approver when deciding this slice."}) 
+    DecisionNotes?: string;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    ScopeTask?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    ApprovalTask?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(250)
+    DecidedByPerson?: string;
+        
+    @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
+    ReadableFields___?: string[];
+        
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Timesheet Approvals
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsTasksTimesheetApprovalInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    TimesheetID?: string;
+
+    @Field(() => Int, { nullable: true })
+    SubmissionRound?: number;
+
+    @Field({ nullable: true })
+    ScopeTaskID: string | null;
+
+    @Field({ nullable: true })
+    ApprovalTaskID?: string;
+
+    @Field(() => Int, { nullable: true })
+    Minutes?: number;
+
+    @Field(() => Int, { nullable: true })
+    BillableMinutes?: number;
+
+    @Field(() => Int, { nullable: true })
+    EntryCount?: number;
+
+    @Field({ nullable: true })
+    SnapshotHash?: string;
+
+    @Field({ nullable: true })
+    Status?: string;
+
+    @Field({ nullable: true })
+    DecidedByPersonID: string | null;
+
+    @Field({ nullable: true })
+    DecidedAt: Date | null;
+
+    @Field({ nullable: true })
+    DecisionNotes: string | null;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Timesheet Approvals
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsTasksTimesheetApprovalInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    TimesheetID?: string;
+
+    @Field(() => Int, { nullable: true })
+    SubmissionRound?: number;
+
+    @Field({ nullable: true })
+    ScopeTaskID?: string | null;
+
+    @Field({ nullable: true })
+    ApprovalTaskID?: string;
+
+    @Field(() => Int, { nullable: true })
+    Minutes?: number;
+
+    @Field(() => Int, { nullable: true })
+    BillableMinutes?: number;
+
+    @Field(() => Int, { nullable: true })
+    EntryCount?: number;
+
+    @Field({ nullable: true })
+    SnapshotHash?: string;
+
+    @Field({ nullable: true })
+    Status?: string;
+
+    @Field({ nullable: true })
+    DecidedByPersonID?: string | null;
+
+    @Field({ nullable: true })
+    DecidedAt?: Date | null;
+
+    @Field({ nullable: true })
+    DecisionNotes?: string | null;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+//****************************************************************************
+// RESOLVER for MJ_BizApps_Tasks: Timesheet Approvals
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsTasksTimesheetApprovalViewResult {
+    @Field(() => [mjBizAppsTasksTimesheetApproval_])
+    Results: mjBizAppsTasksTimesheetApproval_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsTasksTimesheetApproval_)
+export class mjBizAppsTasksTimesheetApprovalResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsTasksTimesheetApprovalViewResult)
+    async RunmjBizAppsTasksTimesheetApprovalViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTimesheetApprovalViewResult)
+    async RunmjBizAppsTasksTimesheetApprovalViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTimesheetApprovalViewResult)
+    async RunmjBizAppsTasksTimesheetApprovalDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_Tasks: Timesheet Approvals';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsTasksTimesheetApproval_, { nullable: true })
+    async mjBizAppsTasksTimesheetApproval(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsTasksTimesheetApproval_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Timesheet Approvals', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTimesheetApprovals')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Timesheet Approvals', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Tasks: Timesheet Approvals', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @Mutation(() => mjBizAppsTasksTimesheetApproval_)
+    async CreatemjBizAppsTasksTimesheetApproval(
+        @Arg('input', () => CreatemjBizAppsTasksTimesheetApprovalInput) input: CreatemjBizAppsTasksTimesheetApprovalInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_Tasks: Timesheet Approvals', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsTasksTimesheetApproval_)
+    async UpdatemjBizAppsTasksTimesheetApproval(
+        @Arg('input', () => UpdatemjBizAppsTasksTimesheetApprovalInput) input: UpdatemjBizAppsTasksTimesheetApprovalInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_Tasks: Timesheet Approvals', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsTasksTimesheetApproval_)
+    async DeletemjBizAppsTasksTimesheetApproval(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_Tasks: Timesheet Approvals', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
+// ENTITY CLASS for MJ_BizApps_Tasks: Timesheet Links
+//****************************************************************************
+@ObjectType({ description: "Polymorphic links from a Timesheet to external records such as payroll batches, invoices, or expense reports." })
+export class mjBizAppsTasksTimesheetLink_ {
+    @Field({description: "Primary key for the timesheet link."}) 
+    @MaxLength(36)
+    ID: string;
+        
+    @Field({nullable: true, description: "The Timesheet being linked."}) 
+    @MaxLength(36)
+    TimesheetID?: string;
+        
+    @Field({nullable: true, description: "Target MemberJunction Entity ID for the linked external record."}) 
+    @MaxLength(36)
+    EntityID?: string;
+        
+    @Field({nullable: true, description: "Primary key value of the linked record in EntityID."}) 
+    @MaxLength(450)
+    RecordID?: string;
+        
+    @Field({nullable: true, description: "Semantic relationship of the linked record to the timesheet: PayrollBatch, Invoice, ExpenseReport, or Related."}) 
+    @MaxLength(30)
+    Relationship?: string;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    Entity?: string;
+        
+    @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
+    ReadableFields___?: string[];
+        
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Timesheet Links
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsTasksTimesheetLinkInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    TimesheetID?: string;
+
+    @Field({ nullable: true })
+    EntityID?: string;
+
+    @Field({ nullable: true })
+    RecordID?: string;
+
+    @Field({ nullable: true })
+    Relationship?: string;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Timesheet Links
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsTasksTimesheetLinkInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    TimesheetID?: string;
+
+    @Field({ nullable: true })
+    EntityID?: string;
+
+    @Field({ nullable: true })
+    RecordID?: string;
+
+    @Field({ nullable: true })
+    Relationship?: string;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+//****************************************************************************
+// RESOLVER for MJ_BizApps_Tasks: Timesheet Links
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsTasksTimesheetLinkViewResult {
+    @Field(() => [mjBizAppsTasksTimesheetLink_])
+    Results: mjBizAppsTasksTimesheetLink_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsTasksTimesheetLink_)
+export class mjBizAppsTasksTimesheetLinkResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsTasksTimesheetLinkViewResult)
+    async RunmjBizAppsTasksTimesheetLinkViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTimesheetLinkViewResult)
+    async RunmjBizAppsTasksTimesheetLinkViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTimesheetLinkViewResult)
+    async RunmjBizAppsTasksTimesheetLinkDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_Tasks: Timesheet Links';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsTasksTimesheetLink_, { nullable: true })
+    async mjBizAppsTasksTimesheetLink(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsTasksTimesheetLink_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Timesheet Links', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTimesheetLinks')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Timesheet Links', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Tasks: Timesheet Links', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @Mutation(() => mjBizAppsTasksTimesheetLink_)
+    async CreatemjBizAppsTasksTimesheetLink(
+        @Arg('input', () => CreatemjBizAppsTasksTimesheetLinkInput) input: CreatemjBizAppsTasksTimesheetLinkInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_Tasks: Timesheet Links', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsTasksTimesheetLink_)
+    async UpdatemjBizAppsTasksTimesheetLink(
+        @Arg('input', () => UpdatemjBizAppsTasksTimesheetLinkInput) input: UpdatemjBizAppsTasksTimesheetLinkInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_Tasks: Timesheet Links', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsTasksTimesheetLink_)
+    async DeletemjBizAppsTasksTimesheetLink(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_Tasks: Timesheet Links', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
+// ENTITY CLASS for MJ_BizApps_Tasks: Timesheet Schedules
+//****************************************************************************
+@ObjectType({ description: "Effective-dated timesheet period cadence schedule, globally or scoped to a specific Person or external entity record." })
+export class mjBizAppsTasksTimesheetSchedule_ {
+    @Field({description: "Primary key for the timesheet schedule."}) 
+    @MaxLength(36)
+    ID: string;
+        
+    @Field({nullable: true, description: "Optional Person this schedule applies to (NULL for organization/entity-scoped or global schedules)."}) 
+    @MaxLength(36)
+    PersonID?: string;
+        
+    @Field({nullable: true, description: "Optional MJ Entity ID when scoping the schedule to an organization or department record."}) 
+    @MaxLength(36)
+    ScopeEntityID?: string;
+        
+    @Field({nullable: true, description: "Companion record ID in ScopeEntityID for entity-scoped schedules."}) 
+    @MaxLength(450)
+    ScopeRecordID?: string;
+        
+    @Field({nullable: true, description: "Timesheet period cadence: Weekly, BiWeekly, SemiMonthly, or Monthly."}) 
+    @MaxLength(20)
+    Cadence?: string;
+        
+    @Field({nullable: true, description: "First day of the work week for Weekly and BiWeekly cadences: Monday, Sunday, or Saturday."}) 
+    @MaxLength(10)
+    WeekStartDay?: string;
+        
+    @Field({nullable: true, description: "Anchor date (which must fall on WeekStartDay) defining the 14-day boundary for BiWeekly cadences."}) 
+    BiWeeklyAnchorDate?: Date;
+        
+    @Field({nullable: true, description: "Inclusive start date from which this schedule is effective (must fall on a period boundary)."}) 
+    EffectiveFrom?: Date;
+        
+    @Field({nullable: true, description: "Optional inclusive end date through which this schedule is effective."}) 
+    EffectiveTo?: Date;
+        
+    @Field({nullable: true, description: "Optional notes explaining this schedule or cadence change."}) 
+    Notes?: string;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field({nullable: true}) 
+    @MaxLength(250)
+    Person?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    ScopeEntity?: string;
+        
+    @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
+    ReadableFields___?: string[];
+        
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Timesheet Schedules
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsTasksTimesheetScheduleInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    PersonID: string | null;
+
+    @Field({ nullable: true })
+    ScopeEntityID: string | null;
+
+    @Field({ nullable: true })
+    ScopeRecordID: string | null;
+
+    @Field({ nullable: true })
+    Cadence?: string;
+
+    @Field({ nullable: true })
+    WeekStartDay?: string;
+
+    @Field({ nullable: true })
+    BiWeeklyAnchorDate?: Date;
+
+    @Field({ nullable: true })
+    EffectiveFrom?: Date;
+
+    @Field({ nullable: true })
+    EffectiveTo: Date | null;
+
+    @Field({ nullable: true })
+    Notes: string | null;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Timesheet Schedules
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsTasksTimesheetScheduleInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    PersonID?: string | null;
+
+    @Field({ nullable: true })
+    ScopeEntityID?: string | null;
+
+    @Field({ nullable: true })
+    ScopeRecordID?: string | null;
+
+    @Field({ nullable: true })
+    Cadence?: string;
+
+    @Field({ nullable: true })
+    WeekStartDay?: string;
+
+    @Field({ nullable: true })
+    BiWeeklyAnchorDate?: Date;
+
+    @Field({ nullable: true })
+    EffectiveFrom?: Date;
+
+    @Field({ nullable: true })
+    EffectiveTo?: Date | null;
+
+    @Field({ nullable: true })
+    Notes?: string | null;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+//****************************************************************************
+// RESOLVER for MJ_BizApps_Tasks: Timesheet Schedules
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsTasksTimesheetScheduleViewResult {
+    @Field(() => [mjBizAppsTasksTimesheetSchedule_])
+    Results: mjBizAppsTasksTimesheetSchedule_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsTasksTimesheetSchedule_)
+export class mjBizAppsTasksTimesheetScheduleResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsTasksTimesheetScheduleViewResult)
+    async RunmjBizAppsTasksTimesheetScheduleViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTimesheetScheduleViewResult)
+    async RunmjBizAppsTasksTimesheetScheduleViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTimesheetScheduleViewResult)
+    async RunmjBizAppsTasksTimesheetScheduleDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_Tasks: Timesheet Schedules';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsTasksTimesheetSchedule_, { nullable: true })
+    async mjBizAppsTasksTimesheetSchedule(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsTasksTimesheetSchedule_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Timesheet Schedules', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTimesheetSchedules')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Timesheet Schedules', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Tasks: Timesheet Schedules', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @Mutation(() => mjBizAppsTasksTimesheetSchedule_)
+    async CreatemjBizAppsTasksTimesheetSchedule(
+        @Arg('input', () => CreatemjBizAppsTasksTimesheetScheduleInput) input: CreatemjBizAppsTasksTimesheetScheduleInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_Tasks: Timesheet Schedules', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsTasksTimesheetSchedule_)
+    async UpdatemjBizAppsTasksTimesheetSchedule(
+        @Arg('input', () => UpdatemjBizAppsTasksTimesheetScheduleInput) input: UpdatemjBizAppsTasksTimesheetScheduleInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_Tasks: Timesheet Schedules', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsTasksTimesheetSchedule_)
+    async DeletemjBizAppsTasksTimesheetSchedule(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_Tasks: Timesheet Schedules', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
+// ENTITY CLASS for MJ_BizApps_Tasks: Timesheets
+//****************************************************************************
+@ObjectType({ description: "Period timesheet header for a person, grouping task time entries across a date range for submission and approval." })
+export class mjBizAppsTasksTimesheet_ {
+    @Field({description: "Primary key for the timesheet."}) 
+    @MaxLength(36)
+    ID: string;
+        
+    @Field({nullable: true, description: "The Person whose time entries are covered by this timesheet."}) 
+    @MaxLength(36)
+    PersonID?: string;
+        
+    @Field({nullable: true, description: "Inclusive start date of the timesheet period."}) 
+    PeriodStart?: Date;
+        
+    @Field({nullable: true, description: "Inclusive end date of the timesheet period."}) 
+    PeriodEnd?: Date;
+        
+    @Field({nullable: true, description: "Lifecycle status of the timesheet: Draft, Submitted, Approved, or Rejected."}) 
+    @MaxLength(20)
+    Status?: string;
+        
+    @Field({nullable: true, description: "Timestamp when the timesheet was most recently submitted."}) 
+    SubmittedAt?: Date;
+        
+    @Field({nullable: true, description: "The MemberJunction User who submitted the timesheet."}) 
+    @MaxLength(36)
+    SubmittedByUserID?: string;
+        
+    @Field(() => Int, {nullable: true, description: "Total minutes across all time entries attached to this timesheet."}) 
+    TotalMinutes?: number;
+        
+    @Field(() => Int, {nullable: true, description: "Total billable minutes across all time entries attached to this timesheet."}) 
+    BillableMinutes?: number;
+        
+    @Field({nullable: true, description: "Worker notes or comments submitted with the timesheet."}) 
+    Notes?: string;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field({nullable: true}) 
+    @MaxLength(250)
+    Person?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(100)
+    SubmittedByUser?: string;
+        
+    @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
+    ReadableFields___?: string[];
+        
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Timesheets
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsTasksTimesheetInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    PersonID?: string;
+
+    @Field({ nullable: true })
+    PeriodStart?: Date;
+
+    @Field({ nullable: true })
+    PeriodEnd?: Date;
+
+    @Field({ nullable: true })
+    Status?: string;
+
+    @Field({ nullable: true })
+    SubmittedAt: Date | null;
+
+    @Field({ nullable: true })
+    SubmittedByUserID: string | null;
+
+    @Field(() => Int, { nullable: true })
+    TotalMinutes?: number;
+
+    @Field(() => Int, { nullable: true })
+    BillableMinutes?: number;
+
+    @Field({ nullable: true })
+    Notes: string | null;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Timesheets
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsTasksTimesheetInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    PersonID?: string;
+
+    @Field({ nullable: true })
+    PeriodStart?: Date;
+
+    @Field({ nullable: true })
+    PeriodEnd?: Date;
+
+    @Field({ nullable: true })
+    Status?: string;
+
+    @Field({ nullable: true })
+    SubmittedAt?: Date | null;
+
+    @Field({ nullable: true })
+    SubmittedByUserID?: string | null;
+
+    @Field(() => Int, { nullable: true })
+    TotalMinutes?: number;
+
+    @Field(() => Int, { nullable: true })
+    BillableMinutes?: number;
+
+    @Field({ nullable: true })
+    Notes?: string | null;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+//****************************************************************************
+// RESOLVER for MJ_BizApps_Tasks: Timesheets
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsTasksTimesheetViewResult {
+    @Field(() => [mjBizAppsTasksTimesheet_])
+    Results: mjBizAppsTasksTimesheet_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsTasksTimesheet_)
+export class mjBizAppsTasksTimesheetResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsTasksTimesheetViewResult)
+    async RunmjBizAppsTasksTimesheetViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTimesheetViewResult)
+    async RunmjBizAppsTasksTimesheetViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTimesheetViewResult)
+    async RunmjBizAppsTasksTimesheetDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_Tasks: Timesheets';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsTasksTimesheet_, { nullable: true })
+    async mjBizAppsTasksTimesheet(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsTasksTimesheet_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Timesheets', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTimesheets')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Timesheets', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Tasks: Timesheets', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @Mutation(() => mjBizAppsTasksTimesheet_)
+    async CreatemjBizAppsTasksTimesheet(
+        @Arg('input', () => CreatemjBizAppsTasksTimesheetInput) input: CreatemjBizAppsTasksTimesheetInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_Tasks: Timesheets', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsTasksTimesheet_)
+    async UpdatemjBizAppsTasksTimesheet(
+        @Arg('input', () => UpdatemjBizAppsTasksTimesheetInput) input: UpdatemjBizAppsTasksTimesheetInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_Tasks: Timesheets', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsTasksTimesheet_)
+    async DeletemjBizAppsTasksTimesheet(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_Tasks: Timesheets', key, options, provider, userPayload, pubSub);
     }
     
 }

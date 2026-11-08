@@ -1,6 +1,8 @@
 import {
     BaseEntity,
     BaseEntityEvent,
+    BaseEntityResult,
+    EntityDeleteOptions,
     EntitySaveOptions,
     LogError,
     LogStatus,
@@ -16,11 +18,16 @@ import {
     TaskEntity,
     mjBizAppsTasksTaskActivityEntity,
     mjBizAppsTasksTaskEntity,
+    mjBizAppsTasksTaskTimeEntryEntity,
     mjBizAppsTasksTaskTypeEntity,
     mjBizAppsTasksTaskTypeStatusEntity,
 } from '@mj-biz-apps/tasks-entities';
 import { TaskService } from '@mj-biz-apps/tasks-core';
 import { PrimaryPersonIDForUser } from './UserPeople.js';
+import {
+    ApplyTimesheetApprovalOutcomeForTask,
+    TIMESHEET_APPROVAL_TASK_TYPE_CODE,
+} from './TimesheetApprovalOutcome.js';
 
 /**
  * Action hook trigger types supported on TaskType and TaskTypeStatus.
@@ -111,13 +118,99 @@ export class TaskEntityServer extends TaskEntity {
             LogError(`TaskEntityServer: activity logging failed for task ${this.ID}: ${msg}`);
         }
 
-        // 5. Post-Save Lifecycle Action & Workflow Dispatcher (asynchronous, non-blocking)
+        // 5. Timesheet approval outcome reconciliation (§6.5, awaited)
+        try {
+            await this.applyTimesheetApprovalOutcomeIfApplicable(lifecycleContext);
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : String(e);
+            LogError(`TaskEntityServer: timesheet approval outcome failed for task ${this.ID}: ${msg}`);
+        }
+
+        // 6. Post-Save Lifecycle Action & Workflow Dispatcher (asynchronous, non-blocking)
         this.dispatchLifecycleActionHooks(lifecycleContext).catch((err: unknown) => {
             const msg = err instanceof Error ? err.message : String(err);
             LogError(`TaskEntityServer: action hook dispatch error for task ${this.ID}: ${msg}`);
         });
 
         return true;
+    }
+
+    /**
+     * Refuses deleting a task when `TaskTimeEntry` rows exist for the task, reporting
+     * the exact entry count (§6.1). Time entries are permanent records of work and never cascade.
+     */
+    public override async Delete(options?: EntityDeleteOptions): Promise<boolean> {
+        if (this.ID) {
+            const entryCount = await this.countLoggedTimeEntries();
+            if (entryCount > 0) {
+                const noun = entryCount === 1 ? 'time entry' : 'time entries';
+                const msg = `Cannot delete task "${this.Name || this.ID}": it has ${entryCount} logged ${noun}.`;
+                let latest = this.LatestResult;
+                if (!latest) {
+                    latest = new BaseEntityResult();
+                    latest.Type = 'delete';
+                    this.ResultHistory.push(latest);
+                }
+                latest.Success = false;
+                latest.Message = msg;
+                latest.Errors.push(new ValidationErrorInfo(
+                    'ID',
+                    msg,
+                    this.ID,
+                    ValidationErrorType.Failure,
+                ));
+                return false;
+            }
+        }
+        return super.Delete(options);
+    }
+
+    /**
+     * Counts `TaskTimeEntry` rows logged against this task.
+     */
+    protected async countLoggedTimeEntries(): Promise<number> {
+        const rv = new RunView(this.RunViewProviderToUse);
+        const safeID = this.ID.replace(/'/g, "''");
+        const res = await rv.RunView<mjBizAppsTasksTaskTimeEntryEntity>({
+            EntityName: 'MJ_BizApps_Tasks: Task Time Entries',
+            ExtraFilter: `TaskID='${safeID}'`,
+            Fields: ['ID'],
+            ResultType: 'simple',
+        }, this.ContextCurrentUser);
+        if (!res.Success) {
+            return 0;
+        }
+        return res.Results?.length ?? res.TotalRowCount ?? 0;
+    }
+
+    /**
+     * When a task of type `TIMESHEET_APPROVAL` reaches a terminal status (`Completed`,
+     * `Cancelled`, or `Blocked`), applies the outcome to its `TimesheetApproval` part
+     * and parent `Timesheet` (§6.5).
+     */
+    protected async applyTimesheetApprovalOutcomeIfApplicable(ctx: TaskLifecycleContext): Promise<void> {
+        if (!this.ContextCurrentUser || !ctx.typeID) {
+            return;
+        }
+        if (!ctx.statusChanged && !ctx.isNew) {
+            return;
+        }
+        if (this.Status !== 'Completed' && this.Status !== 'Cancelled' && this.Status !== 'Blocked') {
+            return;
+        }
+
+        const taskType = await this.loadTaskType(ctx.typeID);
+        if (!taskType || taskType.Code !== TIMESHEET_APPROVAL_TASK_TYPE_CODE) {
+            return;
+        }
+
+        await ApplyTimesheetApprovalOutcomeForTask(
+            this.ID,
+            this.Status,
+            this.ContextCurrentUser,
+            Metadata.Provider,
+            this.RunViewProviderToUse,
+        );
     }
 
     /** Refuses changing a recorded creator, on top of the client-safe field rules. */

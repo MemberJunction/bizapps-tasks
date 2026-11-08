@@ -17,10 +17,16 @@ import { TaskPanelComponent } from './components/task-panel/task-panel.component
 import { TaskDashboardComponent } from './components/task-dashboard/task-dashboard.component';
 import { ApprovalInboxComponent } from './components/approval-inbox/approval-inbox.component';
 import { ApprovalDecisionPanelComponent } from './components/approval-decision-panel/approval-decision-panel.component';
+import { TimesheetPartApprovalPanelComponent } from './components/approval-decision-panel/timesheet-part-approval-panel.component';
+import { RunningTimerChipComponent } from './components/running-timer-chip/running-timer-chip.component';
+import { TaskTimeEffortComponent } from './components/task-time-effort/task-time-effort.component';
+import { TimeApproversComponent } from './components/time-approvers/time-approvers.component';
+import { MyTimeComponent } from './components/my-time/my-time.component';
 
 // Dashboard Pages
 import { TasksDashboardPageComponent } from './pages/tasks-dashboard.page';
 import { MyTasksPageComponent } from './pages/my-tasks.page';
+import { MyTimePageComponent } from './pages/my-time.page';
 import { ApprovalsPageComponent } from './pages/approvals.page';
 import { TemplatesPageComponent } from './pages/templates.page';
 
@@ -28,6 +34,7 @@ import { TemplatesPageComponent } from './pages/templates.page';
 import {
     TasksSectionResource,
     MyTasksSectionResource,
+    MyTimeSectionResource,
     ApprovalsSectionResource,
     TemplatesSectionResource,
     LoadTasksSectionResources,
@@ -52,12 +59,19 @@ import {
         TaskPanelComponent,
         ApprovalInboxComponent,
         ApprovalDecisionPanelComponent,
+        TimesheetPartApprovalPanelComponent,
+        RunningTimerChipComponent,
+        TaskTimeEffortComponent,
+        TimeApproversComponent,
+        MyTimeComponent,
         TasksDashboardPageComponent,
         MyTasksPageComponent,
+        MyTimePageComponent,
         ApprovalsPageComponent,
         TemplatesPageComponent,
         TasksSectionResource,
         MyTasksSectionResource,
+        MyTimeSectionResource,
         ApprovalsSectionResource,
         TemplatesSectionResource,
     ],
@@ -76,12 +90,19 @@ import {
         TaskPanelComponent,
         ApprovalInboxComponent,
         ApprovalDecisionPanelComponent,
+        TimesheetPartApprovalPanelComponent,
+        RunningTimerChipComponent,
+        TaskTimeEffortComponent,
+        TimeApproversComponent,
+        MyTimeComponent,
         TasksDashboardPageComponent,
         MyTasksPageComponent,
+        MyTimePageComponent,
         ApprovalsPageComponent,
         TemplatesPageComponent,
         TasksSectionResource,
         MyTasksSectionResource,
+        MyTimeSectionResource,
         ApprovalsSectionResource,
         TemplatesSectionResource,
     ]

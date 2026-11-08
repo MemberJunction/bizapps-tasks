@@ -1,0 +1,17 @@
+[
+  {
+    "fields": {
+      "Name": "Tasks",
+      "ParentID": null,
+      "Description": "BizApps Tasks stored queries for time tracking, project effort vs. estimate rollups, AI agent cost/token attribution, and timesheet approval status.",
+      "UserID": "@lookup:MJ: Users.Name=System"
+    },
+    "primaryKey": {
+      "ID": "A1B2C3D4-7777-4A77-8777-777777777700"
+    },
+    "sync": {
+      "lastModified": "2026-11-08T21:47:01.783Z",
+      "checksum": "a0d9eacca25a5037ab154bd714c6c6029fe6adc029e046530a12d17bc1fe7a4b"
+    }
+  }
+]

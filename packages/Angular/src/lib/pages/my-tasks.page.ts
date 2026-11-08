@@ -4,6 +4,7 @@ import { LogError } from '@memberjunction/core';
 import { ResolveCurrentPersonID, NO_PERSON_MESSAGE, PERSON_LOOKUP_FAILED_MESSAGE } from '../current-person';
 import { OpenTaskRecord } from '../open-task-record';
 import { MyTasksComponent } from '../components/my-tasks/my-tasks.component';
+import { RunningTimerChipComponent } from '../components/running-timer-chip/running-timer-chip.component';
 import { TaskDetailPanelComponent } from '../components/task-detail-panel/task-detail-panel.component';
 import { TaskEditPanelComponent } from '../components/task-edit-panel/task-edit-panel.component';
 import { TaskRow } from '../components/task-list/task-list.component';
@@ -11,7 +12,7 @@ import { TaskRow } from '../components/task-list/task-list.component';
 @Component({
     selector: 'bizapps-my-tasks-page',
     standalone: true,
-    imports: [CommonModule, MyTasksComponent, TaskDetailPanelComponent, TaskEditPanelComponent],
+    imports: [CommonModule, MyTasksComponent, RunningTimerChipComponent, TaskDetailPanelComponent, TaskEditPanelComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         <div class="mjt-page-wrap">
@@ -26,6 +27,7 @@ import { TaskRow } from '../components/task-list/task-list.component';
                             <p class="mjt-subtitle">Tasks assigned to you across all projects, committees, and workspaces.</p>
                         </div>
                     </div>
+                    <bizapps-running-timer-chip [PersonID]="PersonID"></bizapps-running-timer-chip>
                 </div>
             </div>
 

@@ -1,7 +1,7 @@
 /**
  * BizApps Tasks Server Bootstrap
  * Import this package and call LoadBizAppsTasksServer() to register
- * all Tasks entity classes, actions, and services with MJ.
+ * all Tasks entity classes, actions, remote operations, and scheduled jobs with MJ.
  */
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,15 +14,48 @@ import '@mj-biz-apps/tasks-actions';
 import '@mj-biz-apps/tasks-core';
 
 // Import server-side entity subclasses (priority-2 overrides with server-only
-// side-effects such as sub-task progress rollup).
+// side-effects such as sub-task progress rollup, time entry validation, and timesheet outcomes).
 import { LoadBizAppsTasksEntitiesServer } from '@mj-biz-apps/tasks-entities-server';
 
 // Import notification handler
 import { InitTaskNotificationHandler } from './event-handlers/TaskNotificationHandler.js';
 
 // Import scheduled job drivers (registers via @RegisterClass for scheduling engine discovery)
-import './scheduled-jobs/OverdueTaskNotificationJob.js';
-export { OverdueTaskNotificationJob } from './scheduled-jobs/OverdueTaskNotificationJob.js';
+import { OverdueTaskNotificationJob } from './scheduled-jobs/OverdueTaskNotificationJob.js';
+import {
+    ReconcileStaleTimesheetApprovals,
+    TimesheetApprovalReconcileJob,
+    type TimesheetApprovalReconcileSummary,
+} from './scheduled-jobs/TimesheetApprovalReconcileJob.js';
+
+// Import server-side Remote Operation implementations (registers via @RegisterClass(BaseRemotableOperation, ...))
+import {
+    ConvertTimerToEntriesInTransaction,
+    ResolveBusinessTimeZone,
+    StartTimerOperationServer,
+    StopTimerOperationServer,
+} from './remote-operations/TimerOperationsServer.js';
+import { GetTaskEffortOperationServer } from './remote-operations/GetTaskEffortOperationServer.js';
+import {
+    ReopenTimesheetOperationServer,
+    SubmitTimesheetOperationServer,
+    WithdrawTimesheetOperationServer,
+} from './remote-operations/TimesheetOperationsServer.js';
+
+export {
+    OverdueTaskNotificationJob,
+    TimesheetApprovalReconcileJob,
+    ReconcileStaleTimesheetApprovals,
+    type TimesheetApprovalReconcileSummary,
+    StartTimerOperationServer,
+    StopTimerOperationServer,
+    ConvertTimerToEntriesInTransaction,
+    ResolveBusinessTimeZone,
+    GetTaskEffortOperationServer,
+    SubmitTimesheetOperationServer,
+    WithdrawTimesheetOperationServer,
+    ReopenTimesheetOperationServer,
+};
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -35,6 +68,17 @@ export const RESOLVER_PATHS: string[] = [
     resolve(__dirname, 'generated/*.js'),
 ];
 
+const SERVER_REGISTERED_CLASSES = [
+    OverdueTaskNotificationJob,
+    TimesheetApprovalReconcileJob,
+    StartTimerOperationServer,
+    StopTimerOperationServer,
+    GetTaskEffortOperationServer,
+    SubmitTimesheetOperationServer,
+    WithdrawTimesheetOperationServer,
+    ReopenTimesheetOperationServer,
+];
+
 /**
  * Bootstrap function — call this from MJAPI's index.ts to register
  * all Tasks classes and services.
@@ -45,5 +89,8 @@ export const RESOLVER_PATHS: string[] = [
 export function LoadBizAppsTasksServer(): void {
     LoadBizAppsTasksEntitiesServer();
     InitTaskNotificationHandler();
+    if (SERVER_REGISTERED_CLASSES.length === 0) {
+        throw new Error('Unreachable: server classes missing');
+    }
     console.log('[BizAppsTasks] Server loaded');
 }

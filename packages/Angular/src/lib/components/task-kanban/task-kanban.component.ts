@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, in
 import { CommonModule } from '@angular/common';
 import { CompositeKey, Metadata, RunView } from '@memberjunction/core';
 import { MjKanbanBoardComponent, KanbanCardData, KanbanColumnDef, KanbanCardMovedEvent } from '@memberjunction/ng-kanban';
+import { FormatDurationMinutes } from '@mj-biz-apps/tasks-core';
 import type { mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
 
 /**
@@ -28,6 +29,7 @@ export interface KanbanTaskData {
     DueAt: string | null;
     PercentComplete: number | null;
     HoursEstimated: number | null;
+    LoggedMinutes?: number | null;
     ParentID: string | null;
 }
 
@@ -147,17 +149,26 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
             BypassCache: bypassCache,
         });
 
-        this.cards = (result?.Results ?? []).map((r) => ({
-            ID: r.ID,
-            Title: r.Name,
-            Subtitle: r.Description || undefined,
-            ColumnKey: r.Status,
-            Color: PRIORITY_COLORS[r.Priority] || undefined,
-            BadgeText: r.Priority,
-            BadgeColor: PRIORITY_BADGE_COLORS[r.Priority] || undefined,
-            FooterText: r.DueAt ? new Date(r.DueAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : undefined,
-            Data: r,
-        }));
+        this.cards = (result?.Results ?? []).map((r) => {
+            const dueText = r.DueAt
+                ? new Date(r.DueAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                : null;
+            const loggedText = r.LoggedMinutes && r.LoggedMinutes > 0
+                ? FormatDurationMinutes(r.LoggedMinutes)
+                : null;
+            const footerParts = [dueText, loggedText].filter((p): p is string => !!p);
+            return {
+                ID: r.ID,
+                Title: r.Name,
+                Subtitle: r.Description || undefined,
+                ColumnKey: r.Status,
+                Color: PRIORITY_COLORS[r.Priority] || undefined,
+                BadgeText: r.Priority,
+                BadgeColor: PRIORITY_BADGE_COLORS[r.Priority] || undefined,
+                FooterText: footerParts.length > 0 ? footerParts.join(' · ') : undefined,
+                Data: r,
+            };
+        });
         this.cdr.markForCheck();
     }
 

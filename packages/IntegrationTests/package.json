@@ -25,11 +25,15 @@
   },
   "dependencies": {
     "@memberjunction/core": "^6.1.6",
+    "@memberjunction/core-entities": "^6.1.6",
     "@memberjunction/global": "^6.1.6",
     "@memberjunction/testing-integration": "^6.1.6",
-    "@mj-biz-apps/common-entities": ">=5.37.0",
+    "@mj-biz-apps/common-entities": ">=5.43.0",
+    "@mj-biz-apps/tasks-actions": "^1.10.0",
+    "@mj-biz-apps/tasks-core": "^1.10.0",
     "@mj-biz-apps/tasks-entities": "^1.10.0",
-    "@mj-biz-apps/tasks-entities-server": "^1.10.0"
+    "@mj-biz-apps/tasks-entities-server": "^1.10.0",
+    "@mj-biz-apps/tasks-server": "^1.10.0"
   },
   "repository": {
     "type": "git",

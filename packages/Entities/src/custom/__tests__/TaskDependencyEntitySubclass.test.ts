@@ -5,6 +5,8 @@ const { runViewMock } = vi.hoisted(() => ({ runViewMock: vi.fn() }));
 
 vi.mock('@memberjunction/global', () => ({
   RegisterClass: () => () => {},
+  UUIDsEqual: (a: string | null | undefined, b: string | null | undefined) =>
+    (a ?? '').toLowerCase() === (b ?? '').toLowerCase(),
 }));
 
 vi.mock('@memberjunction/core', () => {

@@ -10,6 +10,7 @@ import { TaskGanttComponent } from '../components/task-gantt/task-gantt.componen
 import { TaskDetailPanelComponent } from '../components/task-detail-panel/task-detail-panel.component';
 import { TaskEditPanelComponent } from '../components/task-edit-panel/task-edit-panel.component';
 import { TaskTemplateWizardComponent } from '../components/task-template-wizard/task-template-wizard.component';
+import { RunningTimerChipComponent } from '../components/running-timer-chip/running-timer-chip.component';
 import { TaskViewMode } from '../components/task-panel/task-panel.component';
 import { MJViewToggleComponent, ViewToggleOption } from '@memberjunction/ng-ui-components';
 
@@ -45,6 +46,7 @@ export interface TaskKPIs {
         TaskDetailPanelComponent,
         TaskEditPanelComponent,
         TaskTemplateWizardComponent,
+        RunningTimerChipComponent,
         MJViewToggleComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -64,6 +66,7 @@ export interface TaskKPIs {
                     </div>
 
                     <div class="mjt-actions-strip">
+                        <bizapps-running-timer-chip [PersonID]="CurrentPersonID"></bizapps-running-timer-chip>
                         <!-- View Toggle -->
                         <mj-view-toggle
                             [Options]="ViewToggleOptions"

@@ -39,6 +39,7 @@ vi.mock('@memberjunction/core', () => {
         return {};
       }
     },
+    BaseRemotableOperation: class {},
     LogError: vi.fn(),
     LogStatus: vi.fn(),
     Metadata: class {

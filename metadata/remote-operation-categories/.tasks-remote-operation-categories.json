@@ -1,0 +1,16 @@
+[
+  {
+    "fields": {
+      "Name": "Time Tracking",
+      "Description": "Remote operations for BizApps Tasks time tracking, stopwatch timers, combined human + agent task effort rollups, and timesheet submission/approval workflows.",
+      "ParentID": null
+    },
+    "primaryKey": {
+      "ID": "A1B2C3D4-5555-4A55-8555-555555555500"
+    },
+    "sync": {
+      "lastModified": "2026-11-08T21:46:52.963Z",
+      "checksum": "ab6f2a81e74287e2e3f4463689e9cc360d89557d26947cb6d23d098910e67ac9"
+    }
+  }
+]

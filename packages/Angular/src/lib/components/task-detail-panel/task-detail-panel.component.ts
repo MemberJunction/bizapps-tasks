@@ -5,6 +5,7 @@ import { BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { Metadata, RunView, CompositeKey } from '@memberjunction/core';
 import { OpenTaskRecord } from '../../open-task-record';
 import { TaskAssigneeInfo } from '../task-assignee-list/task-assignee-list.component';
+import { TaskTimeEffortComponent } from '../task-time-effort/task-time-effort.component';
 
 /**
  * A single entry in the activity/comment timeline displayed by
@@ -64,7 +65,7 @@ export class BeforeCommentPostedEvent {
     selector: 'bizapps-task-detail-panel',
     standalone: true,
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [CommonModule, FormsModule, BaseFormsModule],
+    imports: [CommonModule, FormsModule, BaseFormsModule, TaskTimeEffortComponent],
     template: `
         @if (TaskID) {
             <div class="detail-panel">
@@ -219,6 +220,13 @@ export class BeforeCommentPostedEvent {
                             </div>
                         }
                     </div>
+
+                    <!-- Time & Effort (§8.1–8.3, §8.5) -->
+                    <bizapps-task-time-effort
+                        [TaskID]="TaskID"
+                        [PersonID]="PersonID"
+                        [ReadOnly]="ReadOnly">
+                    </bizapps-task-time-effort>
 
                     <!-- Activity + Comments -->
                     <div class="field-block">

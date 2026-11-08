@@ -195,5 +195,237 @@
         }
       ]
     }
+  },
+  {
+    "fields": {
+      "Name": "Link Agent Run to Task",
+      "CategoryID": "@lookup:MJ: Action Categories.Name=Tasks",
+      "Description": "Idempotently links an MJ: AI Agent Runs record to a Task (creating or returning the TaskAgentRun row) and optionally creates a TaskTimeEntry row with Source = 'Agent' from the agent run's elapsed duration.",
+      "Type": "Custom",
+      "DriverClass": "LinkAgentRunToTaskAction",
+      "IconClass": "fa-solid fa-robot",
+      "UserPrompt": "Link an AI Agent Run to a Task and optionally log its wall-clock duration as an Agent time entry.",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "A1B2C3D4-6666-4A66-8666-666666666601"
+    },
+    "relatedEntities": {
+      "MJ: Action Params": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "TaskID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": true,
+            "Description": "UUID of the Task to link the AI agent run to."
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-6666-4A66-8666-666666666602"
+          },
+          "sync": {
+            "lastModified": "2026-11-08T21:46:52.681Z",
+            "checksum": "33f104d347f854826c18c022061be8918c022ce4df2e9d2200dc5b0ec144b2e6"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "AIAgentRunID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": true,
+            "Description": "UUID of the MJ: AI Agent Runs record to link."
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-6666-4A66-8666-666666666603"
+          },
+          "sync": {
+            "lastModified": "2026-11-08T21:46:52.701Z",
+            "checksum": "ea82224adf392addd64e509bb5ed5cc4419505140447b3d2de73fcd7fea31354"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Role",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "DefaultValue": "Executed",
+            "Description": "How the agent run contributed to the task: Executed, Assisted, Reviewed, Planned, or Triaged."
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-6666-4A66-8666-666666666604"
+          },
+          "sync": {
+            "lastModified": "2026-11-08T21:46:52.726Z",
+            "checksum": "c4d87e60565aadc31764239b5daf75ba172ff79b8371d71a06bc41227086ae0e"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Notes",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional notes describing the agent run's contribution."
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-6666-4A66-8666-666666666605"
+          },
+          "sync": {
+            "lastModified": "2026-11-08T21:46:52.745Z",
+            "checksum": "192f55f89274fdfcf8c61df1777a86199c786340b98de7a33c2b02d14ffe666d"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "LogWallClockAsTimeEntry",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "DefaultValue": "false",
+            "Description": "When true, also creates a TaskTimeEntry row with Source = 'Agent' for the agent run's elapsed minutes."
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-6666-4A66-8666-666666666606"
+          },
+          "sync": {
+            "lastModified": "2026-11-08T21:46:52.769Z",
+            "checksum": "5521df051842a260541154e9dda63c831b85703e0d4e3067d1049720554d30e2"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "PersonID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "PersonID to attribute the Agent time entry to when LogWallClockAsTimeEntry is true (defaults to the current user's linked Person)."
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-6666-4A66-8666-666666666607"
+          },
+          "sync": {
+            "lastModified": "2026-11-08T21:46:52.789Z",
+            "checksum": "f687b4e33a67e2e5daa1828f1e47278b71b23a9f220ccc255b159e4c00ee9805"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "TaskAgentRunID",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "ID of the created or existing TaskAgentRun record."
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-6666-4A66-8666-666666666608"
+          },
+          "sync": {
+            "lastModified": "2026-11-08T21:46:52.808Z",
+            "checksum": "22d745365ac3402c6b7a42923c07c5776fb02c49b3cb8ca43f898137d078884d"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "TaskTimeEntryID",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "ID of the created TaskTimeEntry record when LogWallClockAsTimeEntry is true."
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-6666-4A66-8666-666666666609"
+          },
+          "sync": {
+            "lastModified": "2026-11-08T21:46:52.827Z",
+            "checksum": "495905455eea045c06dd7d83f11f829238f9fea5b6fa3479cb28814162da8388"
+          }
+        }
+      ],
+      "MJ: Action Result Codes": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "SUCCESS",
+            "IsSuccess": true,
+            "Description": "The AI Agent Run was linked to the Task."
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-6666-4A66-8666-666666666610"
+          },
+          "sync": {
+            "lastModified": "2026-11-08T21:46:52.872Z",
+            "checksum": "36718c3af49b483652c6cdd4e2a5ca732df668dabc2654ec242be9e589a372b6"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "MISSING_PARAMS",
+            "IsSuccess": false,
+            "Description": "TaskID or AIAgentRunID was not supplied or is invalid."
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-6666-4A66-8666-666666666611"
+          },
+          "sync": {
+            "lastModified": "2026-11-08T21:46:52.884Z",
+            "checksum": "61dcfff8454ed860f09a13c4c26bc7f45827b5e6ff469714f449ed49c3fe526b"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "NOT_FOUND",
+            "IsSuccess": false,
+            "Description": "The specified Task or AI Agent Run could not be found."
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-6666-4A66-8666-666666666612"
+          },
+          "sync": {
+            "lastModified": "2026-11-08T21:46:52.895Z",
+            "checksum": "ba32c4aa7acdc011e74e1b7346f4309a13d2164e5eb5bb1073aa1d21c686ff08"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "ERROR",
+            "IsSuccess": false,
+            "Description": "An error occurred while linking the AI Agent Run to the Task."
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-6666-4A66-8666-666666666613"
+          },
+          "sync": {
+            "lastModified": "2026-11-08T21:46:52.908Z",
+            "checksum": "297b250cab451e8ce4e4ef2d14bc35c0c5be45e8474df6c377ee655e83045ed9"
+          }
+        }
+      ]
+    },
+    "sync": {
+      "lastModified": "2026-11-08T21:46:52.618Z",
+      "checksum": "11cb1e00543a408a6f0f62c6e5660e90fc680e1d44066d03f651a9b95cfc2257"
+    }
   }
 ]
