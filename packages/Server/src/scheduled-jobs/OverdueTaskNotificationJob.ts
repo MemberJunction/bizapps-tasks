@@ -21,7 +21,7 @@ import { MJScheduledJobEntity } from '@memberjunction/core-entities';
 import { RegisterClass } from '@memberjunction/global';
 import { BaseScheduledJob, ScheduledJobExecutionContext } from '@memberjunction/scheduling-engine';
 import { ScheduledJobResult, NotificationContent } from '@memberjunction/scheduling-base-types';
-import { ResolveUserIDsForPeople } from '../person-user-link.js';
+import { ResolveUserIDsForPeople } from '@mj-biz-apps/common-entities';
 
 /** Shape of the TaskNotificationConfig rows loaded from the DB. */
 interface NotificationConfig {

@@ -21,7 +21,7 @@ import {
 } from '@memberjunction/core';
 import { MJEventType, MJGlobal, MJEvent, UUIDsEqual } from '@memberjunction/global';
 import { Subscription } from 'rxjs';
-import { ResolveUserIDForPerson, ResolveUserIDsForPeople } from '../person-user-link.js';
+import { ResolveUserIDForPerson, ResolveUserIDsForPeople } from '@mj-biz-apps/common-entities';
 
 /** Entity names we listen for */
 const TASKS_ENTITY = 'MJ_BizApps_Tasks: Tasks';

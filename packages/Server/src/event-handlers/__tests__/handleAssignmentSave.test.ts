@@ -25,8 +25,8 @@ vi.mock('@memberjunction/global', () => ({
   MJGlobal: { Instance: { GetGlobalObjectStore: () => ({}), GetEventListener: () => ({ subscribe: () => ({ unsubscribe() {} }) }) } },
 }));
 // The resolver answers from the mocked People rows' LinkedUserID here; its own rules (the user's
-// People link first) are covered in src/__tests__/person-user-link.test.ts.
-vi.mock('../../person-user-link.js', () => {
+// People link first) are covered by @mj-biz-apps/common-entities' own tests.
+vi.mock('@mj-biz-apps/common-entities', () => {
   const linkedUsers = async (personIDs: string[]): Promise<Map<string, string>> => {
     const found = new Map<string, string>();
     for (const personID of personIDs) {
