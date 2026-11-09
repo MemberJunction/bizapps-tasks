@@ -17,7 +17,7 @@ import { MaxLength } from 'class-validator';
 import * as mj_core_schema_server_object_types from '@memberjunction/server'
 
 
-import { mjBizAppsTasksTaskActivityEntity, mjBizAppsTasksTaskAssignmentEntity, mjBizAppsTasksTaskCategoryEntity, mjBizAppsTasksTaskCheckInEntity, mjBizAppsTasksTaskCommentEntity, mjBizAppsTasksTaskDecisionOutcomeEntity, mjBizAppsTasksTaskDecisionEntity, mjBizAppsTasksTaskDependencyEntity, mjBizAppsTasksTaskLinkEntity, mjBizAppsTasksTaskNotificationConfigEntity, mjBizAppsTasksTaskNotificationLogEntity, mjBizAppsTasksTaskRoleEntity, mjBizAppsTasksTaskTagLinkEntity, mjBizAppsTasksTaskTagEntity, mjBizAppsTasksTaskTemplateItemDependencyEntity, mjBizAppsTasksTaskTemplateItemRoleEntity, mjBizAppsTasksTaskTemplateItemEntity, mjBizAppsTasksTaskTemplateEntity, mjBizAppsTasksTaskTypeStatusEntity, mjBizAppsTasksTaskTypeEntity, mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
+import { mjBizAppsTasksTaskActivityEntity, mjBizAppsTasksTaskAssignmentEntity, mjBizAppsTasksTaskCategoryEntity, mjBizAppsTasksTaskCheckInEntity, mjBizAppsTasksTaskCommentEntity, mjBizAppsTasksTaskDecisionOutcomeEntity, mjBizAppsTasksTaskDecisionEntity, mjBizAppsTasksTaskDependencyEntity, mjBizAppsTasksTaskLinkEntity, mjBizAppsTasksTaskNotificationConfigEntity, mjBizAppsTasksTaskNotificationLogEntity, mjBizAppsTasksTaskRoleEntity, mjBizAppsTasksTaskTagLinkEntity, mjBizAppsTasksTaskTagEntity, mjBizAppsTasksTaskTemplateItemDependencyEntity, mjBizAppsTasksTaskTemplateItemRoleEntity, mjBizAppsTasksTaskTemplateItemEntity, mjBizAppsTasksTaskTemplateEntity, mjBizAppsTasksTaskTypeStatusEntity, mjBizAppsTasksTaskTypeEntity, mjBizAppsTasksTaskEntity, mjBizAppsTasksWorkReportItemEntity, mjBizAppsTasksWorkReportEntity } from '@mj-biz-apps/tasks-entities';
     
 
 //****************************************************************************
@@ -3863,6 +3863,10 @@ export class mjBizAppsTasksTaskType_ {
     @Field(() => Boolean, {nullable: true, description: "When true, tasks of this type are approvals: they appear in the approvals inbox of each assignee, who records a decision on them."}) 
     IsApproval?: boolean;
         
+    @Field({nullable: true, description: "Optional MemberJunction Entity name (e.g. MJ_BizApps_Tasks_GitHub: GitHub Issue Tasks) of the disjoint IS-A child of MJ_BizApps_Tasks: Tasks provisioned for tasks of this type. Read declaratively by Task SubtypeSelector (TypeID.ExtensionEntity)."}) 
+    @MaxLength(255)
+    ExtensionEntity?: string;
+        
     @Field({nullable: true}) 
     @MaxLength(425)
     OnAssignAction?: string;
@@ -3953,6 +3957,9 @@ export class CreatemjBizAppsTasksTaskTypeInput {
     @Field(() => Boolean, { nullable: true })
     IsApproval?: boolean;
 
+    @Field({ nullable: true })
+    ExtensionEntity: string | null;
+
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
 }
@@ -4010,6 +4017,9 @@ export class UpdatemjBizAppsTasksTaskTypeInput {
 
     @Field(() => Boolean, { nullable: true })
     IsApproval?: boolean;
+
+    @Field({ nullable: true })
+    ExtensionEntity?: string | null;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];
@@ -4591,6 +4601,433 @@ export class mjBizAppsTasksTaskResolver extends ResolverBase {
         const provider = GetReadWriteProvider(providers);
         const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
         return this.DeleteRecord('MJ_BizApps_Tasks: Tasks', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
+// ENTITY CLASS for MJ_BizApps_Tasks: Work Report Items
+//****************************************************************************
+@ObjectType({ description: "Individual line items in a WorkReport linking each accomplishment, next step, blocker, or at-risk item to its originating Task." })
+export class mjBizAppsTasksWorkReportItem_ {
+    @Field() 
+    @MaxLength(36)
+    ID: string;
+        
+    @Field({nullable: true, description: "Parent WorkReport that owns this line item."}) 
+    @MaxLength(36)
+    WorkReportID?: string;
+        
+    @Field({nullable: true, description: "Optional Task referenced by this report item."}) 
+    @MaxLength(36)
+    TaskID?: string;
+        
+    @Field({nullable: true, description: "Report section this line belongs to: Completed, InProgress, Next, Blockers, or AtRisk."}) 
+    @MaxLength(50)
+    Section?: string;
+        
+    @Field({nullable: true, description: "Concise description of the progress, next step, blocker, or risk for this line item."}) 
+    Summary?: string;
+        
+    @Field(() => Int, {nullable: true, description: "Display order within the parent WorkReport (ascending)."}) 
+    Sequence?: number;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    Task?: string;
+        
+    @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
+    ReadableFields___?: string[];
+        
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Work Report Items
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsTasksWorkReportItemInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    WorkReportID?: string;
+
+    @Field({ nullable: true })
+    TaskID: string | null;
+
+    @Field({ nullable: true })
+    Section?: string;
+
+    @Field({ nullable: true })
+    Summary?: string;
+
+    @Field(() => Int, { nullable: true })
+    Sequence?: number;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Work Report Items
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsTasksWorkReportItemInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    WorkReportID?: string;
+
+    @Field({ nullable: true })
+    TaskID?: string | null;
+
+    @Field({ nullable: true })
+    Section?: string;
+
+    @Field({ nullable: true })
+    Summary?: string;
+
+    @Field(() => Int, { nullable: true })
+    Sequence?: number;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+//****************************************************************************
+// RESOLVER for MJ_BizApps_Tasks: Work Report Items
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsTasksWorkReportItemViewResult {
+    @Field(() => [mjBizAppsTasksWorkReportItem_])
+    Results: mjBizAppsTasksWorkReportItem_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsTasksWorkReportItem_)
+export class mjBizAppsTasksWorkReportItemResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsTasksWorkReportItemViewResult)
+    async RunmjBizAppsTasksWorkReportItemViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksWorkReportItemViewResult)
+    async RunmjBizAppsTasksWorkReportItemViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksWorkReportItemViewResult)
+    async RunmjBizAppsTasksWorkReportItemDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_Tasks: Work Report Items';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsTasksWorkReportItem_, { nullable: true })
+    async mjBizAppsTasksWorkReportItem(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsTasksWorkReportItem_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Work Report Items', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwWorkReportItems')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Work Report Items', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Tasks: Work Report Items', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @Mutation(() => mjBizAppsTasksWorkReportItem_)
+    async CreatemjBizAppsTasksWorkReportItem(
+        @Arg('input', () => CreatemjBizAppsTasksWorkReportItemInput) input: CreatemjBizAppsTasksWorkReportItemInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_Tasks: Work Report Items', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsTasksWorkReportItem_)
+    async UpdatemjBizAppsTasksWorkReportItem(
+        @Arg('input', () => UpdatemjBizAppsTasksWorkReportItemInput) input: UpdatemjBizAppsTasksWorkReportItemInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_Tasks: Work Report Items', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsTasksWorkReportItem_)
+    async DeletemjBizAppsTasksWorkReportItem(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_Tasks: Work Report Items', key, options, provider, userPayload, pubSub);
+    }
+    
+}
+
+//****************************************************************************
+// ENTITY CLASS for MJ_BizApps_Tasks: Work Reports
+//****************************************************************************
+@ObjectType({ description: "Daily or periodic 15Five work reports summarizing what got done, what is next, blockers, and at-risk objectives for a person, drafted by their Chief of Staff and reviewed with supervisor feedback." })
+export class mjBizAppsTasksWorkReport_ {
+    @Field() 
+    @MaxLength(36)
+    ID: string;
+        
+    @Field({nullable: true, description: "The Person record whose work is summarized in this report."}) 
+    @MaxLength(36)
+    PersonID?: string;
+        
+    @Field({nullable: true, description: "Inclusive start date of the reporting window."}) 
+    PeriodStart?: Date;
+        
+    @Field({nullable: true, description: "Inclusive end date of the reporting window."}) 
+    PeriodEnd?: Date;
+        
+    @Field({nullable: true, description: "Optional concise headline for the report (e.g., Daily 15Five — 2026-11-09)."}) 
+    @MaxLength(255)
+    Title?: string;
+        
+    @Field({nullable: true, description: "Markdown body of the work report covering accomplishments, next priorities, blockers, and at-risk objectives."}) 
+    Body?: string;
+        
+    @Field({nullable: true, description: "Lifecycle status of the report: Draft (awaiting author approval), Submitted (approved by author, awaiting supervisor review), or Reviewed (supervisor feedback recorded)."}) 
+    @MaxLength(20)
+    Status?: string;
+        
+    @Field({nullable: true, description: "Optional AI Agent Run that drafted this work report."}) 
+    @MaxLength(36)
+    AuthoredByAgentRunID?: string;
+        
+    @Field({nullable: true, description: "Feedback drafted by the supervisor Chief of Staff and approved/edited by the supervisor."}) 
+    SupervisorFeedback?: string;
+        
+    @Field({nullable: true, description: "The supervisor Person record who reviewed and approved feedback on this report."}) 
+    @MaxLength(36)
+    ReviewedByPersonID?: string;
+        
+    @Field({nullable: true, description: "Timestamp when supervisor feedback was approved and recorded on this report."}) 
+    ReviewedAt?: Date;
+        
+    @Field() 
+    _mj__CreatedAt: Date;
+        
+    @Field() 
+    _mj__UpdatedAt: Date;
+        
+    @Field({nullable: true}) 
+    @MaxLength(250)
+    Person?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    AuthoredByAgentRun?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(250)
+    ReviewedByPerson?: string;
+        
+    @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
+    ReadableFields___?: string[];
+        
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Work Reports
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsTasksWorkReportInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    PersonID?: string;
+
+    @Field({ nullable: true })
+    PeriodStart?: Date;
+
+    @Field({ nullable: true })
+    PeriodEnd?: Date;
+
+    @Field({ nullable: true })
+    Title: string | null;
+
+    @Field({ nullable: true })
+    Body?: string;
+
+    @Field({ nullable: true })
+    Status?: string;
+
+    @Field({ nullable: true })
+    AuthoredByAgentRunID: string | null;
+
+    @Field({ nullable: true })
+    SupervisorFeedback: string | null;
+
+    @Field({ nullable: true })
+    ReviewedByPersonID: string | null;
+
+    @Field({ nullable: true })
+    ReviewedAt: Date | null;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Work Reports
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsTasksWorkReportInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    PersonID?: string;
+
+    @Field({ nullable: true })
+    PeriodStart?: Date;
+
+    @Field({ nullable: true })
+    PeriodEnd?: Date;
+
+    @Field({ nullable: true })
+    Title?: string | null;
+
+    @Field({ nullable: true })
+    Body?: string;
+
+    @Field({ nullable: true })
+    Status?: string;
+
+    @Field({ nullable: true })
+    AuthoredByAgentRunID?: string | null;
+
+    @Field({ nullable: true })
+    SupervisorFeedback?: string | null;
+
+    @Field({ nullable: true })
+    ReviewedByPersonID?: string | null;
+
+    @Field({ nullable: true })
+    ReviewedAt?: Date | null;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+    
+//****************************************************************************
+// RESOLVER for MJ_BizApps_Tasks: Work Reports
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsTasksWorkReportViewResult {
+    @Field(() => [mjBizAppsTasksWorkReport_])
+    Results: mjBizAppsTasksWorkReport_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsTasksWorkReport_)
+export class mjBizAppsTasksWorkReportResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsTasksWorkReportViewResult)
+    async RunmjBizAppsTasksWorkReportViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksWorkReportViewResult)
+    async RunmjBizAppsTasksWorkReportViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksWorkReportViewResult)
+    async RunmjBizAppsTasksWorkReportDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_Tasks: Work Reports';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+    @Query(() => mjBizAppsTasksWorkReport_, { nullable: true })
+    async mjBizAppsTasksWorkReport(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsTasksWorkReport_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Work Reports', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwWorkReports')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Work Reports', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Tasks: Work Reports', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+    
+    @Mutation(() => mjBizAppsTasksWorkReport_)
+    async CreatemjBizAppsTasksWorkReport(
+        @Arg('input', () => CreatemjBizAppsTasksWorkReportInput) input: CreatemjBizAppsTasksWorkReportInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_Tasks: Work Reports', input, provider, userPayload, pubSub)
+    }
+        
+    @Mutation(() => mjBizAppsTasksWorkReport_)
+    async UpdatemjBizAppsTasksWorkReport(
+        @Arg('input', () => UpdatemjBizAppsTasksWorkReportInput) input: UpdatemjBizAppsTasksWorkReportInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_Tasks: Work Reports', input, provider, userPayload, pubSub);
+    }
+    
+    @Mutation(() => mjBizAppsTasksWorkReport_)
+    async DeletemjBizAppsTasksWorkReport(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_Tasks: Work Reports', key, options, provider, userPayload, pubSub);
     }
     
 }

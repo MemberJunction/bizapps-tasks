@@ -18,7 +18,9 @@
     "record-processes",
     "ml-training-pipelines",
     "ml-models",
-    "ml-model-scoring-bindings"
+    "ml-model-scoring-bindings",
+    "chief-of-staff-skills",
+    "chief-of-staff-nav-items"
   ],
   "emitSyncNotes": false,
   "sqlLogging": {

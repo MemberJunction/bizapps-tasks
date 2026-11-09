@@ -1,0 +1,17 @@
+[
+  {
+    "fields": {
+      "ApplicationID": "@lookup:MJ: Applications.Name=Chief of Staff",
+      "Name": "NavItem.bizapps-tasks.work-reports",
+      "Value": "{\"Label\": \"Reports\", \"Description\": \"Daily 15Five work reports drafted from Tasks and GitHub, plus supervisor reviews for direct reports\", \"Icon\": \"fa-solid fa-clipboard-check\", \"ResourceType\": \"Custom\", \"DriverClass\": \"BizAppsTasksChiefOfStaffWorkReports\", \"Sequence\": 25}",
+      "Comments": "Adds the Tasks app's 15Five Work Reports page to the Chief of Staff application after Approvals & Wakes (20). Read by BaseApplication.GetNavItems() in MJ core; removed by this app's teardown."
+    },
+    "primaryKey": {
+      "ID": "B4E91D72-5C3A-4E81-9F60-2A7D4C8E1B39"
+    },
+    "sync": {
+      "lastModified": "2026-11-09T22:03:01.381Z",
+      "checksum": "c82288de104673679d5fef4c0d9cd5ad2c9321a57103c84978fc9c085be9cb8c"
+    }
+  }
+]

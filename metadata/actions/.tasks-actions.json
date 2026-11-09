@@ -195,5 +195,386 @@
         }
       ]
     }
+  },
+  {
+    "fields": {
+      "Name": "Draft Work Report",
+      "CategoryID": "@lookup:MJ: Action Categories.Name=Tasks",
+      "Description": "Reads a person's task and extension activity during [PeriodStart, PeriodEnd] and creates a Draft MJ_BizApps_Tasks: Work Reports record with linked Work Report Items. Returns NO_ACTIVITY without creating a draft when no tasks changed in the window.",
+      "Type": "Custom",
+      "DriverClass": "Tasks.DraftWorkReport",
+      "IconClass": "fa-solid fa-clipboard-list",
+      "UserPrompt": "Draft a daily or periodic 15Five work report from task activity.",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "2B8E4A61-7C1D-4F39-8E24-9A1C5D7B3E40"
+    },
+    "relatedEntities": {
+      "MJ: Action Params": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "PersonID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "People record ID to draft for. Defaults to the Person linked to ContextUser."
+          },
+          "primaryKey": {
+            "ID": "3C9F5B72-8D2E-4A40-9F35-0B2D6E8C4F51"
+          },
+          "sync": {
+            "lastModified": "2026-11-09T22:03:00.924Z",
+            "checksum": "c8eba40db8da8d608862ec50a8b02f10bd26f6b9a2efc505fed4ce692cce39a3"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "PeriodStart",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "ISO-8601 start timestamp for the report window. Defaults to start of current UTC day."
+          },
+          "primaryKey": {
+            "ID": "4DA06C83-9E3F-4B51-8046-1C3E7F9D5062"
+          },
+          "sync": {
+            "lastModified": "2026-11-09T22:03:00.944Z",
+            "checksum": "a5e31d641fe758e94b0355a7eda327b917e2484ae155dffbd64d3b02ea916ff4"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "PeriodEnd",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "ISO-8601 end timestamp for the report window. Defaults to current timestamp."
+          },
+          "primaryKey": {
+            "ID": "5EB17D94-0F40-4C62-9157-2D4F80AE6173"
+          },
+          "sync": {
+            "lastModified": "2026-11-09T22:03:00.963Z",
+            "checksum": "87ffeb2c2300d6b7063eb45681e0850665f124ded3266975c820a77012b013a4"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Body",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional custom markdown body drafted by the agent; when omitted, a concise 5-minute report is synthesized from task activity."
+          },
+          "primaryKey": {
+            "ID": "6FC28EA5-1051-4D73-8268-3E5091BF7284"
+          },
+          "sync": {
+            "lastModified": "2026-11-09T22:03:00.983Z",
+            "checksum": "aaee7e6894c8fe9c03a6d07674c77535f9f3b005fdb141e23ebdcb95d327e390"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "AuthoredByAgentRunID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional MJ: AI Agent Runs ID that authored the draft."
+          },
+          "primaryKey": {
+            "ID": "70D39FB6-2162-4E84-9379-4F61A2C08395"
+          },
+          "sync": {
+            "lastModified": "2026-11-09T22:03:01.002Z",
+            "checksum": "d9468169b1b94cc796d0086bdf78126548420f31582ada4be8a89af6e5d96e11"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "WorkReportID",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "ID of the created Draft WorkReport, or empty when NO_ACTIVITY."
+          },
+          "primaryKey": {
+            "ID": "81E4A0C7-3273-4F95-848A-5072B3D194A6"
+          },
+          "sync": {
+            "lastModified": "2026-11-09T22:03:01.021Z",
+            "checksum": "d66a29bbac88d1089af47a03033d77f03597258ac918465e0d2aee95534cb199"
+          }
+        }
+      ],
+      "MJ: Action Result Codes": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "SUCCESS",
+            "IsSuccess": true,
+            "Description": "Draft work report and items created."
+          },
+          "primaryKey": {
+            "ID": "92F5B1D8-4384-40A6-959B-6183C4E2A5B7"
+          },
+          "sync": {
+            "lastModified": "2026-11-09T22:03:01.064Z",
+            "checksum": "12176913621875a12cb6cabea1ec89a9518573d858900b653840bba821bff6e9"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "NO_ACTIVITY",
+            "IsSuccess": true,
+            "Description": "No task activity occurred in the requested window; report skipped."
+          },
+          "primaryKey": {
+            "ID": "A306C2E9-5495-41B7-86AC-7294D5F3B6C8"
+          },
+          "sync": {
+            "lastModified": "2026-11-09T22:03:01.075Z",
+            "checksum": "461f048816aabe10bb919596cbe3fa5043fba9cb3dfa701d7b413c066ab456c9"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "ERROR",
+            "IsSuccess": false,
+            "Description": "Validation or persistence error."
+          },
+          "primaryKey": {
+            "ID": "B417D3FA-65A6-42C8-97BD-83A5E604C7D9"
+          },
+          "sync": {
+            "lastModified": "2026-11-09T22:03:01.086Z",
+            "checksum": "b510631ffa87de6461b0e639045c79b017274e4d6350e3eca9e1e8fb1f4bf9eb"
+          }
+        }
+      ]
+    },
+    "sync": {
+      "lastModified": "2026-11-09T22:03:00.805Z",
+      "checksum": "18b0bcb2d29d44bdd6aa4edfeca390daff2202a0c4ac058e4f7834357e63f50f"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Submit Work Report",
+      "CategoryID": "@lookup:MJ: Action Categories.Name=Tasks",
+      "Description": "Approves and submits a Draft WorkReport (optionally updating Body), resolves the author's supervisor via MJ: Employees.SupervisorID, and creates an inter-agent review request for the supervisor's Chief of Staff.",
+      "Type": "Custom",
+      "DriverClass": "Tasks.SubmitWorkReport",
+      "IconClass": "fa-solid fa-paper-plane",
+      "UserPrompt": "Submit an approved 15Five work report and notify the supervisor's Chief of Staff.",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "C528E40B-76B7-43D9-88CE-94B6F715D8EA"
+    },
+    "relatedEntities": {
+      "MJ: Action Params": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "WorkReportID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": true,
+            "Description": "ID of the Draft WorkReport to submit."
+          },
+          "primaryKey": {
+            "ID": "D639F51C-87C8-44EA-99DF-A5C70826E9FB"
+          },
+          "sync": {
+            "lastModified": "2026-11-09T22:03:01.106Z",
+            "checksum": "6fe5162927849872606d0d569865861c4bd987b1810ddaedbc779c42c705c8f7"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Body",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional edited markdown body approved by the author."
+          },
+          "primaryKey": {
+            "ID": "E74A062D-98D9-45FB-8AE0-B6D81937FA0C"
+          },
+          "sync": {
+            "lastModified": "2026-11-09T22:03:01.125Z",
+            "checksum": "2dfdada08dd5f4278a357ac521665f95a148c6ece61d7dc580a25769bae55ee0"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "SupervisorRequestID",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "ID of the inter-agent review request created for the supervisor, when a supervisor is mapped."
+          },
+          "primaryKey": {
+            "ID": "F85B173E-A9EA-460C-9BF1-C7E92A480B1D"
+          },
+          "sync": {
+            "lastModified": "2026-11-09T22:03:01.144Z",
+            "checksum": "8e3347283bb139140e2db29c648f878ff7099474484fc5859b81569a59eada3a"
+          }
+        }
+      ],
+      "MJ: Action Result Codes": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "SUCCESS",
+            "IsSuccess": true,
+            "Description": "WorkReport submitted and supervisor review requested."
+          },
+          "primaryKey": {
+            "ID": "096C284F-BAFB-471D-8C02-D8FA3B591C2E"
+          },
+          "sync": {
+            "lastModified": "2026-11-09T22:03:01.155Z",
+            "checksum": "86b3204bd5b3236feaa03be1b057675602809a7e6b83d5cc21329fba44661615"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "ERROR",
+            "IsSuccess": false,
+            "Description": "Invalid report state, unauthorized caller, or save failure."
+          },
+          "primaryKey": {
+            "ID": "1A7D3950-CB0C-482E-9D13-E90B4C6A2D3F"
+          },
+          "sync": {
+            "lastModified": "2026-11-09T22:03:01.165Z",
+            "checksum": "ecab3a8744b4d448ccda502f00bc64c7f91efbcb104f055bad186c8c10e8e5cd"
+          }
+        }
+      ]
+    },
+    "sync": {
+      "lastModified": "2026-11-09T22:03:00.830Z",
+      "checksum": "fe89ce545bc405a0ed23686a1ab4158d99d991e0d0728e2ef0ed3dc112cec2c6"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Review Work Report",
+      "CategoryID": "@lookup:MJ: Action Categories.Name=Tasks",
+      "Description": "Records approved supervisor feedback on a Submitted WorkReport, stamps ReviewedByPersonID and ReviewedAt, transitions Status to Reviewed, and notifies the author.",
+      "Type": "Custom",
+      "DriverClass": "Tasks.ReviewWorkReport",
+      "IconClass": "fa-solid fa-user-check",
+      "UserPrompt": "Send approved supervisor feedback on a submitted 15Five work report.",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "2B8E4A61-DC1D-493F-8E24-FA1C5D7B3E40"
+    },
+    "relatedEntities": {
+      "MJ: Action Params": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "WorkReportID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": true,
+            "Description": "ID of the Submitted WorkReport to review."
+          },
+          "primaryKey": {
+            "ID": "3C9F5B72-ED2E-4A40-9F35-0B2D6E8C4F52"
+          },
+          "sync": {
+            "lastModified": "2026-11-09T22:03:01.184Z",
+            "checksum": "ab21da0f97e7c7adfb5c93834822b5cec9c729161ad3b6700a138a2437428ce2"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "SupervisorFeedback",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": true,
+            "Description": "Approved feedback text from the supervisor."
+          },
+          "primaryKey": {
+            "ID": "4DA06C83-FE3F-4B51-8046-1C3E7F9D5063"
+          },
+          "sync": {
+            "lastModified": "2026-11-09T22:03:01.205Z",
+            "checksum": "bd7c958e6820dbd07b5e8f1abd69248701aea278bab178d2b2546f172685435e"
+          }
+        }
+      ],
+      "MJ: Action Result Codes": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "SUCCESS",
+            "IsSuccess": true,
+            "Description": "Supervisor feedback saved and report marked Reviewed."
+          },
+          "primaryKey": {
+            "ID": "5EB17D94-0F40-4C62-9157-2D4F80AE6174"
+          },
+          "sync": {
+            "lastModified": "2026-11-09T22:03:01.215Z",
+            "checksum": "9c26c778f5d491a3c7bcb2c2b3ef47ddd920cb97e642642cbccc78dcd80a41f7"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "ERROR",
+            "IsSuccess": false,
+            "Description": "Unauthorized reviewer, invalid report state, or save failure."
+          },
+          "primaryKey": {
+            "ID": "6FC28EA5-1051-4D73-8268-3E5091BF7285"
+          },
+          "sync": {
+            "lastModified": "2026-11-09T22:03:01.226Z",
+            "checksum": "840cbefc44d2e50dc26fbefa096d88282f7461359d04b5b3293c7a3ade45f3b3"
+          }
+        }
+      ]
+    },
+    "sync": {
+      "lastModified": "2026-11-09T22:03:00.864Z",
+      "checksum": "c78e7b3b20dbf90e1544a661e76fd8addfa8de8927d7a70a123c88b7fb53b55e"
+    }
   }
 ]

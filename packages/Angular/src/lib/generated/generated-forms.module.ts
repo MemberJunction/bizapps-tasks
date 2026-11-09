@@ -36,6 +36,8 @@ import { mjBizAppsTasksTaskTemplateItemFormComponent } from "./Entities/mjBizApp
 import { mjBizAppsTasksTaskTemplateItemRoleFormComponent } from "./Entities/mjBizAppsTasksTaskTemplateItemRole/mjbizappstaskstasktemplateitemrole.form.component";
 import { mjBizAppsTasksTaskTypeFormComponent } from "./Entities/mjBizAppsTasksTaskType/mjbizappstaskstasktype.form.component";
 import { mjBizAppsTasksTaskTypeStatusFormComponent } from "./Entities/mjBizAppsTasksTaskTypeStatus/mjbizappstaskstasktypestatus.form.component";
+import { mjBizAppsTasksWorkReportFormComponent } from "./Entities/mjBizAppsTasksWorkReport/mjbizappstasksworkreport.form.component";
+import { mjBizAppsTasksWorkReportItemFormComponent } from "./Entities/mjBizAppsTasksWorkReportItem/mjbizappstasksworkreportitem.form.component";
    
 
 @NgModule({
@@ -59,7 +61,8 @@ export class GeneratedForms_SubModule_0 { }
 @NgModule({
 declarations: [
     mjBizAppsTasksTaskDecisionOutcomeFormComponent,
-    mjBizAppsTasksTaskTypeStatusFormComponent
+    mjBizAppsTasksTaskTypeStatusFormComponent,
+    mjBizAppsTasksWorkReportFormComponent
 ],
 imports: [
     CommonModule,
@@ -96,7 +99,8 @@ export class GeneratedForms_SubModule_3 { }
 
 @NgModule({
 declarations: [
-    mjBizAppsTasksTaskNotificationConfigFormComponent
+    mjBizAppsTasksTaskNotificationConfigFormComponent,
+    mjBizAppsTasksWorkReportItemFormComponent
 ],
 imports: [
     CommonModule,
