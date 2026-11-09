@@ -1,5 +1,48 @@
 # @mj-biz-apps/tasks-core
 
+## 1.10.0
+
+### Minor Changes
+
+- 49b744f: Add Priority/OKR tracking columns on `Task` (`HealthStatus`, `ConfidenceScore`, `BaselineValue`, `TargetValue`, `CurrentValue`, `UnitOfMeasure`, `MetricDirection`, `RollupWeight`, `PlanningPeriod`, `CheckInCadence`, `LastCheckInAt`, `NextCheckInDueAt`), the `TaskCheckIn` entity, and weighted health/confidence rollup in `TaskCheckInEntityServer` and `TaskService`.
+
+### Patch Changes
+
+- 3ab8698: `TaskAssignmentService.assignToTask` throws when the assignment does not save, with the save's message, and logs no activity for it. It used to return the unsaved entity, so a caller recorded an assignment that had no row and the task was assigned to no one. `CreateApprovalRequest` passes the error on, so a refused approver assignment now fails the request instead of leaving an approval task nobody holds.
+- Updated dependencies [304ed58]
+- Updated dependencies [8f2cc7b]
+- Updated dependencies [86887d2]
+- Updated dependencies [49b744f]
+  - @mj-biz-apps/tasks-entities@1.10.0
+
+## 1.9.0
+
+### Patch Changes
+
+- Updated dependencies [525d508]
+  - @mj-biz-apps/tasks-entities@1.9.0
+
+## 1.8.0
+
+### Patch Changes
+
+- Updated dependencies [4fa9ceb]
+  - @mj-biz-apps/tasks-entities@1.8.0
+
+## 1.7.2
+
+### Patch Changes
+
+- a4ad11a: The packages' dependencies on each other are caret ranges (`^1.7.1`) instead of exact versions. A host that pins or overrides one package of this app at a later compatible version no longer forces an exact-match copy of its siblings. Changesets keeps the caret and moves its floor on each release.
+  - @mj-biz-apps/tasks-entities@1.7.2
+
+## 1.7.1
+
+### Patch Changes
+
+- Updated dependencies [cbdce43]
+  - @mj-biz-apps/tasks-entities@1.7.1
+
 ## 1.7.0
 
 ### Patch Changes

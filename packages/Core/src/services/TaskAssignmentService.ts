@@ -12,6 +12,10 @@ export class TaskAssignmentService {
     /**
      * Assigns an entity record (Person or Agent) to a task with an optional role.
      * Logs an activity entry after successful assignment.
+     *
+     * @throws when the assignment does not save. A refused save used to return the unsaved entity
+     * with an ID already on it, so the caller recorded an assignment with no row behind it and the
+     * task was assigned to no one. No activity is logged for a refused assignment.
      */
     async assignToTask(params: {
         taskID: string;
@@ -30,7 +34,11 @@ export class TaskAssignmentService {
         if (params.roleNotes) assignment.Set('RoleNotes', params.roleNotes);
         if (params.assignedByPersonID) assignment.Set('AssignedByPersonID', params.assignedByPersonID);
 
-        await assignment.Save();
+        if (!(await assignment.Save())) {
+            throw new Error(
+                `Failed to assign ${params.assigneeRecordID} to task ${params.taskID}: ${assignment.LatestResult?.CompleteMessage ?? 'the save was refused without a reason'}`,
+            );
+        }
 
         await this.taskService.logActivity({
             taskID: params.taskID,

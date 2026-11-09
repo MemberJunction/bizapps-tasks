@@ -112,7 +112,7 @@ SELECT count(*) FROM __mj."vwEntities"
  WHERE "SchemaName" = '__mj_bizappstasks'
    AND "ClassName" LIKE 'mjBizAppsTasks%';                              -- 19 (and 0 lowercase)
 
-SELECT (SELECT count(*) FROM __mj_bizappstasks."TaskType"),             -- 5
+SELECT (SELECT count(*) FROM __mj_bizappstasks."TaskType"),             -- 7
        (SELECT count(*) FROM __mj_bizappstasks."TaskRole"),             -- 3
        (SELECT count(*) FROM __mj_bizappstasks."TaskNotificationConfig"), -- 1
        (SELECT count(*) FROM __mj_bizappstasks."TaskDecisionOutcome");  -- 3

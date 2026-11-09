@@ -1,4 +1,4 @@
-import { BaseEntity, Metadata, RunView, ValidationResult, ValidationErrorInfo, ValidationErrorType } from "@memberjunction/core";
+import { BaseEntity, RunView, ValidationResult, ValidationErrorInfo, ValidationErrorType } from "@memberjunction/core";
 import { RegisterClass } from "@memberjunction/global";
 import { mjBizAppsTasksTaskDependencyEntity } from "../generated/entity_subclasses.js";
 
@@ -8,10 +8,10 @@ import { mjBizAppsTasksTaskDependencyEntity } from "../generated/entity_subclass
  * before allowing a save.
  *
  * Extends the CodeGen-generated entity (per MJ convention) so the strongly-typed
- * field accessors are inherited; registered with priority 1 to override the
- * generated base class.
+ * field accessors are inherited; registered without an explicit priority so
+ * `ClassFactory` auto-increments above the generated base class's priority 1.
  */
-@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Task Dependencies', 1)
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Task Dependencies')
 export class TaskDependencyEntity extends mjBizAppsTasksTaskDependencyEntity {
 
     public override Validate(): ValidationResult {
@@ -27,8 +27,8 @@ export class TaskDependencyEntity extends mjBizAppsTasksTaskDependencyEntity {
      * Redundant safety check (also enforced by DB CHECK constraint).
      */
     private validateNoSelfReference(result: ValidationResult): void {
-        const taskID = this.Get('TaskID') as string;
-        const dependsOnTaskID = this.Get('DependsOnTaskID') as string;
+        const taskID = this.TaskID;
+        const dependsOnTaskID = this.DependsOnTaskID;
         if (taskID && dependsOnTaskID && taskID === dependsOnTaskID) {
             result.Errors.push(new ValidationErrorInfo(
                 'DependsOnTaskID',
@@ -59,8 +59,8 @@ export class TaskDependencyEntity extends mjBizAppsTasksTaskDependencyEntity {
      * If we reach `TaskID`, saving this row would create a cycle → reject.
      */
     private async validateNoCycle(result: ValidationResult): Promise<void> {
-        const taskID = this.Get('TaskID') as string;
-        const dependsOnTaskID = this.Get('DependsOnTaskID') as string;
+        const taskID = this.TaskID;
+        const dependsOnTaskID = this.DependsOnTaskID;
         if (!taskID || !dependsOnTaskID) return;
 
         const visited = new Set<string>();
@@ -82,7 +82,7 @@ export class TaskDependencyEntity extends mjBizAppsTasksTaskDependencyEntity {
 
             // Load all tasks that `current` depends on
             const rv = new RunView();
-            const upstream = await rv.RunView<BaseEntity>({
+            const upstream = await rv.RunView<{ DependsOnTaskID: string }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Dependencies',
                 ExtraFilter: `TaskID = '${current}'`,
                 ResultType: 'simple',
@@ -90,7 +90,7 @@ export class TaskDependencyEntity extends mjBizAppsTasksTaskDependencyEntity {
 
             if (upstream?.Results) {
                 for (const dep of upstream.Results) {
-                    const upstreamID = (dep as any).DependsOnTaskID as string;
+                    const upstreamID = dep.DependsOnTaskID;
                     if (upstreamID && !visited.has(upstreamID)) {
                         queue.push(upstreamID);
                     }

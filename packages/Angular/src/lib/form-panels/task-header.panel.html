@@ -10,12 +10,25 @@
                     <span [class]="StatusClass">{{ Record.Status || 'Open' }}</span>
                     <span [class]="PriorityClass">{{ Record.Priority || 'Medium' }}</span>
                     @if (Record.Type) {
-                        <span class="mjt-chip">{{ TypeName }}</span>
+                        <span
+                            class="mjt-chip"
+                            [mjRecordLink]="Record"
+                            FieldName="TypeID"
+                            [EntityName]="'MJ_BizApps_Tasks: Task Types'"
+                            [RecordID]="Record.TypeID"
+                            [DisplayName]="Record.Type"
+                            (Navigate)="FormComponent.OnFormNavigate($event)">{{ TypeName }}</span>
                     }
                 </div>
                 <div class="mjt-hero__meta">
                     @if (Record.Category) {
-                        <span>Category: <strong>{{ CategoryName }}</strong></span>
+                        <span>Category: <strong
+                            [mjRecordLink]="Record"
+                            FieldName="CategoryID"
+                            [EntityName]="'MJ_BizApps_Tasks: Task Categories'"
+                            [RecordID]="Record.CategoryID"
+                            [DisplayName]="Record.Category"
+                            (Navigate)="FormComponent.OnFormNavigate($event)">{{ CategoryName }}</strong></span>
                         <span>&bull;</span>
                     }
                     <span>Schedule: <strong>{{ Schedule }}</strong></span>

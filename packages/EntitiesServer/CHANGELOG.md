@@ -1,5 +1,58 @@
 # @mj-biz-apps/tasks-entities-server
 
+## 1.10.0
+
+### Minor Changes
+
+- 20d8ecd: Add an optional server-side check on who may decide an approval task (bc-aidp-next-golive#320 §3). A new `TaskDecisionEntityServer` refuses a Task Decision on an approval-type task (`TaskType.IsApproval`) unless the signed-in user holds an active (Pending or InProgress) assignment on the task (through a linked Person, or assigned as the user directly), the decision is attributed to their own Person or to nobody, a named `TaskAssignmentID` is their own, and they did not create the task. Holders of the role named by the new `SelfApprovalExemptRole` setting may decide a task they created, as an assignee. Controlled by the new Tasks application setting `PreventSelfApproval`, which is off by default, so existing installs behave as before. Adds `TasksSettings`, a read-only typed façade over MJ application settings for the Tasks app (no in-process override), and the two setting rows in `metadata/application-settings`.
+
+  `TaskEntityServer` now records a new task's creator: when the caller leaves `CreatedByPersonID` unset, it is set to the signed-in user's Person (unchanged when the caller supplies one, or when the user has no Person), and a recorded creator can no longer be changed. Task creation fails if that Person lookup fails. This applies whether or not `PreventSelfApproval` is on.
+
+- 49b744f: Add Priority/OKR tracking columns on `Task` (`HealthStatus`, `ConfidenceScore`, `BaselineValue`, `TargetValue`, `CurrentValue`, `UnitOfMeasure`, `MetricDirection`, `RollupWeight`, `PlanningPeriod`, `CheckInCadence`, `LastCheckInAt`, `NextCheckInDueAt`), the `TaskCheckIn` entity, and weighted health/confidence rollup in `TaskCheckInEntityServer` and `TaskService`.
+
+### Patch Changes
+
+- Updated dependencies [3ab8698]
+- Updated dependencies [304ed58]
+- Updated dependencies [8f2cc7b]
+- Updated dependencies [86887d2]
+- Updated dependencies [49b744f]
+  - @mj-biz-apps/tasks-core@1.10.0
+  - @mj-biz-apps/tasks-entities@1.10.0
+
+## 1.9.0
+
+### Patch Changes
+
+- Updated dependencies [525d508]
+  - @mj-biz-apps/tasks-entities@1.9.0
+  - @mj-biz-apps/tasks-core@1.9.0
+
+## 1.8.0
+
+### Patch Changes
+
+- Updated dependencies [4fa9ceb]
+  - @mj-biz-apps/tasks-entities@1.8.0
+  - @mj-biz-apps/tasks-core@1.8.0
+
+## 1.7.2
+
+### Patch Changes
+
+- a4ad11a: The packages' dependencies on each other are caret ranges (`^1.7.1`) instead of exact versions. A host that pins or overrides one package of this app at a later compatible version no longer forces an exact-match copy of its siblings. Changesets keeps the caret and moves its floor on each release.
+- Updated dependencies [a4ad11a]
+  - @mj-biz-apps/tasks-core@1.7.2
+  - @mj-biz-apps/tasks-entities@1.7.2
+
+## 1.7.1
+
+### Patch Changes
+
+- Updated dependencies [cbdce43]
+  - @mj-biz-apps/tasks-entities@1.7.1
+  - @mj-biz-apps/tasks-core@1.7.1
+
 ## 1.7.0
 
 ### Patch Changes
