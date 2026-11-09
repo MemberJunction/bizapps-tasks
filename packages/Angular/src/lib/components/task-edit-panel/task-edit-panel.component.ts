@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, in
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CompositeKey, Metadata, RunView } from '@memberjunction/core';
+import { TasksSettings } from '@mj-biz-apps/tasks-core';
 
 /** @internal Represents one assignee row in the edit form. */
 interface AssigneeRow {
@@ -100,11 +101,13 @@ export class BeforeTaskSaveEvent {
                             <input type="number" [(ngModel)]="form.HoursEstimated" name="hoursEst"
                                    step="0.25" min="0" class="form-input" />
                         </div>
-                        <div class="form-group half">
-                            <label>Hours Actual</label>
-                            <input type="number" [(ngModel)]="form.HoursActual" name="hoursAct"
-                                   step="0.25" min="0" class="form-input" />
-                        </div>
+                        @if (!timeTrackingEnabled) {
+                            <div class="form-group half">
+                                <label>Hours Actual</label>
+                                <input type="number" [(ngModel)]="form.HoursActual" name="hoursAct"
+                                       step="0.25" min="0" class="form-input" />
+                            </div>
+                        }
                     </div>
 
                     <div class="form-row">
@@ -461,6 +464,8 @@ export class TaskEditPanelComponent implements OnChanges {
     newRoleName = '';
     /** @internal */
     creatingRole = false;
+    /** @internal When true, hides the manual HoursActual input per D6. */
+    timeTrackingEnabled = false;
     /** @internal */
     private peopleEntityID: string | null = null;
     /** @internal */
@@ -595,6 +600,12 @@ export class TaskEditPanelComponent implements OnChanges {
         this.peopleEntityID = Metadata.Provider.EntityByName('MJ_BizApps_Common: People')?.ID ?? null;
         if (!this.peopleEntityID) {
             this.saveError = 'People is not installed, so assignees cannot be saved.';
+        }
+        try {
+            await TasksSettings.Load(Metadata.Provider);
+            this.timeTrackingEnabled = TasksSettings.TimeTrackingEnabled(Metadata.Provider);
+        } catch {
+            this.timeTrackingEnabled = TasksSettings.TimeTrackingEnabled(Metadata.Provider);
         }
 
         if (this.TaskID && this.selectedTags.length === 0) {

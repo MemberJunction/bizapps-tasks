@@ -34,6 +34,13 @@
           "isDefault": false
         },
         {
+          "Label": "My Time",
+          "Icon": "fa-solid fa-clock",
+          "ResourceType": "Custom",
+          "DriverClass": "MyTimeSectionResource",
+          "isDefault": false
+        },
+        {
           "Label": "Approvals",
           "Icon": "fa-solid fa-stamp",
           "ResourceType": "Custom",
@@ -53,8 +60,8 @@
       "ID": "22541055-8ED4-4850-8ACD-E5EE1887B15B"
     },
     "sync": {
-      "lastModified": "2026-08-24T20:07:32.858Z",
-      "checksum": "4a1cb7a11f52bc96a8072c01db93a7bc5acc93872cd7a440d7c517cad72f1ddc"
+      "lastModified": "2026-11-08T21:46:53.158Z",
+      "checksum": "89941871846cd5454a6081bcb6a3bc14cc842785740d5cb12691884e71bbbf66"
     }
   }
 ]

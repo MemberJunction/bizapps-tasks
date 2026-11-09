@@ -1,6 +1,6 @@
 /**
  * Server-side subclass of TaskDecision — enforces who may decide an approval task
- * (bc-aidp-next-golive#320 §3, rule 1: no self-approval).
+ * (bc-aidp-next-golive#320 §3, rule 1: no self-approval, and D13: `TaskType.RequiresAssigneeDecision`).
  *
  * The rule itself is {@link TaskDecisionRefusal} (./TaskDecisionAuthority.ts). This class gathers its
  * facts on the server, where the signed-in user is known, and refuses the save through async
@@ -9,12 +9,12 @@
  * from the browser), the Tasks inbox, and other apps' server code calling
  * `TaskOrchestrationService.RecordDecision`.
  *
- * Off by default: with the Tasks setting `PreventSelfApproval` unset or false, nothing is read and
- * every decision is accepted as before.
+ * Enforced when either the Tasks setting `PreventSelfApproval` is true OR the task's `TaskType` has
+ * `RequiresAssigneeDecision = true` (D13).
  *
  * CONNECTS TO:
  *   READS:  Tasks · Task Types · Task Assignments · MJ_BizApps_Common: People · MJ: Roles · MJ: User Roles
- *   SETTINGS: ./TasksSettings.ts (PreventSelfApproval, SelfApprovalExemptRole)
+ *   SETTINGS: TasksSettings (@mj-biz-apps/tasks-core: PreventSelfApproval, SelfApprovalExemptRole)
  */
 import {
     BaseEntity,
@@ -27,9 +27,9 @@ import {
     type UserInfo,
 } from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
+import { TasksSettings } from '@mj-biz-apps/tasks-core';
 import { mjBizAppsTasksTaskDecisionEntity } from '@mj-biz-apps/tasks-entities';
 import { TaskDecisionRefusal, type DecisionAssignmentFact, type TaskDecisionFacts } from './TaskDecisionAuthority.js';
-import { TasksSettings } from './TasksSettings.js';
 import { GuidLiteral as guid, IsPeopleEntity as isPeopleEntity, PEOPLE_ENTITY, PeopleFilterForUser } from './UserPeople.js';
 
 export const TASK_DECISION_ENTITY = 'MJ_BizApps_Tasks: Task Decisions';
@@ -70,27 +70,46 @@ export class TaskDecisionEntityServer extends mjBizAppsTasksTaskDecisionEntity {
         return result;
     }
 
-    /** Why this decision must not be saved, or null. Reads nothing while the setting is off. */
+    /** Why this decision must not be saved, or null. */
     private async refusal(): Promise<string | null> {
         const provider = Metadata.Provider;
         const user = this.ContextCurrentUser;
         if (!user) {
-            // No signed-in user means no decider to check. Only the already-loaded settings cache can be
-            // read without one; when the guard is on, the save is refused rather than let through unchecked.
             return TasksSettings.PreventSelfApproval(provider)
                 ? 'The decision was not recorded: it was saved without a signed-in user, so who decided it cannot be checked.'
                 : null;
         }
         await TasksSettings.Load(provider, user);
-        if (!TasksSettings.PreventSelfApproval(provider)) return null;
-        const facts = await this.gatherFacts(provider, user);
+        const preventSelfApproval = TasksSettings.PreventSelfApproval(provider);
+        const facts = await this.gatherFacts(provider, user, preventSelfApproval);
         return facts ? TaskDecisionRefusal(facts) : null;
     }
 
-    /** The facts for {@link TaskDecisionRefusal}; null when the task is not an approval task. */
-    private async gatherFacts(provider: IMetadataProvider, user: UserInfo): Promise<TaskDecisionFacts | null> {
+    /** The facts for {@link TaskDecisionRefusal}; null when the task is not an approval task or neither guard is active. */
+    private async gatherFacts(
+        provider: IMetadataProvider,
+        user: UserInfo,
+        preventSelfApproval: boolean,
+    ): Promise<TaskDecisionFacts | null> {
         const rv = new RunView(this.RunViewProviderToUse);
         const taskFilter = guid(this.TaskID, 'TaskID');
+
+        // When PreventSelfApproval is off, first check if the task's TaskType sets RequiresAssigneeDecision (D13)
+        if (!preventSelfApproval) {
+            const taskRes = await rv.RunView<{ TypeID: string; CreatedByPersonID: string | null }>(
+                { EntityName: TASK_ENTITY, ExtraFilter: `ID = ${taskFilter}`, Fields: ['ID', 'TypeID', 'CreatedByPersonID'], MaxRows: 1, ResultType: 'simple', BypassCache: true },
+                user,
+            );
+            if (!taskRes?.Success) throw new Error(taskRes?.ErrorMessage ?? 'a lookup returned no result');
+            const task = taskRes.Results?.[0];
+            if (!task) throw new Error(`task ${this.TaskID} was not found`);
+            const typeFlags = await this.loadApprovalTypeFlags(rv, task.TypeID, user);
+            if (!typeFlags.IsApproval || !typeFlags.RequiresAssigneeDecision) {
+                return null;
+            }
+            return this.buildFactsForTask(rv, provider, user, task, false, true);
+        }
+
         const personFilter = PeopleFilterForUser(provider, user);
         const [taskRes, assignmentRes, peopleRes] = await rv.RunViews([
             { EntityName: TASK_ENTITY, ExtraFilter: `ID = ${taskFilter}`, Fields: ['ID', 'TypeID', 'CreatedByPersonID'], ResultType: 'simple', BypassCache: true },
@@ -102,12 +121,14 @@ export class TaskDecisionEntityServer extends mjBizAppsTasksTaskDecisionEntity {
         }
         const task = (taskRes.Results as Array<{ TypeID: string; CreatedByPersonID: string | null }>)[0];
         if (!task) throw new Error(`task ${this.TaskID} was not found`);
-        if (!(await this.isApprovalType(rv, task.TypeID, user))) return null;
+        const typeFlags = await this.loadApprovalTypeFlags(rv, task.TypeID, user);
+        if (!typeFlags.IsApproval) return null;
 
         const deciderPersonIDs = (peopleRes.Results as Array<{ ID: string }>).map((p) => p.ID);
         const creatorIsDecider = deciderPersonIDs.some((p) => p.toLowerCase() === (task.CreatedByPersonID ?? '').toLowerCase());
         return {
             PreventSelfApproval: true,
+            RequiresAssigneeDecision: typeFlags.RequiresAssigneeDecision,
             IsApprovalTask: true,
             DeciderUserID: user.ID,
             DeciderPersonIDs: deciderPersonIDs,
@@ -117,18 +138,67 @@ export class TaskDecisionEntityServer extends mjBizAppsTasksTaskDecisionEntity {
             Assignments: assignmentRes.Results as DecisionAssignmentFact[],
             IsPeopleEntityID: (entityID: string) => isPeopleEntity(provider, entityID),
             UsersEntityID: provider.EntityByName(USERS_ENTITY)?.ID ?? null,
-            // Only read when it matters: the decider created the task.
             DeciderIsExempt: creatorIsDecider ? await this.holdsExemptRole(rv, provider, user) : false,
         };
     }
 
-    private async isApprovalType(rv: RunView, typeID: string, user: UserInfo): Promise<boolean> {
-        const res = await rv.RunView<{ IsApproval: boolean }>(
-            { EntityName: TASK_TYPE_ENTITY, ExtraFilter: `ID = ${guid(typeID, 'TypeID')}`, Fields: ['IsApproval'], MaxRows: 1, ResultType: 'simple', BypassCache: true },
+    private async buildFactsForTask(
+        rv: RunView,
+        provider: IMetadataProvider,
+        user: UserInfo,
+        task: { TypeID: string; CreatedByPersonID: string | null },
+        preventSelfApproval: boolean,
+        requiresAssigneeDecision: boolean,
+    ): Promise<TaskDecisionFacts> {
+        const taskFilter = guid(this.TaskID, 'TaskID');
+        const personFilter = PeopleFilterForUser(provider, user);
+        const [assignmentRes, peopleRes] = await rv.RunViews([
+            { EntityName: TASK_ASSIGNMENT_ENTITY, ExtraFilter: `TaskID = ${taskFilter}`, Fields: ['ID', 'AssigneeEntityID', 'AssigneeRecordID', 'Status'], ResultType: 'simple', BypassCache: true },
+            { EntityName: PEOPLE_ENTITY, ExtraFilter: personFilter, Fields: ['ID'], ResultType: 'simple', BypassCache: true },
+        ], user);
+        for (const res of [assignmentRes, peopleRes]) {
+            if (!res?.Success) throw new Error(res?.ErrorMessage ?? 'a lookup returned no result');
+        }
+        const deciderPersonIDs = (peopleRes.Results as Array<{ ID: string }>).map((p) => p.ID);
+        const creatorIsDecider = deciderPersonIDs.some((p) => p.toLowerCase() === (task.CreatedByPersonID ?? '').toLowerCase());
+        return {
+            PreventSelfApproval: preventSelfApproval,
+            RequiresAssigneeDecision: requiresAssigneeDecision,
+            IsApprovalTask: true,
+            DeciderUserID: user.ID,
+            DeciderPersonIDs: deciderPersonIDs,
+            DecidedByPersonID: this.DecidedByPersonID ?? null,
+            TaskAssignmentID: this.TaskAssignmentID ?? null,
+            TaskCreatedByPersonID: task.CreatedByPersonID ?? null,
+            Assignments: assignmentRes.Results as DecisionAssignmentFact[],
+            IsPeopleEntityID: (entityID: string) => isPeopleEntity(provider, entityID),
+            UsersEntityID: provider.EntityByName(USERS_ENTITY)?.ID ?? null,
+            DeciderIsExempt: creatorIsDecider ? await this.holdsExemptRole(rv, provider, user) : false,
+        };
+    }
+
+    private async loadApprovalTypeFlags(
+        rv: RunView,
+        typeID: string,
+        user: UserInfo,
+    ): Promise<{ IsApproval: boolean; RequiresAssigneeDecision: boolean }> {
+        const res = await rv.RunView<{ IsApproval: boolean; RequiresAssigneeDecision?: boolean }>(
+            {
+                EntityName: TASK_TYPE_ENTITY,
+                ExtraFilter: `ID = ${guid(typeID, 'TypeID')}`,
+                Fields: ['IsApproval', 'RequiresAssigneeDecision'],
+                MaxRows: 1,
+                ResultType: 'simple',
+                BypassCache: true,
+            },
             user,
         );
         if (!res?.Success) throw new Error(res?.ErrorMessage ?? 'the task type lookup returned no result');
-        return res.Results?.[0]?.IsApproval === true;
+        const row = res.Results?.[0];
+        return {
+            IsApproval: row?.IsApproval === true,
+            RequiresAssigneeDecision: row?.RequiresAssigneeDecision === true,
+        };
     }
 
     /** Whether the user holds the role `SelfApprovalExemptRole` names. A named role that does not exist exempts nobody. */

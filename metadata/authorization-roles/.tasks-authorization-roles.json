@@ -1,0 +1,58 @@
+[
+  {
+    "fields": {
+      "AuthorizationID": "@lookup:MJ: Authorizations.Name=Manage Time Entries",
+      "RoleID": "@lookup:MJ: Roles.Name=Developer",
+      "Type": "Allow"
+    },
+    "primaryKey": {
+      "ID": "A1B2C3D4-3333-4A33-8333-333333333301"
+    },
+    "sync": {
+      "lastModified": "2026-11-08T21:46:59.594Z",
+      "checksum": "1ddb42e56517fdd1313490f2ba5206de296843fab5bba181c3d4926f7f3ff600"
+    }
+  },
+  {
+    "fields": {
+      "AuthorizationID": "@lookup:MJ: Authorizations.Name=Manage Time Entries",
+      "RoleID": "@lookup:MJ: Roles.Name=Integration",
+      "Type": "Allow"
+    },
+    "primaryKey": {
+      "ID": "A1B2C3D4-3333-4A33-8333-333333333302"
+    },
+    "sync": {
+      "lastModified": "2026-11-08T21:46:59.610Z",
+      "checksum": "a9c94783c48fc0cb30dca74d18b223f7afb7c28db4d00e217c5511bd94b3e505"
+    }
+  },
+  {
+    "fields": {
+      "AuthorizationID": "@lookup:MJ: Authorizations.Name=Manage Timesheets",
+      "RoleID": "@lookup:MJ: Roles.Name=Developer",
+      "Type": "Allow"
+    },
+    "primaryKey": {
+      "ID": "A1B2C3D4-3333-4A33-8333-333333333303"
+    },
+    "sync": {
+      "lastModified": "2026-11-08T21:46:59.627Z",
+      "checksum": "84ea848e6eada04a19343d31a0a269074ac5660e427016d10e6c69a0485e386b"
+    }
+  },
+  {
+    "fields": {
+      "AuthorizationID": "@lookup:MJ: Authorizations.Name=Manage Timesheets",
+      "RoleID": "@lookup:MJ: Roles.Name=Integration",
+      "Type": "Allow"
+    },
+    "primaryKey": {
+      "ID": "A1B2C3D4-3333-4A33-8333-333333333304"
+    },
+    "sync": {
+      "lastModified": "2026-11-08T21:46:59.642Z",
+      "checksum": "0363069e493d9b7a0cd2d725d9cfe260fbee6a240b187b9addc05e5148bd3ae6"
+    }
+  }
+]

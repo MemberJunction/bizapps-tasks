@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, inject, Input, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RunView } from '@memberjunction/core';
+import { FormatDurationClock, TaskOrchestrationService } from '@mj-biz-apps/tasks-core';
 import { ApprovalDecisionPanelComponent, DecisionRecordedEvent } from '../approval-decision-panel/approval-decision-panel.component';
 import { ApprovalTypePredicate } from './approval-type-predicate';
 
@@ -12,6 +13,16 @@ export interface ApprovalRow {
     Priority: string;
     DueAt: Date | null;
     Status: string;
+}
+
+/**
+ * Group of pending timesheet part approval tasks sharing the same project/scope label (§8.5).
+ */
+export interface ApprovalProjectGroup {
+    ScopeLabel: string;
+    Approvals: ApprovalRow[];
+    TotalMinutes: number;
+    TotalFormatted: string;
 }
 
 /**
@@ -54,19 +65,60 @@ export interface ApprovalRow {
                 } @else if (Approvals.length === 0) {
                     <div class="inbox-empty"><i class="fa-regular fa-circle-check"></i> No approvals waiting on you.</div>
                 } @else {
-                    <ul class="inbox-list">
-                        @for (a of Approvals; track a.ID) {
-                            <li class="inbox-row"
-                                [class.selected]="a.ID === SelectedApprovalID"
-                                (click)="Select(a.ID)" tabindex="0">
-                                <div class="row-main">
-                                    <span class="row-name">{{ a.Name }}</span>
-                                    @if (a.Description) { <span class="row-desc">{{ a.Description }}</span> }
+                    @if (ProjectGroups.length > 0) {
+                        @for (group of ProjectGroups; track group.ScopeLabel) {
+                            <div class="inbox-group">
+                                <div class="inbox-group-header">
+                                    <div class="group-meta">
+                                        <span class="group-label">
+                                            <i class="fa-solid fa-folder-tree"></i> {{ group.ScopeLabel }}
+                                        </span>
+                                        <span class="group-sub">
+                                            {{ group.Approvals.length }} {{ group.Approvals.length === 1 ? 'part' : 'parts' }}
+                                            · {{ group.TotalFormatted }}
+                                        </span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        class="btn-approve-all"
+                                        [disabled]="BatchApprovingLabel === group.ScopeLabel"
+                                        (click)="ApproveAllInGroup(group); $event.stopPropagation()">
+                                        <i class="fa-solid fa-check-double"></i>
+                                        {{ BatchApprovingLabel === group.ScopeLabel ? 'Approving…' : 'Approve all' }}
+                                    </button>
                                 </div>
-                                <span class="badge" [class]="priorityBadgeClass(a.Priority)">{{ a.Priority }}</span>
-                            </li>
+                                <ul class="inbox-list">
+                                    @for (a of group.Approvals; track a.ID) {
+                                        <li class="inbox-row"
+                                            [class.selected]="a.ID === SelectedApprovalID"
+                                            (click)="Select(a.ID)" tabindex="0">
+                                            <div class="row-main">
+                                                <span class="row-name">{{ a.Name }}</span>
+                                                @if (a.Description) { <span class="row-desc">{{ a.Description }}</span> }
+                                            </div>
+                                            <span class="badge" [class]="priorityBadgeClass(a.Priority)">{{ a.Priority }}</span>
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
                         }
-                    </ul>
+                    }
+
+                    @if (UngroupedApprovals.length > 0) {
+                        <ul class="inbox-list">
+                            @for (a of UngroupedApprovals; track a.ID) {
+                                <li class="inbox-row"
+                                    [class.selected]="a.ID === SelectedApprovalID"
+                                    (click)="Select(a.ID)" tabindex="0">
+                                    <div class="row-main">
+                                        <span class="row-name">{{ a.Name }}</span>
+                                        @if (a.Description) { <span class="row-desc">{{ a.Description }}</span> }
+                                    </div>
+                                    <span class="badge" [class]="priorityBadgeClass(a.Priority)">{{ a.Priority }}</span>
+                                </li>
+                            }
+                        </ul>
+                    }
                 }
             </div>
 
@@ -144,10 +196,35 @@ export interface ApprovalRow {
         .badge--high { color: var(--mj-status-warning-text); background: var(--mj-status-warning-bg); }
         .badge--medium { color: var(--mj-status-info-text); background: var(--mj-status-info-bg); }
         .badge--low { color: var(--mj-text-secondary); background: var(--mj-bg-surface-sunken); }
+
+        .inbox-group { border-bottom: 1px solid var(--mj-border-default); }
+        .inbox-group:last-child { border-bottom: none; }
+        .inbox-group-header {
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            padding: 8px 16px;
+            background: var(--mj-bg-surface-sunken);
+            border-bottom: 1px solid var(--mj-border-subtle);
+        }
+        .group-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .group-label {
+            font-size: 12px; font-weight: var(--mj-font-bold, 700);
+            color: var(--mj-text-primary); display: inline-flex; align-items: center; gap: 6px;
+        }
+        .group-sub { font-size: 12px; color: var(--mj-text-muted); }
+        .btn-approve-all {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 4px 10px; border-radius: var(--mj-radius-sm, 4px);
+            background: var(--mj-brand-primary); color: var(--mj-text-inverse, #fff);
+            border: 1px solid var(--mj-brand-primary);
+            font-size: 12px; font-weight: var(--mj-font-semibold, 600);
+            font-family: inherit; cursor: pointer;
+        }
+        .btn-approve-all:disabled { opacity: 0.5; cursor: not-allowed; }
     `]
 })
 export class ApprovalInboxComponent implements OnInit {
     private cdr = inject(ChangeDetectorRef);
+    private orchestration = new TaskOrchestrationService();
 
     // ── Inputs ──────────────────────────────────────────────
 
@@ -181,7 +258,10 @@ export class ApprovalInboxComponent implements OnInit {
     public Loading = false;
     public LoadError: string | null = null;
     public Approvals: ApprovalRow[] = [];
+    public ProjectGroups: ApprovalProjectGroup[] = [];
+    public UngroupedApprovals: ApprovalRow[] = [];
     public SelectedApprovalID: string | null = null;
+    public BatchApprovingLabel: string | null = null;
 
     async ngOnInit(): Promise<void> {
         if (this._approverPersonID) {
@@ -195,6 +275,8 @@ export class ApprovalInboxComponent implements OnInit {
     async Refresh(): Promise<void> {
         if (!this._approverPersonID) {
             this.Approvals = [];
+            this.ProjectGroups = [];
+            this.UngroupedApprovals = [];
             return;
         }
         this.Loading = true;
@@ -213,10 +295,45 @@ export class ApprovalInboxComponent implements OnInit {
                 throw new Error(result?.ErrorMessage || 'Failed to load approvals');
             }
             this.Approvals = result.Results ?? [];
+            await this.partitionTimesheetGroups();
         } catch (err) {
             this.LoadError = err instanceof Error ? err.message : String(err);
         } finally {
             this.Loading = false;
+            this.cdr.detectChanges();
+        }
+    }
+
+    /**
+     * Records an `Approved` decision for every approval task in the given project group (§8.5).
+     */
+    public async ApproveAllInGroup(group: ApprovalProjectGroup): Promise<void> {
+        if (!this._approverPersonID || this.BatchApprovingLabel) {
+            return;
+        }
+        this.BatchApprovingLabel = group.ScopeLabel;
+        this.LoadError = null;
+        this.cdr.detectChanges();
+        try {
+            for (const row of group.Approvals) {
+                const res = await this.orchestration.RecordDecision({
+                    TaskID: row.ID,
+                    OutcomeCode: 'Approved',
+                    DecidedByPersonID: this._approverPersonID,
+                });
+                this.DecisionRecorded.emit({
+                    TaskID: row.ID,
+                    OutcomeCode: 'Approved',
+                    OutcomeName: 'Approved',
+                    Notes: null,
+                    NewStatus: res.NewStatus as 'Completed' | 'Cancelled' | null,
+                });
+            }
+            await this.Refresh();
+        } catch (err) {
+            this.LoadError = err instanceof Error ? err.message : String(err);
+        } finally {
+            this.BatchApprovingLabel = null;
             this.cdr.detectChanges();
         }
     }
@@ -240,9 +357,68 @@ export class ApprovalInboxComponent implements OnInit {
     onDecisionRecorded(event: DecisionRecordedEvent): void {
         // Clear the decided row from the inbox and re-emit for consumers.
         this.Approvals = this.Approvals.filter(a => a.ID !== event.TaskID);
+        this.UngroupedApprovals = this.UngroupedApprovals.filter(a => a.ID !== event.TaskID);
+        this.ProjectGroups = this.ProjectGroups
+            .map((g) => ({
+                ...g,
+                Approvals: g.Approvals.filter((a) => a.ID !== event.TaskID),
+            }))
+            .filter((g) => g.Approvals.length > 0);
         this.SelectedApprovalID = null;
         this.DecisionRecorded.emit(event);
         this.cdr.detectChanges();
+    }
+
+    private async partitionTimesheetGroups(): Promise<void> {
+        if (this.Approvals.length === 0) {
+            this.ProjectGroups = [];
+            this.UngroupedApprovals = [];
+            return;
+        }
+        const taskIDs = this.Approvals.map((a) => `'${a.ID}'`).join(',');
+        const partRes = await new RunView().RunView<{
+            ApprovalTaskID: string | null;
+            ScopeLabel: string | null;
+            Minutes: number;
+        }>({
+            EntityName: 'MJ_BizApps_Tasks: Timesheet Approvals',
+            ExtraFilter: `ApprovalTaskID IN (${taskIDs})`,
+            Fields: ['ApprovalTaskID', 'ScopeLabel', 'Minutes'],
+            ResultType: 'simple',
+        });
+
+        const partByTaskID = new Map<string, { ScopeLabel: string; TotalMinutes: number }>();
+        for (const p of partRes?.Results ?? []) {
+            if (p.ApprovalTaskID) {
+                partByTaskID.set(p.ApprovalTaskID.toLowerCase(), {
+                    ScopeLabel: p.ScopeLabel || 'Timesheet',
+                    TotalMinutes: Number(p.Minutes ?? 0),
+                });
+            }
+        }
+
+        const groupsMap = new Map<string, { Approvals: ApprovalRow[]; TotalMinutes: number }>();
+        const ungrouped: ApprovalRow[] = [];
+
+        for (const row of this.Approvals) {
+            const part = partByTaskID.get(row.ID.toLowerCase());
+            if (part) {
+                const existing = groupsMap.get(part.ScopeLabel) ?? { Approvals: [], TotalMinutes: 0 };
+                existing.Approvals.push(row);
+                existing.TotalMinutes += part.TotalMinutes;
+                groupsMap.set(part.ScopeLabel, existing);
+            } else {
+                ungrouped.push(row);
+            }
+        }
+
+        this.ProjectGroups = Array.from(groupsMap.entries()).map(([label, data]) => ({
+            ScopeLabel: label,
+            Approvals: data.Approvals,
+            TotalMinutes: data.TotalMinutes,
+            TotalFormatted: FormatDurationClock(data.TotalMinutes),
+        }));
+        this.UngroupedApprovals = ungrouped;
     }
 
     /**

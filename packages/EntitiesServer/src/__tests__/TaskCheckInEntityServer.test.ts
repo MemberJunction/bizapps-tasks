@@ -20,16 +20,35 @@ const baseSaveMock = vi.fn(async () => true);
 
 vi.mock('@memberjunction/global', () => ({
   RegisterClass: () => () => {},
+  BaseSingleton: class {
+    public static getInstance() {
+      return {};
+    }
+  },
 }));
 
 vi.mock('@memberjunction/core', () => ({
   BaseEntity: class {},
+  BaseEngine: class {
+    public static getInstance() {
+      return {};
+    }
+  },
+  BaseRemotableOperation: class {},
   LogError: vi.fn(),
   Metadata: class {
     async GetEntityObject() {
       return parentTaskMock;
     }
   },
+}));
+
+vi.mock('@mj-biz-apps/common-entities', () => ({
+  BusinessTimeZoneEngine: { Instance: {} },
+}));
+
+vi.mock('@memberjunction/core-entities', () => ({
+  ApplicationSettingEngine: { Instance: {} },
 }));
 
 vi.mock('@mj-biz-apps/tasks-entities', () => ({

@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  <img alt="MJ Version" src="https://img.shields.io/badge/MemberJunction-6.1.6%2B-blue?style=flat-square" />
+  <img alt="MJ Version" src="https://img.shields.io/badge/MemberJunction-6.2.0%2B-blue?style=flat-square" />
   <img alt="Angular" src="https://img.shields.io/badge/Angular-21-DD0031?style=flat-square&logo=angular&logoColor=white" />
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript&logoColor=white" />
   <a href="./LICENSE"><img alt="License: BUSL-1.1" src="https://img.shields.io/badge/License-BUSL--1.1-green?style=flat-square" /></a>
@@ -46,10 +46,10 @@ mj app install https://github.com/MemberJunction/bizapps-tasks
 This single command:
 
 1. Fetches the `mj-app.json` manifest from this repository
-2. Validates MJ version compatibility (`>=6.1.6 <7.0.0`)
+2. Validates MJ version compatibility (`>=6.2.0 <7.0.0`)
 3. Installs the dependency [BizApps Common](https://github.com/MemberJunction/bizapps-common) if not already present
 4. Creates the `__mj_BizAppsTasks` database schema
-5. Runs Skyway migrations to create all 15 tables with seed data
+5. Runs Skyway migrations to create all 27 tables with seed data
 6. Installs npm packages into your MJAPI and MJExplorer workspaces
 7. Configures server bootstrap (`@mj-biz-apps/tasks-server`) in `mj.config.cjs`
 8. Adds client bootstrap (`@mj-biz-apps/tasks-ng`) to `open-app-bootstrap.generated.ts`
@@ -69,24 +69,27 @@ mj app remove bizapps-tasks     # Uninstall (--keep-data to preserve schema)
 
 ---
 
-## Architecture & Lifecycle Guide
+## Architecture & Lifecycle Guides
 
-For detailed deep-dives on **Task Types**, **Dynamic Task Type Statuses (`TaskTypeStatus`)**, **Event-Driven Action Hooks**, **Flow Agent Integration**, and **Multi-Domain Project Structures**, see the [**Task Workflow & Lifecycle Guide**](./guides/TASK_WORKFLOW_AND_LIFECYCLE_GUIDE.md).
+- [**Task Workflow & Lifecycle Guide**](./guides/TASK_WORKFLOW_AND_LIFECYCLE_GUIDE.md) — Deep dive on **Task Types**, **Dynamic Task Type Statuses (`TaskTypeStatus`)**, **Event-Driven Action Hooks**, **Flow Agent Integration**, and **Multi-Domain Project Structures**.
+- [**Time Tracking, AI Agent Effort & Timesheets Guide**](./guides/TIME_TRACKING_GUIDE.md) — User, host administrator, and developer guide covering **Live Task Timers (`TaskTimer`)**, **Manual & Weekly Time Logging (`TaskTimeEntry`)**, **AI Agent Effort & Cost Rollups (`TaskAgentRun`)**, **Multi-Project Timesheet Approvals (`Timesheet`, `TimesheetApproval`, `BaseTimeApproverResolver`)**, and **Shipped Reporting Queries**.
 
 ---
 
 ## What You Get
 
-### 16 Database Tables
+### 27 Database Tables
 
 All tables live in the `__mj_BizAppsTasks` SQL schema, deployed via migrations.
 
 | Category | Tables | Purpose |
 |----------|--------|---------|
-| **Core & Workflow** | Task, TaskType, TaskTypeStatus, TaskCategory, TaskRole | Work items, unique type codes, dynamic domain stages, and action hooks |
+| **Core & Workflow** | Task, TaskType, TaskTypeStatus, TaskCategory, TaskRole, TaskDecision, TaskDecisionOutcome, TaskCheckIn | Work items, unique type codes, dynamic domain stages, formal decisions, OKR check-ins, and action hooks |
+| **Time & Effort** | TaskTimeEntry, TaskTimer, TaskAgentRun, TaskTimeEntryLink | Human time entries, running timers, AI agent run links, and external record locks (`R8`) |
+| **Timesheets & Approvals** | Timesheet, TimesheetApproval, TimesheetSchedule, TimesheetLink, TimeApprover | Period timesheets, per-project approval parts, cadence overrides, and polymorphic approver rules |
 | **Assignment** | TaskAssignment | Multi-person polymorphic assignment (People and AI Agents) |
 | **Linking** | TaskLink | Polymorphic attachment to any entity (contracts, orders, committees, meetings) |
-| **Collaboration** | TaskComment, TaskActivity | Threaded discussion and automatic server-authoritative audit log |
+| **Collaboration** | TaskComment, TaskActivity, TaskNotificationConfig, TaskNotificationLog | Threaded discussion, server-authoritative audit log, and notifications |
 | **Structure** | TaskDependency, TaskTag, TaskTagLink | Dependency graphs, critical paths, and cross-cutting labels |
 | **Templates** | TaskTemplate, TaskTemplateItem, TaskTemplateItemDependency, TaskTemplateItemRole | Reusable task structures for recurring workflows |
 

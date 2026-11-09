@@ -48,9 +48,16 @@ export * from './lib/components/task-template-wizard/task-template-wizard.compon
 export * from './lib/components/task-dashboard/task-dashboard.component.js';
 export * from './lib/components/task-panel/task-panel.component.js';
 export * from './lib/components/approval-decision-panel/approval-decision-panel.component.js';
+export * from './lib/components/approval-decision-panel/base-approval-subject-panel.js';
+export * from './lib/components/approval-decision-panel/timesheet-part-approval-panel.component.js';
 export * from './lib/components/approval-inbox/approval-inbox.component.js';
+export * from './lib/components/running-timer-chip/running-timer-chip.component.js';
+export * from './lib/components/task-time-effort/task-time-effort.component.js';
+export * from './lib/components/time-approvers/time-approvers.component.js';
+export * from './lib/components/my-time/my-time.component.js';
 export * from './lib/components/task-overview/task-overview.component.js';
 export * from './lib/form-panels/task-overview.panel.js';
+export * from './lib/form-panels/task-time.panel.js';
 export * from './lib/form-panels/task-header.panel.js';
 export * from './lib/form-panels/task-category-hierarchy.panel.js';
 export * from './lib/form-panels/task-template-item-hierarchy.panel.js';
@@ -58,6 +65,7 @@ export * from './lib/form-panels/task-template-item-hierarchy.panel.js';
 // Pages & Section Resources
 export * from './lib/pages/tasks-dashboard.page.js';
 export * from './lib/pages/my-tasks.page.js';
+export * from './lib/pages/my-time.page.js';
 export * from './lib/pages/approvals.page.js';
 export * from './lib/pages/templates.page.js';
 export * from './lib/sections/tasks-sections.component.js';

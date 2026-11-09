@@ -1,0 +1,158 @@
+[
+  {
+    "fields": {
+      "Name": "Start Timer",
+      "OperationKey": "Tasks.StartTimer",
+      "CategoryID": "@lookup:MJ: Remote Operation Categories.Name=Time Tracking",
+      "Description": "Starts a stopwatch timer on a task for the given person (defaulting to the current user's linked Person). If a timer is already running for that person on the same task, returns the existing timer idempotently. If a timer is running on a different task, atomically stops it (splitting any cross-midnight interval into business-day TaskTimeEntry rows) and starts the new timer inside one database transaction.",
+      "InputTypeName": "StartTimerInput",
+      "InputTypeDefinition": "@file:types/tasks-start-timer.input.ts",
+      "InputTypeIsArray": false,
+      "OutputTypeName": "StartTimerOutput",
+      "OutputTypeDefinition": "@file:types/tasks-start-timer.output.ts",
+      "OutputTypeIsArray": false,
+      "ExecutionMode": "Sync",
+      "RequiresSystemUser": false,
+      "GenerationType": "Manual",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "A1B2C3D4-5555-4A55-8555-555555555501"
+    },
+    "sync": {
+      "lastModified": "2026-11-08T21:46:53.036Z",
+      "checksum": "f8e8a0d29d7acd01cd2610532ce4c898804c87aa52995463f525ec4aa7a7bb79"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Stop Timer",
+      "OperationKey": "Tasks.StopTimer",
+      "CategoryID": "@lookup:MJ: Remote Operation Categories.Name=Time Tracking",
+      "Description": "Stops the active stopwatch timer for the given person (defaulting to the current user's linked Person), converts the elapsed interval into one or more business-day TaskTimeEntry rows with Source = 'Timer' using the person's resolved business timezone, and deletes the TaskTimer row inside one database transaction.",
+      "InputTypeName": "StopTimerInput",
+      "InputTypeDefinition": "@file:types/tasks-stop-timer.input.ts",
+      "InputTypeIsArray": false,
+      "OutputTypeName": "StopTimerOutput",
+      "OutputTypeDefinition": "@file:types/tasks-stop-timer.output.ts",
+      "OutputTypeIsArray": false,
+      "ExecutionMode": "Sync",
+      "RequiresSystemUser": false,
+      "GenerationType": "Manual",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "A1B2C3D4-5555-4A55-8555-555555555502"
+    },
+    "sync": {
+      "lastModified": "2026-11-08T21:46:53.057Z",
+      "checksum": "59433c76e4c6421a01c42fc8b4d54c386a234ef895ad517fdcaed6529ccc74b2"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Get Task Effort",
+      "OperationKey": "Tasks.GetTaskEffort",
+      "CategoryID": "@lookup:MJ: Remote Operation Categories.Name=Time Tracking",
+      "Description": "Returns the complete human and AI agent effort breakdown for a task, optionally rolled up across all descendant sub-tasks via Task.RootParentID, with ancestor deduplication across linked AI agent runs.",
+      "InputTypeName": "GetTaskEffortInput",
+      "InputTypeDefinition": "@file:types/tasks-get-task-effort.input.ts",
+      "InputTypeIsArray": false,
+      "OutputTypeName": "GetTaskEffortOutput",
+      "OutputTypeDefinition": "@file:types/tasks-get-task-effort.output.ts",
+      "OutputTypeIsArray": false,
+      "ExecutionMode": "Sync",
+      "RequiresSystemUser": false,
+      "GenerationType": "Manual",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "A1B2C3D4-5555-4A55-8555-555555555503"
+    },
+    "sync": {
+      "lastModified": "2026-11-08T21:46:53.077Z",
+      "checksum": "7b5c644cb24a2002762c1e1e23a563e2aeb8b0c8f409979fc4d40aa40c897b56"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Submit Timesheet",
+      "OperationKey": "Tasks.SubmitTimesheet",
+      "CategoryID": "@lookup:MJ: Remote Operation Categories.Name=Time Tracking",
+      "Description": "Submits a Draft or Rejected timesheet for a period: stops any running timer whose business date falls in the period, attaches all unlinked TaskTimeEntry rows in [PeriodStart..PeriodEnd], computes TotalMinutes and BillableMinutes, resolves approvers per part (carrying forward unchanged Approved parts on resubmit), and spawns TIMESHEET_APPROVAL tasks in the Tasks inbox inside one database transaction.",
+      "InputTypeName": "SubmitTimesheetInput",
+      "InputTypeDefinition": "@file:types/tasks-submit-timesheet.input.ts",
+      "InputTypeIsArray": false,
+      "OutputTypeName": "SubmitTimesheetOutput",
+      "OutputTypeDefinition": "@file:types/tasks-submit-timesheet.output.ts",
+      "OutputTypeIsArray": false,
+      "ExecutionMode": "Sync",
+      "RequiresSystemUser": false,
+      "GenerationType": "Manual",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "A1B2C3D4-5555-4A55-8555-555555555504"
+    },
+    "sync": {
+      "lastModified": "2026-11-08T21:46:53.096Z",
+      "checksum": "7eb3eda274d8c395fb71e87c5292a57116ec89447755025a6b2a22d0748bfddd"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Withdraw Timesheet",
+      "OperationKey": "Tasks.WithdrawTimesheet",
+      "CategoryID": "@lookup:MJ: Remote Operation Categories.Name=Time Tracking",
+      "Description": "Withdraws a Submitted timesheet back to Draft so the worker can edit time entries, canceling all Pending TimesheetApproval rows and their backing approval tasks inside one database transaction.",
+      "InputTypeName": "WithdrawTimesheetInput",
+      "InputTypeDefinition": "@file:types/tasks-withdraw-timesheet.input.ts",
+      "InputTypeIsArray": false,
+      "OutputTypeName": "WithdrawTimesheetOutput",
+      "OutputTypeDefinition": "@file:types/tasks-withdraw-timesheet.output.ts",
+      "OutputTypeIsArray": false,
+      "ExecutionMode": "Sync",
+      "RequiresSystemUser": false,
+      "GenerationType": "Manual",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "A1B2C3D4-5555-4A55-8555-555555555505"
+    },
+    "sync": {
+      "lastModified": "2026-11-08T21:46:53.114Z",
+      "checksum": "75501a7d9b89d33a8a859d4cc0af0d17d83c66d27603a069931e204f50e6b7d4"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Reopen Timesheet",
+      "OperationKey": "Tasks.ReopenTimesheet",
+      "CategoryID": "@lookup:MJ: Remote Operation Categories.Name=Time Tracking",
+      "Description": "Reopens an Approved timesheet back to Draft for correction. Requires the Manage Timesheets authorization and a non-empty Reason, and records a TaskActivity audit entry.",
+      "InputTypeName": "ReopenTimesheetInput",
+      "InputTypeDefinition": "@file:types/tasks-reopen-timesheet.input.ts",
+      "InputTypeIsArray": false,
+      "OutputTypeName": "ReopenTimesheetOutput",
+      "OutputTypeDefinition": "@file:types/tasks-reopen-timesheet.output.ts",
+      "OutputTypeIsArray": false,
+      "ExecutionMode": "Sync",
+      "RequiresSystemUser": false,
+      "GenerationType": "Manual",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "A1B2C3D4-5555-4A55-8555-555555555506"
+    },
+    "sync": {
+      "lastModified": "2026-11-08T21:46:53.133Z",
+      "checksum": "4be13cd9e76e399353e6e83018e44b9575f543a07d623a929c2f78d65533f33e"
+    }
+  }
+]

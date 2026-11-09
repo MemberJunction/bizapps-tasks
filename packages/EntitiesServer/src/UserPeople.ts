@@ -50,11 +50,11 @@ export function PeopleFilterForUser(provider: IMetadataProvider, user: UserInfo)
  *
  * @throws when the People lookup fails, so a caller recording identity can fail closed.
  */
-export async function PrimaryPersonIDForUser(
+export async function PeopleForUser(
     provider: IMetadataProvider,
     runViewProvider: IRunViewProvider | undefined,
     user: UserInfo,
-): Promise<string | null> {
+): Promise<string[]> {
     const res = await new RunView(runViewProvider).RunView<{ ID: string }>(
         { EntityName: PEOPLE_ENTITY, ExtraFilter: PeopleFilterForUser(provider, user), Fields: ['ID'], OrderBy: 'ID', ResultType: 'simple', BypassCache: true },
         user,
@@ -62,5 +62,21 @@ export async function PrimaryPersonIDForUser(
     if (!res?.Success) throw new Error(res?.ErrorMessage ?? 'the People lookup returned no result');
     const ids = (res.Results ?? []).map((p) => p.ID);
     const linked = linkedPersonID(provider, user);
-    return ids.find((id) => !!linked && id.toLowerCase() === linked.toLowerCase()) ?? ids[0] ?? null;
+    if (linked) {
+        const primaryIdx = ids.findIndex((id) => id.toLowerCase() === linked.toLowerCase());
+        if (primaryIdx > 0) {
+            const [primary] = ids.splice(primaryIdx, 1);
+            ids.unshift(primary);
+        }
+    }
+    return ids;
+}
+
+export async function PrimaryPersonIDForUser(
+    provider: IMetadataProvider,
+    runViewProvider: IRunViewProvider | undefined,
+    user: UserInfo,
+): Promise<string | null> {
+    const ids = await PeopleForUser(provider, runViewProvider, user);
+    return ids[0] ?? null;
 }

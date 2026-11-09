@@ -26,6 +26,7 @@
     "@memberjunction/scheduling-engine": "6.1.6",
     "@memberjunction/server": "6.1.6",
     "@memberjunction/sqlserver-dataprovider": "6.1.6",
+    "@mj-biz-apps/common-entities": "5.43.0",
     "typescript": "^5.9.3",
     "vitest": "1.6.1"
   },
@@ -45,6 +46,7 @@
     "@memberjunction/scheduling-engine": "^6.1.6",
     "@memberjunction/scheduling-base-types": "^6.1.6",
     "@memberjunction/actions": "^6.1.6",
+    "@mj-biz-apps/common-entities": "^5.43.0",
     "rxjs": "^7.8.2"
   },
   "repository": {

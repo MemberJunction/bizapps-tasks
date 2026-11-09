@@ -2,7 +2,8 @@
   {
     "_comments": [
       "The UI role can write only the records the panels save.",
-      "Create and update: Tasks, Task Comments, Task Assignments.",
+      "Create and update: Tasks, Task Comments, Task Assignments, Timesheets, Timesheet Approvals.",
+      "Create, update, and delete: Task Time Entries, Task Timers, Task Agent Runs, Task Time Entry Links, Timesheet Schedules, Timesheet Links, Time Approvers (row ownership and authorizations enforced by server classes).",
       "Create: Task Tag Links, Task Tags, Task Roles, Task Decisions, Task Activities.",
       "Delete: Task Assignments and Task Tag Links.",
       "These rows are metadata. Push them with mj sync push. Do not copy them into a SQL migration."
@@ -185,6 +186,249 @@
             "CanCreate": 1,
             "CanUpdate": 0,
             "CanDelete": 0
+          }
+        }
+      ]
+    }
+  },
+  {
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Time Entries"
+    },
+    "fields": {
+      "Name": "MJ_BizApps_Tasks: Task Time Entries"
+    },
+    "relatedEntities": {
+      "MJ: Entity Permissions": [
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Permissions.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Time Entries&RoleID=@lookup:MJ: Roles.Name=UI"
+          },
+          "fields": {
+            "CanRead": 1,
+            "CanCreate": 1,
+            "CanUpdate": 1,
+            "CanDelete": 1
+          },
+          "sync": {
+            "lastModified": "2026-11-08T23:40:36.652Z",
+            "checksum": "86900c975055b2198aa42eece8932960bb55963d886b074a9b26b478a00829b0"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Timers"
+    },
+    "fields": {
+      "Name": "MJ_BizApps_Tasks: Task Timers"
+    },
+    "relatedEntities": {
+      "MJ: Entity Permissions": [
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Permissions.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Timers&RoleID=@lookup:MJ: Roles.Name=UI"
+          },
+          "fields": {
+            "CanRead": 1,
+            "CanCreate": 1,
+            "CanUpdate": 1,
+            "CanDelete": 1
+          },
+          "sync": {
+            "lastModified": "2026-11-08T23:40:36.662Z",
+            "checksum": "86900c975055b2198aa42eece8932960bb55963d886b074a9b26b478a00829b0"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Agent Runs"
+    },
+    "fields": {
+      "Name": "MJ_BizApps_Tasks: Task Agent Runs"
+    },
+    "relatedEntities": {
+      "MJ: Entity Permissions": [
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Permissions.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Agent Runs&RoleID=@lookup:MJ: Roles.Name=UI"
+          },
+          "fields": {
+            "CanRead": 1,
+            "CanCreate": 1,
+            "CanUpdate": 1,
+            "CanDelete": 1
+          },
+          "sync": {
+            "lastModified": "2026-11-08T23:40:36.671Z",
+            "checksum": "86900c975055b2198aa42eece8932960bb55963d886b074a9b26b478a00829b0"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Time Entry Links"
+    },
+    "fields": {
+      "Name": "MJ_BizApps_Tasks: Task Time Entry Links"
+    },
+    "relatedEntities": {
+      "MJ: Entity Permissions": [
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Permissions.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Time Entry Links&RoleID=@lookup:MJ: Roles.Name=UI"
+          },
+          "fields": {
+            "CanRead": 1,
+            "CanCreate": 1,
+            "CanUpdate": 1,
+            "CanDelete": 1
+          },
+          "sync": {
+            "lastModified": "2026-11-08T23:40:36.678Z",
+            "checksum": "86900c975055b2198aa42eece8932960bb55963d886b074a9b26b478a00829b0"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Timesheet Schedules"
+    },
+    "fields": {
+      "Name": "MJ_BizApps_Tasks: Timesheet Schedules"
+    },
+    "relatedEntities": {
+      "MJ: Entity Permissions": [
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Permissions.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Timesheet Schedules&RoleID=@lookup:MJ: Roles.Name=UI"
+          },
+          "fields": {
+            "CanRead": 1,
+            "CanCreate": 1,
+            "CanUpdate": 1,
+            "CanDelete": 1
+          },
+          "sync": {
+            "lastModified": "2026-11-08T23:40:36.687Z",
+            "checksum": "86900c975055b2198aa42eece8932960bb55963d886b074a9b26b478a00829b0"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Timesheets"
+    },
+    "fields": {
+      "Name": "MJ_BizApps_Tasks: Timesheets"
+    },
+    "relatedEntities": {
+      "MJ: Entity Permissions": [
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Permissions.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Timesheets&RoleID=@lookup:MJ: Roles.Name=UI"
+          },
+          "fields": {
+            "CanRead": 1,
+            "CanCreate": 1,
+            "CanUpdate": 1,
+            "CanDelete": 0
+          },
+          "sync": {
+            "lastModified": "2026-11-08T23:40:36.694Z",
+            "checksum": "8ba759f158286060fad5a1b1e38b351b09000ca687793216187e9b8a81b9914d"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Timesheet Approvals"
+    },
+    "fields": {
+      "Name": "MJ_BizApps_Tasks: Timesheet Approvals"
+    },
+    "relatedEntities": {
+      "MJ: Entity Permissions": [
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Permissions.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Timesheet Approvals&RoleID=@lookup:MJ: Roles.Name=UI"
+          },
+          "fields": {
+            "CanRead": 1,
+            "CanCreate": 1,
+            "CanUpdate": 1,
+            "CanDelete": 0
+          },
+          "sync": {
+            "lastModified": "2026-11-08T23:40:36.702Z",
+            "checksum": "8ba759f158286060fad5a1b1e38b351b09000ca687793216187e9b8a81b9914d"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Timesheet Links"
+    },
+    "fields": {
+      "Name": "MJ_BizApps_Tasks: Timesheet Links"
+    },
+    "relatedEntities": {
+      "MJ: Entity Permissions": [
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Permissions.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Timesheet Links&RoleID=@lookup:MJ: Roles.Name=UI"
+          },
+          "fields": {
+            "CanRead": 1,
+            "CanCreate": 1,
+            "CanUpdate": 1,
+            "CanDelete": 1
+          },
+          "sync": {
+            "lastModified": "2026-11-08T23:40:36.709Z",
+            "checksum": "86900c975055b2198aa42eece8932960bb55963d886b074a9b26b478a00829b0"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Time Approvers"
+    },
+    "fields": {
+      "Name": "MJ_BizApps_Tasks: Time Approvers"
+    },
+    "relatedEntities": {
+      "MJ: Entity Permissions": [
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Permissions.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Time Approvers&RoleID=@lookup:MJ: Roles.Name=UI"
+          },
+          "fields": {
+            "CanRead": 1,
+            "CanCreate": 1,
+            "CanUpdate": 1,
+            "CanDelete": 1
+          },
+          "sync": {
+            "lastModified": "2026-11-08T23:40:36.716Z",
+            "checksum": "86900c975055b2198aa42eece8932960bb55963d886b074a9b26b478a00829b0"
           }
         }
       ]

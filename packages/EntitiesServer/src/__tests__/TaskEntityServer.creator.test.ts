@@ -44,6 +44,7 @@ vi.mock('@memberjunction/core', () => {
             public async Save() { return superSave(); }
         },
         BaseEngine: class { public static getInstance() { return {}; } },
+        BaseRemotableOperation: class {},
         LogError: vi.fn(),
         LogStatus: vi.fn(),
         Metadata: class {
