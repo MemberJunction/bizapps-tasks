@@ -8,7 +8,7 @@ import {
     MJCardFooterDirective,
 } from '@memberjunction/ng-ui-components';
 import { NavigationService } from '@memberjunction/ng-shared';
-import { BaseFormComponent, BaseFormsModule } from '@memberjunction/ng-base-forms';
+import { BaseFormComponent } from '@memberjunction/ng-base-forms';
 import type { mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
 
 interface DependencySummary {
@@ -241,7 +241,6 @@ const TASK_OVERVIEW_CSS = `
     selector: 'mjt-task-overview',
     imports: [
         CommonModule,
-        BaseFormsModule,
         MJCardGridComponent,
         MJCardComponent,
         MJCardToolsDirective,
@@ -304,14 +303,7 @@ const TASK_OVERVIEW_CSS = `
                     <div class="mjt-deck">
                         @if (Dependencies.length > 0) {
                             @for (dep of Dependencies; track dep.ID) {
-                                <div
-                                    class="mjt-deck-item"
-                                    mjRecordLink
-                                    [EntityName]="'MJ_BizApps_Tasks: Tasks'"
-                                    [RecordID]="dep.DependsOnTaskID"
-                                    [DisplayName]="dep.DependsOnTaskName"
-                                    [HandleClick]="false"
-                                    (click)="OnDependencyClick(dep)">
+                                <div class="mjt-deck-item" (click)="OnDependencyClick(dep)">
                                     <div class="mjt-deck-item__left">
                                         <div class="mjt-deck-item__icon" [class.mjt-deck-item__icon--warn]="dep.IsBlocking">
                                             <i class="fa-solid" [class.fa-triangle-exclamation]="dep.IsBlocking" [class.fa-link]="!dep.IsBlocking"></i>
@@ -356,14 +348,7 @@ const TASK_OVERVIEW_CSS = `
                     <div class="mjt-timeline">
                         @if (Activities.length > 0) {
                             @for (act of Activities; track act.ID) {
-                                <div
-                                    class="mjt-timeline-item"
-                                    mjRecordLink
-                                    [EntityName]="act.EntityName || 'MJ_BizApps_Tasks: Task Activities'"
-                                    [RecordID]="act.RecordID || act.ID"
-                                    [DisplayName]="act.ActivityType"
-                                    [HandleClick]="false"
-                                    (click)="OnActivityClick(act)">
+                                <div class="mjt-timeline-item" (click)="OnActivityClick(act)">
                                     <div class="mjt-timeline-item__icon">
                                         <i class="fa-solid fa-bolt-lightning"></i>
                                     </div>
@@ -405,14 +390,7 @@ const TASK_OVERVIEW_CSS = `
 
                     <div class="mjt-deck">
                         @if (Record?.ParentID) {
-                            <div
-                                class="mjt-deck-item"
-                                [mjRecordLink]="Record"
-                                FieldName="ParentID"
-                                [EntityName]="'MJ_BizApps_Tasks: Tasks'"
-                                [RecordID]="Record?.ParentID || null"
-                                [HandleClick]="false"
-                                (click)="OnParentClick()">
+                            <div class="mjt-deck-item" (click)="OnParentClick()">
                                 <div class="mjt-deck-item__left">
                                     <div class="mjt-deck-item__icon">
                                         <i class="fa-solid fa-folder-tree"></i>
@@ -425,14 +403,7 @@ const TASK_OVERVIEW_CSS = `
                                 <span class="mjt-code" style="font-size: 11px;">Parent</span>
                             </div>
                         }
-                        <div
-                            class="mjt-deck-item"
-                            [mjRecordLink]="Record"
-                            FieldName="CategoryID"
-                            [EntityName]="'MJ_BizApps_Tasks: Task Categories'"
-                            [RecordID]="Record?.CategoryID || null"
-                            [DisplayName]="Record?.Category || null"
-                            (Navigate)="FormComponent?.OnFormNavigate($event)">
+                        <div class="mjt-deck-item">
                             <div class="mjt-deck-item__left">
                                 <div class="mjt-deck-item__icon">
                                     <i class="fa-solid fa-layer-group"></i>
