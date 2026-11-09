@@ -18,9 +18,13 @@ const parentTaskMock = {
 
 const baseSaveMock = vi.fn(async () => true);
 
-vi.mock('@memberjunction/global', () => ({
-  RegisterClass: () => () => {},
-}));
+vi.mock('@memberjunction/global', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@memberjunction/global')>();
+  return {
+    ...actual,
+    RegisterClass: () => () => {},
+  };
+});
 
 vi.mock('@memberjunction/core', () => ({
   BaseEntity: class {},
