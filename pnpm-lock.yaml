@@ -136,6 +136,9 @@ importers:
       '@memberjunction/ng-ui-components':
         specifier: 6.1.6
         version: 6.1.6(ba4f8c4cc6173f0f0e62e6a2d3720477)
+      '@mj-biz-apps/common-entities':
+        specifier: 5.60.0
+        version: 5.60.0(@memberjunction/core@6.1.6)(@memberjunction/global@6.1.6)
       ag-grid-angular:
         specifier: ^35.0.1
         version: 35.3.1(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
