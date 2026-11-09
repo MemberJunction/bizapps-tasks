@@ -32,6 +32,7 @@ import {
     TemplatesSectionResource,
     LoadTasksSectionResources,
 } from './sections/tasks-sections.component';
+import { ChiefOfStaffWorkReportsResource } from './chief-of-staff/chief-of-staff-work-reports.component';
 
 @NgModule({
     imports: [
@@ -60,6 +61,7 @@ import {
         MyTasksSectionResource,
         ApprovalsSectionResource,
         TemplatesSectionResource,
+        ChiefOfStaffWorkReportsResource,
     ],
     exports: [
         TaskPriorityBadgeComponent,
@@ -84,6 +86,7 @@ import {
         MyTasksSectionResource,
         ApprovalsSectionResource,
         TemplatesSectionResource,
+        ChiefOfStaffWorkReportsResource,
     ]
 })
 export class BizAppsTasksModule { }
@@ -91,4 +94,5 @@ export class BizAppsTasksModule { }
 /** Tree-shaking prevention — call from consuming app bootstrap */
 export function LoadBizAppsTasksClient() {
     LoadTasksSectionResources();
+    void ChiefOfStaffWorkReportsResource;
 }

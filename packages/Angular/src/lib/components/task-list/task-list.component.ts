@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Metadata, RunView, CompositeKey } from '@memberjunction/core';
 import { UUIDsEqual } from '@memberjunction/global';
+import { LoadPendingFieldSuggestionCountsForTasks } from '@mj-biz-apps/tasks-core';
 import type { mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
 
 /**
@@ -54,6 +55,8 @@ export interface TaskRow {
     IsDueSoon: boolean;
     /** Number of direct child tasks, or undefined if not loaded by source view. */
     ChildCount?: number;
+    /** Number of unresolved MJ core Field Suggestions anchored to this task. */
+    PendingSuggestionCount?: number;
 }
 
 /**
@@ -128,7 +131,8 @@ export class BeforeStatusChangeEvent {
                 <div class="toolbar-right">
                     <div class="filter-pills">
                         @for (f of statusFilters; track f.value) {
-                            <button class="filter-pill" [class.active]="statusFilter === f.value"
+                            <button type="button" class="filter-pill" [class.active]="statusFilter === f.value"
+                                    [attr.aria-pressed]="statusFilter === f.value"
                                     (click)="statusFilter = f.value; applyFilters()">
                                 {{ f.label }}
                                 @if (f.value === '' && tasks.length > 0) {
@@ -137,6 +141,17 @@ export class BeforeStatusChangeEvent {
                             </button>
                         }
                     </div>
+                    @if (tasksWithPendingSuggestionsCount > 0 || pendingSuggestionsOnly) {
+                        <button type="button"
+                                class="filter-pill suggestion-filter-pill"
+                                [class.active]="pendingSuggestionsOnly"
+                                [attr.aria-pressed]="pendingSuggestionsOnly"
+                                (click)="togglePendingSuggestionsFilter()">
+                            <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+                            Suggestions
+                            <span class="filter-count">{{ tasksWithPendingSuggestionsCount }}</span>
+                        </button>
+                    }
                     @if (ShowCreateButton) {
                         <button class="btn-create" (click)="CreateTask.emit()">
                             <i class="fa-solid fa-plus"></i> New Task
@@ -268,8 +283,14 @@ export class BeforeStatusChangeEvent {
                                     }
                                     @if (task.HoursEstimated) {
                                         <span class="meta-chip">
-                                            <i class="fa-solid fa-clock"></i>
+                                            <i class="fa-solid fa-clock" aria-hidden="true"></i>
                                             {{ task.HoursEstimated }}h
+                                        </span>
+                                    }
+                                    @if ((task.PendingSuggestionCount ?? 0) > 0) {
+                                        <span class="meta-chip suggestion-chip">
+                                            <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+                                            {{ task.PendingSuggestionCount }} {{ task.PendingSuggestionCount === 1 ? 'suggestion' : 'suggestions' }}
                                         </span>
                                     }
                                     @for (tag of task.Tags ?? []; track tag.Name) {
@@ -516,6 +537,21 @@ export class BeforeStatusChangeEvent {
         .tag-chip {
             padding: 1px 8px; border-radius: var(--mj-radius-md); font-size: 11px; font-weight: var(--mj-font-semibold);
         }
+        .suggestion-chip {
+            padding: 2px 8px; border-radius: var(--mj-radius-md); font-size: 11px; font-weight: var(--mj-font-semibold);
+            background: var(--mj-status-info-bg); color: var(--mj-status-info-text);
+        }
+        .suggestion-chip i { color: var(--mj-status-info-text); }
+        .suggestion-filter-pill {
+            border: 1px solid var(--mj-border-default); background: var(--mj-bg-surface);
+        }
+        .suggestion-filter-pill.active {
+            border-color: var(--mj-brand-primary); color: var(--mj-brand-primary);
+            background: color-mix(in srgb, var(--mj-brand-primary) 8%, var(--mj-bg-surface));
+        }
+        .filter-pill:focus-visible, .btn-create:focus-visible, .expand-toggle:focus-visible {
+            outline: 2px solid var(--mj-brand-primary); outline-offset: 2px;
+        }
 
         /* ─── Status Badge ─── */
         .card-status { flex-shrink: 0; }
@@ -660,6 +696,12 @@ export class TaskListComponent implements OnInit, OnChanges {
      */
     @Input() ReadOnly = false;
 
+    /**
+     * When true, initializes the list filtered to tasks with unresolved Field Suggestions.
+     * @default false
+     */
+    @Input() PendingSuggestionsOnly = false;
+
     // ── Outputs ─────────────────────────────────────────────
 
     /**
@@ -733,6 +775,8 @@ export class TaskListComponent implements OnInit, OnChanges {
     /** @internal */
     statusFilter = '';
     /** @internal */
+    pendingSuggestionsOnly = false;
+    /** @internal */
     private searchTimeout: any;
     /** @internal */
     cdr = inject(ChangeDetectorRef);
@@ -750,8 +794,19 @@ export class TaskListComponent implements OnInit, OnChanges {
 
     ngOnInit(): void {
         if (this.StatusFilter) this.statusFilter = this.StatusFilter;
+        if (this.PendingSuggestionsOnly) this.pendingSuggestionsOnly = true;
         this.loadTasks();
         if (this.ShowQuickAdd) this.loadQuickAddPeople();
+    }
+
+    get tasksWithPendingSuggestionsCount(): number {
+        return this.tasks.filter((t) => (t.PendingSuggestionCount ?? 0) > 0).length;
+    }
+
+    togglePendingSuggestionsFilter(): void {
+        this.pendingSuggestionsOnly = !this.pendingSuggestionsOnly;
+        this.applyFilters();
+        this.cdr.markForCheck();
     }
 
     ngOnChanges(changes: SimpleChanges): void {
@@ -996,11 +1051,27 @@ export class TaskListComponent implements OnInit, OnChanges {
         // Filter out any selected ID that is no longer in current rawTasks
         this.selectedIDs = this.selectedIDs.filter(id => rawTasks.some(t => UUIDsEqual(t.ID, id)));
 
-        // Load assignees and tags in parallel
-        await Promise.all([this.loadAssignees(), this.loadTags()]);
+        // Load assignees, tags, and pending Field Suggestions in parallel
+        await Promise.all([this.loadAssignees(), this.loadTags(), this.loadPendingSuggestions()]);
         this.applyFilters();
         this.loading = false;
         this.cdr.markForCheck();
+    }
+
+    private async loadPendingSuggestions(): Promise<void> {
+        if (this.tasks.length === 0) return;
+        const tasksEntityID = Metadata.Provider?.Entities?.find((e) => e.Name === 'MJ_BizApps_Tasks: Tasks')?.ID;
+        if (!tasksEntityID) return;
+        const counts = await LoadPendingFieldSuggestionCountsForTasks(
+            new RunView(),
+            tasksEntityID,
+            this.tasks.map((t) => t.ID),
+            undefined,
+            Metadata.Provider
+        );
+        for (const task of this.tasks) {
+            task.PendingSuggestionCount = counts.get(task.ID.toLowerCase()) ?? 0;
+        }
     }
 
     private async loadAssignees(): Promise<void> {
@@ -1113,6 +1184,10 @@ export class TaskListComponent implements OnInit, OnChanges {
 
         if (this.statusFilter) {
             filtered = filtered.filter(t => t.Status === this.statusFilter);
+        }
+
+        if (this.pendingSuggestionsOnly) {
+            filtered = filtered.filter(t => (t.PendingSuggestionCount ?? 0) > 0);
         }
 
         if (this.searchText.trim()) {

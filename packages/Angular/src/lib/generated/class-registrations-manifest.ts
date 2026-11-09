@@ -32,6 +32,8 @@ import {
     mjBizAppsTasksTaskTemplateItemEntity,
     mjBizAppsTasksTaskTemplateItemRoleEntity,
     mjBizAppsTasksTaskTypeEntity,
+    mjBizAppsTasksWorkReportEntity,
+    mjBizAppsTasksWorkReportItemEntity,
 } from '@mj-biz-apps/tasks-entities';
 
 /**
@@ -59,13 +61,15 @@ export const CLASS_REGISTRATIONS: any[] = [
     mjBizAppsTasksTaskTemplateItemEntity,
     mjBizAppsTasksTaskTemplateItemRoleEntity,
     mjBizAppsTasksTaskTypeEntity,
+    mjBizAppsTasksWorkReportEntity,
+    mjBizAppsTasksWorkReportItemEntity,
 ];
 
 /** Marker constant indicating the manifest has been loaded. */
 export const CLASS_REGISTRATIONS_MANIFEST_LOADED = true;
 
 /** Total @RegisterClass decorated classes discovered in dependency tree */
-export const CLASS_REGISTRATIONS_COUNT = 19;
+export const CLASS_REGISTRATIONS_COUNT = 21;
 
 /** Packages imported by this manifest */
 export const CLASS_REGISTRATIONS_PACKAGES = [
