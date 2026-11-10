@@ -73,6 +73,7 @@ CREATE TABLE __mj_BizAppsTasks."WorkReport" (
  CONSTRAINT "FK_WorkReport_Person" FOREIGN KEY ("PersonID") REFERENCES __mj_BizAppsCommon."Person"("ID"),
  CONSTRAINT "FK_WorkReport_AuthoredByAgentRun" FOREIGN KEY ("AuthoredByAgentRunID") REFERENCES ${mjSchema}."AIAgentRun"("ID"),
  CONSTRAINT "FK_WorkReport_ReviewedByPerson" FOREIGN KEY ("ReviewedByPersonID") REFERENCES __mj_BizAppsCommon."Person"("ID"),
+ CONSTRAINT "UQ_WorkReport_Person_Period" UNIQUE ("PersonID", "PeriodStart", "PeriodEnd"),
  CONSTRAINT "CK_WorkReport_Status" CHECK ("Status" IN ('Draft', 'Submitted', 'Reviewed')),
  CONSTRAINT "CK_WorkReport_PeriodOrder" CHECK ("PeriodEnd" >= "PeriodStart")
 );
@@ -102,8 +103,26 @@ CREATE TABLE __mj_BizAppsTasks."WorkReportItem" (
 CREATE INDEX IF NOT EXISTS "IX_WorkReportItem_WorkReport_Sequence"
     ON __mj_BizAppsTasks."WorkReportItem" ("WorkReportID", "Sequence");
 
-CREATE INDEX IF NOT EXISTS "IX_WorkReportItem_Task"
-    ON __mj_BizAppsTasks."WorkReportItem" ("TaskID");
+---------------------------------------------------------------------------
+-- 4. Row-Level Security Filters for 15Five Work Reports & Work Report Items
+---------------------------------------------------------------------------
+INSERT INTO ${mjSchema}."RowLevelSecurityFilter" ("ID", "Name", "FilterText", "Description", "__mj_CreatedAt", "__mj_UpdatedAt")
+SELECT CAST('DC505938-81AC-4EFF-A6FF-99BFB5B11018' AS UUID),
+       'UI: Work Reports - Author or Supervisor Chain',
+       '("PersonID" IN (SELECT p."ID" FROM __mj_BizAppsCommon."Person" p WHERE p."LinkedUserID" = ''{{UserID}}'' OR LOWER(p."Email") = LOWER(''{{UserEmail}}'') OR LOWER(p."Email") IN (SELECT LOWER(ae."Email") FROM ${mjSchema}."Employee" ae INNER JOIN ${mjSchema}."Employee" se ON ae."SupervisorID" = se."ID" LEFT OUTER JOIN ${mjSchema}."Employee" sse ON se."SupervisorID" = sse."ID" WHERE ae."Active" = TRUE AND (LOWER(se."Email") = LOWER(''{{UserEmail}}'') OR LOWER(sse."Email") = LOWER(''{{UserEmail}}'') OR LOWER(se."Email") IN (SELECT LOWER(sp."Email") FROM __mj_BizAppsCommon."Person" sp WHERE sp."LinkedUserID" = ''{{UserID}}'') OR LOWER(sse."Email") IN (SELECT LOWER(sp."Email") FROM __mj_BizAppsCommon."Person" sp WHERE sp."LinkedUserID" = ''{{UserID}}'')))))',
+       'Narrows MJ_BizApps_Tasks: Work Reports for the UI role to reports authored by the current user or by someone in the current user''s supervisor chain.',
+       NOW(),
+       NOW()
+WHERE NOT EXISTS (SELECT 1 FROM ${mjSchema}."RowLevelSecurityFilter" WHERE "ID" = CAST('DC505938-81AC-4EFF-A6FF-99BFB5B11018' AS UUID));
+
+INSERT INTO ${mjSchema}."RowLevelSecurityFilter" ("ID", "Name", "FilterText", "Description", "__mj_CreatedAt", "__mj_UpdatedAt")
+SELECT CAST('E2D9FE26-3490-48C5-A60B-42F1B2973B19' AS UUID),
+       'UI: Work Report Items - Author or Supervisor Chain',
+       '("WorkReportID" IN (SELECT r."ID" FROM __mj_BizAppsTasks."WorkReport" r WHERE r."PersonID" IN (SELECT p."ID" FROM __mj_BizAppsCommon."Person" p WHERE p."LinkedUserID" = ''{{UserID}}'' OR LOWER(p."Email") = LOWER(''{{UserEmail}}'') OR LOWER(p."Email") IN (SELECT LOWER(ae."Email") FROM ${mjSchema}."Employee" ae INNER JOIN ${mjSchema}."Employee" se ON ae."SupervisorID" = se."ID" LEFT OUTER JOIN ${mjSchema}."Employee" sse ON se."SupervisorID" = sse."ID" WHERE ae."Active" = TRUE AND (LOWER(se."Email") = LOWER(''{{UserEmail}}'') OR LOWER(sse."Email") = LOWER(''{{UserEmail}}'') OR LOWER(se."Email") IN (SELECT LOWER(sp."Email") FROM __mj_BizAppsCommon."Person" sp WHERE sp."LinkedUserID" = ''{{UserID}}'') OR LOWER(sse."Email") IN (SELECT LOWER(sp."Email") FROM __mj_BizAppsCommon."Person" sp WHERE sp."LinkedUserID" = ''{{UserID}}''))))))',
+       'Narrows MJ_BizApps_Tasks: Work Report Items for the UI role to line items belonging to work reports authored by the current user or by someone in the current user''s supervisor chain.',
+       NOW(),
+       NOW()
+WHERE NOT EXISTS (SELECT 1 FROM ${mjSchema}."RowLevelSecurityFilter" WHERE "ID" = CAST('E2D9FE26-3490-48C5-A60B-42F1B2973B19' AS UUID));
 
 ALTER TABLE __mj_BizAppsTasks."WorkReport"
  ADD COLUMN IF NOT EXISTS "__mj_CreatedAt" TIMESTAMPTZ NULL;
@@ -1543,7 +1562,7 @@ AS SELECT
     "mjBizAppsTasksTaskTypeStatus_TaskTypeStatusID"."Name" AS "TaskTypeStatus"
 FROM
     __mj_BizAppsTasks."Task" AS t
-LEFT OUTER JOIN
+INNER JOIN
     __mj_BizAppsTasks."TaskType" AS "mjBizAppsTasksTaskType_TypeID"
   ON
     t."TypeID" = "mjBizAppsTasksTaskType_TypeID"."ID"
@@ -2589,8 +2608,8 @@ INSERT INTO ${mjSchema}."ApplicationEntity"
 /* SQL generated to add new permission for entity MJ_BizApps_Tasks: Work Reports for role UI */
 
 INSERT INTO ${mjSchema}."EntityPermission"
-                ("EntityID", "RoleID", "Type", "CanRead", "CanCreate", "CanUpdate", "CanDelete", "__mj_CreatedAt", "__mj_UpdatedAt")
-              SELECT CAST('a9038030-2dbd-48e1-9075-03ed5373b85a' AS UUID), CAST('E0AFCCEC-6A37-EF11-86D4-000D3A4E707E' AS UUID), 'Allow', 1, 0, 0, 0, NOW(), NOW()
+                ("EntityID", "RoleID", "Type", "CanRead", "CanCreate", "CanUpdate", "CanDelete", "ReadRLSFilterID", "UpdateRLSFilterID", "__mj_CreatedAt", "__mj_UpdatedAt")
+              SELECT CAST('a9038030-2dbd-48e1-9075-03ed5373b85a' AS UUID), CAST('E0AFCCEC-6A37-EF11-86D4-000D3A4E707E' AS UUID), 'Allow', TRUE, TRUE, TRUE, FALSE, CAST('DC505938-81AC-4EFF-A6FF-99BFB5B11018' AS UUID), CAST('DC505938-81AC-4EFF-A6FF-99BFB5B11018' AS UUID), NOW(), NOW()
               WHERE NOT EXISTS (
                 SELECT 1 FROM ${mjSchema}."EntityPermission"
                 WHERE "EntityID" = CAST('a9038030-2dbd-48e1-9075-03ed5373b85a' AS UUID) AND "RoleID" = CAST('E0AFCCEC-6A37-EF11-86D4-000D3A4E707E' AS UUID) AND "Type" = 'Allow'
@@ -2674,8 +2693,8 @@ INSERT INTO ${mjSchema}."ApplicationEntity"
 /* SQL generated to add new permission for entity MJ_BizApps_Tasks: Work Report Items for role UI */
 
 INSERT INTO ${mjSchema}."EntityPermission"
-                ("EntityID", "RoleID", "Type", "CanRead", "CanCreate", "CanUpdate", "CanDelete", "__mj_CreatedAt", "__mj_UpdatedAt")
-              SELECT CAST('d9e9ee62-78ce-4e89-8ed0-35378358e321' AS UUID), CAST('E0AFCCEC-6A37-EF11-86D4-000D3A4E707E' AS UUID), 'Allow', 1, 0, 0, 0, NOW(), NOW()
+                ("EntityID", "RoleID", "Type", "CanRead", "CanCreate", "CanUpdate", "CanDelete", "ReadRLSFilterID", "UpdateRLSFilterID", "__mj_CreatedAt", "__mj_UpdatedAt")
+              SELECT CAST('d9e9ee62-78ce-4e89-8ed0-35378358e321' AS UUID), CAST('E0AFCCEC-6A37-EF11-86D4-000D3A4E707E' AS UUID), 'Allow', TRUE, TRUE, TRUE, FALSE, CAST('E2D9FE26-3490-48C5-A60B-42F1B2973B19' AS UUID), CAST('E2D9FE26-3490-48C5-A60B-42F1B2973B19' AS UUID), NOW(), NOW()
               WHERE NOT EXISTS (
                 SELECT 1 FROM ${mjSchema}."EntityPermission"
                 WHERE "EntityID" = CAST('d9e9ee62-78ce-4e89-8ed0-35378358e321' AS UUID) AND "RoleID" = CAST('E0AFCCEC-6A37-EF11-86D4-000D3A4E707E' AS UUID) AND "Type" = 'Allow'

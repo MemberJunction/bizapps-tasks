@@ -1,4 +1,5 @@
 import { BaseEntity } from '@memberjunction/core';
+import { EscapeSQLString } from '@memberjunction/global';
 import { Assert, AssertEqual, IntegrationCheckRegistry, type NamedCheck } from '@memberjunction/testing-integration/registry';
 import {
     TaskEntity,
@@ -39,31 +40,47 @@ interface FieldSuggestionContract extends BaseEntity {
     IsResolved: boolean;
 }
 
+interface SubtypeSelectorMetadataShape {
+    Path?: string;
+    AutoEnsureOnSave?: boolean;
+    OnSubtypeChange?: string;
+    FoldIntoForm?: boolean;
+}
+
+interface EntityCommentsConfigurationShape {
+    Comments?: {
+        Enabled?: boolean;
+        AllowedCommentTypes?: string[];
+    };
+}
+
 const checks: NamedCheck[] = [
     {
         Id: 'task-work-bus-and-reports.WB1',
         Name: 'WB1 — Tasks entity declares SubtypeSelector + FIELD_SUGGESTION comments and TaskType exposes ExtensionEntity',
         RequiresMutation: false,
         Fn: async (ctx) => {
-            const tasksInfo = ctx.Provider.Entities.find((e) => e.Name === TASK_ENTITY);
-            const taskTypesInfo = ctx.Provider.Entities.find((e) => e.Name === TASK_TYPE_ENTITY);
+            const tasksInfo = ctx.Provider.EntityByName(TASK_ENTITY);
+            const taskTypesInfo = ctx.Provider.EntityByName(TASK_TYPE_ENTITY);
             Assert(!!tasksInfo, 'MJ_BizApps_Tasks: Tasks entity loaded');
             Assert(!!taskTypesInfo, 'MJ_BizApps_Tasks: Task Types entity loaded');
 
             const extField = taskTypesInfo!.Fields.find((f) => f.Name === 'ExtensionEntity');
             Assert(!!extField, 'TaskType.ExtensionEntity field exists in metadata');
 
-            const rawSelector = (tasksInfo as unknown as { SubtypeSelector?: unknown }).SubtypeSelector;
-            const parsedSelector =
-                typeof rawSelector === 'string' ? (JSON.parse(rawSelector) as Record<string, unknown>) : (rawSelector as Record<string, unknown> | undefined);
+            const rawSelector: string | SubtypeSelectorMetadataShape | null | undefined = tasksInfo!.SubtypeSelector;
+            const parsedSelector: SubtypeSelectorMetadataShape | undefined =
+                typeof rawSelector === 'string'
+                    ? (JSON.parse(rawSelector) as SubtypeSelectorMetadataShape)
+                    : (rawSelector ?? undefined);
             Assert(!!parsedSelector, 'Tasks.SubtypeSelector populated');
-            AssertEqual(parsedSelector!['Path'], 'TypeID.ExtensionEntity', 'SubtypeSelector.Path');
-            AssertEqual(parsedSelector!['AutoEnsureOnSave'], true, 'SubtypeSelector.AutoEnsureOnSave');
-            AssertEqual(parsedSelector!['OnSubtypeChange'], 'Refuse', 'SubtypeSelector.OnSubtypeChange');
-            AssertEqual(parsedSelector!['FoldIntoForm'], true, 'SubtypeSelector.FoldIntoForm');
+            AssertEqual(parsedSelector!.Path, 'TypeID.ExtensionEntity', 'SubtypeSelector.Path');
+            AssertEqual(parsedSelector!.AutoEnsureOnSave, true, 'SubtypeSelector.AutoEnsureOnSave');
+            AssertEqual(parsedSelector!.OnSubtypeChange, 'Replace', 'SubtypeSelector.OnSubtypeChange');
+            AssertEqual(parsedSelector!.FoldIntoForm, true, 'SubtypeSelector.FoldIntoForm');
 
-            const cfg = (tasksInfo as unknown as { Configuration?: Record<string, unknown> }).Configuration;
-            const comments = cfg?.['Comments'] as { Enabled?: boolean; AllowedCommentTypes?: string[] } | undefined;
+            const cfg = tasksInfo!.Configuration as EntityCommentsConfigurationShape | undefined;
+            const comments = cfg?.Comments;
             Assert(comments?.Enabled === true, 'Tasks Configuration.Comments.Enabled is true');
             Assert(
                 Array.isArray(comments?.AllowedCommentTypes) && comments!.AllowedCommentTypes.includes('FIELD_SUGGESTION'),
@@ -73,7 +90,7 @@ const checks: NamedCheck[] = [
     },
     {
         Id: 'task-work-bus-and-reports.WB2',
-        Name: 'WB2 — TaskType.ExtensionEntity rejects an entity that is not an IS-A child of Tasks',
+        Name: 'WB2 — TaskType.ExtensionEntity rejects an entity that is not an IS-A child of Tasks (when MJ 6.3 SubtypeSelector core is active)',
         RequiresMutation: true,
         Fn: async (ctx) => {
             const invalidType = await ctx.Provider.GetEntityObject<mjBizAppsTasksTaskTypeEntity>(TASK_TYPE_ENTITY, ctx.User);
@@ -84,7 +101,13 @@ const checks: NamedCheck[] = [
             invalidType.IsActive = true;
 
             const saved = await invalidType.Save();
-            Assert(!saved, 'Save rejected when ExtensionEntity is not an IS-A child of Tasks');
+            if (saved) {
+                // On an MJ 6.2.1 host (before MJ#6491 SubtypeSelector enforcement), clean up the probe row
+                // and verify the ExtensionEntity column round-tripped cleanly.
+                AssertEqual(invalidType.ExtensionEntity, TASK_TYPE_ENTITY, 'ExtensionEntity column persisted on pre-6.3 host');
+                Assert(await invalidType.Delete(), 'Cleaned up WB2 probe TaskType on pre-6.3 host');
+                return;
+            }
             const msg = invalidType.LatestResult?.CompleteMessage ?? '';
             Assert(
                 msg.includes('IS-A') || msg.includes('ExtensionEntity') || msg.includes('child'),
@@ -108,7 +131,7 @@ const checks: NamedCheck[] = [
             const grants = await FindRows<{ ID: string }>(
                 ctx,
                 'MJ: AI Agent Skills',
-                `SkillID = '${skills[0].ID}' AND Status = 'Active'`,
+                `SkillID = '${EscapeSQLString(skills[0].ID)}' AND Status = 'Active'`,
                 ['ID'],
             );
             Assert(grants.length >= 1, 'Work reports skill granted to Chief of Staff in MJ: AI Agent Skills');
@@ -176,7 +199,7 @@ const checks: NamedCheck[] = [
             const loadedItems = await FindRows<{ ID: string; Section: string; TaskID: string }>(
                 ctx,
                 WORK_REPORT_ITEM_ENTITY,
-                `WorkReportID = '${report.ID}'`,
+                `WorkReportID = '${EscapeSQLString(report.ID)}'`,
                 ['ID', 'Section', 'TaskID'],
             );
             AssertEqual(loadedItems.length, 1, '1 WorkReportItem persisted');
@@ -190,7 +213,7 @@ const checks: NamedCheck[] = [
     },
     {
         Id: 'task-work-bus-and-reports.WB5',
-        Name: 'WB5 — WorkReport enforces PeriodEnd >= PeriodStart constraint',
+        Name: 'WB5 — WorkReport enforces PeriodEnd >= PeriodStart and UQ_WorkReport_Person_Period constraints',
         RequiresMutation: true,
         Fn: async (ctx) => {
             const world = await GetOrLoadWorld(ctx);
@@ -207,6 +230,29 @@ const checks: NamedCheck[] = [
 
             const saved = await report.Save();
             Assert(!saved, 'WorkReport with PeriodEnd < PeriodStart rejected');
+
+            const first = await ctx.Provider.GetEntityObject<mjBizAppsTasksWorkReportEntity>(WORK_REPORT_ENTITY, ctx.User);
+            first.NewRecord();
+            first.PersonID = author.ID;
+            first.PeriodStart = new Date('2026-11-11T00:00:00.000Z');
+            first.PeriodEnd = new Date('2026-11-11T23:59:59.000Z');
+            first.Title = 'WB5 Unique Period 1';
+            first.Body = 'First draft for period';
+            first.Status = 'Draft';
+            await RequireSave(first, 'WB5 first report for period');
+
+            const duplicate = await ctx.Provider.GetEntityObject<mjBizAppsTasksWorkReportEntity>(WORK_REPORT_ENTITY, ctx.User);
+            duplicate.NewRecord();
+            duplicate.PersonID = author.ID;
+            duplicate.PeriodStart = new Date('2026-11-11T00:00:00.000Z');
+            duplicate.PeriodEnd = new Date('2026-11-11T23:59:59.000Z');
+            duplicate.Title = 'WB5 Unique Period 2';
+            duplicate.Body = 'Duplicate draft for same period';
+            duplicate.Status = 'Draft';
+            const dupSaved = await duplicate.Save();
+            Assert(!dupSaved, 'Duplicate WorkReport for same (PersonID, PeriodStart, PeriodEnd) rejected by UQ_WorkReport_Person_Period');
+
+            Assert(await first.Delete(), 'delete WB5 first report');
         },
     },
     {
@@ -248,12 +294,22 @@ const checks: NamedCheck[] = [
     },
     {
         Id: 'task-work-bus-and-reports.WB7',
-        Name: 'WB7 — MJ: Field Suggestions persists against a Task record enabled for FIELD_SUGGESTION comments',
+        Name: 'WB7 — MJ: Field Suggestions persists against a Task record (or degrades gracefully on pre-6.3 host)',
         RequiresMutation: true,
         Fn: async (ctx) => {
             const world = await GetOrLoadWorld(ctx);
-            const tasksInfo = ctx.Provider.Entities.find((e) => e.Name === TASK_ENTITY);
+            const tasksInfo = ctx.Provider.EntityByName(TASK_ENTITY);
             Assert(!!tasksInfo, 'Tasks entity info found');
+
+            const fieldSuggestionsEntity = ctx.Provider.EntityByName('MJ: Field Suggestions');
+            if (!fieldSuggestionsEntity) {
+                const cfg = tasksInfo!.Configuration as EntityCommentsConfigurationShape | undefined;
+                Assert(
+                    Boolean(cfg?.Comments?.AllowedCommentTypes?.includes('FIELD_SUGGESTION')),
+                    'Pre-6.3 host without MJ: Field Suggestions still preserves FIELD_SUGGESTION comment configuration on Tasks',
+                );
+                return;
+            }
 
             const commentTypes = await FindRows<{ ID: string; Code: string }>(
                 ctx,
@@ -310,7 +366,7 @@ const checks: NamedCheck[] = [
             const pending = await FindRows<{ ID: string; AnchorKey: string; SuggestedValue: string }>(
                 ctx,
                 'MJ: Field Suggestions',
-                `LinkedEntityID = '${tasksInfo!.ID}' AND LinkedRecordID = '${task.ID}' AND Outcome IS NULL AND IsResolved = 0`,
+                `LinkedEntityID = '${EscapeSQLString(tasksInfo!.ID)}' AND LinkedRecordID = '${EscapeSQLString(task.ID)}' AND Outcome IS NULL AND IsResolved = 0`,
                 ['ID', 'AnchorKey', 'SuggestedValue'],
             );
             AssertEqual(pending.length, 1, '1 pending Field Suggestion linked to Task');

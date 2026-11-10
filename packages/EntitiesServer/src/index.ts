@@ -9,11 +9,19 @@
 import { TaskEntityServer } from './TaskEntityServer.js';
 import { TaskCheckInEntityServer } from './TaskCheckInEntityServer.js';
 import { TaskDecisionEntityServer } from './TaskDecisionEntityServer.js';
+import { WorkReportEntityServer, LoadWorkReportEntityServer } from './WorkReportEntityServer.js';
 
 export { TaskEntityServer } from './TaskEntityServer.js';
 export { TaskCheckInEntityServer } from './TaskCheckInEntityServer.js';
 export { TaskDecisionEntityServer, TASK_DECISION_ENTITY } from './TaskDecisionEntityServer.js';
 export { TaskDecisionRefusal, DeciderAssignments, type TaskDecisionFacts, type DecisionAssignmentFact } from './TaskDecisionAuthority.js';
+export { WorkReportEntityServer, WORK_REPORT_ENTITY, LoadWorkReportEntityServer } from './WorkReportEntityServer.js';
+export {
+    WorkReportRefusal,
+    WorkReportRowFilterForUser,
+    type WorkReportAuthorityFacts,
+    type WorkReportStatus,
+} from './WorkReportAuthority.js';
 export { TasksSettings, TASKS_SETTING, TASKS_APPLICATION_NAME, type TasksSettingKey } from './TasksSettings.js';
 
 /**
@@ -22,8 +30,9 @@ export { TasksSettings, TASKS_SETTING, TASKS_APPLICATION_NAME, type TasksSetting
  * subclasses are included in the bundle and registered.
  */
 export function LoadBizAppsTasksEntitiesServer(): void {
+    LoadWorkReportEntityServer();
     // Reference the classes so bundlers cannot tree-shake the registrations away.
-    const anchor = [TaskEntityServer, TaskCheckInEntityServer, TaskDecisionEntityServer];
+    const anchor = [TaskEntityServer, TaskCheckInEntityServer, TaskDecisionEntityServer, WorkReportEntityServer];
     if (!anchor.length) {
         throw new Error('TaskEntityServer anchor missing');
     }

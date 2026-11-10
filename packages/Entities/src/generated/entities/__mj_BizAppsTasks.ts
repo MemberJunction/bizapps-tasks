@@ -1593,7 +1593,7 @@ export const mjBizAppsTasksTaskSchema = z.object({
         * * Display Name: Next Check-In Due At
         * * SQL Data Type: datetimeoffset
         * * Description: Timestamp when the next progress check-in is due based on CheckInCadence; used by Chief of Staff to nudge owners.`),
-    Type: z.string().nullable().describe(`
+    Type: z.string().describe(`
         * * Field Name: Type
         * * Display Name: Type
         * * SQL Data Type: nvarchar(100)`),
@@ -5977,7 +5977,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     * * Display Name: Type
     * * SQL Data Type: nvarchar(100)
     */
-    get Type(): string | null {
+    get Type(): string {
         return this.Get('Type');
     }
 

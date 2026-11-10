@@ -7,11 +7,7 @@
       "Comments": "Adds the Tasks app's 15Five Work Reports page to the Chief of Staff application after Approvals & Wakes (20). Read by BaseApplication.GetNavItems() in MJ core; removed by this app's teardown."
     },
     "primaryKey": {
-      "ID": "B4E91D72-5C3A-4E81-9F60-2A7D4C8E1B39"
-    },
-    "sync": {
-      "lastModified": "2026-11-09T22:03:01.381Z",
-      "checksum": "c82288de104673679d5fef4c0d9cd5ad2c9321a57103c84978fc9c085be9cb8c"
+      "ID": "3503CDCE-C0F2-48AC-B034-5D74C9E0432B"
     }
   }
 ]

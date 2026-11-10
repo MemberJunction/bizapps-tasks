@@ -12,7 +12,7 @@ Rather than copying external issue/PR columns onto `__mj_BizAppsTasks.Task` or w
 {
   "Path": "TypeID.ExtensionEntity",
   "AutoEnsureOnSave": true,
-  "OnSubtypeChange": "Refuse",
+  "OnSubtypeChange": "Replace",
   "FoldIntoForm": true
 }
 ```
@@ -21,13 +21,16 @@ Rather than copying external issue/PR columns onto `__mj_BizAppsTasks.Task` or w
 
 1. **Connector Open App Defines an IS-A Child Table**:
    A downstream Open App (for example `bizapps-tasks-github`) creates a table whose `ID UNIQUEIDENTIFIER NOT NULL PRIMARY KEY` is a foreign key to `__mj_BizAppsTasks.Task(ID)` (such as `GitHubIssueTask` or `GitHubPullRequestTask`).
+   - **Important Schema Requirement for `AutoEnsureOnSave: true`**: Because `BaseEntity` provisions the companion child row automatically via zero-argument `EnsureISAChild()` when a `Task` is saved, every non-PK column on an IS-A child table participating in `AutoEnsureOnSave` **must be nullable or have a `DEFAULT` constraint** so initial auto-creation succeeds before connector-specific fields are populated.
 2. **Seeded `TaskType` Declares `ExtensionEntity`**:
    The downstream app seeds a `TaskType` row (e.g., `Code = 'GITHUB_ISSUE'`, `ExtensionEntity = 'MJ_BizApps_Tasks_GitHub: GitHub Issue Tasks'`).
-3. **MJ Core `BaseEntity` Handles Provisioning, Validation & Forms Automatically**:
+   - **Operational Guidance**: Treat `TaskType.ExtensionEntity` as immutable once a `TaskType` is in production use. Rather than mutating `ExtensionEntity` on an existing `TaskType` that already has `Task` rows, introduce a new `TaskType` row for the new subtype.
+3. **MJ Core `BaseEntity` Handles Provisioning, Validation & Forms Automatically (MJ 6.3+)**:
    - **Validation**: Saving a `TaskType` with an `ExtensionEntity` that is not a declared IS-A child of `MJ_BizApps_Tasks: Tasks` is rejected automatically by `BaseEntity.Validate()`.
    - **Auto-Provisioning (`AutoEnsureOnSave: true`)**: Saving a `Task` whose `TypeID` resolves an `ExtensionEntity` automatically provisions the companion IS-A child row in the same save transaction via zero-argument `EnsureISAChild()`.
-   - **Immutability (`OnSubtypeChange: "Refuse"`)**: Reassigning `TypeID` to a type backed by a different `ExtensionEntity` once the subtype row exists is refused cleanly.
+   - **Subtype Replacement (`OnSubtypeChange: "Replace"`)**: Reassigning `TypeID` on an existing task to a type backed by a different `ExtensionEntity` replaces the previous child row rather than blocking saves on existing tasks.
    - **Form Folding (`FoldIntoForm: true`)**: Standard MJ record forms render the active subtype's fields inline within the `Task` form without custom per-connector form code.
+   - **Pre-6.3 Host Compatibility**: Package dependencies compile against MJ `6.2.1` while MJ `6.3` is pre-release. On a `6.2.1` runtime host, `TaskType.ExtensionEntity` and the `SubtypeSelector` / `Comments` JSON metadata are stored in the database and activate automatically as soon as the host upgrades to MJ `6.3` (`MJ#6491`).
 
 ---
 
@@ -46,7 +49,7 @@ Rather than copying external issue/PR columns onto `__mj_BizAppsTasks.Task` or w
 
 - Agents, sync connectors, and LLM inference prompts propose changes to task fields (`DueAt`, `HoursEstimated`, `ParentID`, `Priority`, etc.) by creating `MJ: Field Suggestions` records (`AnchorType = 'field'`, `AnchorKey = '<FieldName>'`, `SuggestedValue`, `Confidence`, `Source`) linked to `MJ_BizApps_Tasks: Tasks`.
 - Humans review and accept or reject suggestions inline in the task record form or conversation thread, preserving provenance (`Outcome = 'Accepted' | 'Rejected' | 'Superseded'`, `ResolvedByUserID`, `ResolvedAt`).
-- `<bizapps-task-list>` queries `LoadPendingFieldSuggestionCountsForTasks()` to render per-row suggestion count chips and a toolbar **Suggestions** filter toggle (`[PendingSuggestionsOnly]`).
+- `<bizapps-task-list>` queries `LoadPendingFieldSuggestionCountsForTasks()` (via `EntityByName`) to render per-row suggestion count chips and a toolbar **Suggestions** filter toggle (`[PendingSuggestionsOnly]`). On a pre-6.3 host where `MJ: Field Suggestions` is not registered, `LoadPendingFieldSuggestionCountsForTasks()` logs a diagnostic status message and returns an empty map cleanly.
 
 ---
 
@@ -64,14 +67,14 @@ sequenceDiagram
     participant SupCoS as Supervisor's Chief of Staff (AI Agent Request)
     participant Sup as Supervisor (Team Reviews Tab)
 
-    Wake->>Draft: Evaluate window [PeriodStart, PeriodEnd]
+    Wake->>Draft: Evaluate local-day window [PeriodStart, PeriodEnd]
     alt Zero task updates in window
         Draft-->>Wake: SkippedNoActivity = true (no draft row created)
-    else Active tasks / check-ins / blockers found
-        Draft-->>Author: Save Draft WorkReport + section WorkReportItems
-        Author->>Submit: Edit & approve Draft in My Reports tab
+    else Active tasks / check-ins / activities found
+        Draft-->>Author: Upsert Draft WorkReport + section WorkReportItems
+        Author->>Submit: Edit & approve Draft in My Reports tab (server action)
         Submit->>SupCoS: Status = 'Submitted' + create MJ: AI Agent Requests row
-        Sup->>Sup: Review in Team Reviews tab & send SupervisorFeedback
+        Sup->>Sup: Review in Team Reviews tab & send SupervisorFeedback (server action)
         Note over Sup,Author: Status = 'Reviewed', ReviewedByPersonID & ReviewedAt recorded
     end
 ```
@@ -80,16 +83,26 @@ sequenceDiagram
 
 | Table | Entity Name | Purpose |
 | :--- | :--- | :--- |
-| `WorkReport` | `MJ_BizApps_Tasks: Work Reports` | Header record (`PersonID`, `PeriodStart`, `PeriodEnd`, `Title`, `Body`, `Status` `'Draft' \| 'Submitted' \| 'Reviewed'`, `AuthoredByAgentRunID`, `SupervisorFeedback`, `ReviewedByPersonID`, `ReviewedAt`) with `CK_WorkReport_Period` (`PeriodEnd >= PeriodStart`) |
+| `WorkReport` | `MJ_BizApps_Tasks: Work Reports` | Header record (`PersonID`, `PeriodStart`, `PeriodEnd`, `Title`, `Body`, `Status` `'Draft' \| 'Submitted' \| 'Reviewed'`, `AuthoredByAgentRunID`, `SupervisorFeedback`, `ReviewedByPersonID`, `ReviewedAt`) with `CK_WorkReport_Period` (`PeriodEnd >= PeriodStart`) and `UQ_WorkReport_Person_Period` (`UNIQUE (PersonID, PeriodStart, PeriodEnd)`) |
 | `WorkReportItem` | `MJ_BizApps_Tasks: Work Report Items` | Structured line items (`WorkReportID`, `TaskID`, `Section` `'Completed' \| 'InProgress' \| 'Next' \| 'Blockers' \| 'AtRisk'`, `Summary`, `Sequence`) |
 
-### Reporting Line Resolution (`MJ: Employees.SupervisorID`)
+### Server-Side Authorization, RLS & Fail-Closed Identity
 
-`WorkReportService.ResolveSupervisorChainForPerson()` and `ResolveDirectReportPersonIDs()` resolve reporting lines directly from core MJ's `MJ: Employees.SupervisorID` hierarchy — matching `MJ: Employees.Email` case-insensitively to `MJ: Users` and `MJ_BizApps_Common: People` — so no duplicate supervisor column is stored on `People`.
+1. **Row-Level Security (`RowLevelSecurityFilter`)**:
+   - `UI: Work Reports - Author or Supervisor Chain` (`DC505938-81AC-4EFF-A6FF-99BFB5B11018`) and `UI: Work Report Items - Author or Supervisor Chain` (`E2D9FE26-3490-48C5-A60B-42F1B2973B19`) restrict `UI`-role read/update access on `Work Reports` and `Work Report Items` to the report author (`MJ_BizApps_Common: People`) and their direct/indirect supervisor chain across `People.SupervisorPersonID` and `MJ: Employees.SupervisorID` (`CanDelete` on `Work Report Items` is disabled for the `UI` role).
+2. **Server-Side Entity Subclass (`WorkReportEntityServer`)**:
+   - Registered on `MJ_BizApps_Tasks: Work Reports` in `@mj-biz-apps/tasks-entities-server` with `DefaultSkipAsyncValidation = false`.
+   - Enforces on every server save that new reports start in `'Draft'` for the caller's own `PersonID`, `'Draft'` reports may only be edited or transitioned to `'Submitted'` by their author, `'Submitted'` reports may only transition to `'Reviewed'` with non-empty `SupervisorFeedback` by the author's resolved supervisor (never self-reviewed), and `'Reviewed'` reports are locked against further edits.
+3. **Fail-Closed Reporting Line Resolution (`MJ: Employees.SupervisorID`)**:
+   - `WorkReportService.ResolveSupervisorChainForPerson()` and `ResolveDirectReportPersonIDs()` check `.Success` on every `RunView` in the resolution chain and throw on any query error.
+   - `DraftWorkReport`, `SubmitWorkReport`, and `RecordSupervisorReview` refuse unless the caller is positively resolved to an active `Person` matching the required author or mapped supervisor role.
+4. **Local Calendar Window & Inclusive End-of-Day Normalization**:
+   - `GetLocalDayWindow()` computes the caller's local calendar day (`00:00:00.000` to `23:59:59.999` local time).
+   - `NormalizeReportPeriodWindow()` expands any date-only or midnight `PeriodEnd` (including multi-day windows such as `2026-11-02..2026-11-06`) to `23:59:59.999` of the final day so activity on the last day of the period is never dropped, and `DraftWorkReport` reuses an existing `Draft` for the same `(PersonID, PeriodStart, PeriodEnd)` period instead of creating duplicates.
 
 ### Shipped Chief of Staff Integration & Teardown
 
 - **Skill**: `"Work reports"` (`MJ: AI Skills`), granted to `Chief of Staff` via `MJ: AI Agent Skills`.
-- **Actions**: `Draft Work Report` (`Tasks.DraftWorkReport`), `Submit Work Report` (`Tasks.SubmitWorkReport`), and `Review Work Report` (`Tasks.ReviewWorkReport`).
-- **Navigation Surface**: `NavItem.bizapps-tasks.work-reports` in `MJ: Application Settings` mounts `ChiefOfStaffWorkReportsResource` (`BizAppsTasksChiefOfStaffWorkReports`) inside Chief of Staff. Only read/filter/navigation client tools are exposed to the co-agent; submitting a report or sending supervisor feedback always requires explicit human click confirmation.
-- **Clean Uninstall**: `teardown/V1__Remove_Work_Reports_Extension.sql` (and `teardown-pg/V1__Remove_Work_Reports_Extension.pg.sql`) removes the Chief of Staff `NavItem`, `"Work reports"` skill grant, and Work Report action registrations when `mj app remove bizapps-tasks` runs.
+- **Server Actions**: `Draft Work Report` (`Tasks.DraftWorkReport`), `Submit Work Report` (`Tasks.SubmitWorkReport`), and `Review Work Report` (`Tasks.ReviewWorkReport`) delegate directly to `WorkReportService.Instance` on the server (`AuthorizesCaller = true`).
+- **Navigation Surface**: `NavItem.bizapps-tasks.work-reports` in `MJ: Application Settings` mounts `ChiefOfStaffWorkReportsResource` (`BizAppsTasksChiefOfStaffWorkReports`) inside Chief of Staff. Draft, Submit, and Review invoke the server actions via `GraphQLActionClient`, and the UI banner only claims supervisor notification when `SupervisorNotified === true`.
+- **Clean Uninstall**: `teardown/V1__Remove_Work_Reports_Extension.sql` (and `teardown-pg/V1__Remove_Work_Reports_Extension.pg.sql`) removes dependent `ActionExecutionLog`, `AIAgentAction`, `EntityActionParam`, `EntityActionFilter`, `EntityAction`, `ActionAuthorization`, `ActionResultCode`, `ActionParam`, `Action`, `RowLevelSecurityFilter`, Chief of Staff `NavItem`, and `"Work reports"` skill rows when `mj app remove bizapps-tasks` runs.

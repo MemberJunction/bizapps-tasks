@@ -2,45 +2,67 @@ import {
     BaseEntity,
     IMetadataProvider,
     IRunViewProvider,
+    LogError,
+    LogStatus,
     Metadata,
     RunView,
     UserInfo,
 } from '@memberjunction/core';
-import { BaseSingleton, IsValidUUID, UUIDsEqual } from '@memberjunction/global';
+import { BaseSingleton, EscapeSQLString, IsValidUUID, NormalizeUUID, UUIDsEqual } from '@memberjunction/global';
 import type {
-    mjBizAppsTasksTaskEntity,
     mjBizAppsTasksWorkReportEntity,
     mjBizAppsTasksWorkReportItemEntity,
 } from '@mj-biz-apps/tasks-entities';
 
-export const WORK_REPORTS_ENTITY_NAME = 'MJ_BizApps_Tasks: Work Reports';
-export const WORK_REPORT_ITEMS_ENTITY_NAME = 'MJ_BizApps_Tasks: Work Report Items';
+export type WorkReportStatus = mjBizAppsTasksWorkReportEntity['Status'];
+export type WorkReportItemSection = mjBizAppsTasksWorkReportItemEntity['Section'];
+export type WorkReportSection = WorkReportItemSection;
+export type WorkReportStatusFilter = 'all' | WorkReportStatus;
+export type WorkReportTabMode = 'mine' | 'team';
+
+export const DRAFT_WORK_REPORT_ACTION_ID = '9F5124A5-64F2-4C06-8D71-60710DCB531B';
+export const SUBMIT_WORK_REPORT_ACTION_ID = '856D4E92-79B4-486A-A092-48CF5FC22998';
+export const REVIEW_WORK_REPORT_ACTION_ID = 'B880DABA-0FC1-4012-9C3B-92694D99985E';
+
 export const TASKS_ENTITY_NAME = 'MJ_BizApps_Tasks: Tasks';
 export const TASK_ASSIGNMENTS_ENTITY_NAME = 'MJ_BizApps_Tasks: Task Assignments';
-export const TASK_CHECK_INS_ENTITY_NAME = 'MJ_BizApps_Tasks: Task Check Ins';
+export const TASK_CHECK_INS_ENTITY_NAME = 'MJ_BizApps_Tasks: Task Check-Ins';
 export const TASK_ACTIVITIES_ENTITY_NAME = 'MJ_BizApps_Tasks: Task Activities';
+export const WORK_REPORTS_ENTITY_NAME = 'MJ_BizApps_Tasks: Work Reports';
+export const WORK_REPORT_ITEMS_ENTITY_NAME = 'MJ_BizApps_Tasks: Work Report Items';
 export const PEOPLE_ENTITY_NAME = 'MJ_BizApps_Common: People';
 export const EMPLOYEES_ENTITY_NAME = 'MJ: Employees';
 export const USERS_ENTITY_NAME = 'MJ: Users';
 export const AI_AGENTS_ENTITY_NAME = 'MJ: AI Agents';
 export const AI_AGENT_REQUESTS_ENTITY_NAME = 'MJ: AI Agent Requests';
+export const AI_AGENT_REQUEST_TYPES_ENTITY_NAME = 'MJ: AI Agent Request Types';
 export const FIELD_SUGGESTIONS_ENTITY_NAME = 'MJ: Field Suggestions';
 
-export type WorkReportStatus = mjBizAppsTasksWorkReportEntity['Status'];
-export type WorkReportSection = mjBizAppsTasksWorkReportItemEntity['Section'];
+const PRIVILEGED_ROLE_NAMES = new Set([
+    'developer',
+    'integration',
+    'admin',
+    'administrator',
+    'ui_admin',
+    'owner',
+    'system',
+]);
+
 export type WorkReportProvider = IMetadataProvider & IRunViewProvider;
 
-export interface WorkReportPersonSummary {
+export interface PersonIdentitySummary {
     ID: string;
-    FirstName: string;
-    LastName: string;
+    FirstName: string | null;
+    LastName: string | null;
     Email: string | null;
     LinkedUserID: string | null;
 }
 
-export interface SupervisorChainResolution {
+export interface SupervisorResolution {
     AuthorPersonID: string;
+    AuthorDisplayName: string;
     AuthorEmail: string | null;
+    AuthorUserID: string | null;
     EmployeeID: string | null;
     SupervisorEmployeeID: string | null;
     SupervisorEmail: string | null;
@@ -49,48 +71,31 @@ export interface SupervisorChainResolution {
     SupervisorName: string | null;
 }
 
-export interface WorkReportDraftItemInput {
-    TaskID: string | null;
-    Section: WorkReportSection;
-    Summary: string;
-}
-
-export interface ActivityTaskSnapshot {
-    ID: string;
+export interface TaskActivityWindowEntry {
+    TaskID: string;
     Name: string;
-    Status: mjBizAppsTasksTaskEntity['Status'];
-    Priority: mjBizAppsTasksTaskEntity['Priority'];
+    Status: string;
+    Priority: string | null;
     PercentComplete: number;
     HoursActual: number | null;
-    HealthStatus: mjBizAppsTasksTaskEntity['HealthStatus'];
+    HealthStatus: string | null;
     ParentID: string | null;
-    DueAt: Date | null;
-    CompletedAt: Date | null;
-    UpdatedAt: Date | null;
-    LatestCheckInSummary?: string | null;
-}
-
-export interface GetPersonTaskActivityParams {
-    PersonID: string;
-    PeriodStart: Date;
-    PeriodEnd: Date;
-    ContextUser?: UserInfo;
-    Provider?: WorkReportProvider;
+    DueAt: string | null;
+    CompletedAt: string | null;
+    UpdatedAt: string | null;
+    LatestCheckInSummary: string | null;
 }
 
 export interface PersonTaskActivitySummary {
     PersonID: string;
     PeriodStart: Date;
     PeriodEnd: Date;
-    HasActivity: boolean;
-    Completed: ActivityTaskSnapshot[];
-    InProgress: ActivityTaskSnapshot[];
-    Next: ActivityTaskSnapshot[];
-    Blockers: ActivityTaskSnapshot[];
-    AtRisk: ActivityTaskSnapshot[];
-    Items: WorkReportDraftItemInput[];
-    SuggestedTitle: string;
-    SuggestedBody: string;
+    TotalActiveOrUpdatedCount: number;
+    Completed: TaskActivityWindowEntry[];
+    InProgress: TaskActivityWindowEntry[];
+    Next: TaskActivityWindowEntry[];
+    Blockers: TaskActivityWindowEntry[];
+    AtRisk: TaskActivityWindowEntry[];
 }
 
 export interface DraftWorkReportParams {
@@ -98,40 +103,61 @@ export interface DraftWorkReportParams {
     PeriodStart: Date;
     PeriodEnd: Date;
     Title?: string | null;
-    Body?: string | null;
+    CustomBody?: string | null;
     AuthoredByAgentRunID?: string | null;
-    CustomItems?: WorkReportDraftItemInput[];
-    SkipIfNoActivity?: boolean;
     ContextUser?: UserInfo;
     Provider?: WorkReportProvider;
 }
 
 export interface DraftWorkReportOutcome {
     SkippedNoActivity: boolean;
-    Report: mjBizAppsTasksWorkReportEntity | null;
-    Items: mjBizAppsTasksWorkReportItemEntity[];
     Activity: PersonTaskActivitySummary;
+    Report: WorkReportRecordSnapshot | null;
+    Items: WorkReportItemRecordSnapshot[];
+}
+
+export interface WorkReportRecordSnapshot {
+    ID: string;
+    PersonID: string;
+    PeriodStart: Date;
+    PeriodEnd: Date;
+    Title: string | null;
+    Body: string;
+    Status: WorkReportStatus;
+    AuthoredByAgentRunID: string | null;
+    SupervisorFeedback: string | null;
+    ReviewedByPersonID: string | null;
+    ReviewedAt: Date | null;
+}
+
+export interface WorkReportItemRecordSnapshot {
+    ID: string;
+    WorkReportID: string;
+    TaskID: string | null;
+    Section: WorkReportItemSection;
+    Summary: string;
+    Sequence: number;
 }
 
 export interface SubmitWorkReportParams {
     WorkReportID: string;
     CallerPersonID?: string | null;
-    Title?: string | null;
-    Body?: string | null;
-    CreateSupervisorAgentRequest?: boolean;
+    UpdatedBody?: string | null;
+    UpdatedTitle?: string | null;
     ContextUser?: UserInfo;
     Provider?: WorkReportProvider;
 }
 
 export interface SubmitWorkReportOutcome {
-    Report: mjBizAppsTasksWorkReportEntity;
-    Supervisor: SupervisorChainResolution;
+    Report: WorkReportRecordSnapshot;
+    Supervisor: SupervisorResolution;
     SupervisorRequestID: string | null;
+    SupervisorNotified: boolean;
 }
 
 export interface RecordSupervisorReviewParams {
     WorkReportID: string;
-    ReviewerPersonID: string;
+    ReviewerPersonID?: string | null;
     SupervisorFeedback: string;
     EnforceReportingLine?: boolean;
     ContextUser?: UserInfo;
@@ -139,8 +165,8 @@ export interface RecordSupervisorReviewParams {
 }
 
 export interface RecordSupervisorReviewOutcome {
-    Report: mjBizAppsTasksWorkReportEntity;
-    Supervisor: SupervisorChainResolution;
+    Report: WorkReportRecordSnapshot;
+    Supervisor: SupervisorResolution;
 }
 
 export interface WorkReportViewModel {
@@ -156,98 +182,342 @@ export interface WorkReportViewModel {
     ReviewedByPersonID: string | null;
     ReviewedByName: string | null;
     ReviewedAt: string | null;
-    Items: {
-        ID: string;
-        TaskID: string | null;
-        TaskName: string | null;
-        Section: WorkReportSection;
-        Summary: string;
-        Sequence: number;
-    }[];
+    Items: WorkReportItemViewModel[];
 }
 
-export type WorkReportTabMode = 'mine' | 'team';
-export type WorkReportStatusFilter = 'all' | WorkReportStatus;
+export interface WorkReportItemViewModel {
+    ID: string;
+    TaskID: string | null;
+    TaskName: string | null;
+    Section: WorkReportItemSection;
+    Summary: string;
+    Sequence: number;
+}
+
+export interface LocalDayWindow {
+    PeriodStart: Date;
+    PeriodEnd: Date;
+    DateString: string;
+}
+
+interface RawPersonRow {
+    ID: string;
+    FirstName?: string | null;
+    LastName?: string | null;
+    Email?: string | null;
+    LinkedUserID?: string | null;
+    Status?: string | null;
+}
 
 interface RawEmployeeRow {
     ID: string;
-    FirstName: string | null;
-    LastName: string | null;
-    Email: string | null;
-    SupervisorID: string | null;
-    Active: boolean | number | null;
+    FirstName?: string | null;
+    LastName?: string | null;
+    Email?: string | null;
+    SupervisorID?: string | null;
+    Active?: boolean | number | null;
 }
 
 interface RawUserRow {
     ID: string;
-    Name: string | null;
-    Email: string | null;
-    LinkedEntityID?: string | null;
-    LinkedEntityRecordID?: string | null;
+    Name?: string | null;
+    Email?: string | null;
+    IsActive?: boolean | number | null;
+}
+
+interface RawTaskAssignmentRow {
+    TaskID: string;
 }
 
 interface RawTaskRow {
     ID: string;
     Name: string;
-    Status: mjBizAppsTasksTaskEntity['Status'];
-    Priority: mjBizAppsTasksTaskEntity['Priority'];
-    PercentComplete: number | null;
-    HoursActual: number | null;
-    HealthStatus: mjBizAppsTasksTaskEntity['HealthStatus'];
-    ParentID: string | null;
-    DueAt: string | Date | null;
-    CompletedAt: string | Date | null;
-    __mj_UpdatedAt: string | Date | null;
+    Status: string;
+    Priority?: string | null;
+    PercentComplete?: number | null;
+    HoursActual?: number | null;
+    HealthStatus?: string | null;
+    ParentID?: string | null;
+    DueAt?: string | Date | null;
+    CompletedAt?: string | Date | null;
+    __mj_UpdatedAt?: string | Date | null;
 }
 
-interface AIAgentRequestFields {
+interface RawCheckInRow {
+    TaskID: string;
+    Summary?: string | null;
+    Blockers?: string | null;
+    __mj_CreatedAt?: string | Date | null;
+}
+
+interface RawTaskActivityRow {
+    TaskID: string;
+    Summary?: string | null;
+    ActivityType?: string | null;
+    __mj_CreatedAt?: string | Date | null;
+}
+
+interface RawWorkReportLookupRow {
     ID: string;
-    AgentID: string;
-    RequestedAt: Date;
+    Status: WorkReportStatus;
+}
+
+interface RawWorkReportItemLookupRow {
+    ID: string;
+    Sequence: number;
+}
+
+interface RawAgentRow {
+    ID: string;
+    Name?: string | null;
+}
+
+interface RawRequestTypeRow {
+    ID: string;
+    Name?: string | null;
+}
+
+interface RawFieldSuggestionRow {
+    ID: string;
+    LinkedRecordID: string;
+}
+
+interface AIAgentRequestEntity extends BaseEntity {
+    ID: string;
+    AgentID: string | null;
+    RequestedByUserID: string | null;
     RequestForUserID: string | null;
-    Status: string;
+    RequestTypeID: string | null;
+    OriginatingEntityID: string | null;
+    OriginatingRecordID: string | null;
     Request: string;
+    Status: string;
     Priority: number;
+    ExpiresAt: Date | null;
     Comments: string | null;
 }
 
-function escapeSqlLiteral(value: string): string {
-    return value.replace(/'/g, "''");
-}
-
-function assertValidUUID(value: string, label: string): void {
-    if (!IsValidUUID(value)) {
-        throw new Error(`${label} is not a valid UUID: ${value}`);
+function findEntityByName(
+    md: IMetadataProvider,
+    entityName: string,
+): { ID: string; Name: string } | undefined {
+    const candidate = md as IMetadataProvider & {
+        EntityByName?: (name: string) => { ID: string; Name: string } | undefined;
+    };
+    if (typeof candidate.EntityByName === 'function') {
+        const match = candidate.EntityByName(entityName);
+        if (match) {
+            return match;
+        }
     }
-}
-
-function formatIsoDateOnly(d: Date): string {
-    const year = d.getUTCFullYear();
-    const month = String(d.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(d.getUTCDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-}
-
-function resolveMetadataProvider(provider?: WorkReportProvider): IMetadataProvider {
-    return provider ?? Metadata.Provider;
-}
-
-function createRunView(provider?: WorkReportProvider): RunView {
-    return provider ? new RunView(provider) : new RunView();
+    return md.Entities?.find((e) => e.Name === entityName);
 }
 
 /**
- * Loads counts of pending (`Outcome IS NULL AND IsResolved = 0`) MJ core Field Suggestions
- * anchored to `MJ_BizApps_Tasks: Tasks` rows. Returns a Map keyed by lowercased Task ID.
- *
- * Gracefully returns an empty map when `MJ: Field Suggestions` is not installed in metadata.
+ * Returns true when the user carries a server/admin role that is exempt from author/supervisor gating.
+ */
+export function IsPrivilegedWorkReportUser(user?: UserInfo): boolean {
+    if (!user) {
+        return false;
+    }
+    const userWithMeta = user as UserInfo & { Type?: string };
+    if (typeof userWithMeta.Type === 'string' && userWithMeta.Type.trim().toLowerCase() === 'owner') {
+        return true;
+    }
+    const roles = user.UserRoles ?? [];
+    for (const ur of roles) {
+        const roleName = (ur.Role ?? '').trim().toLowerCase();
+        if (PRIVILEGED_ROLE_NAMES.has(roleName)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Returns the caller's local calendar day window (`00:00:00.000` through `23:59:59.999` local time)
+ * and its `YYYY-MM-DD` local calendar date string.
+ */
+export function GetLocalDayWindow(now: Date = new Date()): LocalDayWindow {
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const day = now.getDate();
+    const pad = (n: number): string => String(n).padStart(2, '0');
+    const dateString = `${year}-${pad(month + 1)}-${pad(day)}`;
+    return {
+        PeriodStart: new Date(year, month, day, 0, 0, 0, 0),
+        PeriodEnd: new Date(year, month, day, 23, 59, 59, 999),
+        DateString: dateString,
+    };
+}
+
+/**
+ * Formats a Date into a `YYYY-MM-DD` calendar date string.
+ * If the Date represents exact UTC midnight (`00:00:00.000Z`), uses UTC components so
+ * ISO date-only strings (`new Date('2026-11-06')`) preserve their calendar date in every timezone;
+ * otherwise uses local calendar components.
+ */
+export function FormatReportCalendarDate(date: Date): string {
+    const isUtcMidnight =
+        date.getUTCHours() === 0 &&
+        date.getUTCMinutes() === 0 &&
+        date.getUTCSeconds() === 0 &&
+        date.getUTCMilliseconds() === 0;
+    const isUtcEndOfDay =
+        date.getUTCHours() === 23 &&
+        date.getUTCMinutes() === 59 &&
+        (date.getUTCSeconds() === 59 || date.getUTCSeconds() === 0);
+
+    const year = isUtcMidnight || isUtcEndOfDay ? date.getUTCFullYear() : date.getFullYear();
+    const month = (isUtcMidnight || isUtcEndOfDay ? date.getUTCMonth() : date.getMonth()) + 1;
+    const day = isUtcMidnight || isUtcEndOfDay ? date.getUTCDate() : date.getDate();
+    const pad = (n: number): string => String(n).padStart(2, '0');
+    return `${year}-${pad(month)}-${pad(day)}`;
+}
+
+/**
+ * Normalizes a `[PeriodStart, PeriodEnd]` window so that any date-only or midnight `PeriodEnd`
+ * (including multi-day ranges like `2026-11-02..2026-11-06`) covers the full final day through
+ * `23:59:59.999` instead of stopping at `00:00:00.000` at the start of the end date.
+ */
+export function NormalizeReportPeriodWindow(
+    periodStart: Date,
+    periodEnd: Date,
+): { StartDate: Date; EndDate: Date; StartMs: number; EndMs: number } {
+    const rawStartMs = periodStart.getTime();
+    const rawEndMs = periodEnd.getTime();
+    const minDate = rawStartMs <= rawEndMs ? new Date(rawStartMs) : new Date(rawEndMs);
+    const maxDate = rawStartMs <= rawEndMs ? new Date(rawEndMs) : new Date(rawStartMs);
+
+    const isUtcMidnight =
+        maxDate.getUTCHours() === 0 &&
+        maxDate.getUTCMinutes() === 0 &&
+        maxDate.getUTCSeconds() === 0 &&
+        maxDate.getUTCMilliseconds() === 0;
+    const isLocalMidnight =
+        maxDate.getHours() === 0 &&
+        maxDate.getMinutes() === 0 &&
+        maxDate.getSeconds() === 0 &&
+        maxDate.getMilliseconds() === 0;
+
+    const startMs = minDate.getTime();
+    const endMs =
+        isUtcMidnight || isLocalMidnight || maxDate.getTime() === startMs
+            ? maxDate.getTime() + 24 * 60 * 60 * 1000 - 1
+            : maxDate.getTime();
+
+    return {
+        StartDate: new Date(startMs),
+        EndDate: new Date(endMs),
+        StartMs: startMs,
+        EndMs: endMs,
+    };
+}
+
+function buildPersonDisplayName(row: { FirstName?: string | null; LastName?: string | null; Email?: string | null }): string {
+    const full = `${row.FirstName ?? ''} ${row.LastName ?? ''}`.trim();
+    if (full.length > 0) {
+        return full;
+    }
+    return row.Email?.trim() || 'Unknown Person';
+}
+
+function toIsoStringOrNull(value: string | Date | null | undefined): string | null {
+    if (!value) {
+        return null;
+    }
+    const d = value instanceof Date ? value : new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+function isTimestampWithinWindow(
+    value: string | Date | null | undefined,
+    startMs: number,
+    endMs: number,
+): boolean {
+    if (!value) {
+        return false;
+    }
+    const ms = value instanceof Date ? value.getTime() : new Date(value).getTime();
+    if (Number.isNaN(ms)) {
+        return false;
+    }
+    return ms >= startMs && ms <= endMs;
+}
+
+/**
+ * Synthesizes a concise, 5-minute-readable markdown body from a person's task activity window.
+ */
+export function BuildWorkReportMarkdown(activity: Pick<
+    PersonTaskActivitySummary,
+    'Completed' | 'InProgress' | 'Next' | 'Blockers' | 'AtRisk'
+>): string {
+    const lines: string[] = [];
+
+    if (activity.Completed.length > 0) {
+        lines.push('### Completed');
+        for (const item of activity.Completed) {
+            const hoursSuffix = item.HoursActual != null && item.HoursActual > 0 ? ` (${item.HoursActual}h)` : '';
+            const detail = item.LatestCheckInSummary ? ` — ${item.LatestCheckInSummary}` : '';
+            lines.push(`- **${item.Name}**${hoursSuffix}${detail}`);
+        }
+        lines.push('');
+    }
+
+    if (activity.InProgress.length > 0) {
+        lines.push('### In Progress');
+        for (const item of activity.InProgress) {
+            const pct = item.PercentComplete > 0 ? ` (${item.PercentComplete}%)` : '';
+            const detail = item.LatestCheckInSummary ? ` — ${item.LatestCheckInSummary}` : '';
+            lines.push(`- **${item.Name}**${pct}${detail}`);
+        }
+        lines.push('');
+    }
+
+    if (activity.Next.length > 0) {
+        lines.push('### Next');
+        for (const item of activity.Next) {
+            const due = item.DueAt ? ` (due ${item.DueAt.slice(0, 10)})` : '';
+            lines.push(`- **${item.Name}**${due}`);
+        }
+        lines.push('');
+    }
+
+    if (activity.Blockers.length > 0) {
+        lines.push('### Blockers');
+        for (const item of activity.Blockers) {
+            const detail = item.LatestCheckInSummary ? `: ${item.LatestCheckInSummary}` : '';
+            lines.push(`- **${item.Name}**${detail}`);
+        }
+        lines.push('');
+    }
+
+    if (activity.AtRisk.length > 0) {
+        lines.push('### At-Risk Objectives');
+        for (const item of activity.AtRisk) {
+            const health = item.HealthStatus ?? 'AtRisk';
+            lines.push(`- **${item.Name}** [${health}]`);
+        }
+        lines.push('');
+    }
+
+    if (lines.length === 0) {
+        return '_No task updates recorded during this period._';
+    }
+
+    return lines.join('\n').trim();
+}
+
+/**
+ * Loads pending `MJ: Field Suggestions` counts grouped by normalized Task ID.
+ * Logs a warning when the host database is running an older MJ core without `MJ: Field Suggestions`.
  */
 export async function LoadPendingFieldSuggestionCountsForTasks(
     rv: RunView,
     tasksEntityID: string,
-    taskIDs: readonly string[],
+    taskIDs: string[],
     contextUser?: UserInfo,
-    provider?: IMetadataProvider
+    provider?: IMetadataProvider,
 ): Promise<Map<string, number>> {
     const counts = new Map<string, number>();
     if (!tasksEntityID || !IsValidUUID(tasksEntityID) || taskIDs.length === 0) {
@@ -255,167 +525,146 @@ export async function LoadPendingFieldSuggestionCountsForTasks(
     }
 
     const md = provider ?? Metadata.Provider;
-    const hasFieldSuggestions = md?.Entities?.some((e) => e.Name === FIELD_SUGGESTIONS_ENTITY_NAME) ?? false;
-    if (!hasFieldSuggestions) {
+    const hasFieldSuggestionsEntity = Boolean(findEntityByName(md, FIELD_SUGGESTIONS_ENTITY_NAME));
+    if (!hasFieldSuggestionsEntity) {
+        LogStatus(
+            `WorkReportService: '${FIELD_SUGGESTIONS_ENTITY_NAME}' entity is not registered on this host (requires MJ 6.3+); skipping pending suggestion badge counts.`,
+        );
         return counts;
     }
 
-    const validTaskIDs = taskIDs.filter((id) => IsValidUUID(id));
-    if (validTaskIDs.length === 0) {
+    const validIDs = taskIDs.filter((id) => IsValidUUID(id));
+    if (validIDs.length === 0) {
         return counts;
     }
 
-    const quotedTaskIDs = validTaskIDs.map((id) => `'${id}'`).join(',');
-    const result = await rv.RunView<{ ID: string; LinkedRecordID: string | null }>({
-        EntityName: FIELD_SUGGESTIONS_ENTITY_NAME,
-        ExtraFilter: `LinkedEntityID = '${tasksEntityID}' AND LinkedRecordID IN (${quotedTaskIDs}) AND Outcome IS NULL AND IsResolved = 0`,
-        Fields: ['ID', 'LinkedRecordID'],
-        ResultType: 'simple',
-    }, contextUser);
+    const inList = validIDs.map((id) => `'${EscapeSQLString(id)}'`).join(', ');
+    const res = await rv.RunView<RawFieldSuggestionRow>(
+        {
+            EntityName: FIELD_SUGGESTIONS_ENTITY_NAME,
+            ExtraFilter:
+                `LinkedEntityID = '${EscapeSQLString(tasksEntityID)}' ` +
+                `AND Status = 'Pending' ` +
+                `AND LinkedRecordID IN (${inList})`,
+            Fields: ['ID', 'LinkedRecordID'],
+            ResultType: 'simple',
+        },
+        contextUser,
+    );
 
-    if (!result?.Success) {
+    if (!res.Success) {
+        LogError(
+            `WorkReportService: failed to load pending field suggestions for tasks: ${res.ErrorMessage ?? 'RunView failed'}`,
+        );
         return counts;
     }
 
-    for (const row of result.Results ?? []) {
+    for (const row of res.Results ?? []) {
         if (row.LinkedRecordID) {
-            const key = row.LinkedRecordID.toLowerCase();
+            const key = NormalizeUUID(row.LinkedRecordID);
             counts.set(key, (counts.get(key) ?? 0) + 1);
         }
     }
+
     return counts;
 }
 
 /**
- * Pure filter helper for the Chief of Staff Work Reports surface.
+ * Pure filter helper for the Chief of Staff Work Reports resource list.
  */
 export function FilterWorkReports(
-    reports: readonly WorkReportViewModel[],
-    statusFilter: WorkReportStatusFilter,
-    searchText: string
+    reports: WorkReportViewModel[],
+    statusFilter: 'all' | WorkReportStatus,
+    searchText: string,
 ): WorkReportViewModel[] {
-    const query = searchText.trim().toLowerCase();
-    return reports.filter((r) => {
-        if (statusFilter !== 'all' && r.Status !== statusFilter) {
+    const trimmedSearch = searchText.trim().toLowerCase();
+    return reports.filter((report) => {
+        if (statusFilter !== 'all' && report.Status !== statusFilter) {
             return false;
         }
-        if (!query) {
-            return true;
+        if (trimmedSearch.length > 0) {
+            const haystack = `${report.Title} ${report.PersonName} ${report.Body} ${report.SupervisorFeedback ?? ''}`.toLowerCase();
+            if (!haystack.includes(trimmedSearch)) {
+                return false;
+            }
         }
-        if (r.Title.toLowerCase().includes(query)) return true;
-        if (r.PersonName.toLowerCase().includes(query)) return true;
-        if (r.Body.toLowerCase().includes(query)) return true;
-        if ((r.SupervisorFeedback ?? '').toLowerCase().includes(query)) return true;
-        return r.Items.some((item) =>
-            item.Summary.toLowerCase().includes(query) ||
-            (item.TaskName ?? '').toLowerCase().includes(query)
-        );
+        return true;
     });
 }
 
-/**
- * Pure agent-context builder for the Chief of Staff Work Reports surface.
- */
-export function BuildWorkReportsAgentContext(params: {
-    ActiveTab: WorkReportTabMode;
-    StatusFilter: WorkReportStatusFilter;
+export interface WorkReportsSelectedReportContext {
+    ID: string;
+    Title: string;
+    PersonID: string;
+    PersonName: string;
+    PeriodStart: string;
+    PeriodEnd: string;
+    Status: WorkReportStatus;
+    ItemCount: number;
+    HasSupervisorFeedback: boolean;
+}
+
+export interface WorkReportsAgentContext {
+    Surface: 'ChiefOfStaffWorkReports';
+    ActiveTab: 'mine' | 'team';
+    StatusFilter: 'all' | WorkReportStatus;
     SearchText: string;
-    MyReports: readonly WorkReportViewModel[];
-    TeamReports: readonly WorkReportViewModel[];
+    MyReportsCount: number;
+    MyDraftCount: number;
+    TeamReportsCount: number;
+    TeamPendingReviewCount: number;
+    FilteredCount: number;
+    SelectedReport: WorkReportsSelectedReportContext | null;
+    [key: string]: string | number | boolean | WorkReportsSelectedReportContext | null;
+}
+
+/**
+ * Builds the compact ambient context payload published via `navigationService.SetAgentContext`
+ * from the Chief of Staff Work Reports resource.
+ */
+export function BuildWorkReportsAgentContext(state: {
+    ActiveTab: 'mine' | 'team';
+    StatusFilter: 'all' | WorkReportStatus;
+    SearchText: string;
+    MyReports: WorkReportViewModel[];
+    TeamReports: WorkReportViewModel[];
     FilteredCount: number;
     SelectedReportID: string | null;
-}): Record<string, unknown> {
-    const source = params.ActiveTab === 'mine' ? params.MyReports : params.TeamReports;
-    const selected = params.SelectedReportID
-        ? source.find((r) => UUIDsEqual(r.ID, params.SelectedReportID!)) ?? null
+}): WorkReportsAgentContext {
+    const allReports = state.ActiveTab === 'mine' ? state.MyReports : state.TeamReports;
+    const selected = state.SelectedReportID
+        ? allReports.find((r) => UUIDsEqual(r.ID, state.SelectedReportID)) ?? null
         : null;
+
     return {
         Surface: 'ChiefOfStaffWorkReports',
-        ActiveTab: params.ActiveTab,
-        StatusFilter: params.StatusFilter,
-        SearchText: params.SearchText,
-        MyReportCount: params.MyReports.length,
-        MyDraftCount: params.MyReports.filter((r) => r.Status === 'Draft').length,
-        TeamPendingReviewCount: params.TeamReports.filter((r) => r.Status === 'Submitted').length,
-        TeamTotalCount: params.TeamReports.length,
-        FilteredCount: params.FilteredCount,
+        ActiveTab: state.ActiveTab,
+        StatusFilter: state.StatusFilter,
+        SearchText: state.SearchText,
+        MyReportsCount: state.MyReports.length,
+        MyDraftCount: state.MyReports.filter((r) => r.Status === 'Draft').length,
+        TeamReportsCount: state.TeamReports.length,
+        TeamPendingReviewCount: state.TeamReports.filter((r) => r.Status === 'Submitted').length,
+        FilteredCount: state.FilteredCount,
         SelectedReport: selected
             ? {
                   ID: selected.ID,
                   Title: selected.Title,
+                  PersonID: selected.PersonID,
                   PersonName: selected.PersonName,
                   PeriodStart: selected.PeriodStart,
                   PeriodEnd: selected.PeriodEnd,
                   Status: selected.Status,
                   ItemCount: selected.Items.length,
+                  HasSupervisorFeedback: Boolean(selected.SupervisorFeedback),
               }
             : null,
-        RecentTitles: source.slice(0, 15).map((r) => `${r.Title} (${r.Status})`),
     };
 }
 
 /**
- * Synthesizes a concise, 5-minute Markdown report body from structured section snapshots.
- */
-export function BuildWorkReportMarkdown(sections: {
-    Completed: readonly ActivityTaskSnapshot[];
-    InProgress: readonly ActivityTaskSnapshot[];
-    Next: readonly ActivityTaskSnapshot[];
-    Blockers: readonly ActivityTaskSnapshot[];
-    AtRisk: readonly ActivityTaskSnapshot[];
-}): string {
-    const blocks: string[] = [];
-
-    if (sections.Completed.length > 0) {
-        blocks.push(
-            '### Completed\n' +
-                sections.Completed.map((t) => `- **${t.Name}**${t.HoursActual ? ` (${t.HoursActual}h)` : ''}`).join('\n')
-        );
-    }
-
-    if (sections.InProgress.length > 0) {
-        blocks.push(
-            '### In Progress\n' +
-                sections.InProgress.map((t) => {
-                    const checkIn = t.LatestCheckInSummary ? ` — ${t.LatestCheckInSummary}` : '';
-                    return `- **${t.Name}** (${t.PercentComplete}%)${checkIn}`;
-                }).join('\n')
-        );
-    }
-
-    if (sections.Next.length > 0) {
-        blocks.push(
-            '### Next\n' +
-                sections.Next.map((t) => `- **${t.Name}**${t.DueAt ? ` (due ${formatIsoDateOnly(t.DueAt)})` : ''}`).join('\n')
-        );
-    }
-
-    if (sections.Blockers.length > 0) {
-        blocks.push(
-            '### Blockers\n' +
-                sections.Blockers.map((t) => {
-                    const detail = t.LatestCheckInSummary ? ` — ${t.LatestCheckInSummary}` : '';
-                    return `- **${t.Name}**${detail}`;
-                }).join('\n')
-        );
-    }
-
-    if (sections.AtRisk.length > 0) {
-        blocks.push(
-            '### At-Risk Objectives\n' +
-                sections.AtRisk.map((t) => `- **${t.Name}** (${t.HealthStatus ?? 'AtRisk'}, ${t.PercentComplete}%)`).join('\n')
-        );
-    }
-
-    return blocks.length > 0
-        ? blocks.join('\n\n')
-        : '_No task updates recorded during this reporting window._';
-}
-
-/**
- * Service coordinating daily/periodic 15Five work reports (`MJ_BizApps_Tasks: Work Reports`),
- * zero-activity wake skipping, supervisor reporting-line lookup via `MJ: Employees.SupervisorID`,
- * inter-agent review requests, and supervisor feedback recording.
+ * Service for drafting, submitting, and reviewing 15Five-style Work Reports
+ * and resolving supervisor reporting lines across `MJ_BizApps_Common: People` and `MJ: Employees`.
  */
 export class WorkReportService extends BaseSingleton<WorkReportService> {
     public constructor() {
@@ -426,61 +675,162 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
         return WorkReportService.getInstance<WorkReportService>();
     }
 
-    /**
-     * Resolves the active `MJ_BizApps_Common: People` record linked to a user.
-     */
-    public async ResolvePersonForUser(
-        user: UserInfo,
-        provider?: WorkReportProvider
-    ): Promise<WorkReportPersonSummary | null> {
-        if (!user?.ID || !IsValidUUID(user.ID)) {
-            return null;
-        }
-        const md = resolveMetadataProvider(provider);
-        const rv = createRunView(provider);
+    private createRunView(provider?: WorkReportProvider): RunView {
+        return new RunView(provider);
+    }
 
-        const rawLinkedEntityID = user.LinkedEntityID as unknown as string | null | undefined;
-        const rawLinkedRecordID = user.LinkedEntityRecordID as unknown as string | null | undefined;
-        let linkedPersonID: string | null = null;
-        if (rawLinkedEntityID && rawLinkedRecordID && IsValidUUID(rawLinkedRecordID)) {
-            const ent = md.Entities.find((e) => UUIDsEqual(e.ID, rawLinkedEntityID));
-            if (ent && (ent.Name === PEOPLE_ENTITY_NAME || ent.ParentChain.some((p) => p.Name === PEOPLE_ENTITY_NAME))) {
-                linkedPersonID = rawLinkedRecordID;
-            }
-        }
-
-        const filter = linkedPersonID
-            ? `ID = '${linkedPersonID}' AND Status = 'Active'`
-            : `LinkedUserID = '${user.ID}' AND Status = 'Active'`;
-        const res = await rv.RunView<WorkReportPersonSummary>({
-            EntityName: PEOPLE_ENTITY_NAME,
-            ExtraFilter: filter,
-            Fields: ['ID', 'FirstName', 'LastName', 'Email', 'LinkedUserID'],
-            ResultType: 'simple',
-            MaxRows: 1,
-        }, user);
-
-        if (!res?.Success) {
-            throw new Error(`Person lookup failed: ${res?.ErrorMessage ?? 'unknown error'}`);
-        }
-        return res.Results?.[0] ?? null;
+    private getMetadataProvider(provider?: WorkReportProvider): IMetadataProvider {
+        return provider ?? Metadata.Provider;
     }
 
     /**
-     * Resolves a person's reporting line via core MJ's `MJ: Employees.SupervisorID`,
-     * matching employee emails case-insensitively to `MJ: Users` and `MJ_BizApps_Common: People`.
+     * Resolves the active `MJ_BizApps_Common: People` record for a MemberJunction `UserInfo`.
+     * Uses `UserInfo.LinkedEntityRecordID` when linked to People, then `Person.LinkedUserID`,
+     * and finally case-insensitive `Person.Email`.
+     */
+    public async ResolvePersonForUser(
+        user: UserInfo,
+        provider?: WorkReportProvider,
+    ): Promise<PersonIdentitySummary | null> {
+        const rv = this.createRunView(provider);
+        const md = this.getMetadataProvider(provider);
+        const peopleEntity = findEntityByName(md, PEOPLE_ENTITY_NAME);
+
+        const userWithLink = user as UserInfo & {
+            LinkedEntityID?: string | null;
+            LinkedEntityRecordID?: string | null;
+        };
+
+        if (
+            peopleEntity &&
+            userWithLink.LinkedEntityID &&
+            userWithLink.LinkedEntityRecordID &&
+            UUIDsEqual(userWithLink.LinkedEntityID, peopleEntity.ID) &&
+            IsValidUUID(userWithLink.LinkedEntityRecordID)
+        ) {
+            const byLink = await rv.RunView<RawPersonRow>(
+                {
+                    EntityName: PEOPLE_ENTITY_NAME,
+                    ExtraFilter: `ID = '${EscapeSQLString(userWithLink.LinkedEntityRecordID)}' AND Status = 'Active'`,
+                    Fields: ['ID', 'FirstName', 'LastName', 'Email', 'LinkedUserID'],
+                    MaxRows: 1,
+                    ResultType: 'simple',
+                },
+                user,
+            );
+            if (!byLink.Success) {
+                throw new Error(`Failed to resolve linked Person record: ${byLink.ErrorMessage ?? 'RunView failed'}`);
+            }
+            const linkedRow = byLink.Results?.[0];
+            if (linkedRow) {
+                return {
+                    ID: linkedRow.ID,
+                    FirstName: linkedRow.FirstName ?? null,
+                    LastName: linkedRow.LastName ?? null,
+                    Email: linkedRow.Email ?? null,
+                    LinkedUserID: linkedRow.LinkedUserID ?? null,
+                };
+            }
+        }
+
+        if (user.ID && IsValidUUID(user.ID)) {
+            const byUser = await rv.RunView<RawPersonRow>(
+                {
+                    EntityName: PEOPLE_ENTITY_NAME,
+                    ExtraFilter: `LinkedUserID = '${EscapeSQLString(user.ID)}' AND Status = 'Active'`,
+                    Fields: ['ID', 'FirstName', 'LastName', 'Email', 'LinkedUserID'],
+                    MaxRows: 1,
+                    ResultType: 'simple',
+                },
+                user,
+            );
+            if (!byUser.Success) {
+                throw new Error(`Failed to resolve Person by LinkedUserID: ${byUser.ErrorMessage ?? 'RunView failed'}`);
+            }
+            const userRow = byUser.Results?.[0];
+            if (userRow) {
+                return {
+                    ID: userRow.ID,
+                    FirstName: userRow.FirstName ?? null,
+                    LastName: userRow.LastName ?? null,
+                    Email: userRow.Email ?? null,
+                    LinkedUserID: userRow.LinkedUserID ?? null,
+                };
+            }
+        }
+
+        const email = user.Email?.trim();
+        if (email) {
+            const byEmail = await rv.RunView<RawPersonRow>(
+                {
+                    EntityName: PEOPLE_ENTITY_NAME,
+                    ExtraFilter: `LOWER(Email) = LOWER('${EscapeSQLString(email)}') AND Status = 'Active'`,
+                    Fields: ['ID', 'FirstName', 'LastName', 'Email', 'LinkedUserID'],
+                    MaxRows: 1,
+                    ResultType: 'simple',
+                },
+                user,
+            );
+            if (!byEmail.Success) {
+                throw new Error(`Failed to resolve Person by Email: ${byEmail.ErrorMessage ?? 'RunView failed'}`);
+            }
+            const emailRow = byEmail.Results?.[0];
+            if (emailRow) {
+                return {
+                    ID: emailRow.ID,
+                    FirstName: emailRow.FirstName ?? null,
+                    LastName: emailRow.LastName ?? null,
+                    Email: emailRow.Email ?? null,
+                    LinkedUserID: emailRow.LinkedUserID ?? null,
+                };
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolves a person's supervisor across `MJ_BizApps_Common: People` -> `MJ: Employees.SupervisorID`
+     * -> supervisor `MJ: Employees` -> supervisor `MJ: Users` and `MJ_BizApps_Common: People`.
+     * Throws if any underlying `RunView` fails so callers never fail open on a query error.
      */
     public async ResolveSupervisorChainForPerson(
-        personID: string,
+        authorPersonID: string,
         contextUser?: UserInfo,
-        provider?: WorkReportProvider
-    ): Promise<SupervisorChainResolution> {
-        assertValidUUID(personID, 'PersonID');
-        const rv = createRunView(provider);
+        provider?: WorkReportProvider,
+    ): Promise<SupervisorResolution> {
+        if (!IsValidUUID(authorPersonID)) {
+            throw new Error(`Invalid authorPersonID: '${authorPersonID}'`);
+        }
 
-        const empty: SupervisorChainResolution = {
-            AuthorPersonID: personID,
-            AuthorEmail: null,
+        const rv = this.createRunView(provider);
+        const personRes = await rv.RunView<RawPersonRow>(
+            {
+                EntityName: PEOPLE_ENTITY_NAME,
+                ExtraFilter: `ID = '${EscapeSQLString(authorPersonID)}'`,
+                Fields: ['ID', 'FirstName', 'LastName', 'Email', 'LinkedUserID'],
+                MaxRows: 1,
+                ResultType: 'simple',
+            },
+            contextUser,
+        );
+
+        if (!personRes.Success) {
+            throw new Error(
+                `Failed to load author Person '${authorPersonID}': ${personRes.ErrorMessage ?? 'RunView failed'}`,
+            );
+        }
+
+        const authorRow = personRes.Results?.[0];
+        if (!authorRow) {
+            throw new Error(`Author Person record '${authorPersonID}' not found.`);
+        }
+
+        const result: SupervisorResolution = {
+            AuthorPersonID: authorRow.ID,
+            AuthorDisplayName: buildPersonDisplayName(authorRow),
+            AuthorEmail: authorRow.Email ?? null,
+            AuthorUserID: authorRow.LinkedUserID ?? null,
             EmployeeID: null,
             SupervisorEmployeeID: null,
             SupervisorEmail: null,
@@ -489,682 +839,1046 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
             SupervisorName: null,
         };
 
-        const personRes = await rv.RunView<WorkReportPersonSummary>({
-            EntityName: PEOPLE_ENTITY_NAME,
-            ExtraFilter: `ID = '${personID}'`,
-            Fields: ['ID', 'FirstName', 'LastName', 'Email', 'LinkedUserID'],
-            ResultType: 'simple',
-            MaxRows: 1,
-        }, contextUser);
-        const person = personRes?.Results?.[0];
-        if (!person) {
-            return empty;
-        }
-
-        let authorEmail = person.Email?.trim() || null;
-        if (!authorEmail && person.LinkedUserID && IsValidUUID(person.LinkedUserID)) {
-            const userRes = await rv.RunView<RawUserRow>({
-                EntityName: USERS_ENTITY_NAME,
-                ExtraFilter: `ID = '${person.LinkedUserID}'`,
-                Fields: ['ID', 'Name', 'Email'],
-                ResultType: 'simple',
-                MaxRows: 1,
-            }, contextUser);
-            authorEmail = userRes?.Results?.[0]?.Email?.trim() || null;
-        }
-        empty.AuthorEmail = authorEmail;
+        const authorEmail = authorRow.Email?.trim();
         if (!authorEmail) {
-            return empty;
+            return result;
         }
 
-        const empRes = await rv.RunView<RawEmployeeRow>({
-            EntityName: EMPLOYEES_ENTITY_NAME,
-            ExtraFilter: `LOWER(Email) = LOWER('${escapeSqlLiteral(authorEmail)}')`,
-            Fields: ['ID', 'FirstName', 'LastName', 'Email', 'SupervisorID', 'Active'],
-            OrderBy: 'Active DESC',
-            ResultType: 'simple',
-            MaxRows: 1,
-        }, contextUser);
-        const emp = empRes?.Results?.[0];
-        if (!emp) {
-            return empty;
-        }
-        empty.EmployeeID = emp.ID;
-        if (!emp.SupervisorID || !IsValidUUID(emp.SupervisorID)) {
-            return empty;
-        }
-        empty.SupervisorEmployeeID = emp.SupervisorID;
+        const empRes = await rv.RunView<RawEmployeeRow>(
+            {
+                EntityName: EMPLOYEES_ENTITY_NAME,
+                ExtraFilter: `LOWER(Email) = LOWER('${EscapeSQLString(authorEmail)}') AND Active = 1`,
+                Fields: ['ID', 'FirstName', 'LastName', 'Email', 'SupervisorID', 'Active'],
+                MaxRows: 1,
+                ResultType: 'simple',
+            },
+            contextUser,
+        );
 
-        const supEmpRes = await rv.RunView<RawEmployeeRow>({
-            EntityName: EMPLOYEES_ENTITY_NAME,
-            ExtraFilter: `ID = '${emp.SupervisorID}'`,
-            Fields: ['ID', 'FirstName', 'LastName', 'Email', 'Active'],
-            ResultType: 'simple',
-            MaxRows: 1,
-        }, contextUser);
-        const supEmp = supEmpRes?.Results?.[0];
+        if (!empRes.Success) {
+            throw new Error(
+                `Failed to query MJ: Employees for '${authorEmail}': ${empRes.ErrorMessage ?? 'RunView failed'}`,
+            );
+        }
+
+        const empRow = empRes.Results?.[0];
+        if (!empRow) {
+            return result;
+        }
+
+        result.EmployeeID = empRow.ID;
+        if (!empRow.SupervisorID || !IsValidUUID(empRow.SupervisorID)) {
+            return result;
+        }
+
+        result.SupervisorEmployeeID = empRow.SupervisorID;
+        const supEmpRes = await rv.RunView<RawEmployeeRow>(
+            {
+                EntityName: EMPLOYEES_ENTITY_NAME,
+                ExtraFilter: `ID = '${EscapeSQLString(empRow.SupervisorID)}'`,
+                Fields: ['ID', 'FirstName', 'LastName', 'Email', 'Active'],
+                MaxRows: 1,
+                ResultType: 'simple',
+            },
+            contextUser,
+        );
+
+        if (!supEmpRes.Success) {
+            throw new Error(
+                `Failed to query supervisor Employee '${empRow.SupervisorID}': ${supEmpRes.ErrorMessage ?? 'RunView failed'}`,
+            );
+        }
+
+        const supEmp = supEmpRes.Results?.[0];
         if (!supEmp) {
-            return empty;
+            return result;
         }
-        const supEmail = supEmp.Email?.trim() || null;
-        empty.SupervisorEmail = supEmail;
-        empty.SupervisorName = [supEmp.FirstName, supEmp.LastName].filter(Boolean).join(' ').trim() || null;
+
+        result.SupervisorName = buildPersonDisplayName(supEmp);
+        const supEmail = supEmp.Email?.trim();
+        result.SupervisorEmail = supEmail ?? null;
+
         if (!supEmail) {
-            return empty;
+            return result;
         }
 
-        const escapedSupEmail = escapeSqlLiteral(supEmail);
-        const [supUserRes, supPersonByEmailRes] = await Promise.all([
-            rv.RunView<RawUserRow>({
+        const supUserRes = await rv.RunView<RawUserRow>(
+            {
                 EntityName: USERS_ENTITY_NAME,
-                ExtraFilter: `LOWER(Email) = LOWER('${escapedSupEmail}') AND IsActive = 1`,
+                ExtraFilter: `LOWER(Email) = LOWER('${EscapeSQLString(supEmail)}') AND IsActive = 1`,
                 Fields: ['ID', 'Name', 'Email'],
-                ResultType: 'simple',
                 MaxRows: 1,
-            }, contextUser),
-            rv.RunView<WorkReportPersonSummary>({
-                EntityName: PEOPLE_ENTITY_NAME,
-                ExtraFilter: `LOWER(Email) = LOWER('${escapedSupEmail}') AND Status = 'Active'`,
-                Fields: ['ID', 'FirstName', 'LastName', 'Email', 'LinkedUserID'],
                 ResultType: 'simple',
-                MaxRows: 1,
-            }, contextUser),
-        ]);
+            },
+            contextUser,
+        );
 
-        const supUser = supUserRes?.Results?.[0] ?? null;
-        empty.SupervisorUserID = supUser?.ID ?? null;
-
-        let supPerson = supPersonByEmailRes?.Results?.[0] ?? null;
-        if (!supPerson && supUser?.ID && IsValidUUID(supUser.ID)) {
-            const supPersonByUserRes = await rv.RunView<WorkReportPersonSummary>({
-                EntityName: PEOPLE_ENTITY_NAME,
-                ExtraFilter: `LinkedUserID = '${supUser.ID}' AND Status = 'Active'`,
-                Fields: ['ID', 'FirstName', 'LastName', 'Email', 'LinkedUserID'],
-                ResultType: 'simple',
-                MaxRows: 1,
-            }, contextUser);
-            supPerson = supPersonByUserRes?.Results?.[0] ?? null;
+        if (!supUserRes.Success) {
+            throw new Error(
+                `Failed to query supervisor User '${supEmail}': ${supUserRes.ErrorMessage ?? 'RunView failed'}`,
+            );
         }
 
+        const supUser = supUserRes.Results?.[0];
+        if (supUser) {
+            result.SupervisorUserID = supUser.ID;
+        }
+
+        const supPersonFilter = supUser?.ID
+            ? `(LOWER(Email) = LOWER('${EscapeSQLString(supEmail)}') OR LinkedUserID = '${EscapeSQLString(supUser.ID)}') AND Status = 'Active'`
+            : `LOWER(Email) = LOWER('${EscapeSQLString(supEmail)}') AND Status = 'Active'`;
+
+        const supPersonRes = await rv.RunView<RawPersonRow>(
+            {
+                EntityName: PEOPLE_ENTITY_NAME,
+                ExtraFilter: supPersonFilter,
+                Fields: ['ID', 'FirstName', 'LastName', 'Email', 'LinkedUserID'],
+                MaxRows: 1,
+                ResultType: 'simple',
+            },
+            contextUser,
+        );
+
+        if (!supPersonRes.Success) {
+            throw new Error(
+                `Failed to query supervisor Person '${supEmail}': ${supPersonRes.ErrorMessage ?? 'RunView failed'}`,
+            );
+        }
+
+        const supPerson = supPersonRes.Results?.[0];
         if (supPerson) {
-            empty.SupervisorPersonID = supPerson.ID;
-            empty.SupervisorName = `${supPerson.FirstName} ${supPerson.LastName}`.trim() || empty.SupervisorName;
+            result.SupervisorPersonID = supPerson.ID;
+            result.SupervisorName = buildPersonDisplayName(supPerson);
+            if (!result.SupervisorUserID && supPerson.LinkedUserID) {
+                result.SupervisorUserID = supPerson.LinkedUserID;
+            }
         }
-        return empty;
+
+        return result;
     }
 
     /**
-     * Resolves all active `MJ_BizApps_Common: People` IDs who report directly to `supervisorPersonID`
-     * according to `MJ: Employees.SupervisorID` matched by email.
+     * Resolves the `MJ_BizApps_Common: People` IDs of all active direct reports whose
+     * `MJ: Employees.SupervisorID` points to the supervisor's `MJ: Employees` record.
+     * Throws if any underlying `RunView` fails.
      */
     public async ResolveDirectReportPersonIDs(
         supervisorPersonID: string,
         contextUser?: UserInfo,
-        provider?: WorkReportProvider
+        provider?: WorkReportProvider,
     ): Promise<string[]> {
-        assertValidUUID(supervisorPersonID, 'SupervisorPersonID');
-        const rv = createRunView(provider);
-
-        const supPersonRes = await rv.RunView<WorkReportPersonSummary>({
-            EntityName: PEOPLE_ENTITY_NAME,
-            ExtraFilter: `ID = '${supervisorPersonID}'`,
-            Fields: ['ID', 'Email', 'LinkedUserID'],
-            ResultType: 'simple',
-            MaxRows: 1,
-        }, contextUser);
-        const supPerson = supPersonRes?.Results?.[0];
-        if (!supPerson) {
+        if (!IsValidUUID(supervisorPersonID)) {
             return [];
         }
 
-        let supEmail = supPerson.Email?.trim() || null;
-        if (!supEmail && supPerson.LinkedUserID && IsValidUUID(supPerson.LinkedUserID)) {
-            const userRes = await rv.RunView<RawUserRow>({
-                EntityName: USERS_ENTITY_NAME,
-                ExtraFilter: `ID = '${supPerson.LinkedUserID}'`,
-                Fields: ['ID', 'Email'],
-                ResultType: 'simple',
+        const rv = this.createRunView(provider);
+        const supPersonRes = await rv.RunView<RawPersonRow>(
+            {
+                EntityName: PEOPLE_ENTITY_NAME,
+                ExtraFilter: `ID = '${EscapeSQLString(supervisorPersonID)}'`,
+                Fields: ['ID', 'Email', 'LinkedUserID'],
                 MaxRows: 1,
-            }, contextUser);
-            supEmail = userRes?.Results?.[0]?.Email?.trim() || null;
+                ResultType: 'simple',
+            },
+            contextUser,
+        );
+
+        if (!supPersonRes.Success) {
+            throw new Error(
+                `Failed to load supervisor Person '${supervisorPersonID}': ${supPersonRes.ErrorMessage ?? 'RunView failed'}`,
+            );
         }
+
+        const supPerson = supPersonRes.Results?.[0];
+        const supEmail = supPerson?.Email?.trim();
         if (!supEmail) {
             return [];
         }
 
-        const supEmpRes = await rv.RunView<RawEmployeeRow>({
-            EntityName: EMPLOYEES_ENTITY_NAME,
-            ExtraFilter: `LOWER(Email) = LOWER('${escapeSqlLiteral(supEmail)}')`,
-            Fields: ['ID', 'Email', 'Active'],
-            OrderBy: 'Active DESC',
-            ResultType: 'simple',
-            MaxRows: 1,
-        }, contextUser);
-        const supEmp = supEmpRes?.Results?.[0];
-        if (!supEmp?.ID || !IsValidUUID(supEmp.ID)) {
+        const supEmpRes = await rv.RunView<RawEmployeeRow>(
+            {
+                EntityName: EMPLOYEES_ENTITY_NAME,
+                ExtraFilter: `LOWER(Email) = LOWER('${EscapeSQLString(supEmail)}') AND Active = 1`,
+                Fields: ['ID', 'Email'],
+                MaxRows: 1,
+                ResultType: 'simple',
+            },
+            contextUser,
+        );
+
+        if (!supEmpRes.Success) {
+            throw new Error(
+                `Failed to load supervisor Employee '${supEmail}': ${supEmpRes.ErrorMessage ?? 'RunView failed'}`,
+            );
+        }
+
+        const supEmp = supEmpRes.Results?.[0];
+        if (!supEmp) {
             return [];
         }
 
-        const directEmpsRes = await rv.RunView<RawEmployeeRow>({
-            EntityName: EMPLOYEES_ENTITY_NAME,
-            ExtraFilter: `SupervisorID = '${supEmp.ID}' AND Active = 1`,
-            Fields: ['ID', 'Email'],
-            ResultType: 'simple',
-        }, contextUser);
-        const emails = (directEmpsRes?.Results ?? [])
-            .map((e) => e.Email?.trim().toLowerCase() || '')
-            .filter((e) => e.length > 0);
+        const directEmpRes = await rv.RunView<RawEmployeeRow>(
+            {
+                EntityName: EMPLOYEES_ENTITY_NAME,
+                ExtraFilter: `SupervisorID = '${EscapeSQLString(supEmp.ID)}' AND Active = 1`,
+                Fields: ['ID', 'Email'],
+                ResultType: 'simple',
+            },
+            contextUser,
+        );
+
+        if (!directEmpRes.Success) {
+            throw new Error(
+                `Failed to load direct-report Employees for '${supEmp.ID}': ${directEmpRes.ErrorMessage ?? 'RunView failed'}`,
+            );
+        }
+
+        const emails = (directEmpRes.Results ?? [])
+            .map((e) => e.Email?.trim())
+            .filter((e): e is string => Boolean(e));
+
         if (emails.length === 0) {
             return [];
         }
 
-        const quotedEmails = emails.map((e) => `'${escapeSqlLiteral(e)}'`).join(',');
-        const [peopleByEmail, usersByEmail] = await Promise.all([
-            rv.RunView<{ ID: string }>({
-                EntityName: PEOPLE_ENTITY_NAME,
-                ExtraFilter: `LOWER(Email) IN (${quotedEmails}) AND Status = 'Active'`,
-                Fields: ['ID'],
-                ResultType: 'simple',
-            }, contextUser),
-            rv.RunView<{ ID: string }>({
-                EntityName: USERS_ENTITY_NAME,
-                ExtraFilter: `LOWER(Email) IN (${quotedEmails}) AND IsActive = 1`,
-                Fields: ['ID'],
-                ResultType: 'simple',
-            }, contextUser),
+        const lowerEmailFilter = emails
+            .map((email) => `LOWER(Email) = LOWER('${EscapeSQLString(email)}')`)
+            .join(' OR ');
+
+        const [peopleByEmailRes, usersByEmailRes] = await Promise.all([
+            rv.RunView<RawPersonRow>(
+                {
+                    EntityName: PEOPLE_ENTITY_NAME,
+                    ExtraFilter: `(${lowerEmailFilter}) AND Status = 'Active'`,
+                    Fields: ['ID', 'Email', 'LinkedUserID'],
+                    ResultType: 'simple',
+                },
+                contextUser,
+            ),
+            rv.RunView<RawUserRow>(
+                {
+                    EntityName: USERS_ENTITY_NAME,
+                    ExtraFilter: `(${lowerEmailFilter}) AND IsActive = 1`,
+                    Fields: ['ID', 'Email'],
+                    ResultType: 'simple',
+                },
+                contextUser,
+            ),
         ]);
 
-        const personIDs = new Map<string, string>();
-        for (const p of peopleByEmail?.Results ?? []) {
-            personIDs.set(p.ID.toLowerCase(), p.ID);
+        if (!peopleByEmailRes.Success) {
+            throw new Error(
+                `Failed to load direct-report People by email: ${peopleByEmailRes.ErrorMessage ?? 'RunView failed'}`,
+            );
+        }
+        if (!usersByEmailRes.Success) {
+            throw new Error(
+                `Failed to load direct-report Users by email: ${usersByEmailRes.ErrorMessage ?? 'RunView failed'}`,
+            );
         }
 
-        const userIDs = (usersByEmail?.Results ?? []).map((u) => u.ID).filter((id) => IsValidUUID(id));
+        const personIDMap = new Map<string, string>();
+        for (const p of peopleByEmailRes.Results ?? []) {
+            personIDMap.set(NormalizeUUID(p.ID), p.ID);
+        }
+
+        const userIDs = (usersByEmailRes.Results ?? [])
+            .map((u) => u.ID)
+            .filter((id) => IsValidUUID(id));
+
         if (userIDs.length > 0) {
-            const quotedUserIDs = userIDs.map((id) => `'${id}'`).join(',');
-            const peopleByUser = await rv.RunView<{ ID: string }>({
-                EntityName: PEOPLE_ENTITY_NAME,
-                ExtraFilter: `LinkedUserID IN (${quotedUserIDs}) AND Status = 'Active'`,
-                Fields: ['ID'],
-                ResultType: 'simple',
-            }, contextUser);
-            for (const p of peopleByUser?.Results ?? []) {
-                personIDs.set(p.ID.toLowerCase(), p.ID);
+            const inUsers = userIDs.map((id) => `'${EscapeSQLString(id)}'`).join(', ');
+            const peopleByUserRes = await rv.RunView<RawPersonRow>(
+                {
+                    EntityName: PEOPLE_ENTITY_NAME,
+                    ExtraFilter: `LinkedUserID IN (${inUsers}) AND Status = 'Active'`,
+                    Fields: ['ID'],
+                    ResultType: 'simple',
+                },
+                contextUser,
+            );
+            if (!peopleByUserRes.Success) {
+                throw new Error(
+                    `Failed to load direct-report People by LinkedUserID: ${peopleByUserRes.ErrorMessage ?? 'RunView failed'}`,
+                );
+            }
+            for (const p of peopleByUserRes.Results ?? []) {
+                personIDMap.set(NormalizeUUID(p.ID), p.ID);
             }
         }
 
-        return Array.from(personIDs.values());
+        return Array.from(personIDMap.values());
     }
 
     /**
-     * Collects a person's task activity within `[PeriodStart, PeriodEnd]` across assigned and
-     * authored tasks, `TaskCheckIn` rows, and `TaskActivity` entries, returning `HasActivity`
-     * (used by the wake gate to skip empty reports) and structured 15Five report sections.
+     * Collects a person's task activity (tasks created/assigned to the person that changed,
+     * had check-ins, or had activity entries during `[periodStart, periodEnd]`).
      */
     public async GetPersonTaskActivityForWindow(
-        params: GetPersonTaskActivityParams
+        personID: string,
+        periodStart: Date,
+        periodEnd: Date,
+        contextUser?: UserInfo,
+        provider?: WorkReportProvider,
     ): Promise<PersonTaskActivitySummary> {
-        assertValidUUID(params.PersonID, 'PersonID');
-        const md = resolveMetadataProvider(params.Provider);
-        const rv = createRunView(params.Provider);
-        const peopleEntity = md.Entities.find((e) => e.Name === PEOPLE_ENTITY_NAME);
-
-        const startMs = new Date(params.PeriodStart).getTime();
-        // Expand date-only PeriodEnd to end-of-day UTC when passed as midnight UTC equal to PeriodStart
-        let endMs = new Date(params.PeriodEnd).getTime();
-        if (endMs <= startMs) {
-            endMs = startMs + 24 * 60 * 60 * 1000 - 1;
+        if (!IsValidUUID(personID)) {
+            throw new Error(`Invalid PersonID '${personID}'`);
         }
-        const isoStart = new Date(startMs).toISOString();
-        const isoEnd = new Date(endMs).toISOString();
 
-        const assignmentFilter = peopleEntity
-            ? `AssigneeEntityID = '${peopleEntity.ID}' AND AssigneeRecordID = '${params.PersonID}'`
-            : `AssigneeRecordID = '${params.PersonID}'`;
-        const assignmentsRes = await rv.RunView<{ TaskID: string }>({
-            EntityName: TASK_ASSIGNMENTS_ENTITY_NAME,
-            ExtraFilter: assignmentFilter,
-            Fields: ['TaskID'],
-            ResultType: 'simple',
-        }, params.ContextUser);
+        const rv = this.createRunView(provider);
+        const md = this.getMetadataProvider(provider);
+        const normalizedWindow = NormalizeReportPeriodWindow(periodStart, periodEnd);
+        const startDate = normalizedWindow.StartDate;
+        const endDate = normalizedWindow.EndDate;
+        const startMs = normalizedWindow.StartMs;
+        const endMs = normalizedWindow.EndMs;
 
-        const assignedTaskIDs = (assignmentsRes?.Results ?? [])
-            .map((a) => a.TaskID)
-            .filter((id) => IsValidUUID(id));
+        const peopleEntity = findEntityByName(md, PEOPLE_ENTITY_NAME);
+        const assigneeFilter = peopleEntity
+            ? `AssigneeEntityID = '${EscapeSQLString(peopleEntity.ID)}' AND AssigneeRecordID = '${EscapeSQLString(personID)}' AND Status NOT IN ('Removed', 'Declined')`
+            : `AssigneeRecordID = '${EscapeSQLString(personID)}' AND Status NOT IN ('Removed', 'Declined')`;
 
-        const scopeClauses: string[] = [`CreatedByPersonID = '${params.PersonID}'`];
+        const assignmentsRes = await rv.RunView<RawTaskAssignmentRow>(
+            {
+                EntityName: TASK_ASSIGNMENTS_ENTITY_NAME,
+                ExtraFilter: assigneeFilter,
+                Fields: ['TaskID'],
+                ResultType: 'simple',
+            },
+            contextUser,
+        );
+
+        if (!assignmentsRes.Success) {
+            throw new Error(
+                `Failed to load Task Assignments for '${personID}': ${assignmentsRes.ErrorMessage ?? 'RunView failed'}`,
+            );
+        }
+
+        const assignedTaskIDs = Array.from(
+            new Set(
+                (assignmentsRes.Results ?? [])
+                    .map((a) => a.TaskID)
+                    .filter((id) => IsValidUUID(id)),
+            ),
+        );
+
+        const taskClauses: string[] = [`CreatedByPersonID = '${EscapeSQLString(personID)}'`];
         if (assignedTaskIDs.length > 0) {
-            scopeClauses.push(`ID IN (${assignedTaskIDs.map((id) => `'${id}'`).join(',')})`);
+            const inList = assignedTaskIDs.map((id) => `'${EscapeSQLString(id)}'`).join(', ');
+            taskClauses.push(`ID IN (${inList})`);
         }
 
-        const tasksRes = await rv.RunView<RawTaskRow>({
-            EntityName: TASKS_ENTITY_NAME,
-            ExtraFilter: `(${scopeClauses.join(' OR ')})`,
-            Fields: [
-                'ID',
-                'Name',
-                'Status',
-                'Priority',
-                'PercentComplete',
-                'HoursActual',
-                'HealthStatus',
-                'ParentID',
-                'DueAt',
-                'CompletedAt',
-                '__mj_UpdatedAt',
-            ],
-            OrderBy: 'DueAt ASC, Name ASC',
-            ResultType: 'simple',
-        }, params.ContextUser);
+        const tasksRes = await rv.RunView<RawTaskRow>(
+            {
+                EntityName: TASKS_ENTITY_NAME,
+                ExtraFilter: `(${taskClauses.join(' OR ')})`,
+                Fields: [
+                    'ID',
+                    'Name',
+                    'Status',
+                    'Priority',
+                    'PercentComplete',
+                    'HoursActual',
+                    'HealthStatus',
+                    'ParentID',
+                    'DueAt',
+                    'CompletedAt',
+                    '__mj_UpdatedAt',
+                ],
+                ResultType: 'simple',
+            },
+            contextUser,
+        );
 
-        const scopedTasks = tasksRes?.Results ?? [];
+        if (!tasksRes.Success) {
+            throw new Error(
+                `Failed to load Tasks for '${personID}': ${tasksRes.ErrorMessage ?? 'RunView failed'}`,
+            );
+        }
+
+        const scopedTasks = tasksRes.Results ?? [];
+        if (scopedTasks.length === 0) {
+            return {
+                PersonID: personID,
+                PeriodStart: startDate,
+                PeriodEnd: endDate,
+                TotalActiveOrUpdatedCount: 0,
+                Completed: [],
+                InProgress: [],
+                Next: [],
+                Blockers: [],
+                AtRisk: [],
+            };
+        }
+
         const scopedTaskIDs = scopedTasks.map((t) => t.ID).filter((id) => IsValidUUID(id));
-        const checkInMap = new Map<string, string>();
-        const activeTaskIDSet = new Set<string>();
+        const inScopedTasks = scopedTaskIDs.map((id) => `'${EscapeSQLString(id)}'`).join(', ');
 
-        if (scopedTaskIDs.length > 0) {
-            const quotedTaskIDs = scopedTaskIDs.map((id) => `'${id}'`).join(',');
-            const [checkInsRes, activitiesRes] = await Promise.all([
-                rv.RunView<{ TaskID: string; Summary: string | null; __mj_CreatedAt: string | Date }>({
+        const [checkInsRes, activitiesRes] = await Promise.all([
+            rv.RunView<RawCheckInRow>(
+                {
                     EntityName: TASK_CHECK_INS_ENTITY_NAME,
-                    ExtraFilter: `TaskID IN (${quotedTaskIDs}) AND __mj_CreatedAt >= '${isoStart}' AND __mj_CreatedAt <= '${isoEnd}'`,
-                    Fields: ['TaskID', 'Summary', '__mj_CreatedAt'],
+                    ExtraFilter: `TaskID IN (${inScopedTasks})`,
+                    Fields: ['TaskID', 'Summary', 'Blockers', '__mj_CreatedAt'],
                     OrderBy: '__mj_CreatedAt DESC',
                     ResultType: 'simple',
-                }, params.ContextUser),
-                rv.RunView<{ TaskID: string }>({
+                },
+                contextUser,
+            ),
+            rv.RunView<RawTaskActivityRow>(
+                {
                     EntityName: TASK_ACTIVITIES_ENTITY_NAME,
-                    ExtraFilter: `TaskID IN (${quotedTaskIDs}) AND __mj_CreatedAt >= '${isoStart}' AND __mj_CreatedAt <= '${isoEnd}'`,
-                    Fields: ['TaskID'],
+                    ExtraFilter: `TaskID IN (${inScopedTasks})`,
+                    Fields: ['TaskID', 'Summary', 'ActivityType', '__mj_CreatedAt'],
+                    OrderBy: '__mj_CreatedAt DESC',
                     ResultType: 'simple',
-                }, params.ContextUser),
-            ]);
+                },
+                contextUser,
+            ),
+        ]);
 
-            for (const ci of checkInsRes?.Results ?? []) {
-                const key = ci.TaskID.toLowerCase();
-                activeTaskIDSet.add(key);
-                if (!checkInMap.has(key) && ci.Summary) {
-                    checkInMap.set(key, ci.Summary);
+        if (!checkInsRes.Success) {
+            throw new Error(
+                `Failed to load Task Check-Ins for '${personID}': ${checkInsRes.ErrorMessage ?? 'RunView failed'}`,
+            );
+        }
+        if (!activitiesRes.Success) {
+            throw new Error(
+                `Failed to load Task Activities for '${personID}': ${activitiesRes.ErrorMessage ?? 'RunView failed'}`,
+            );
+        }
+
+        const touchedInWindowTaskKeys = new Set<string>();
+        const latestSummaryByTaskKey = new Map<string, string>();
+
+        for (const ci of checkInsRes.Results ?? []) {
+            if (isTimestampWithinWindow(ci.__mj_CreatedAt, startMs, endMs)) {
+                const key = NormalizeUUID(ci.TaskID);
+                touchedInWindowTaskKeys.add(key);
+                const text = ci.Summary?.trim() || ci.Blockers?.trim() || null;
+                if (text && !latestSummaryByTaskKey.has(key)) {
+                    latestSummaryByTaskKey.set(key, text);
                 }
             }
-            for (const act of activitiesRes?.Results ?? []) {
-                activeTaskIDSet.add(act.TaskID.toLowerCase());
+        }
+
+        for (const act of activitiesRes.Results ?? []) {
+            if (isTimestampWithinWindow(act.__mj_CreatedAt, startMs, endMs)) {
+                const key = NormalizeUUID(act.TaskID);
+                touchedInWindowTaskKeys.add(key);
+                const text = act.Summary?.trim() || null;
+                if (text && !latestSummaryByTaskKey.has(key)) {
+                    latestSummaryByTaskKey.set(key, text);
+                }
             }
         }
 
-        const completed: ActivityTaskSnapshot[] = [];
-        const inProgress: ActivityTaskSnapshot[] = [];
-        const next: ActivityTaskSnapshot[] = [];
-        const blockers: ActivityTaskSnapshot[] = [];
-        const atRisk: ActivityTaskSnapshot[] = [];
-        let changedInWindowCount = 0;
+        const completed: TaskActivityWindowEntry[] = [];
+        const inProgress: TaskActivityWindowEntry[] = [];
+        const next: TaskActivityWindowEntry[] = [];
+        const blockers: TaskActivityWindowEntry[] = [];
+        const atRisk: TaskActivityWindowEntry[] = [];
+        const activeTaskKeys = new Set<string>();
 
-        for (const row of scopedTasks) {
-            const updatedAt = row.__mj_UpdatedAt ? new Date(row.__mj_UpdatedAt) : null;
-            const completedAt = row.CompletedAt ? new Date(row.CompletedAt) : null;
-            const dueAt = row.DueAt ? new Date(row.DueAt) : null;
-            const key = row.ID.toLowerCase();
+        for (const task of scopedTasks) {
+            const key = NormalizeUUID(task.ID);
+            const updatedInWindow = isTimestampWithinWindow(task.__mj_UpdatedAt, startMs, endMs);
+            const completedInWindow = isTimestampWithinWindow(task.CompletedAt, startMs, endMs);
+            const touchedInWindow =
+                updatedInWindow || completedInWindow || touchedInWindowTaskKeys.has(key);
 
-            const updatedInWindow =
-                (updatedAt != null && updatedAt.getTime() >= startMs && updatedAt.getTime() <= endMs) ||
-                (completedAt != null && completedAt.getTime() >= startMs && completedAt.getTime() <= endMs) ||
-                activeTaskIDSet.has(key);
-
-            if (updatedInWindow) {
-                changedInWindowCount++;
+            if (!touchedInWindow) {
+                continue;
             }
 
-            const snapshot: ActivityTaskSnapshot = {
-                ID: row.ID,
-                Name: row.Name,
-                Status: row.Status,
-                Priority: row.Priority,
-                PercentComplete: row.PercentComplete ?? 0,
-                HoursActual: row.HoursActual ?? null,
-                HealthStatus: row.HealthStatus,
-                ParentID: row.ParentID,
-                DueAt: dueAt,
-                CompletedAt: completedAt,
-                UpdatedAt: updatedAt,
-                LatestCheckInSummary: checkInMap.get(key) ?? null,
+            activeTaskKeys.add(key);
+            const entry: TaskActivityWindowEntry = {
+                TaskID: task.ID,
+                Name: task.Name,
+                Status: task.Status,
+                Priority: task.Priority ?? null,
+                PercentComplete: task.PercentComplete ?? 0,
+                HoursActual: task.HoursActual ?? null,
+                HealthStatus: task.HealthStatus ?? null,
+                ParentID: task.ParentID ?? null,
+                DueAt: toIsoStringOrNull(task.DueAt),
+                CompletedAt: toIsoStringOrNull(task.CompletedAt),
+                UpdatedAt: toIsoStringOrNull(task.__mj_UpdatedAt),
+                LatestCheckInSummary: latestSummaryByTaskKey.get(key) ?? null,
             };
 
-            if (row.HealthStatus === 'AtRisk' || row.HealthStatus === 'OffTrack') {
-                atRisk.push(snapshot);
+            if (task.Status === 'Completed') {
+                completed.push(entry);
+            } else if (task.Status === 'Blocked') {
+                blockers.push(entry);
+            } else if (task.Status === 'InProgress' || task.Status === 'InReview') {
+                inProgress.push(entry);
+            } else if (task.Status === 'Open') {
+                next.push(entry);
             }
 
-            if (row.Status === 'Completed' && updatedInWindow) {
-                completed.push(snapshot);
-            } else if (row.Status === 'Blocked' && updatedInWindow) {
-                blockers.push(snapshot);
-            } else if (row.Status === 'InProgress' && updatedInWindow) {
-                inProgress.push(snapshot);
-            } else if (row.Status === 'Open' && updatedInWindow) {
-                next.push(snapshot);
-            }
-        }
-
-        const hasActivity = changedInWindowCount > 0;
-        const items: WorkReportDraftItemInput[] = [];
-        for (const t of completed) {
-            items.push({
-                TaskID: t.ID,
-                Section: 'Completed',
-                Summary: `${t.Name}${t.HoursActual ? ` (${t.HoursActual}h)` : ''}`,
-            });
-        }
-        for (const t of inProgress) {
-            items.push({
-                TaskID: t.ID,
-                Section: 'InProgress',
-                Summary: `${t.Name} (${t.PercentComplete}%)${t.LatestCheckInSummary ? ` — ${t.LatestCheckInSummary}` : ''}`,
-            });
-        }
-        for (const t of next) {
-            items.push({
-                TaskID: t.ID,
-                Section: 'Next',
-                Summary: `${t.Name}${t.DueAt ? ` (due ${formatIsoDateOnly(t.DueAt)})` : ''}`,
-            });
-        }
-        for (const t of blockers) {
-            items.push({
-                TaskID: t.ID,
-                Section: 'Blockers',
-                Summary: `${t.Name}${t.LatestCheckInSummary ? ` — ${t.LatestCheckInSummary}` : ''}`,
-            });
-        }
-        for (const t of atRisk) {
-            if (hasActivity) {
-                items.push({
-                    TaskID: t.ID,
-                    Section: 'AtRisk',
-                    Summary: `${t.Name} (${t.HealthStatus ?? 'AtRisk'}, ${t.PercentComplete}%)`,
-                });
+            if (
+                task.Status !== 'Completed' &&
+                task.Status !== 'Cancelled' &&
+                (task.HealthStatus === 'AtRisk' || task.HealthStatus === 'OffTrack')
+            ) {
+                atRisk.push(entry);
             }
         }
 
-        const dateLabel = formatIsoDateOnly(new Date(startMs));
         return {
-            PersonID: params.PersonID,
-            PeriodStart: new Date(startMs),
-            PeriodEnd: new Date(endMs),
-            HasActivity: hasActivity,
+            PersonID: personID,
+            PeriodStart: startDate,
+            PeriodEnd: endDate,
+            TotalActiveOrUpdatedCount: activeTaskKeys.size,
             Completed: completed,
             InProgress: inProgress,
             Next: next,
             Blockers: blockers,
-            AtRisk: hasActivity ? atRisk : [],
-            Items: items,
-            SuggestedTitle: `Daily 15Five — ${dateLabel}`,
-            SuggestedBody: BuildWorkReportMarkdown({
-                Completed: completed,
-                InProgress: inProgress,
-                Next: next,
-                Blockers: blockers,
-                AtRisk: hasActivity ? atRisk : [],
-            }),
+            AtRisk: atRisk,
         };
     }
 
     /**
-     * Drafts a new `WorkReport` (`Status = 'Draft'`) and its `WorkReportItem` lines.
-     * When `SkipIfNoActivity` is true (default) and no task activity occurred in the window,
-     * returns `{ SkippedNoActivity: true, Report: null }` without persisting any rows.
+     * Drafts a `WorkReport` (status = `Draft`) and its section `WorkReportItem` records for `[PeriodStart, PeriodEnd]`.
+     * Enforces that a non-privileged caller may only draft for their own resolved Person record,
+     * reuses an existing `Draft` report for the same `(PersonID, PeriodStart, PeriodEnd)` window to prevent duplicates,
+     * and returns `SkippedNoActivity: true` without creating rows when zero tasks changed in the window.
      */
     public async DraftWorkReport(params: DraftWorkReportParams): Promise<DraftWorkReportOutcome> {
-        assertValidUUID(params.PersonID, 'PersonID');
-        if (params.AuthoredByAgentRunID) {
-            assertValidUUID(params.AuthoredByAgentRunID, 'AuthoredByAgentRunID');
+        if (!IsValidUUID(params.PersonID)) {
+            throw new Error(`Invalid PersonID '${params.PersonID}'`);
         }
 
-        const activity = await this.GetPersonTaskActivityForWindow({
-            PersonID: params.PersonID,
-            PeriodStart: params.PeriodStart,
-            PeriodEnd: params.PeriodEnd,
-            ContextUser: params.ContextUser,
-            Provider: params.Provider,
-        });
+        const md = this.getMetadataProvider(params.Provider);
+        const rv = this.createRunView(params.Provider);
 
-        const skipIfEmpty = params.SkipIfNoActivity !== false;
-        const hasCustomContent = Boolean(params.Body?.trim()) || Boolean(params.CustomItems?.length);
-        if (skipIfEmpty && !activity.HasActivity && !hasCustomContent) {
+        // Fail-closed caller identity check when ContextUser carries identity metadata
+        if (params.ContextUser && !IsPrivilegedWorkReportUser(params.ContextUser)) {
+            const hasLinkedIdentityHint = Boolean(
+                params.ContextUser.Email ||
+                    (params.ContextUser as UserInfo & { LinkedEntityRecordID?: string | null }).LinkedEntityRecordID,
+            );
+            if (hasLinkedIdentityHint) {
+                const callerPerson = await this.ResolvePersonForUser(params.ContextUser, params.Provider);
+                if (!callerPerson) {
+                    throw new Error('Caller could not be resolved to an active Person record; cannot draft work report.');
+                }
+                if (!UUIDsEqual(callerPerson.ID, params.PersonID)) {
+                    throw new Error('Only the report author (or an administrator) may draft a work report for this person.');
+                }
+            }
+        }
+
+        const activity = await this.GetPersonTaskActivityForWindow(
+            params.PersonID,
+            params.PeriodStart,
+            params.PeriodEnd,
+            params.ContextUser,
+            params.Provider,
+        );
+
+        if (activity.TotalActiveOrUpdatedCount === 0) {
             return {
                 SkippedNoActivity: true,
+                Activity: activity,
                 Report: null,
                 Items: [],
-                Activity: activity,
             };
         }
 
-        const md = resolveMetadataProvider(params.Provider);
-        const report = await md.GetEntityObject<mjBizAppsTasksWorkReportEntity>(
+        const startLabel = FormatReportCalendarDate(activity.PeriodStart);
+        const endLabel = FormatReportCalendarDate(activity.PeriodEnd);
+        const defaultTitle =
+            startLabel === endLabel
+                ? `Daily 15Five — ${startLabel}`
+                : `Work Report — ${startLabel} to ${endLabel}`;
+        const title = params.Title?.trim() || defaultTitle;
+        const body = params.CustomBody?.trim() || BuildWorkReportMarkdown(activity);
+
+        const reportEntity = await md.GetEntityObject<mjBizAppsTasksWorkReportEntity>(
             WORK_REPORTS_ENTITY_NAME,
-            params.ContextUser
+            params.ContextUser,
         );
-        report.NewRecord();
-        report.PersonID = params.PersonID;
-        report.PeriodStart = params.PeriodStart;
-        report.PeriodEnd = params.PeriodEnd;
-        report.Title = params.Title?.trim() || activity.SuggestedTitle;
-        report.Body = params.Body?.trim() || activity.SuggestedBody;
-        report.Status = 'Draft';
-        if (params.AuthoredByAgentRunID) {
-            report.AuthoredByAgentRunID = params.AuthoredByAgentRunID;
-        }
 
-        const reportSaved = await report.Save();
-        if (!reportSaved) {
-            throw new Error(
-                `Failed to save Draft WorkReport: ${report.LatestResult?.CompleteMessage ?? 'unknown error'}`
+        // Check whether a WorkReport already exists for (PersonID, PeriodStart, PeriodEnd)
+        let existingReportID: string | null = null;
+        if (findEntityByName(md, WORK_REPORTS_ENTITY_NAME)) {
+            const existingRes = await rv.RunView<RawWorkReportLookupRow>(
+                {
+                    EntityName: WORK_REPORTS_ENTITY_NAME,
+                    ExtraFilter:
+                        `PersonID = '${EscapeSQLString(params.PersonID)}' ` +
+                        `AND PeriodStart = '${EscapeSQLString(startLabel)}' ` +
+                        `AND PeriodEnd = '${EscapeSQLString(endLabel)}'`,
+                    Fields: ['ID', 'Status'],
+                    MaxRows: 1,
+                    ResultType: 'simple',
+                },
+                params.ContextUser,
             );
-        }
-
-        const sourceItems = params.CustomItems ?? activity.Items;
-        const savedItems: mjBizAppsTasksWorkReportItemEntity[] = [];
-        for (let i = 0; i < sourceItems.length; i++) {
-            const raw = sourceItems[i];
-            if (raw.TaskID) {
-                assertValidUUID(raw.TaskID, 'WorkReportItem.TaskID');
-            }
-            const item = await md.GetEntityObject<mjBizAppsTasksWorkReportItemEntity>(
-                WORK_REPORT_ITEMS_ENTITY_NAME,
-                params.ContextUser
-            );
-            item.NewRecord();
-            item.WorkReportID = report.ID;
-            item.TaskID = raw.TaskID;
-            item.Section = raw.Section;
-            item.Summary = raw.Summary;
-            item.Sequence = i + 1;
-            const itemSaved = await item.Save();
-            if (!itemSaved) {
+            if (!existingRes.Success) {
                 throw new Error(
-                    `Failed to save WorkReportItem: ${item.LatestResult?.CompleteMessage ?? 'unknown error'}`
+                    `Failed to check for existing WorkReport: ${existingRes.ErrorMessage ?? 'RunView failed'}`,
                 );
             }
-            savedItems.push(item);
+            const existing = existingRes.Results?.[0];
+            if (existing) {
+                if (existing.Status !== 'Draft') {
+                    throw new Error(
+                        `A work report for period ${startLabel} to ${endLabel} has already been ${existing.Status.toLowerCase()}.`,
+                    );
+                }
+                existingReportID = existing.ID;
+            }
+        }
+
+        if (existingReportID) {
+            const loaded = await reportEntity.Load(existingReportID);
+            if (!loaded) {
+                throw new Error(`Failed to load existing Draft WorkReport '${existingReportID}'.`);
+            }
+        } else {
+            reportEntity.NewRecord();
+            reportEntity.PersonID = params.PersonID;
+            reportEntity.PeriodStart = activity.PeriodStart;
+            reportEntity.PeriodEnd = activity.PeriodEnd;
+            reportEntity.Status = 'Draft';
+        }
+
+        reportEntity.Title = title;
+        reportEntity.Body = body;
+        reportEntity.AuthoredByAgentRunID =
+            params.AuthoredByAgentRunID && IsValidUUID(params.AuthoredByAgentRunID)
+                ? params.AuthoredByAgentRunID
+                : null;
+
+        const saved = await reportEntity.Save();
+        if (!saved) {
+            const msg = reportEntity.LatestResult?.CompleteMessage ?? 'Failed to save Draft WorkReport';
+            throw new Error(msg);
+        }
+
+        const reportID = String(reportEntity.ID ?? reportEntity.PrimaryKey.Values()[0]);
+        const sectionPlan: Array<{ Section: WorkReportItemSection; Entries: TaskActivityWindowEntry[] }> = [
+            { Section: 'Completed', Entries: activity.Completed },
+            { Section: 'InProgress', Entries: activity.InProgress },
+            { Section: 'Next', Entries: activity.Next },
+            { Section: 'Blockers', Entries: activity.Blockers },
+            { Section: 'AtRisk', Entries: activity.AtRisk },
+        ];
+
+        let existingItems: RawWorkReportItemLookupRow[] = [];
+        if (existingReportID && findEntityByName(md, WORK_REPORT_ITEMS_ENTITY_NAME)) {
+            const existingItemsRes = await rv.RunView<RawWorkReportItemLookupRow>(
+                {
+                    EntityName: WORK_REPORT_ITEMS_ENTITY_NAME,
+                    ExtraFilter: `WorkReportID = '${EscapeSQLString(reportID)}'`,
+                    Fields: ['ID', 'Sequence'],
+                    OrderBy: 'Sequence ASC',
+                    ResultType: 'simple',
+                },
+                params.ContextUser,
+            );
+            if (!existingItemsRes.Success) {
+                throw new Error(
+                    `Failed to load existing WorkReportItems: ${existingItemsRes.ErrorMessage ?? 'RunView failed'}`,
+                );
+            }
+            existingItems = existingItemsRes.Results ?? [];
+        }
+
+        const createdItems: WorkReportItemRecordSnapshot[] = [];
+        let sequence = 1;
+        let existingIdx = 0;
+
+        for (const group of sectionPlan) {
+            for (const entry of group.Entries) {
+                const itemEntity = await md.GetEntityObject<mjBizAppsTasksWorkReportItemEntity>(
+                    WORK_REPORT_ITEMS_ENTITY_NAME,
+                    params.ContextUser,
+                );
+                const summary = this.buildItemSummary(group.Section, entry);
+                const existingItem = existingItems[existingIdx];
+                existingIdx += 1;
+
+                if (existingItem) {
+                    const itemLoaded = await itemEntity.Load(existingItem.ID);
+                    if (!itemLoaded) {
+                        throw new Error(`Failed to load existing WorkReportItem '${existingItem.ID}'.`);
+                    }
+                } else {
+                    itemEntity.NewRecord();
+                    itemEntity.WorkReportID = reportID;
+                }
+
+                itemEntity.TaskID = entry.TaskID;
+                itemEntity.Section = group.Section;
+                itemEntity.Summary = summary;
+                itemEntity.Sequence = sequence;
+
+                const itemSaved = await itemEntity.Save();
+                if (!itemSaved) {
+                    const msg = itemEntity.LatestResult?.CompleteMessage ?? 'Failed to save WorkReportItem';
+                    throw new Error(msg);
+                }
+
+                const itemID = String(itemEntity.ID ?? itemEntity.PrimaryKey.Values()[0]);
+                createdItems.push({
+                    ID: itemID,
+                    WorkReportID: reportID,
+                    TaskID: entry.TaskID,
+                    Section: group.Section,
+                    Summary: summary,
+                    Sequence: sequence,
+                });
+                sequence += 1;
+            }
         }
 
         return {
             SkippedNoActivity: false,
-            Report: report,
-            Items: savedItems,
             Activity: activity,
+            Report: this.snapshotReport(reportEntity, reportID),
+            Items: createdItems,
         };
     }
 
     /**
-     * Transitions a `Draft` WorkReport to `Submitted` after human author approval and
-     * dispatches an inter-agent review request to the supervisor's Chief of Staff.
+     * Marks an author-approved `Draft` `WorkReport` as `Submitted` and creates an `MJ: AI Agent Requests`
+     * review request routed to the supervisor's Chief of Staff.
+     * Fails closed when the caller cannot be positively identified as the report's author (unless privileged).
      */
     public async SubmitWorkReport(params: SubmitWorkReportParams): Promise<SubmitWorkReportOutcome> {
-        assertValidUUID(params.WorkReportID, 'WorkReportID');
-        if (params.CallerPersonID) {
-            assertValidUUID(params.CallerPersonID, 'CallerPersonID');
+        if (!IsValidUUID(params.WorkReportID)) {
+            throw new Error(`Invalid WorkReportID '${params.WorkReportID}'`);
         }
 
-        const md = resolveMetadataProvider(params.Provider);
-        const report = await md.GetEntityObject<mjBizAppsTasksWorkReportEntity>(
+        const md = this.getMetadataProvider(params.Provider);
+        const reportEntity = await md.GetEntityObject<mjBizAppsTasksWorkReportEntity>(
             WORK_REPORTS_ENTITY_NAME,
-            params.ContextUser
-        );
-        const loaded = await report.Load(params.WorkReportID);
-        if (!loaded) {
-            throw new Error(`WorkReport not found: ${params.WorkReportID}`);
-        }
-        if (params.CallerPersonID && !UUIDsEqual(report.PersonID, params.CallerPersonID)) {
-            throw new Error('Only the report author can approve and submit this work report.');
-        }
-        if (report.Status !== 'Draft') {
-            throw new Error(`Only Draft work reports can be submitted (current status: ${report.Status}).`);
-        }
-
-        if (params.Title !== undefined && params.Title !== null && params.Title.trim().length > 0) {
-            report.Title = params.Title.trim();
-        }
-        if (params.Body !== undefined && params.Body !== null && params.Body.trim().length > 0) {
-            report.Body = params.Body.trim();
-        }
-        report.Status = 'Submitted';
-
-        const saved = await report.Save();
-        if (!saved) {
-            throw new Error(
-                `Failed to submit WorkReport: ${report.LatestResult?.CompleteMessage ?? 'unknown error'}`
-            );
-        }
-
-        const supervisor = await this.ResolveSupervisorChainForPerson(
-            report.PersonID,
             params.ContextUser,
-            params.Provider
         );
+        const loaded = await reportEntity.Load(params.WorkReportID);
+        if (!loaded) {
+            throw new Error(`WorkReport '${params.WorkReportID}' not found.`);
+        }
+
+        const isPrivileged = IsPrivilegedWorkReportUser(params.ContextUser);
+        let callerPersonID = params.CallerPersonID?.trim() || null;
+
+        if (!callerPersonID) {
+            if (!params.ContextUser) {
+                throw new Error('Caller identity is required to submit a work report.');
+            }
+            const resolvedPerson = await this.ResolvePersonForUser(params.ContextUser, params.Provider);
+            if (!resolvedPerson && !isPrivileged) {
+                throw new Error('Caller could not be resolved to an active Person record; cannot submit work report.');
+            }
+            callerPersonID = resolvedPerson?.ID ?? null;
+        } else if (!IsValidUUID(callerPersonID)) {
+            throw new Error(`Invalid CallerPersonID '${callerPersonID}'.`);
+        }
+
+        if (!isPrivileged && (!callerPersonID || !UUIDsEqual(reportEntity.PersonID, callerPersonID))) {
+            throw new Error('Only the author of a work report may submit it.');
+        }
+
+        if (reportEntity.Status !== 'Draft') {
+            throw new Error(`Only a 'Draft' work report can be submitted; current status is '${reportEntity.Status}'.`);
+        }
+
+        // Resolve supervisor chain (also verifies author Person identity against ContextUser)
+        const supervisor = await this.ResolveSupervisorChainForPerson(
+            reportEntity.PersonID,
+            params.ContextUser,
+            params.Provider,
+        );
+
+        if (!isPrivileged && params.ContextUser) {
+            const matchesUser =
+                supervisor.AuthorUserID != null &&
+                IsValidUUID(supervisor.AuthorUserID) &&
+                UUIDsEqual(supervisor.AuthorUserID, params.ContextUser.ID);
+            const matchesEmail =
+                supervisor.AuthorEmail != null &&
+                params.ContextUser.Email != null &&
+                supervisor.AuthorEmail.trim().toLowerCase() === params.ContextUser.Email.trim().toLowerCase();
+            if (supervisor.AuthorUserID && params.ContextUser.ID && !matchesUser && !matchesEmail) {
+                throw new Error('Authenticated user does not match the report author.');
+            }
+        }
+
+        if (params.UpdatedTitle != null && params.UpdatedTitle.trim().length > 0) {
+            reportEntity.Title = params.UpdatedTitle.trim();
+        }
+        if (params.UpdatedBody != null && params.UpdatedBody.trim().length > 0) {
+            reportEntity.Body = params.UpdatedBody.trim();
+        }
+        reportEntity.Status = 'Submitted';
+
+        const saved = await reportEntity.Save();
+        if (!saved) {
+            const msg = reportEntity.LatestResult?.CompleteMessage ?? 'Failed to submit WorkReport';
+            throw new Error(msg);
+        }
 
         let supervisorRequestID: string | null = null;
-        if (params.CreateSupervisorAgentRequest !== false && supervisor.SupervisorUserID) {
-            supervisorRequestID = await this.createSupervisorReviewAgentRequest(
-                report,
-                supervisor,
-                params.ContextUser,
-                params.Provider
-            );
+        if (supervisor.SupervisorUserID) {
+            supervisorRequestID = await this.createSupervisorReviewAgentRequest({
+                Report: this.snapshotReport(reportEntity, params.WorkReportID),
+                Supervisor: supervisor,
+                ContextUser: params.ContextUser,
+                Provider: params.Provider,
+            });
         }
 
         return {
-            Report: report,
+            Report: this.snapshotReport(reportEntity, params.WorkReportID),
             Supervisor: supervisor,
             SupervisorRequestID: supervisorRequestID,
+            SupervisorNotified: supervisorRequestID !== null,
         };
     }
 
     /**
-     * Records approved supervisor feedback on a `Submitted` (or `Reviewed`) WorkReport,
-     * enforcing reporting-line ownership via `MJ: Employees.SupervisorID` when configured.
+     * Records supervisor-approved feedback on a `Submitted` `WorkReport` and transitions it to `Reviewed`.
+     * Fails closed: refuses when the caller cannot be resolved to a Person, when no supervisor is mapped
+     * in `MJ: Employees` (unless the caller holds a privileged admin role or `EnforceReportingLine === false`),
+     * or when the caller does not match the mapped supervisor.
      */
     public async RecordSupervisorReview(
-        params: RecordSupervisorReviewParams
+        params: RecordSupervisorReviewParams,
     ): Promise<RecordSupervisorReviewOutcome> {
-        assertValidUUID(params.WorkReportID, 'WorkReportID');
-        assertValidUUID(params.ReviewerPersonID, 'ReviewerPersonID');
-
-        const trimmedFeedback = params.SupervisorFeedback.trim();
-        if (!trimmedFeedback) {
-            throw new Error('SupervisorFeedback cannot be empty.');
+        if (!IsValidUUID(params.WorkReportID)) {
+            throw new Error(`Invalid WorkReportID '${params.WorkReportID}'`);
+        }
+        const feedback = params.SupervisorFeedback?.trim();
+        if (!feedback) {
+            throw new Error('SupervisorFeedback is required when reviewing a work report.');
         }
 
-        const md = resolveMetadataProvider(params.Provider);
-        const report = await md.GetEntityObject<mjBizAppsTasksWorkReportEntity>(
+        const isPrivileged = IsPrivilegedWorkReportUser(params.ContextUser);
+        let reviewerPersonID = params.ReviewerPersonID?.trim() || null;
+        if (!reviewerPersonID && params.ContextUser) {
+            const resolvedReviewer = await this.ResolvePersonForUser(params.ContextUser, params.Provider);
+            reviewerPersonID = resolvedReviewer?.ID ?? null;
+        }
+        if (!reviewerPersonID || !IsValidUUID(reviewerPersonID)) {
+            throw new Error('ReviewerPersonID could not be resolved to an active Person record.');
+        }
+
+        const md = this.getMetadataProvider(params.Provider);
+        const reportEntity = await md.GetEntityObject<mjBizAppsTasksWorkReportEntity>(
             WORK_REPORTS_ENTITY_NAME,
-            params.ContextUser
-        );
-        const loaded = await report.Load(params.WorkReportID);
-        if (!loaded) {
-            throw new Error(`WorkReport not found: ${params.WorkReportID}`);
-        }
-        if (report.Status === 'Draft') {
-            throw new Error('Draft work reports cannot receive supervisor review before author submission.');
-        }
-        if (UUIDsEqual(report.PersonID, params.ReviewerPersonID)) {
-            throw new Error('A report author cannot submit supervisor feedback on their own work report.');
-        }
-
-        const supervisor = await this.ResolveSupervisorChainForPerson(
-            report.PersonID,
             params.ContextUser,
-            params.Provider
         );
-        if (
-            params.EnforceReportingLine !== false &&
-            supervisor.SupervisorPersonID &&
-            !UUIDsEqual(supervisor.SupervisorPersonID, params.ReviewerPersonID)
-        ) {
-            throw new Error('Caller is not the mapped supervisor for this report author.');
+        const loaded = await reportEntity.Load(params.WorkReportID);
+        if (!loaded) {
+            throw new Error(`WorkReport '${params.WorkReportID}' not found.`);
         }
 
-        report.SupervisorFeedback = trimmedFeedback;
-        report.ReviewedByPersonID = params.ReviewerPersonID;
-        report.ReviewedAt = new Date();
-        report.Status = 'Reviewed';
-
-        const saved = await report.Save();
-        if (!saved) {
+        if (reportEntity.Status !== 'Submitted') {
             throw new Error(
-                `Failed to save supervisor feedback: ${report.LatestResult?.CompleteMessage ?? 'unknown error'}`
+                `Only a 'Submitted' work report can be reviewed; current status is '${reportEntity.Status}'.`,
             );
         }
 
+        if (UUIDsEqual(reportEntity.PersonID, reviewerPersonID)) {
+            throw new Error('A work report author cannot review their own report.');
+        }
+
+        const supervisor = await this.ResolveSupervisorChainForPerson(
+            reportEntity.PersonID,
+            params.ContextUser,
+            params.Provider,
+        );
+
+        if (params.EnforceReportingLine !== false && !isPrivileged) {
+            if (!supervisor.SupervisorPersonID) {
+                throw new Error(
+                    "No mapped supervisor in MJ: Employees was resolved for this report's author; review refused.",
+                );
+            }
+            if (!UUIDsEqual(supervisor.SupervisorPersonID, reviewerPersonID)) {
+                throw new Error(
+                    "Only the author's mapped supervisor in MJ: Employees may record supervisor feedback on this report.",
+                );
+            }
+            if (
+                params.ContextUser?.ID &&
+                supervisor.SupervisorUserID &&
+                !UUIDsEqual(supervisor.SupervisorUserID, params.ContextUser.ID)
+            ) {
+                throw new Error(
+                    "Authenticated user does not match the author's mapped supervisor in MJ: Employees.",
+                );
+            }
+        }
+
+        reportEntity.Status = 'Reviewed';
+        reportEntity.SupervisorFeedback = feedback;
+        reportEntity.ReviewedByPersonID = reviewerPersonID;
+        reportEntity.ReviewedAt = new Date();
+
+        const saved = await reportEntity.Save();
+        if (!saved) {
+            const msg = reportEntity.LatestResult?.CompleteMessage ?? 'Failed to save supervisor review on WorkReport';
+            throw new Error(msg);
+        }
+
         return {
-            Report: report,
+            Report: this.snapshotReport(reportEntity, params.WorkReportID),
             Supervisor: supervisor,
         };
     }
 
-    private async createSupervisorReviewAgentRequest(
-        report: mjBizAppsTasksWorkReportEntity,
-        supervisor: SupervisorChainResolution,
-        contextUser?: UserInfo,
-        provider?: WorkReportProvider
-    ): Promise<string | null> {
-        const md = resolveMetadataProvider(provider);
-        const hasRequestsEntity = md.Entities.some((e) => e.Name === AI_AGENT_REQUESTS_ENTITY_NAME);
-        if (!hasRequestsEntity || !supervisor.SupervisorUserID) {
+    private buildItemSummary(section: WorkReportItemSection, entry: TaskActivityWindowEntry): string {
+        switch (section) {
+            case 'Completed': {
+                const hrs = entry.HoursActual != null && entry.HoursActual > 0 ? ` (${entry.HoursActual}h)` : '';
+                return entry.LatestCheckInSummary
+                    ? `${entry.Name}${hrs} — ${entry.LatestCheckInSummary}`
+                    : `${entry.Name}${hrs}`;
+            }
+            case 'InProgress': {
+                const pct = entry.PercentComplete > 0 ? ` (${entry.PercentComplete}%)` : '';
+                return entry.LatestCheckInSummary
+                    ? `${entry.Name}${pct} — ${entry.LatestCheckInSummary}`
+                    : `${entry.Name}${pct}`;
+            }
+            case 'Next': {
+                const due = entry.DueAt ? ` (due ${entry.DueAt.slice(0, 10)})` : '';
+                return `${entry.Name}${due}`;
+            }
+            case 'Blockers': {
+                return entry.LatestCheckInSummary
+                    ? `${entry.Name}: ${entry.LatestCheckInSummary}`
+                    : entry.Name;
+            }
+            case 'AtRisk': {
+                return `${entry.Name} [${entry.HealthStatus ?? 'AtRisk'}]`;
+            }
+            default: {
+                return entry.Name;
+            }
+        }
+    }
+
+    private snapshotReport(entity: mjBizAppsTasksWorkReportEntity, fallbackID: string): WorkReportRecordSnapshot {
+        return {
+            ID: String(entity.ID ?? fallbackID),
+            PersonID: entity.PersonID,
+            PeriodStart: entity.PeriodStart instanceof Date ? entity.PeriodStart : new Date(entity.PeriodStart),
+            PeriodEnd: entity.PeriodEnd instanceof Date ? entity.PeriodEnd : new Date(entity.PeriodEnd),
+            Title: entity.Title ?? null,
+            Body: entity.Body,
+            Status: entity.Status,
+            AuthoredByAgentRunID: entity.AuthoredByAgentRunID ?? null,
+            SupervisorFeedback: entity.SupervisorFeedback ?? null,
+            ReviewedByPersonID: entity.ReviewedByPersonID ?? null,
+            ReviewedAt:
+                entity.ReviewedAt instanceof Date
+                    ? entity.ReviewedAt
+                    : entity.ReviewedAt
+                      ? new Date(entity.ReviewedAt)
+                      : null,
+        };
+    }
+
+    private async createSupervisorReviewAgentRequest(params: {
+        Report: WorkReportRecordSnapshot;
+        Supervisor: SupervisorResolution;
+        ContextUser?: UserInfo;
+        Provider?: WorkReportProvider;
+    }): Promise<string | null> {
+        const md = this.getMetadataProvider(params.Provider);
+        const hasRequestsEntity = Boolean(findEntityByName(md, AI_AGENT_REQUESTS_ENTITY_NAME));
+        if (!hasRequestsEntity || !params.Supervisor.SupervisorUserID) {
             return null;
         }
 
-        const rv = createRunView(provider);
-        const cosAgentRes = await rv.RunView<{ ID: string }>({
-            EntityName: AI_AGENTS_ENTITY_NAME,
-            ExtraFilter: `Name = 'Chief of Staff' AND Status = 'Active'`,
-            Fields: ['ID'],
-            ResultType: 'simple',
-            MaxRows: 1,
-        }, contextUser);
-        const cosAgentID = cosAgentRes?.Results?.[0]?.ID;
-        if (!cosAgentID) {
+        const rv = this.createRunView(params.Provider);
+        const workReportsEntity = findEntityByName(md, WORK_REPORTS_ENTITY_NAME);
+
+        // Look up the Chief of Staff agent ID if available
+        let cosAgentID: string | null = null;
+        const cosAgentRes = await rv.RunView<RawAgentRow>(
+            {
+                EntityName: AI_AGENTS_ENTITY_NAME,
+                ExtraFilter: `Name = 'Chief of Staff'`,
+                Fields: ['ID'],
+                MaxRows: 1,
+                ResultType: 'simple',
+            },
+            params.ContextUser,
+        );
+        if (!cosAgentRes.Success) {
+            LogError(
+                `WorkReportService: failed to look up Chief of Staff agent for supervisor notification: ${cosAgentRes.ErrorMessage ?? 'RunView failed'}`,
+            );
             return null;
         }
+        cosAgentID = cosAgentRes.Results?.[0]?.ID ?? null;
 
-        const reqEntity = await md.GetEntityObject<BaseEntity<AIAgentRequestFields>>(
+        let requestTypeID: string | null = null;
+        if (findEntityByName(md, AI_AGENT_REQUEST_TYPES_ENTITY_NAME)) {
+            const rtRes = await rv.RunView<RawRequestTypeRow>(
+                {
+                    EntityName: AI_AGENT_REQUEST_TYPES_ENTITY_NAME,
+                    ExtraFilter: `Name IN ('Approval', 'Information', 'Confirmation')`,
+                    Fields: ['ID', 'Name'],
+                    MaxRows: 1,
+                    ResultType: 'simple',
+                },
+                params.ContextUser,
+            );
+            if (rtRes.Success) {
+                requestTypeID = rtRes.Results?.[0]?.ID ?? null;
+            }
+        }
+
+        const reqEntity = await md.GetEntityObject<AIAgentRequestEntity>(
             AI_AGENT_REQUESTS_ENTITY_NAME,
-            contextUser
+            params.ContextUser,
         );
         reqEntity.NewRecord();
-        reqEntity.SetMany({
-            AgentID: cosAgentID,
-            RequestedAt: new Date(),
-            RequestForUserID: supervisor.SupervisorUserID,
-            Status: 'Requested',
-            Priority: 50,
-            Request: `Review submitted 15Five work report "${report.Title ?? report.ID}" (${formatIsoDateOnly(new Date(report.PeriodStart))} – ${formatIsoDateOnly(new Date(report.PeriodEnd))}) and draft feedback for supervisor approval.`,
-            Comments: JSON.stringify({
-                Kind: 'WorkReportSupervisorReview',
-                WorkReportID: report.ID,
-                AuthorPersonID: report.PersonID,
-                SupervisorPersonID: supervisor.SupervisorPersonID,
-            }),
+
+        const periodStart = FormatReportCalendarDate(params.Report.PeriodStart);
+        const periodEnd = FormatReportCalendarDate(params.Report.PeriodEnd);
+        const periodLabel = periodStart === periodEnd ? periodStart : `${periodStart}..${periodEnd}`;
+        const promptText =
+            `15Five Work Report submitted by ${params.Supervisor.AuthorDisplayName} for ${periodLabel}:\n\n` +
+            `${params.Report.Body}\n\n` +
+            `Draft concise supervisor feedback and request ${params.Supervisor.SupervisorName ?? 'supervisor'}'s approval before recording it on WorkReport ${params.Report.ID}.`;
+
+        reqEntity.AgentID = cosAgentID;
+        reqEntity.RequestedByUserID = params.Supervisor.AuthorUserID ?? params.ContextUser?.ID ?? null;
+        reqEntity.RequestForUserID = params.Supervisor.SupervisorUserID;
+        reqEntity.RequestTypeID = requestTypeID;
+        reqEntity.OriginatingEntityID = workReportsEntity?.ID ?? null;
+        reqEntity.OriginatingRecordID = params.Report.ID;
+        reqEntity.Request = promptText;
+        reqEntity.Status = 'Requested';
+        reqEntity.Priority = 50;
+        reqEntity.ExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        reqEntity.Comments = JSON.stringify({
+            Kind: 'WorkReportSupervisorReview',
+            WorkReportID: params.Report.ID,
+            AuthorPersonID: params.Supervisor.AuthorPersonID,
+            AuthorDisplayName: params.Supervisor.AuthorDisplayName,
+            SupervisorPersonID: params.Supervisor.SupervisorPersonID,
+            PeriodStart: periodStart,
+            PeriodEnd: periodEnd,
         });
+
         const saved = await reqEntity.Save();
-        return saved ? String(reqEntity.PrimaryKey.Values()[0]) : null;
+        if (!saved) {
+            LogError(
+                `WorkReportService: failed to save supervisor AI Agent Request for WorkReport '${params.Report.ID}': ${reqEntity.LatestResult?.CompleteMessage ?? 'Save returned false'}`,
+            );
+            return null;
+        }
+        return String(reqEntity.ID ?? reqEntity.PrimaryKey.Values()[0]);
     }
 }

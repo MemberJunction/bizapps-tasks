@@ -10,6 +10,7 @@ const {
     resolveDirectReportsMock,
     updateQueryParamsMock,
     setAgentContextMock,
+    runActionMock,
 } = vi.hoisted(() => ({
     draftWorkReportMock: vi.fn(),
     submitWorkReportMock: vi.fn(),
@@ -17,6 +18,14 @@ const {
     resolveDirectReportsMock: vi.fn(),
     updateQueryParamsMock: vi.fn(),
     setAgentContextMock: vi.fn(),
+    runActionMock: vi.fn(),
+}));
+
+vi.mock('@memberjunction/graphql-dataprovider', () => ({
+    GraphQLDataProvider: class {},
+    GraphQLActionClient: class {
+        RunAction = runActionMock;
+    },
 }));
 
 vi.mock('@memberjunction/ng-shared', () => ({
@@ -134,7 +143,7 @@ describe('ChiefOfStaffWorkReportsResource', () => {
         expect(comp.SelectedReport?.ID).toBe(SAMPLE_DRAFT.ID);
 
         const preventDefault = vi.fn();
-        comp.OnTabKeydown({ key: 'ArrowRight', preventDefault } as unknown as KeyboardEvent);
+        comp.OnTabKeydown({ key: 'ArrowRight', preventDefault } as Partial<KeyboardEvent> as KeyboardEvent);
 
         expect(preventDefault).toHaveBeenCalled();
         expect(comp.ActiveTab).toBe('team');
@@ -174,5 +183,63 @@ describe('ChiefOfStaffWorkReportsResource', () => {
 
         expect(comp.DraftBodyError).toContain('cannot be empty');
         expect(submitWorkReportMock).not.toHaveBeenCalled();
+    });
+
+    it('only claims supervisor notification in the banner when SupervisorNotified is true', async () => {
+        const comp = createResource();
+        vi.spyOn(comp, 'Load').mockResolvedValue(undefined);
+        comp.MyReports = [SAMPLE_DRAFT];
+        comp.SelectReport(SAMPLE_DRAFT.ID);
+
+        // Case 1: SupervisorName is resolved, but SupervisorNotified is false (request save failed)
+        submitWorkReportMock.mockResolvedValueOnce({
+            Report: { ...SAMPLE_DRAFT, Status: 'Submitted' },
+            Supervisor: { SupervisorName: 'Bob Supervisor' },
+            SupervisorRequestID: null,
+            SupervisorNotified: false,
+        });
+
+        await comp.SubmitSelectedDraft();
+        expect(comp.Banner?.Message).toBe('Submitted work report.');
+
+        // Case 2: SupervisorNotified is true
+        submitWorkReportMock.mockResolvedValueOnce({
+            Report: { ...SAMPLE_DRAFT, Status: 'Submitted' },
+            Supervisor: { SupervisorName: 'Bob Supervisor' },
+            SupervisorRequestID: '88888888-8888-4888-8888-888888888888',
+            SupervisorNotified: true,
+        });
+
+        await comp.SubmitSelectedDraft();
+        expect(comp.Banner?.Message).toContain("notified Bob Supervisor's Chief of Staff");
+    });
+
+    it('runs Submit and Review via server-side GraphQLActionClient when ProviderToUse is a GraphQLDataProvider', async () => {
+        const comp = createResource();
+        vi.spyOn(comp, 'Load').mockResolvedValue(undefined);
+        Object.assign(comp as object, {
+            ProviderToUse: {
+                ExecuteGQL: vi.fn(),
+                CurrentUser: { ID: 'aaaa1111-1111-4111-8111-111111111111', Email: 'alice@example.com' },
+            },
+            currentPersonID: SAMPLE_DRAFT.PersonID,
+        });
+        comp.MyReports = [SAMPLE_DRAFT];
+        comp.SelectReport(SAMPLE_DRAFT.ID);
+
+        runActionMock.mockResolvedValueOnce({
+            Success: true,
+            ResultCode: 'SUCCESS',
+            Params: [
+                { Name: 'SupervisorRequestID', Value: '88888888-8888-4888-8888-888888888888', Type: 'Output' },
+                { Name: 'SupervisorNotified', Value: true, Type: 'Output' },
+                { Name: 'SupervisorName', Value: 'Bob Supervisor', Type: 'Output' },
+            ],
+        });
+
+        await comp.SubmitSelectedDraft();
+        expect(runActionMock).toHaveBeenCalledTimes(1);
+        expect(submitWorkReportMock).not.toHaveBeenCalled();
+        expect(comp.Banner?.Message).toContain("notified Bob Supervisor's Chief of Staff");
     });
 });

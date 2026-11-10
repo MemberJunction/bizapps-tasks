@@ -14,10 +14,6 @@
           },
           "primaryKey": {
             "ID": "@lookup:MJ: Entity Fields.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Assignments&Name=AssigneeRecordID"
-          },
-          "sync": {
-            "lastModified": "2026-11-09T22:02:57.727Z",
-            "checksum": "a9a02513e2bacc0c9eafb338dda079b67a2881d3905a2a2dda2e925028550647"
           }
         }
       ]
@@ -41,10 +37,6 @@
           },
           "primaryKey": {
             "ID": "@lookup:MJ: Entity Fields.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Links&Name=RecordID"
-          },
-          "sync": {
-            "lastModified": "2026-11-09T22:02:57.739Z",
-            "checksum": "8c1529516623f71e9a9a7d4b0c8c294e92f021530c2a466407618e135135f525"
           }
         }
       ]

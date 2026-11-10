@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, in
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Metadata, RunView, CompositeKey } from '@memberjunction/core';
-import { UUIDsEqual } from '@memberjunction/global';
+import { NormalizeUUID, UUIDsEqual } from '@memberjunction/global';
 import { LoadPendingFieldSuggestionCountsForTasks } from '@mj-biz-apps/tasks-core';
 import type { mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
 
@@ -1060,17 +1060,18 @@ export class TaskListComponent implements OnInit, OnChanges {
 
     private async loadPendingSuggestions(): Promise<void> {
         if (this.tasks.length === 0) return;
-        const tasksEntityID = Metadata.Provider?.Entities?.find((e) => e.Name === 'MJ_BizApps_Tasks: Tasks')?.ID;
+        const md = new Metadata();
+        const tasksEntityID =
+            md.EntityByName?.('MJ_BizApps_Tasks: Tasks')?.ID ??
+            Metadata.Provider?.EntityByName?.('MJ_BizApps_Tasks: Tasks')?.ID;
         if (!tasksEntityID) return;
         const counts = await LoadPendingFieldSuggestionCountsForTasks(
             new RunView(),
             tasksEntityID,
             this.tasks.map((t) => t.ID),
-            undefined,
-            Metadata.Provider
         );
         for (const task of this.tasks) {
-            task.PendingSuggestionCount = counts.get(task.ID.toLowerCase()) ?? 0;
+            task.PendingSuggestionCount = counts.get(NormalizeUUID(task.ID)) ?? 0;
         }
     }
 

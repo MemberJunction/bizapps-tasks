@@ -1,6 +1,7 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { SharedGenericModule } from '@memberjunction/ng-shared-generic';
 
 // Standalone components — imported into the module for re-export convenience
 import { TaskPriorityBadgeComponent } from './components/task-priority-badge/task-priority-badge.component';
@@ -38,6 +39,7 @@ import { ChiefOfStaffWorkReportsResource } from './chief-of-staff/chief-of-staff
     imports: [
         CommonModule,
         FormsModule,
+        SharedGenericModule,
         // Standalone components
         TaskPriorityBadgeComponent,
         TaskAssigneeListComponent,

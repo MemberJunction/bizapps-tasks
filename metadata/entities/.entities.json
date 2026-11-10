@@ -9,7 +9,7 @@
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Tasks"
     },
     "fields": {
-      "SubtypeSelector": "{\"Path\": \"TypeID.ExtensionEntity\", \"AutoEnsureOnSave\": true, \"OnSubtypeChange\": \"Refuse\", \"FoldIntoForm\": true}",
+      "SubtypeSelector": "{\"Path\": \"TypeID.ExtensionEntity\", \"AutoEnsureOnSave\": true, \"OnSubtypeChange\": \"Replace\", \"FoldIntoForm\": true}",
       "AllowUserSearchAPI": true,
       "AutoUpdateAllowUserSearchAPI": false
     },
@@ -45,8 +45,8 @@
       ]
     },
     "sync": {
-      "lastModified": "2026-11-09T22:02:57.578Z",
-      "checksum": "6c80ba6889e423681f090dff3624e3c1f96f1afcddf27f3c758022048bffc7ae"
+      "lastModified": "2026-09-17T23:07:38.836Z",
+      "checksum": "0baff3649c31ed20ff60ec19d166dca22a08387e38072e637e0d28aec06cf5d6"
     }
   },
   {
@@ -383,10 +383,6 @@
     "fields": {
       "AllowUserSearchAPI": false,
       "AutoUpdateAllowUserSearchAPI": false
-    },
-    "sync": {
-      "lastModified": "2026-11-09T22:02:57.626Z",
-      "checksum": "557b2f2d442156dd31b2ae55bcfb3080cb61cf2d094d43039aa4c5907568aba6"
     }
   },
   {
@@ -396,10 +392,6 @@
     "fields": {
       "AllowUserSearchAPI": false,
       "AutoUpdateAllowUserSearchAPI": false
-    },
-    "sync": {
-      "lastModified": "2026-11-09T22:02:57.640Z",
-      "checksum": "557b2f2d442156dd31b2ae55bcfb3080cb61cf2d094d43039aa4c5907568aba6"
     }
   }
 ]

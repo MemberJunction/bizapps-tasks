@@ -81,7 +81,9 @@
             </div>
         }
 
-        @if (PersonMessage) {
+        @if (IsLoading && FilteredReports.length === 0) {
+            <mj-loading text="Loading work reports..."></mj-loading>
+        } @else if (PersonMessage) {
             <mj-empty-state
                 Icon="fa-solid fa-user-slash"
                 Title="Person Link Required"

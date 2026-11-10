@@ -13,7 +13,9 @@ import { debounceTime, filter, takeUntil } from 'rxjs/operators';
 import { BaseEntity, LogError, RunView, type BaseEntityEvent } from '@memberjunction/core';
 import type { ResourceData } from '@memberjunction/core-entities';
 import { IsValidUUID, MJEventType, MJGlobal, RegisterClass, UUIDsEqual, type MJEvent } from '@memberjunction/global';
+import { GraphQLActionClient, GraphQLDataProvider } from '@memberjunction/graphql-dataprovider';
 import { BaseResourceComponent } from '@memberjunction/ng-shared';
+import { SharedGenericModule } from '@memberjunction/ng-shared-generic';
 import {
     MJButtonDirective,
     MJEmptyStateComponent,
@@ -27,7 +29,12 @@ import {
 } from '@memberjunction/ng-ui-components';
 import {
     BuildWorkReportsAgentContext,
+    DRAFT_WORK_REPORT_ACTION_ID,
     FilterWorkReports,
+    FormatReportCalendarDate,
+    GetLocalDayWindow,
+    REVIEW_WORK_REPORT_ACTION_ID,
+    SUBMIT_WORK_REPORT_ACTION_ID,
     WORK_REPORTS_ENTITY_NAME,
     WORK_REPORT_ITEMS_ENTITY_NAME,
     WorkReportService,
@@ -41,12 +48,9 @@ import {
 import { NO_PERSON_MESSAGE, PERSON_LOOKUP_FAILED_MESSAGE, ResolveCurrentPersonID } from '../current-person.js';
 import { OpenTaskRecord } from '../open-task-record.js';
 
-interface PageClientTool {
-    Name: string;
-    Description: string;
-    ParameterSchema: Record<string, unknown>;
-    Handler: (params: Record<string, unknown>) => Promise<unknown>;
-}
+type PageClientTool = Parameters<
+    NonNullable<ChiefOfStaffWorkReportsResource['navigationService']>['SetAgentClientTools']
+>[1][number];
 
 interface RawWorkReportRow {
     ID: string;
@@ -83,12 +87,9 @@ const STATUS_OPTIONS: readonly { Value: WorkReportStatusFilter; Label: string }[
 ];
 
 function formatDateInput(value: string | Date): string {
-    const d = new Date(value);
+    const d = value instanceof Date ? value : new Date(value);
     if (Number.isNaN(d.getTime())) return String(value);
-    const y = d.getUTCFullYear();
-    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(d.getUTCDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
+    return FormatReportCalendarDate(d);
 }
 
 /**
@@ -109,6 +110,7 @@ function formatDateInput(value: string | Date): string {
     imports: [
         CommonModule,
         FormsModule,
+        SharedGenericModule,
         MJButtonDirective,
         MJEmptyStateComponent,
         MJFilterChipComponent,
@@ -214,7 +216,7 @@ export class ChiefOfStaffWorkReportsResource extends BaseResourceComponent imple
                 return;
             }
 
-            const provider = this.ProviderToUse as unknown as WorkReportProvider;
+            const provider = this.workReportProvider;
             const rv = new RunView(provider);
             const directReportIDs = await WorkReportService.Instance.ResolveDirectReportPersonIDs(
                 personID,
@@ -319,24 +321,57 @@ export class ChiefOfStaffWorkReportsResource extends BaseResourceComponent imple
         }
     }
 
+    private get workReportProvider(): WorkReportProvider {
+        return this.ProviderToUse as Partial<WorkReportProvider> as WorkReportProvider;
+    }
+
+    private get actionClient(): GraphQLActionClient | null {
+        const provider = this.ProviderToUse;
+        if (provider && ('ExecuteGQL' in provider || provider instanceof GraphQLDataProvider)) {
+            return new GraphQLActionClient(provider as GraphQLDataProvider);
+        }
+        return null;
+    }
+
     public async DraftTodayReport(): Promise<void> {
         if (!this.currentPersonID || this.IsDrafting) return;
         this.IsDrafting = true;
         this.Banner = null;
         this.cdr.markForCheck();
         try {
-            const now = new Date();
-            const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
-            const provider = this.ProviderToUse as unknown as WorkReportProvider;
-            const outcome = await WorkReportService.Instance.DraftWorkReport({
-                PersonID: this.currentPersonID,
-                PeriodStart: startOfDay,
-                PeriodEnd: now,
-                SkipIfNoActivity: true,
-                ContextUser: this.ProviderToUse.CurrentUser,
-                Provider: provider,
-            });
-            if (outcome.SkippedNoActivity || !outcome.Report) {
+            const localWindow = GetLocalDayWindow();
+            const client = this.actionClient;
+            let draftedReportID: string | null = null;
+            let skippedNoActivity = false;
+
+            if (client) {
+                const actionRes = await client.RunAction(DRAFT_WORK_REPORT_ACTION_ID, [
+                    { Name: 'PersonID', Value: this.currentPersonID, Type: 'Input' },
+                    { Name: 'PeriodStart', Value: localWindow.DateString, Type: 'Input' },
+                    { Name: 'PeriodEnd', Value: localWindow.DateString, Type: 'Input' },
+                    { Name: 'WorkReportID', Value: null, Type: 'Output' },
+                ]);
+                if (!actionRes.Success) {
+                    throw new Error(actionRes.Message || 'Failed to draft work report.');
+                }
+                const outParam = actionRes.Params?.find((p) => p.Name.toLowerCase() === 'workreportid');
+                const outId = outParam?.Value != null ? String(outParam.Value).trim() : '';
+                skippedNoActivity = actionRes.ResultCode === 'NO_ACTIVITY' || outId.length === 0;
+                draftedReportID = outId.length > 0 ? outId : null;
+            } else {
+                const provider = this.workReportProvider;
+                const outcome = await WorkReportService.Instance.DraftWorkReport({
+                    PersonID: this.currentPersonID,
+                    PeriodStart: localWindow.PeriodStart,
+                    PeriodEnd: localWindow.PeriodEnd,
+                    ContextUser: this.ProviderToUse.CurrentUser,
+                    Provider: provider,
+                });
+                skippedNoActivity = outcome.SkippedNoActivity || !outcome.Report;
+                draftedReportID = outcome.Report?.ID ?? null;
+            }
+
+            if (skippedNoActivity || !draftedReportID) {
                 this.Banner = {
                     Type: 'info',
                     Message: 'No task updates were recorded today yet, so no 15Five draft was created.',
@@ -344,9 +379,9 @@ export class ChiefOfStaffWorkReportsResource extends BaseResourceComponent imple
                 return;
             }
             this.ActiveTab = 'mine';
-            this.SelectedReportID = outcome.Report.ID;
+            this.SelectedReportID = draftedReportID;
             await this.Load();
-            this.Banner = { Type: 'success', Message: 'Drafted today\'s 15Five report from your task activity.' };
+            this.Banner = { Type: 'success', Message: "Drafted today's 15Five report from your task activity." };
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             LogError(`DraftTodayReport failed: ${msg}`);
@@ -373,21 +408,54 @@ export class ChiefOfStaffWorkReportsResource extends BaseResourceComponent imple
         this.Banner = null;
         this.cdr.markForCheck();
         try {
-            const provider = this.ProviderToUse as unknown as WorkReportProvider;
-            const outcome = await WorkReportService.Instance.SubmitWorkReport({
-                WorkReportID: report.ID,
-                CallerPersonID: this.currentPersonID,
-                Title: this.DraftEditorTitle,
-                Body: this.DraftEditorBody,
-                ContextUser: this.ProviderToUse.CurrentUser,
-                Provider: provider,
-            });
+            const client = this.actionClient;
+            let supervisorNotified = false;
+            let supervisorName: string | null = null;
+
+            if (client) {
+                const actionRes = await client.RunAction(SUBMIT_WORK_REPORT_ACTION_ID, [
+                    { Name: 'WorkReportID', Value: report.ID, Type: 'Input' },
+                    { Name: 'Title', Value: this.DraftEditorTitle, Type: 'Input' },
+                    { Name: 'Body', Value: this.DraftEditorBody, Type: 'Input' },
+                    { Name: 'SupervisorRequestID', Value: null, Type: 'Output' },
+                    { Name: 'SupervisorNotified', Value: null, Type: 'Output' },
+                    { Name: 'SupervisorName', Value: null, Type: 'Output' },
+                ]);
+                if (!actionRes.Success) {
+                    throw new Error(actionRes.Message || 'Failed to submit work report.');
+                }
+                const reqParam = actionRes.Params?.find((p) => p.Name.toLowerCase() === 'supervisorrequestid');
+                const notifiedParam = actionRes.Params?.find((p) => p.Name.toLowerCase() === 'supervisornotified');
+                const nameParam = actionRes.Params?.find((p) => p.Name.toLowerCase() === 'supervisorname');
+                const reqId = reqParam?.Value != null ? String(reqParam.Value).trim() : '';
+                const rawNotified = notifiedParam?.Value;
+                supervisorNotified =
+                    rawNotified === true ||
+                    String(rawNotified).toLowerCase() === 'true' ||
+                    reqId.length > 0;
+                const rawName = nameParam?.Value != null ? String(nameParam.Value).trim() : '';
+                supervisorName = rawName.length > 0 ? rawName : null;
+            } else {
+                const provider = this.workReportProvider;
+                const outcome = await WorkReportService.Instance.SubmitWorkReport({
+                    WorkReportID: report.ID,
+                    CallerPersonID: this.currentPersonID,
+                    UpdatedTitle: this.DraftEditorTitle,
+                    UpdatedBody: this.DraftEditorBody,
+                    ContextUser: this.ProviderToUse.CurrentUser,
+                    Provider: provider,
+                });
+                supervisorNotified = outcome.SupervisorNotified;
+                supervisorName = outcome.Supervisor.SupervisorName;
+            }
+
             await this.Load();
             this.Banner = {
                 Type: 'success',
-                Message: outcome.Supervisor.SupervisorName
-                    ? `Submitted report and notified ${outcome.Supervisor.SupervisorName}'s Chief of Staff.`
-                    : 'Submitted work report.',
+                Message:
+                    supervisorNotified && supervisorName
+                        ? `Submitted report and notified ${supervisorName}'s Chief of Staff.`
+                        : 'Submitted work report.',
             };
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
@@ -415,14 +483,25 @@ export class ChiefOfStaffWorkReportsResource extends BaseResourceComponent imple
         this.Banner = null;
         this.cdr.markForCheck();
         try {
-            const provider = this.ProviderToUse as unknown as WorkReportProvider;
-            await WorkReportService.Instance.RecordSupervisorReview({
-                WorkReportID: report.ID,
-                ReviewerPersonID: this.currentPersonID,
-                SupervisorFeedback: this.FeedbackEditorText,
-                ContextUser: this.ProviderToUse.CurrentUser,
-                Provider: provider,
-            });
+            const client = this.actionClient;
+            if (client) {
+                const actionRes = await client.RunAction(REVIEW_WORK_REPORT_ACTION_ID, [
+                    { Name: 'WorkReportID', Value: report.ID, Type: 'Input' },
+                    { Name: 'SupervisorFeedback', Value: this.FeedbackEditorText, Type: 'Input' },
+                ]);
+                if (!actionRes.Success) {
+                    throw new Error(actionRes.Message || 'Failed to save supervisor feedback.');
+                }
+            } else {
+                const provider = this.workReportProvider;
+                await WorkReportService.Instance.RecordSupervisorReview({
+                    WorkReportID: report.ID,
+                    ReviewerPersonID: this.currentPersonID,
+                    SupervisorFeedback: this.FeedbackEditorText,
+                    ContextUser: this.ProviderToUse.CurrentUser,
+                    Provider: provider,
+                });
+            }
             await this.Load();
             this.Banner = { Type: 'success', Message: 'Supervisor feedback saved and delivered to the report author.' };
         } catch (err) {
