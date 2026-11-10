@@ -1,5 +1,11 @@
 # @mj-biz-apps/tasks-core
 
+## 1.11.1
+
+### Patch Changes
+
+- @mj-biz-apps/tasks-entities@1.11.1
+
 ## 1.11.0
 
 ### Patch Changes
