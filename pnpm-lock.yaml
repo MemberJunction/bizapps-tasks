@@ -67,10 +67,10 @@ importers:
   packages/Angular:
     dependencies:
       '@mj-biz-apps/tasks-core':
-        specifier: ^1.10.0
+        specifier: ^1.11.1
         version: link:../Core
       '@mj-biz-apps/tasks-entities':
-        specifier: ^1.10.0
+        specifier: ^1.11.1
         version: link:../Entities
       dhtmlx-gantt:
         specifier: ^9.1.2
@@ -152,7 +152,7 @@ importers:
   packages/Core:
     dependencies:
       '@mj-biz-apps/tasks-entities':
-        specifier: ^1.10.0
+        specifier: ^1.11.1
         version: link:../Entities
     devDependencies:
       '@memberjunction/core':
@@ -190,10 +190,10 @@ importers:
   packages/EntitiesServer:
     dependencies:
       '@mj-biz-apps/tasks-core':
-        specifier: ^1.10.0
+        specifier: ^1.11.1
         version: link:../Core
       '@mj-biz-apps/tasks-entities':
-        specifier: ^1.10.0
+        specifier: ^1.11.1
         version: link:../Entities
     devDependencies:
       '@memberjunction/actions':
@@ -230,10 +230,10 @@ importers:
         specifier: '>=5.37.0'
         version: 5.37.0(@memberjunction/core@6.2.1)(@memberjunction/global@6.2.1)
       '@mj-biz-apps/tasks-entities':
-        specifier: ^1.10.0
+        specifier: ^1.11.1
         version: link:../Entities
       '@mj-biz-apps/tasks-entities-server':
-        specifier: ^1.10.0
+        specifier: ^1.11.1
         version: link:../EntitiesServer
     devDependencies:
       '@types/node':
@@ -255,16 +255,16 @@ importers:
   packages/Server:
     dependencies:
       '@mj-biz-apps/tasks-actions':
-        specifier: ^1.10.0
+        specifier: ^1.11.1
         version: link:../Actions
       '@mj-biz-apps/tasks-core':
-        specifier: ^1.10.0
+        specifier: ^1.11.1
         version: link:../Core
       '@mj-biz-apps/tasks-entities':
-        specifier: ^1.10.0
+        specifier: ^1.11.1
         version: link:../Entities
       '@mj-biz-apps/tasks-entities-server':
-        specifier: ^1.10.0
+        specifier: ^1.11.1
         version: link:../EntitiesServer
       class-validator:
         specifier: ^0.14.3
@@ -10507,12 +10507,12 @@ snapshots:
     transitivePeerDependencies:
       - '@types/node'
 
-  '@hyperframes/core@0.8.134(@types/node@24.10.11)':
+  '@hyperframes/core@0.8.134(@types/node@22.20.1)':
     dependencies:
       '@chenglou/pretext': 0.0.5
       '@hyperframes/lint': 0.8.134
       '@hyperframes/parsers': 0.8.134
-      '@hyperframes/studio-server': 0.8.134(@types/node@24.10.11)
+      '@hyperframes/studio-server': 0.8.134(@types/node@22.20.1)
       bpm-detective: 2.0.5
       linkedom: 0.18.15
       postcss: 8.5.26
@@ -10527,7 +10527,7 @@ snapshots:
   '@hyperframes/engine@0.8.134':
     dependencies:
       '@hono/node-server': 2.1.0(hono@4.13.1)
-      '@hyperframes/core': 0.8.134(@types/node@24.10.11)
+      '@hyperframes/core': 0.8.134(@types/node@22.20.1)
       '@hyperframes/parsers': 0.8.134
       hono: 4.13.1
       linkedom: 0.18.15
@@ -10569,7 +10569,7 @@ snapshots:
   '@hyperframes/producer@0.8.134(@types/node@22.20.1)':
     dependencies:
       '@hono/node-server': 2.1.0(hono@4.13.1)
-      '@hyperframes/core': 0.8.134(@types/node@24.10.11)
+      '@hyperframes/core': 0.8.134(@types/node@22.20.1)
       '@hyperframes/engine': 0.8.134
       '@hyperframes/lint': 0.8.134
       '@hyperframes/parsers': 0.8.134
@@ -10591,7 +10591,7 @@ snapshots:
   '@hyperframes/producer@0.8.134(@types/node@24.10.11)':
     dependencies:
       '@hono/node-server': 2.1.0(hono@4.13.1)
-      '@hyperframes/core': 0.8.134(@types/node@24.10.11)
+      '@hyperframes/core': 0.8.134(@types/node@22.20.1)
       '@hyperframes/engine': 0.8.134
       '@hyperframes/lint': 0.8.134
       '@hyperframes/parsers': 0.8.134
@@ -10613,7 +10613,7 @@ snapshots:
   '@hyperframes/producer@0.8.134(@types/node@26.2.0)':
     dependencies:
       '@hono/node-server': 2.1.0(hono@4.13.1)
-      '@hyperframes/core': 0.8.134(@types/node@24.10.11)
+      '@hyperframes/core': 0.8.134(@types/node@22.20.1)
       '@hyperframes/engine': 0.8.134
       '@hyperframes/lint': 0.8.134
       '@hyperframes/parsers': 0.8.134
@@ -10634,7 +10634,7 @@ snapshots:
 
   '@hyperframes/studio-server@0.8.134(@types/node@22.20.1)':
     dependencies:
-      '@hyperframes/core': 0.8.134(@types/node@24.10.11)
+      '@hyperframes/core': 0.8.134(@types/node@22.20.1)
       '@hyperframes/parsers': 0.8.134
       hono: 4.13.1
       linkedom: 0.18.15
@@ -10648,7 +10648,7 @@ snapshots:
 
   '@hyperframes/studio-server@0.8.134(@types/node@24.10.11)':
     dependencies:
-      '@hyperframes/core': 0.8.134(@types/node@24.10.11)
+      '@hyperframes/core': 0.8.134(@types/node@22.20.1)
       '@hyperframes/parsers': 0.8.134
       hono: 4.13.1
       linkedom: 0.18.15
@@ -10662,7 +10662,7 @@ snapshots:
 
   '@hyperframes/studio-server@0.8.134(@types/node@26.2.0)':
     dependencies:
-      '@hyperframes/core': 0.8.134(@types/node@24.10.11)
+      '@hyperframes/core': 0.8.134(@types/node@22.20.1)
       '@hyperframes/parsers': 0.8.134
       hono: 4.13.1
       linkedom: 0.18.15
@@ -22673,7 +22673,7 @@ snapshots:
 
   '@memberjunction/video-studio-render-worker@6.2.1(@types/node@22.20.1)':
     dependencies:
-      '@hyperframes/core': 0.8.134(@types/node@24.10.11)
+      '@hyperframes/core': 0.8.134(@types/node@22.20.1)
       '@hyperframes/engine': 0.8.134
       '@hyperframes/lint': 0.8.134
       '@hyperframes/parsers': 0.8.134
@@ -22693,7 +22693,7 @@ snapshots:
 
   '@memberjunction/video-studio-render-worker@6.2.1(@types/node@24.10.11)':
     dependencies:
-      '@hyperframes/core': 0.8.134(@types/node@24.10.11)
+      '@hyperframes/core': 0.8.134(@types/node@22.20.1)
       '@hyperframes/engine': 0.8.134
       '@hyperframes/lint': 0.8.134
       '@hyperframes/parsers': 0.8.134
@@ -22713,7 +22713,7 @@ snapshots:
 
   '@memberjunction/video-studio-render-worker@6.2.1(@types/node@26.2.0)':
     dependencies:
-      '@hyperframes/core': 0.8.134(@types/node@24.10.11)
+      '@hyperframes/core': 0.8.134(@types/node@22.20.1)
       '@hyperframes/engine': 0.8.134
       '@hyperframes/lint': 0.8.134
       '@hyperframes/parsers': 0.8.134

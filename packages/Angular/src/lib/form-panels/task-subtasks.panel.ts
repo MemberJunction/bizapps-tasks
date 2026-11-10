@@ -13,7 +13,10 @@ const SECTION_KEY = 'subtasks';
     key: 'form-panel:Tasks:subtasks',
     metadata: {
         entity: TASKS_ENTITY,
-        slot: 'after-fields',
+        // After-related, not after-fields: MJ 6.2 files every before/after-fields panel inside
+        // the Details rail item. Before 6.2 Sub-tasks was a rail item of its own after Details, and
+        // after-related keeps it one.
+        slot: 'after-related',
         sortKey: 90,
         relatedEntity: TASKS_ENTITY,
         relatedJoinField: 'ParentID',
