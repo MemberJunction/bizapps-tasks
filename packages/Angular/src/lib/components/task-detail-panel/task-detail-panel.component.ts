@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, inject, Input, Output, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { Metadata, RunView, CompositeKey } from '@memberjunction/core';
 import { OpenTaskRecord } from '../../open-task-record';
 import { TaskAssigneeInfo } from '../task-assignee-list/task-assignee-list.component';
@@ -63,7 +64,7 @@ export class BeforeCommentPostedEvent {
     selector: 'bizapps-task-detail-panel',
     standalone: true,
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [CommonModule, FormsModule],
+    imports: [CommonModule, FormsModule, BaseFormsModule],
     template: `
         @if (TaskID) {
             <div class="detail-panel">
@@ -122,7 +123,12 @@ export class BeforeCommentPostedEvent {
                     @if (parentTaskName) {
                         <div class="field-block">
                             <label>Parent Task</label>
-                            <span class="parent-link">
+                            <span
+                                class="parent-link"
+                                mjRecordLink
+                                [EntityName]="'MJ_BizApps_Tasks: Tasks'"
+                                [RecordID]="task.ParentID"
+                                [DisplayName]="parentTaskName">
                                 <i class="fa-solid fa-folder-open"></i>
                                 {{ parentTaskName }}
                             </span>
@@ -201,7 +207,12 @@ export class BeforeCommentPostedEvent {
                         @for (a of assignees; track a.AssigneeRecordID) {
                             <div class="assignee-row">
                                 <span class="assignee-dot" [ngClass]="'dot-' + a.Status.toLowerCase()"></span>
-                                <span class="assignee-name">{{ a.DisplayName }}</span>
+                                <span
+                                    class="assignee-name"
+                                    mjRecordLink
+                                    [EntityName]="'MJ_BizApps_Common: People'"
+                                    [RecordID]="a.AssigneeRecordID"
+                                    [DisplayName]="a.DisplayName">{{ a.DisplayName }}</span>
                                 @if (a.RoleName) {
                                     <span class="assignee-role">{{ a.RoleName }}</span>
                                 }
