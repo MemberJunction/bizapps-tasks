@@ -1,5 +1,24 @@
 # @mj-biz-apps/tasks-ng
 
+## 1.11.1
+
+### Patch Changes
+
+- 9c81fd3: The Task form shows Sub-tasks as its own side-rail item after Details again. MJ 6.2 files every panel mounted at a field slot inside the Details item, so the Sub-tasks panel now mounts after related.
+  - @mj-biz-apps/tasks-core@1.11.1
+  - @mj-biz-apps/tasks-entities@1.11.1
+
+## 1.11.0
+
+### Patch Changes
+
+- Updated dependencies [bd16eee]
+- Updated dependencies [a2bab10]
+- Updated dependencies [f50bd0d]
+- Updated dependencies [55de4fa]
+  - @mj-biz-apps/tasks-entities@1.11.0
+  - @mj-biz-apps/tasks-core@1.11.0
+
 ## 1.10.0
 
 ### Minor Changes

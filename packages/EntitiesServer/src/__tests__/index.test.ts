@@ -42,6 +42,7 @@ vi.mock('@memberjunction/actions', () => ({
 vi.mock('@mj-biz-apps/tasks-entities', () => ({
   TaskEntity: class {},
   mjBizAppsTasksTaskActivityEntity: class {},
+  mjBizAppsTasksTaskAssignmentEntity: class {},
   mjBizAppsTasksTaskCheckInEntity: class {},
   mjBizAppsTasksTaskDecisionEntity: class {},
   mjBizAppsTasksTaskEntity: class {},
@@ -66,6 +67,7 @@ describe('@mj-biz-apps/tasks-entities-server', () => {
     expect(mod.TaskEntityServer).toBeDefined();
     expect(mod.TaskCheckInEntityServer).toBeDefined();
     expect(mod.TaskDecisionEntityServer).toBeDefined();
+    expect(mod.TaskAssignmentEntityServer).toBeDefined();
     expect(mod.TaskTypeEntityServer).toBeDefined();
     expect(mod.WorkReportEntityServer).toBeDefined();
     expect(mod.WorkReportItemEntityServer).toBeDefined();

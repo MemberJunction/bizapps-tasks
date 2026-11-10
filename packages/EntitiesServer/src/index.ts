@@ -9,6 +9,7 @@
 import { TaskEntityServer } from './TaskEntityServer.js';
 import { TaskCheckInEntityServer } from './TaskCheckInEntityServer.js';
 import { TaskDecisionEntityServer } from './TaskDecisionEntityServer.js';
+import { TaskAssignmentEntityServer } from './TaskAssignmentEntityServer.js';
 import { TaskTypeEntityServer, LoadTaskTypeEntityServer } from './TaskTypeEntityServer.js';
 import { WorkReportEntityServer, LoadWorkReportEntityServer } from './WorkReportEntityServer.js';
 import { WorkReportItemEntityServer, LoadWorkReportItemEntityServer } from './WorkReportItemEntityServer.js';
@@ -16,6 +17,7 @@ import { WorkReportItemEntityServer, LoadWorkReportItemEntityServer } from './Wo
 export { TaskEntityServer } from './TaskEntityServer.js';
 export { TaskCheckInEntityServer } from './TaskCheckInEntityServer.js';
 export { TaskDecisionEntityServer, TASK_DECISION_ENTITY } from './TaskDecisionEntityServer.js';
+export { TaskAssignmentEntityServer, TASK_ASSIGNMENT_ENTITY } from './TaskAssignmentEntityServer.js';
 export { TaskDecisionRefusal, DeciderAssignments, type TaskDecisionFacts, type DecisionAssignmentFact } from './TaskDecisionAuthority.js';
 export { TaskTypeEntityServer, TASK_TYPE_ENTITY, LoadTaskTypeEntityServer } from './TaskTypeEntityServer.js';
 export { WorkReportEntityServer, WORK_REPORT_ENTITY, LoadWorkReportEntityServer } from './WorkReportEntityServer.js';
@@ -45,6 +47,7 @@ export function LoadBizAppsTasksEntitiesServer(): void {
         TaskEntityServer,
         TaskCheckInEntityServer,
         TaskDecisionEntityServer,
+        TaskAssignmentEntityServer,
         TaskTypeEntityServer,
         WorkReportEntityServer,
         WorkReportItemEntityServer,
