@@ -347,8 +347,9 @@ export class ChiefOfStaffWorkReportsResource extends BaseResourceComponent imple
             if (client) {
                 const actionRes = await client.RunAction(DRAFT_WORK_REPORT_ACTION_ID, [
                     { Name: 'PersonID', Value: this.currentPersonID, Type: 'Input' },
-                    { Name: 'PeriodStart', Value: localWindow.DateString, Type: 'Input' },
-                    { Name: 'PeriodEnd', Value: localWindow.DateString, Type: 'Input' },
+                    { Name: 'PeriodStart', Value: localWindow.PeriodStart.toISOString(), Type: 'Input' },
+                    { Name: 'PeriodEnd', Value: localWindow.PeriodEnd.toISOString(), Type: 'Input' },
+                    { Name: 'TimezoneOffsetMinutes', Value: String(new Date().getTimezoneOffset()), Type: 'Input' },
                     { Name: 'WorkReportID', Value: null, Type: 'Output' },
                 ]);
                 if (!actionRes.Success) {

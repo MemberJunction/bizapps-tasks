@@ -39,14 +39,14 @@ export const AI_AGENT_REQUEST_TYPES_ENTITY_NAME = 'MJ: AI Agent Request Types';
 export const FIELD_SUGGESTIONS_ENTITY_NAME = 'MJ: Field Suggestions';
 
 const PRIVILEGED_ROLE_NAMES = new Set([
-    'developer',
-    'integration',
+    'owner',
     'admin',
     'administrator',
-    'ui_admin',
-    'owner',
-    'system',
+    'system administrator',
+    'administration',
 ]);
+
+const MAX_SUPERVISOR_CHAIN_DEPTH = 3;
 
 export type WorkReportProvider = IMetadataProvider & IRunViewProvider;
 
@@ -69,6 +69,8 @@ export interface SupervisorResolution {
     SupervisorUserID: string | null;
     SupervisorPersonID: string | null;
     SupervisorName: string | null;
+    SupervisorChainPersonIDs?: string[];
+    SupervisorChainUserIDs?: string[];
 }
 
 export interface TaskActivityWindowEntry {
@@ -102,6 +104,7 @@ export interface DraftWorkReportParams {
     PersonID: string;
     PeriodStart: Date;
     PeriodEnd: Date;
+    TimezoneOffsetMinutes?: number;
     Title?: string | null;
     CustomBody?: string | null;
     AuthoredByAgentRunID?: string | null;
@@ -337,12 +340,28 @@ export function IsPrivilegedWorkReportUser(user?: UserInfo): boolean {
 /**
  * Returns the caller's local calendar day window (`00:00:00.000` through `23:59:59.999` local time)
  * and its `YYYY-MM-DD` local calendar date string.
+ * When `timezoneOffsetMinutes` is supplied (matching `Date.prototype.getTimezoneOffset()`, i.e.
+ * `UTC - local` in minutes such as `480` for US Pacific), computes the calendar day in that timezone.
  */
-export function GetLocalDayWindow(now: Date = new Date()): LocalDayWindow {
+export function GetLocalDayWindow(now: Date = new Date(), timezoneOffsetMinutes?: number): LocalDayWindow {
+    const pad = (n: number): string => String(n).padStart(2, '0');
+    if (typeof timezoneOffsetMinutes === 'number' && Number.isFinite(timezoneOffsetMinutes)) {
+        const offsetMs = timezoneOffsetMinutes * 60_000;
+        const shifted = new Date(now.getTime() - offsetMs);
+        const year = shifted.getUTCFullYear();
+        const month = shifted.getUTCMonth();
+        const day = shifted.getUTCDate();
+        const dateString = `${year}-${pad(month + 1)}-${pad(day)}`;
+        return {
+            PeriodStart: new Date(Date.UTC(year, month, day, 0, 0, 0, 0) + offsetMs),
+            PeriodEnd: new Date(Date.UTC(year, month, day, 23, 59, 59, 999) + offsetMs),
+            DateString: dateString,
+        };
+    }
+
     const year = now.getFullYear();
     const month = now.getMonth();
     const day = now.getDate();
-    const pad = (n: number): string => String(n).padStart(2, '0');
     const dateString = `${year}-${pad(month + 1)}-${pad(day)}`;
     return {
         PeriodStart: new Date(year, month, day, 0, 0, 0, 0),
@@ -353,11 +372,18 @@ export function GetLocalDayWindow(now: Date = new Date()): LocalDayWindow {
 
 /**
  * Formats a Date into a `YYYY-MM-DD` calendar date string.
- * If the Date represents exact UTC midnight (`00:00:00.000Z`), uses UTC components so
+ * When `timezoneOffsetMinutes` is provided (`UTC - local` in minutes), formats using that timezone.
+ * Otherwise, if the Date represents exact UTC midnight (`00:00:00.000Z`), uses UTC components so
  * ISO date-only strings (`new Date('2026-11-06')`) preserve their calendar date in every timezone;
  * otherwise uses local calendar components.
  */
-export function FormatReportCalendarDate(date: Date): string {
+export function FormatReportCalendarDate(date: Date, timezoneOffsetMinutes?: number): string {
+    const pad = (n: number): string => String(n).padStart(2, '0');
+    if (typeof timezoneOffsetMinutes === 'number' && Number.isFinite(timezoneOffsetMinutes)) {
+        const shifted = new Date(date.getTime() - timezoneOffsetMinutes * 60_000);
+        return `${shifted.getUTCFullYear()}-${pad(shifted.getUTCMonth() + 1)}-${pad(shifted.getUTCDate())}`;
+    }
+
     const isUtcMidnight =
         date.getUTCHours() === 0 &&
         date.getUTCMinutes() === 0 &&
@@ -371,7 +397,6 @@ export function FormatReportCalendarDate(date: Date): string {
     const year = isUtcMidnight || isUtcEndOfDay ? date.getUTCFullYear() : date.getFullYear();
     const month = (isUtcMidnight || isUtcEndOfDay ? date.getUTCMonth() : date.getMonth()) + 1;
     const day = isUtcMidnight || isUtcEndOfDay ? date.getUTCDate() : date.getDate();
-    const pad = (n: number): string => String(n).padStart(2, '0');
     return `${year}-${pad(month)}-${pad(day)}`;
 }
 
@@ -766,7 +791,7 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
                     EntityName: PEOPLE_ENTITY_NAME,
                     ExtraFilter: `LOWER(Email) = LOWER('${EscapeSQLString(email)}') AND Status = 'Active'`,
                     Fields: ['ID', 'FirstName', 'LastName', 'Email', 'LinkedUserID'],
-                    MaxRows: 1,
+                    MaxRows: 5,
                     ResultType: 'simple',
                 },
                 user,
@@ -774,7 +799,10 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
             if (!byEmail.Success) {
                 throw new Error(`Failed to resolve Person by Email: ${byEmail.ErrorMessage ?? 'RunView failed'}`);
             }
-            const emailRow = byEmail.Results?.[0];
+            const candidates = byEmail.Results ?? [];
+            const emailRow =
+                candidates.find((row) => row.LinkedUserID && user.ID && UUIDsEqual(row.LinkedUserID, user.ID)) ??
+                candidates.find((row) => !row.LinkedUserID);
             if (emailRow) {
                 return {
                     ID: emailRow.ID,
@@ -790,9 +818,11 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
     }
 
     /**
-     * Resolves a person's supervisor across `MJ_BizApps_Common: People` -> `MJ: Employees.SupervisorID`
-     * -> supervisor `MJ: Employees` -> supervisor `MJ: Users` and `MJ_BizApps_Common: People`.
-     * Throws if any underlying `RunView` fails so callers never fail open on a query error.
+     * Resolves a person's supervisor chain (up to 3 levels) across `MJ_BizApps_Common: People`
+     * -> `MJ: Employees.SupervisorID` -> supervisor `MJ: Employees` -> supervisor `MJ: Users`
+     * and `MJ_BizApps_Common: People`.
+     * Prefers `Person.LinkedUserID` over email matching, and throws if any underlying `RunView` fails
+     * so callers never fail open on a query error.
      */
     public async ResolveSupervisorChainForPerson(
         authorPersonID: string,
@@ -826,6 +856,9 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
             throw new Error(`Author Person record '${authorPersonID}' not found.`);
         }
 
+        const chainPersonIDs: string[] = [];
+        const chainUserIDs: string[] = [];
+
         const result: SupervisorResolution = {
             AuthorPersonID: authorRow.ID,
             AuthorDisplayName: buildPersonDisplayName(authorRow),
@@ -837,6 +870,8 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
             SupervisorUserID: null,
             SupervisorPersonID: null,
             SupervisorName: null,
+            SupervisorChainPersonIDs: chainPersonIDs,
+            SupervisorChainUserIDs: chainUserIDs,
         };
 
         const authorEmail = authorRow.Email?.trim();
@@ -871,87 +906,134 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
             return result;
         }
 
-        result.SupervisorEmployeeID = empRow.SupervisorID;
-        const supEmpRes = await rv.RunView<RawEmployeeRow>(
-            {
-                EntityName: EMPLOYEES_ENTITY_NAME,
-                ExtraFilter: `ID = '${EscapeSQLString(empRow.SupervisorID)}'`,
-                Fields: ['ID', 'FirstName', 'LastName', 'Email', 'Active'],
-                MaxRows: 1,
-                ResultType: 'simple',
-            },
-            contextUser,
-        );
+        const visitedEmployeeIDs = new Set<string>([NormalizeUUID(empRow.ID)]);
+        let currentSupervisorEmpID: string | null = empRow.SupervisorID;
 
-        if (!supEmpRes.Success) {
-            throw new Error(
-                `Failed to query supervisor Employee '${empRow.SupervisorID}': ${supEmpRes.ErrorMessage ?? 'RunView failed'}`,
-            );
-        }
-
-        const supEmp = supEmpRes.Results?.[0];
-        if (!supEmp) {
-            return result;
-        }
-
-        result.SupervisorName = buildPersonDisplayName(supEmp);
-        const supEmail = supEmp.Email?.trim();
-        result.SupervisorEmail = supEmail ?? null;
-
-        if (!supEmail) {
-            return result;
-        }
-
-        const supUserRes = await rv.RunView<RawUserRow>(
-            {
-                EntityName: USERS_ENTITY_NAME,
-                ExtraFilter: `LOWER(Email) = LOWER('${EscapeSQLString(supEmail)}') AND IsActive = 1`,
-                Fields: ['ID', 'Name', 'Email'],
-                MaxRows: 1,
-                ResultType: 'simple',
-            },
-            contextUser,
-        );
-
-        if (!supUserRes.Success) {
-            throw new Error(
-                `Failed to query supervisor User '${supEmail}': ${supUserRes.ErrorMessage ?? 'RunView failed'}`,
-            );
-        }
-
-        const supUser = supUserRes.Results?.[0];
-        if (supUser) {
-            result.SupervisorUserID = supUser.ID;
-        }
-
-        const supPersonFilter = supUser?.ID
-            ? `(LOWER(Email) = LOWER('${EscapeSQLString(supEmail)}') OR LinkedUserID = '${EscapeSQLString(supUser.ID)}') AND Status = 'Active'`
-            : `LOWER(Email) = LOWER('${EscapeSQLString(supEmail)}') AND Status = 'Active'`;
-
-        const supPersonRes = await rv.RunView<RawPersonRow>(
-            {
-                EntityName: PEOPLE_ENTITY_NAME,
-                ExtraFilter: supPersonFilter,
-                Fields: ['ID', 'FirstName', 'LastName', 'Email', 'LinkedUserID'],
-                MaxRows: 1,
-                ResultType: 'simple',
-            },
-            contextUser,
-        );
-
-        if (!supPersonRes.Success) {
-            throw new Error(
-                `Failed to query supervisor Person '${supEmail}': ${supPersonRes.ErrorMessage ?? 'RunView failed'}`,
-            );
-        }
-
-        const supPerson = supPersonRes.Results?.[0];
-        if (supPerson) {
-            result.SupervisorPersonID = supPerson.ID;
-            result.SupervisorName = buildPersonDisplayName(supPerson);
-            if (!result.SupervisorUserID && supPerson.LinkedUserID) {
-                result.SupervisorUserID = supPerson.LinkedUserID;
+        for (let depth = 0; depth < MAX_SUPERVISOR_CHAIN_DEPTH && currentSupervisorEmpID; depth++) {
+            const normalizedEmpID = NormalizeUUID(currentSupervisorEmpID);
+            if (visitedEmployeeIDs.has(normalizedEmpID)) {
+                break;
             }
+            visitedEmployeeIDs.add(normalizedEmpID);
+
+            if (depth === 0) {
+                result.SupervisorEmployeeID = currentSupervisorEmpID;
+            }
+
+            const supEmpRes = await rv.RunView<RawEmployeeRow>(
+                {
+                    EntityName: EMPLOYEES_ENTITY_NAME,
+                    ExtraFilter: `ID = '${EscapeSQLString(currentSupervisorEmpID)}'`,
+                    Fields: ['ID', 'FirstName', 'LastName', 'Email', 'SupervisorID', 'Active'],
+                    MaxRows: 1,
+                    ResultType: 'simple',
+                },
+                contextUser,
+            );
+
+            if (!supEmpRes.Success) {
+                throw new Error(
+                    `Failed to query supervisor Employee '${currentSupervisorEmpID}': ${supEmpRes.ErrorMessage ?? 'RunView failed'}`,
+                );
+            }
+
+            const supEmp = supEmpRes.Results?.[0];
+            if (!supEmp) {
+                break;
+            }
+
+            if (depth === 0) {
+                result.SupervisorName = buildPersonDisplayName(supEmp);
+            }
+
+            const supEmail = supEmp.Email?.trim();
+            if (depth === 0) {
+                result.SupervisorEmail = supEmail ?? null;
+            }
+
+            if (supEmail) {
+                const supUserRes = await rv.RunView<RawUserRow>(
+                    {
+                        EntityName: USERS_ENTITY_NAME,
+                        ExtraFilter: `LOWER(Email) = LOWER('${EscapeSQLString(supEmail)}') AND IsActive = 1`,
+                        Fields: ['ID', 'Name', 'Email'],
+                        MaxRows: 1,
+                        ResultType: 'simple',
+                    },
+                    contextUser,
+                );
+
+                if (!supUserRes.Success) {
+                    throw new Error(
+                        `Failed to query supervisor User '${supEmail}': ${supUserRes.ErrorMessage ?? 'RunView failed'}`,
+                    );
+                }
+
+                const supUser = supUserRes.Results?.[0];
+                if (supUser?.ID) {
+                    if (depth === 0) {
+                        result.SupervisorUserID = supUser.ID;
+                    }
+                    if (!chainUserIDs.some((id) => UUIDsEqual(id, supUser.ID))) {
+                        chainUserIDs.push(supUser.ID);
+                    }
+                }
+
+                const supPersonFilter = supUser?.ID
+                    ? `(LinkedUserID = '${EscapeSQLString(supUser.ID)}' OR LOWER(Email) = LOWER('${EscapeSQLString(supEmail)}')) AND Status = 'Active'`
+                    : `LOWER(Email) = LOWER('${EscapeSQLString(supEmail)}') AND Status = 'Active'`;
+
+                const supPersonRes = await rv.RunView<RawPersonRow>(
+                    {
+                        EntityName: PEOPLE_ENTITY_NAME,
+                        ExtraFilter: supPersonFilter,
+                        Fields: ['ID', 'FirstName', 'LastName', 'Email', 'LinkedUserID'],
+                        MaxRows: 5,
+                        ResultType: 'simple',
+                    },
+                    contextUser,
+                );
+
+                if (!supPersonRes.Success) {
+                    throw new Error(
+                        `Failed to query supervisor Person '${supEmail}': ${supPersonRes.ErrorMessage ?? 'RunView failed'}`,
+                    );
+                }
+
+                const personRows = supPersonRes.Results ?? [];
+                // Prefer the Person row bound via LinkedUserID; fall back to unlinked email match
+                const supPerson =
+                    (supUser?.ID
+                        ? personRows.find((p) => p.LinkedUserID && UUIDsEqual(p.LinkedUserID, supUser.ID))
+                        : undefined) ??
+                    personRows.find((p) => !p.LinkedUserID) ??
+                    personRows[0];
+
+                if (supPerson) {
+                    if (depth === 0) {
+                        result.SupervisorPersonID = supPerson.ID;
+                        result.SupervisorName = buildPersonDisplayName(supPerson);
+                        if (!result.SupervisorUserID && supPerson.LinkedUserID) {
+                            result.SupervisorUserID = supPerson.LinkedUserID;
+                        }
+                    }
+                    if (
+                        !UUIDsEqual(supPerson.ID, authorRow.ID) &&
+                        !chainPersonIDs.some((id) => UUIDsEqual(id, supPerson.ID))
+                    ) {
+                        chainPersonIDs.push(supPerson.ID);
+                    }
+                    if (
+                        supPerson.LinkedUserID &&
+                        !chainUserIDs.some((id) => UUIDsEqual(id, supPerson.LinkedUserID!))
+                    ) {
+                        chainUserIDs.push(supPerson.LinkedUserID);
+                    }
+                }
+            }
+
+            currentSupervisorEmpID =
+                supEmp.SupervisorID && IsValidUUID(supEmp.SupervisorID) ? supEmp.SupervisorID : null;
         }
 
         return result;
@@ -1387,14 +1469,15 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
             };
         }
 
-        const startLabel = FormatReportCalendarDate(activity.PeriodStart);
-        const endLabel = FormatReportCalendarDate(activity.PeriodEnd);
+        const startLabel = FormatReportCalendarDate(activity.PeriodStart, params.TimezoneOffsetMinutes);
+        const endLabel = FormatReportCalendarDate(activity.PeriodEnd, params.TimezoneOffsetMinutes);
         const defaultTitle =
             startLabel === endLabel
                 ? `Daily 15Five — ${startLabel}`
                 : `Work Report — ${startLabel} to ${endLabel}`;
-        const title = params.Title?.trim() || defaultTitle;
-        const body = params.CustomBody?.trim() || BuildWorkReportMarkdown(activity);
+        const explicitTitle = params.Title?.trim() || null;
+        const explicitBody = params.CustomBody?.trim() || null;
+        const synthesizedBody = BuildWorkReportMarkdown(activity);
 
         const reportEntity = await md.GetEntityObject<mjBizAppsTasksWorkReportEntity>(
             WORK_REPORTS_ENTITY_NAME,
@@ -1438,16 +1521,21 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
             if (!loaded) {
                 throw new Error(`Failed to load existing Draft WorkReport '${existingReportID}'.`);
             }
+            // Preserve existing author-edited Title/Body unless the caller explicitly passed an override
+            const existingTitle = reportEntity.Title?.trim();
+            const existingBody = reportEntity.Body?.trim();
+            reportEntity.Title = explicitTitle ?? (existingTitle || defaultTitle);
+            reportEntity.Body = explicitBody ?? (existingBody || synthesizedBody);
         } else {
             reportEntity.NewRecord();
             reportEntity.PersonID = params.PersonID;
             reportEntity.PeriodStart = activity.PeriodStart;
             reportEntity.PeriodEnd = activity.PeriodEnd;
             reportEntity.Status = 'Draft';
+            reportEntity.Title = explicitTitle ?? defaultTitle;
+            reportEntity.Body = explicitBody ?? synthesizedBody;
         }
 
-        reportEntity.Title = title;
-        reportEntity.Body = body;
         reportEntity.AuthoredByAgentRunID =
             params.AuthoredByAgentRunID && IsValidUUID(params.AuthoredByAgentRunID)
                 ? params.AuthoredByAgentRunID
@@ -1533,6 +1621,24 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
                     Sequence: sequence,
                 });
                 sequence += 1;
+            }
+        }
+
+        // Delete any surplus existing WorkReportItems when re-drafting shrinks the item list
+        const surplusItems = existingItems.slice(existingIdx);
+        for (const surplus of surplusItems) {
+            const surplusEntity = await md.GetEntityObject<mjBizAppsTasksWorkReportItemEntity>(
+                WORK_REPORT_ITEMS_ENTITY_NAME,
+                params.ContextUser,
+            );
+            const loadedSurplus = await surplusEntity.Load(surplus.ID);
+            if (!loadedSurplus) {
+                throw new Error(`Failed to load surplus WorkReportItem '${surplus.ID}' for deletion.`);
+            }
+            const deleted = await surplusEntity.Delete();
+            if (!deleted) {
+                const msg = surplusEntity.LatestResult?.CompleteMessage ?? `Failed to delete surplus WorkReportItem '${surplus.ID}'.`;
+                throw new Error(msg);
             }
         }
 
@@ -1695,20 +1801,32 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
         );
 
         if (params.EnforceReportingLine !== false && !isPrivileged) {
-            if (!supervisor.SupervisorPersonID) {
+            const chainPersonIDs =
+                supervisor.SupervisorChainPersonIDs && supervisor.SupervisorChainPersonIDs.length > 0
+                    ? supervisor.SupervisorChainPersonIDs
+                    : supervisor.SupervisorPersonID
+                      ? [supervisor.SupervisorPersonID]
+                      : [];
+            if (chainPersonIDs.length === 0) {
                 throw new Error(
                     "No mapped supervisor in MJ: Employees was resolved for this report's author; review refused.",
                 );
             }
-            if (!UUIDsEqual(supervisor.SupervisorPersonID, reviewerPersonID)) {
+            if (!chainPersonIDs.some((id) => UUIDsEqual(id, reviewerPersonID))) {
                 throw new Error(
                     "Only the author's mapped supervisor in MJ: Employees may record supervisor feedback on this report.",
                 );
             }
+            const chainUserIDs =
+                supervisor.SupervisorChainUserIDs && supervisor.SupervisorChainUserIDs.length > 0
+                    ? supervisor.SupervisorChainUserIDs
+                    : supervisor.SupervisorUserID
+                      ? [supervisor.SupervisorUserID]
+                      : [];
             if (
                 params.ContextUser?.ID &&
-                supervisor.SupervisorUserID &&
-                !UUIDsEqual(supervisor.SupervisorUserID, params.ContextUser.ID)
+                chainUserIDs.length > 0 &&
+                !chainUserIDs.some((id) => UUIDsEqual(id, params.ContextUser!.ID))
             ) {
                 throw new Error(
                     "Authenticated user does not match the author's mapped supervisor in MJ: Employees.",

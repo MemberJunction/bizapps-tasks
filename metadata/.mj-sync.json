@@ -4,6 +4,7 @@
     "autoCreateMissingRecords": true
   },
   "directoryOrder": [
+    "row-level-security-filters",
     "entities",
     "credential-types",
     "action-categories",

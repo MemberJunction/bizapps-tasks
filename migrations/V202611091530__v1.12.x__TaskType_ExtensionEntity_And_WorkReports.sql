@@ -211,32 +211,6 @@ EXEC sp_addextendedproperty
     @level2type = N'COLUMN', @level2name = N'Sequence';
 GO
 
----------------------------------------------------------------------------
--- 4. Row-Level Security Filters for 15Five Work Reports & Work Report Items
----------------------------------------------------------------------------
-IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[RowLevelSecurityFilter] WHERE [ID] = 'DC505938-81AC-4EFF-A6FF-99BFB5B11018')
-    INSERT INTO [${mjSchema}].[RowLevelSecurityFilter] ([ID], [Name], [FilterText], [Description], [__mj_CreatedAt], [__mj_UpdatedAt])
-    VALUES (
-        'DC505938-81AC-4EFF-A6FF-99BFB5B11018',
-        'UI: Work Reports - Author or Supervisor Chain',
-        'PersonID IN (SELECT p.ID FROM [__mj_BizAppsCommon].[Person] p WHERE p.LinkedUserID = ''{{UserID}}'' OR LOWER(p.Email) = LOWER(''{{UserEmail}}'') OR LOWER(p.Email) IN (SELECT LOWER(ae.Email) FROM [${mjSchema}].[Employee] ae INNER JOIN [${mjSchema}].[Employee] se ON ae.SupervisorID = se.ID LEFT OUTER JOIN [${mjSchema}].[Employee] sse ON se.SupervisorID = sse.ID WHERE ae.Active = 1 AND (LOWER(se.Email) = LOWER(''{{UserEmail}}'') OR LOWER(sse.Email) = LOWER(''{{UserEmail}}'') OR LOWER(se.Email) IN (SELECT LOWER(sp.Email) FROM [__mj_BizAppsCommon].[Person] sp WHERE sp.LinkedUserID = ''{{UserID}}'') OR LOWER(sse.Email) IN (SELECT LOWER(sp.Email) FROM [__mj_BizAppsCommon].[Person] sp WHERE sp.LinkedUserID = ''{{UserID}}''))))',
-        'Narrows MJ_BizApps_Tasks: Work Reports for the UI role to reports authored by the current user or by someone in the current user''s supervisor chain.',
-        GETUTCDATE(),
-        GETUTCDATE()
-    );
-GO
-
-IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[RowLevelSecurityFilter] WHERE [ID] = 'E2D9FE26-3490-48C5-A60B-42F1B2973B19')
-    INSERT INTO [${mjSchema}].[RowLevelSecurityFilter] ([ID], [Name], [FilterText], [Description], [__mj_CreatedAt], [__mj_UpdatedAt])
-    VALUES (
-        'E2D9FE26-3490-48C5-A60B-42F1B2973B19',
-        'UI: Work Report Items - Author or Supervisor Chain',
-        'WorkReportID IN (SELECT r.ID FROM [${flyway:defaultSchema}].[WorkReport] r WHERE r.PersonID IN (SELECT p.ID FROM [__mj_BizAppsCommon].[Person] p WHERE p.LinkedUserID = ''{{UserID}}'' OR LOWER(p.Email) = LOWER(''{{UserEmail}}'') OR LOWER(p.Email) IN (SELECT LOWER(ae.Email) FROM [${mjSchema}].[Employee] ae INNER JOIN [${mjSchema}].[Employee] se ON ae.SupervisorID = se.ID LEFT OUTER JOIN [${mjSchema}].[Employee] sse ON se.SupervisorID = sse.ID WHERE ae.Active = 1 AND (LOWER(se.Email) = LOWER(''{{UserEmail}}'') OR LOWER(sse.Email) = LOWER(''{{UserEmail}}'') OR LOWER(se.Email) IN (SELECT LOWER(sp.Email) FROM [__mj_BizAppsCommon].[Person] sp WHERE sp.LinkedUserID = ''{{UserID}}'') OR LOWER(sse.Email) IN (SELECT LOWER(sp.Email) FROM [__mj_BizAppsCommon].[Person] sp WHERE sp.LinkedUserID = ''{{UserID}}'')))))',
-        'Narrows MJ_BizApps_Tasks: Work Report Items for the UI role to line items belonging to work reports authored by the current user or by someone in the current user''s supervisor chain.',
-        GETUTCDATE(),
-        GETUTCDATE()
-    );
-GO
 
 
 
@@ -352,8 +326,8 @@ INSERT INTO [${mjSchema}].[ApplicationEntity]
 
 /* SQL generated to add new permission for entity MJ_BizApps_Tasks: Work Reports for role UI */
 INSERT INTO [${mjSchema}].[EntityPermission]
-                ([EntityID], [RoleID], [Type], [CanRead], [CanCreate], [CanUpdate], [CanDelete], [ReadRLSFilterID], [UpdateRLSFilterID], [__mj_CreatedAt], [__mj_UpdatedAt])
-              SELECT CAST('a9038030-2dbd-48e1-9075-03ed5373b85a' AS uniqueidentifier), CAST('E0AFCCEC-6A37-EF11-86D4-000D3A4E707E' AS uniqueidentifier), 'Allow', 1, 1, 1, 0, CAST('DC505938-81AC-4EFF-A6FF-99BFB5B11018' AS uniqueidentifier), CAST('DC505938-81AC-4EFF-A6FF-99BFB5B11018' AS uniqueidentifier), GETUTCDATE(), GETUTCDATE()
+                ([EntityID], [RoleID], [Type], [CanRead], [CanCreate], [CanUpdate], [CanDelete], [__mj_CreatedAt], [__mj_UpdatedAt])
+              SELECT CAST('a9038030-2dbd-48e1-9075-03ed5373b85a' AS uniqueidentifier), CAST('E0AFCCEC-6A37-EF11-86D4-000D3A4E707E' AS uniqueidentifier), 'Allow', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE()
               WHERE NOT EXISTS (
                 SELECT 1 FROM [${mjSchema}].[EntityPermission]
                 WHERE [EntityID] = CAST('a9038030-2dbd-48e1-9075-03ed5373b85a' AS uniqueidentifier) AND [RoleID] = CAST('E0AFCCEC-6A37-EF11-86D4-000D3A4E707E' AS uniqueidentifier) AND [Type] = 'Allow'
@@ -433,8 +407,8 @@ INSERT INTO [${mjSchema}].[ApplicationEntity]
 
 /* SQL generated to add new permission for entity MJ_BizApps_Tasks: Work Report Items for role UI */
 INSERT INTO [${mjSchema}].[EntityPermission]
-                ([EntityID], [RoleID], [Type], [CanRead], [CanCreate], [CanUpdate], [CanDelete], [ReadRLSFilterID], [UpdateRLSFilterID], [__mj_CreatedAt], [__mj_UpdatedAt])
-              SELECT CAST('d9e9ee62-78ce-4e89-8ed0-35378358e321' AS uniqueidentifier), CAST('E0AFCCEC-6A37-EF11-86D4-000D3A4E707E' AS uniqueidentifier), 'Allow', 1, 1, 1, 0, CAST('E2D9FE26-3490-48C5-A60B-42F1B2973B19' AS uniqueidentifier), CAST('E2D9FE26-3490-48C5-A60B-42F1B2973B19' AS uniqueidentifier), GETUTCDATE(), GETUTCDATE()
+                ([EntityID], [RoleID], [Type], [CanRead], [CanCreate], [CanUpdate], [CanDelete], [__mj_CreatedAt], [__mj_UpdatedAt])
+              SELECT CAST('d9e9ee62-78ce-4e89-8ed0-35378358e321' AS uniqueidentifier), CAST('E0AFCCEC-6A37-EF11-86D4-000D3A4E707E' AS uniqueidentifier), 'Allow', 1, 1, 1, 1, GETUTCDATE(), GETUTCDATE()
               WHERE NOT EXISTS (
                 SELECT 1 FROM [${mjSchema}].[EntityPermission]
                 WHERE [EntityID] = CAST('d9e9ee62-78ce-4e89-8ed0-35378358e321' AS uniqueidentifier) AND [RoleID] = CAST('E0AFCCEC-6A37-EF11-86D4-000D3A4E707E' AS uniqueidentifier) AND [Type] = 'Allow'

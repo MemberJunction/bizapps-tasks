@@ -42,6 +42,7 @@ import {
     BuildWorkReportsAgentContext,
     FilterWorkReports,
     GetLocalDayWindow,
+    IsPrivilegedWorkReportUser,
     LoadPendingFieldSuggestionCountsForTasks,
     NormalizeReportPeriodWindow,
     WorkReportService,
@@ -66,6 +67,7 @@ function createFakeEntity(initial: FakeEntityState = {}) {
             return true;
         }),
         Save: vi.fn(async () => true),
+        Delete: vi.fn(async () => true),
         SetMany: vi.fn((vals: FakeEntityState) => {
             Object.assign(state, vals);
         }),
@@ -874,6 +876,134 @@ describe('WorkReportService', () => {
                 AtRisk: [],
             });
             expect(md).toContain('No task updates recorded');
+        });
+
+        it('narrows IsPrivilegedWorkReportUser so Developer and Integration are not treated as privileged admins', () => {
+            const devUser = {
+                ID: USER_ALICE,
+                Email: 'dev@example.com',
+                UserRoles: [{ Role: 'Developer' }, { Role: 'Integration' }, { Role: 'UI' }],
+            } as Partial<UserInfo> as UserInfo;
+            expect(IsPrivilegedWorkReportUser(devUser)).toBe(false);
+
+            const adminUser = {
+                ID: USER_BOB,
+                Email: 'admin@example.com',
+                UserRoles: [{ Role: 'System Administrator' }],
+            } as Partial<UserInfo> as UserInfo;
+            expect(IsPrivilegedWorkReportUser(adminUser)).toBe(true);
+
+            const ownerUser = {
+                ID: USER_CAROL,
+                Email: 'owner@example.com',
+                Type: 'Owner',
+                UserRoles: [],
+            } as Partial<UserInfo> as UserInfo;
+            expect(IsPrivilegedWorkReportUser(ownerUser)).toBe(true);
+        });
+
+        it('computes GetLocalDayWindow in the caller timezone when timezoneOffsetMinutes is provided', () => {
+            // 2026-11-10T06:30:00.000Z is 2026-11-09 22:30:00 in US Pacific (UTC-8, offset = +480)
+            const lateEveningPacific = new Date('2026-11-10T06:30:00.000Z');
+            const window = GetLocalDayWindow(lateEveningPacific, 480);
+            expect(window.DateString).toBe('2026-11-09');
+            expect(window.PeriodStart.toISOString()).toBe('2026-11-09T08:00:00.000Z');
+            expect(window.PeriodEnd.toISOString()).toBe('2026-11-10T07:59:59.999Z');
+        });
+
+        it('refuses email fallback in ResolvePersonForUser when the matched Person is linked to a different user', async () => {
+            runViewMock
+                // 1. LinkedUserID lookup returns empty
+                .mockResolvedValueOnce({
+                    Success: true,
+                    Results: [],
+                })
+                // 2. Email lookup returns a Person whose LinkedUserID belongs to BOB, not ALICE
+                .mockResolvedValueOnce({
+                    Success: true,
+                    Results: [{ ID: PERSON_BOB, FirstName: 'Bob', LastName: 'Supervisor', Email: 'alice@example.com', LinkedUserID: USER_BOB }],
+                });
+
+            const person = await WorkReportService.Instance.ResolvePersonForUser(aliceUser, fakeProvider);
+            expect(person).toBeNull();
+        });
+
+        it('preserves author-edited Title/Body and deletes surplus WorkReportItems when re-drafting an existing Draft', async () => {
+            const existingReport = createFakeEntity({
+                ID: REPORT_ID,
+                PersonID: PERSON_ALICE,
+                Status: 'Draft',
+                Title: 'Alice Custom Edited Title',
+                Body: '### Custom Author Markdown Body',
+            });
+            const keptItem = createFakeEntity({ ID: '66666666-6666-4666-8666-666666666661' });
+            const surplusItem = createFakeEntity({ ID: '66666666-6666-4666-8666-666666666662' });
+
+            getEntityObjectMock
+                .mockResolvedValueOnce(existingReport)
+                .mockResolvedValueOnce(keptItem)
+                .mockResolvedValueOnce(surplusItem);
+
+            runViewMock
+                // 1. Caller Person resolution
+                .mockResolvedValueOnce({
+                    Success: true,
+                    Results: [{ ID: PERSON_ALICE, FirstName: 'Alice', LastName: 'Ng', Email: 'alice@example.com', LinkedUserID: USER_ALICE }],
+                })
+                // 2. Task assignments
+                .mockResolvedValueOnce({
+                    Success: true,
+                    Results: [{ TaskID: TASK_DONE }],
+                })
+                // 3. Tasks load (only 1 task now)
+                .mockResolvedValueOnce({
+                    Success: true,
+                    Results: [
+                        {
+                            ID: TASK_DONE,
+                            Name: 'Shipped Feature',
+                            Status: 'Completed',
+                            Priority: 'High',
+                            PercentComplete: 100,
+                            HoursActual: 2,
+                            HealthStatus: 'OnTrack',
+                            ParentID: null,
+                            DueAt: null,
+                            CompletedAt: '2026-11-09T14:00:00.000Z',
+                            __mj_UpdatedAt: '2026-11-09T14:00:00.000Z',
+                        },
+                    ],
+                })
+                // 4. Check-ins
+                .mockResolvedValueOnce({ Success: true, Results: [] })
+                // 5. Task activities
+                .mockResolvedValueOnce({ Success: true, Results: [] })
+                // 6. Existing WorkReport lookup
+                .mockResolvedValueOnce({
+                    Success: true,
+                    Results: [{ ID: REPORT_ID, Status: 'Draft' }],
+                })
+                // 7. Existing WorkReportItems lookup (2 items existed previously, only 1 task in new window)
+                .mockResolvedValueOnce({
+                    Success: true,
+                    Results: [
+                        { ID: '66666666-6666-4666-8666-666666666661', Sequence: 1 },
+                        { ID: '66666666-6666-4666-8666-666666666662', Sequence: 2 },
+                    ],
+                });
+
+            const outcome = await WorkReportService.Instance.DraftWorkReport({
+                PersonID: PERSON_ALICE,
+                PeriodStart: new Date('2026-11-09T00:00:00.000Z'),
+                PeriodEnd: new Date('2026-11-09T23:59:59.999Z'),
+                ContextUser: aliceUser,
+                Provider: fakeProvider,
+            });
+
+            expect(outcome.Report?.Title).toBe('Alice Custom Edited Title');
+            expect(outcome.Report?.Body).toBe('### Custom Author Markdown Body');
+            expect(outcome.Items).toHaveLength(1);
+            expect(surplusItem.Delete).toHaveBeenCalledTimes(1);
         });
     });
 });

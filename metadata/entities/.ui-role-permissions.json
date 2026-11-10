@@ -211,6 +211,32 @@
             "ReadRLSFilterID": "@lookup:MJ: Row Level Security Filters.Name=UI: Work Reports - Author or Supervisor Chain",
             "UpdateRLSFilterID": "@lookup:MJ: Row Level Security Filters.Name=UI: Work Reports - Author or Supervisor Chain"
           }
+        },
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Permissions.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Work Reports&RoleID=@lookup:MJ: Roles.Name=Developer"
+          },
+          "fields": {
+            "CanRead": 1,
+            "CanCreate": 1,
+            "CanUpdate": 1,
+            "CanDelete": 0,
+            "ReadRLSFilterID": "@lookup:MJ: Row Level Security Filters.Name=UI: Work Reports - Author or Supervisor Chain",
+            "UpdateRLSFilterID": "@lookup:MJ: Row Level Security Filters.Name=UI: Work Reports - Author or Supervisor Chain"
+          }
+        },
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Permissions.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Work Reports&RoleID=@lookup:MJ: Roles.Name=Integration"
+          },
+          "fields": {
+            "CanRead": 1,
+            "CanCreate": 1,
+            "CanUpdate": 1,
+            "CanDelete": 0,
+            "ReadRLSFilterID": "@lookup:MJ: Row Level Security Filters.Name=UI: Work Reports - Author or Supervisor Chain",
+            "UpdateRLSFilterID": "@lookup:MJ: Row Level Security Filters.Name=UI: Work Reports - Author or Supervisor Chain"
+          }
         }
       ]
     }
@@ -234,7 +260,36 @@
             "CanUpdate": 1,
             "CanDelete": 0,
             "ReadRLSFilterID": "@lookup:MJ: Row Level Security Filters.Name=UI: Work Report Items - Author or Supervisor Chain",
-            "UpdateRLSFilterID": "@lookup:MJ: Row Level Security Filters.Name=UI: Work Report Items - Author or Supervisor Chain"
+            "CreateRLSFilterID": "@lookup:MJ: Row Level Security Filters.Name=UI: Work Report Items - Draft Author Only",
+            "UpdateRLSFilterID": "@lookup:MJ: Row Level Security Filters.Name=UI: Work Report Items - Draft Author Only"
+          }
+        },
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Permissions.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Work Report Items&RoleID=@lookup:MJ: Roles.Name=Developer"
+          },
+          "fields": {
+            "CanRead": 1,
+            "CanCreate": 1,
+            "CanUpdate": 1,
+            "CanDelete": 0,
+            "ReadRLSFilterID": "@lookup:MJ: Row Level Security Filters.Name=UI: Work Report Items - Author or Supervisor Chain",
+            "CreateRLSFilterID": "@lookup:MJ: Row Level Security Filters.Name=UI: Work Report Items - Draft Author Only",
+            "UpdateRLSFilterID": "@lookup:MJ: Row Level Security Filters.Name=UI: Work Report Items - Draft Author Only"
+          }
+        },
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Permissions.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Work Report Items&RoleID=@lookup:MJ: Roles.Name=Integration"
+          },
+          "fields": {
+            "CanRead": 1,
+            "CanCreate": 1,
+            "CanUpdate": 1,
+            "CanDelete": 0,
+            "ReadRLSFilterID": "@lookup:MJ: Row Level Security Filters.Name=UI: Work Report Items - Author or Supervisor Chain",
+            "CreateRLSFilterID": "@lookup:MJ: Row Level Security Filters.Name=UI: Work Report Items - Draft Author Only",
+            "UpdateRLSFilterID": "@lookup:MJ: Row Level Security Filters.Name=UI: Work Report Items - Draft Author Only"
           }
         }
       ]

@@ -300,6 +300,20 @@
         {
           "fields": {
             "ActionID": "@parent:ID",
+            "Name": "TimezoneOffsetMinutes",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional caller timezone offset in minutes ( matching Date.prototype.getTimezoneOffset(), e.g., 300 for UTC-5 ) used to bound the default local day window and format the report headline date."
+          },
+          "primaryKey": {
+            "ID": "AF6103FC-AC52-4A3C-9054-74D24C613A25"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
             "Name": "WorkReportID",
             "Type": "Output",
             "ValueType": "Scalar",

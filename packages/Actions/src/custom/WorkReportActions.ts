@@ -77,7 +77,11 @@ export class DraftWorkReportAction extends BaseAction {
                 return failResult('ERROR', 'AuthoredByAgentRunID is not a valid UUID');
             }
 
-            const localDay = GetLocalDayWindow();
+            const rawTzOffset = getStringParam(params, 'TimezoneOffsetMinutes');
+            const parsedTzOffset = rawTzOffset != null ? Number(rawTzOffset) : undefined;
+            const tzOffsetMinutes =
+                parsedTzOffset !== undefined && Number.isFinite(parsedTzOffset) ? parsedTzOffset : undefined;
+            const localDay = GetLocalDayWindow(new Date(), tzOffsetMinutes);
             const rawStart = getStringParam(params, 'PeriodStart');
             const rawEnd = getStringParam(params, 'PeriodEnd');
             const periodStart = rawStart ? new Date(rawStart) : localDay.PeriodStart;
@@ -92,6 +96,7 @@ export class DraftWorkReportAction extends BaseAction {
                 PersonID: personID,
                 PeriodStart: periodStart,
                 PeriodEnd: periodEnd,
+                TimezoneOffsetMinutes: tzOffsetMinutes,
                 Title: customTitle,
                 CustomBody: customBody,
                 AuthoredByAgentRunID: authoredByRunID,
@@ -100,6 +105,7 @@ export class DraftWorkReportAction extends BaseAction {
 
             if (outcome.SkippedNoActivity || !outcome.Report) {
                 setOutputParam(params, 'WorkReportID', '');
+                setOutputParam(params, 'WorkReportItemsCreated', '0');
                 return {
                     Success: true,
                     ResultCode: 'NO_ACTIVITY',
@@ -108,6 +114,7 @@ export class DraftWorkReportAction extends BaseAction {
             }
 
             setOutputParam(params, 'WorkReportID', outcome.Report.ID);
+            setOutputParam(params, 'WorkReportItemsCreated', String(outcome.Items.length));
             return {
                 Success: true,
                 ResultCode: 'SUCCESS',

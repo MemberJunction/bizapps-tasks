@@ -4,6 +4,7 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('@memberjunction/global', () => ({
   RegisterClass: () => () => {},
   IsValidUUID: () => true,
+  EscapeSQLString: (s: string) => s,
   UUIDsEqual: (a?: string | null, b?: string | null) =>
     Boolean(a && b && a.trim().toLowerCase() === b.trim().toLowerCase()),
   BaseSingleton: class {
@@ -14,6 +15,9 @@ vi.mock('@memberjunction/global', () => ({
 }));
 vi.mock('@memberjunction/core', () => ({
   BaseEntity: class {},
+  BaseEntityResult: class {
+    public ValidationErrors: object[] = [];
+  },
   BaseEngine: class {
     public static getInstance() {
       return {};
@@ -44,9 +48,12 @@ vi.mock('@mj-biz-apps/tasks-entities', () => ({
   mjBizAppsTasksTaskTypeEntity: class {},
   mjBizAppsTasksTaskTypeStatusEntity: class {},
   mjBizAppsTasksWorkReportEntity: class {},
+  mjBizAppsTasksWorkReportItemEntity: class {},
 }));
 vi.mock('@mj-biz-apps/tasks-core', () => ({
   TaskService: class {},
+  TASKS_ENTITY_NAME: 'MJ_BizApps_Tasks: Tasks',
+  WORK_REPORTS_ENTITY_NAME: 'MJ_BizApps_Tasks: Work Reports',
   IsPrivilegedWorkReportUser: () => false,
   WorkReportService: { Instance: {} },
 }));
@@ -59,7 +66,9 @@ describe('@mj-biz-apps/tasks-entities-server', () => {
     expect(mod.TaskEntityServer).toBeDefined();
     expect(mod.TaskCheckInEntityServer).toBeDefined();
     expect(mod.TaskDecisionEntityServer).toBeDefined();
+    expect(mod.TaskTypeEntityServer).toBeDefined();
     expect(mod.WorkReportEntityServer).toBeDefined();
+    expect(mod.WorkReportItemEntityServer).toBeDefined();
   });
 
   it('exports no way to override a Tasks setting in-process', async () => {

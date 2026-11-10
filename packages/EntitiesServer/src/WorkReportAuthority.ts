@@ -1,16 +1,85 @@
 /**
- * Who may create, edit, submit, or review a 15Five-style Work Report — the pure rule
- * and row-level security filter helper (`AN-BC` review #1 & #2 on PR #165).
+ * Who may create, edit, submit, review, or delete a 15Five-style Work Report or Work Report Item —
+ * pure authorization rules (`AN-BC` reviews #1 & #2 on PR #165).
  *
  * Kept free of entity persistence side-effects so the authorization state machine can be
- * unit-tested directly while `WorkReportEntityServer` gathers the server-side facts.
+ * unit-tested directly while `WorkReportEntityServer` and `WorkReportItemEntityServer`
+ * gather the server-side facts.
  */
-import type { UserInfo } from '@memberjunction/core';
+import {
+    Metadata,
+    type IEntityDataProvider,
+    type IMetadataProvider,
+    type IRunViewProvider,
+} from '@memberjunction/core';
 import { IsValidUUID, UUIDsEqual } from '@memberjunction/global';
 import type { mjBizAppsTasksWorkReportEntity } from '@mj-biz-apps/tasks-entities';
-import { IsPrivilegedWorkReportUser } from '@mj-biz-apps/tasks-core';
+import type { WorkReportProvider } from '@mj-biz-apps/tasks-core';
 
 export type WorkReportStatus = mjBizAppsTasksWorkReportEntity['Status'];
+
+export function IsEntityMetadataProvider(
+    candidate: IEntityDataProvider | IMetadataProvider | IRunViewProvider | null | undefined,
+): candidate is IMetadataProvider {
+    return (
+        candidate != null &&
+        ('Entities' in candidate || 'EntityByName' in candidate || 'EntityByID' in candidate)
+    );
+}
+
+export function IsEntityRunViewProvider(
+    candidate: IEntityDataProvider | IMetadataProvider | IRunViewProvider | null | undefined,
+): candidate is IRunViewProvider {
+    return candidate != null && 'RunView' in candidate && typeof candidate.RunView === 'function';
+}
+
+/**
+ * Resolves a {@link WorkReportProvider} that honours the entity instance's bound `ProviderToUse`
+ * and `RunViewProviderToUse` before falling back to `Metadata.Provider`.
+ */
+export function ResolveEntityWorkReportProvider(
+    entityProvider: IEntityDataProvider | null | undefined,
+    runViewProvider: IRunViewProvider | null | undefined,
+): WorkReportProvider {
+    const baseMetadata: IMetadataProvider = IsEntityMetadataProvider(entityProvider)
+        ? entityProvider
+        : Metadata.Provider;
+    const activeRunView: IRunViewProvider | undefined = IsEntityRunViewProvider(entityProvider)
+        ? entityProvider
+        : IsEntityRunViewProvider(runViewProvider)
+          ? runViewProvider
+          : IsEntityRunViewProvider(baseMetadata)
+            ? baseMetadata
+            : undefined;
+    if (activeRunView && activeRunView !== (baseMetadata as Partial<IRunViewProvider>)) {
+        const combined: IMetadataProvider & IRunViewProvider = Object.assign(
+            Object.create(Object.getPrototypeOf(baseMetadata)),
+            baseMetadata,
+            {
+                Entities: baseMetadata.Entities,
+                EntityByName:
+                    typeof baseMetadata.EntityByName === 'function'
+                        ? baseMetadata.EntityByName.bind(baseMetadata)
+                        : undefined,
+                EntityByID:
+                    typeof baseMetadata.EntityByID === 'function'
+                        ? baseMetadata.EntityByID.bind(baseMetadata)
+                        : undefined,
+                GetEntityObject:
+                    typeof baseMetadata.GetEntityObject === 'function'
+                        ? baseMetadata.GetEntityObject.bind(baseMetadata)
+                        : undefined,
+                RunView: activeRunView.RunView.bind(activeRunView),
+                RunViews:
+                    typeof activeRunView.RunViews === 'function'
+                        ? activeRunView.RunViews.bind(activeRunView)
+                        : activeRunView.RunView.bind(activeRunView),
+            },
+        );
+        return combined;
+    }
+    return baseMetadata as WorkReportProvider;
+}
 
 /** Facts gathered by `WorkReportEntityServer.ValidateAsync` to evaluate a save. */
 export interface WorkReportAuthorityFacts {
@@ -20,7 +89,7 @@ export interface WorkReportAuthorityFacts {
     CallerUserID: string | null;
     /** Every `MJ_BizApps_Common: People` ID bound to the signed-in user. */
     CallerPersonIDs: readonly string[];
-    /** Whether the signed-in user holds a privileged administrative role (`Owner` / `Admin` / `Administrator`). */
+    /** Whether the signed-in user holds a privileged administrative role (`Owner` / `Admin` / `Administrator` / `System Administrator` / `Administration`). */
     CallerIsPrivileged: boolean;
     /** Target `PersonID` on the report being saved. */
     PersonID: string | null;
@@ -39,10 +108,36 @@ export interface WorkReportAuthorityFacts {
     /** Whether any author-owned content field (`Title`, `Body`, `PeriodStart`, `PeriodEnd`) was modified on an existing report. */
     AuthorContentDirty: boolean;
     /**
-     * Resolved supervisor `Person.ID` for the report author (`PersonID`).
-     * Only required when transitioning `'Submitted'` -> `'Reviewed'` (or editing a submitted report).
+     * Direct resolved supervisor `Person.ID` for the report author (`PersonID`).
      */
     ResolvedSupervisorPersonID: string | null;
+    /**
+     * Full resolved supervisor chain `Person.ID`s (up to 3 levels via `MJ: Employees.SupervisorID`)
+     * for the report author (`PersonID`). When omitted, falls back to `[ResolvedSupervisorPersonID]`.
+     */
+    ResolvedSupervisorPersonIDs?: readonly string[];
+}
+
+/** Facts gathered by `WorkReportEntityServer.Delete` to evaluate a delete. */
+export interface WorkReportDeleteAuthorityFacts {
+    CallerUserID: string | null;
+    CallerPersonIDs: readonly string[];
+    CallerIsPrivileged: boolean;
+    PersonID: string | null;
+    Status: WorkReportStatus | null;
+}
+
+/** Facts gathered by `WorkReportItemEntityServer` to evaluate an item create, update, or delete. */
+export interface WorkReportItemAuthorityFacts {
+    Operation: 'create' | 'update' | 'delete';
+    CallerUserID: string | null;
+    CallerPersonIDs: readonly string[];
+    CallerIsPrivileged: boolean;
+    WorkReportID: string | null;
+    PriorWorkReportID: string | null;
+    ParentReportExists: boolean;
+    ParentReportPersonID: string | null;
+    ParentReportStatus: WorkReportStatus | null;
 }
 
 function callerMatchesPerson(callerPersonIDs: readonly string[], targetPersonID: string | null | undefined): boolean {
@@ -50,6 +145,13 @@ function callerMatchesPerson(callerPersonIDs: readonly string[], targetPersonID:
         return false;
     }
     return callerPersonIDs.some((id) => UUIDsEqual(id, targetPersonID));
+}
+
+function callerMatchesAnyPerson(
+    callerPersonIDs: readonly string[],
+    targetPersonIDs: readonly string[],
+): boolean {
+    return targetPersonIDs.some((targetID) => callerMatchesPerson(callerPersonIDs, targetID));
 }
 
 /**
@@ -129,11 +231,17 @@ export function WorkReportRefusal(facts: WorkReportAuthorityFacts): string | nul
         if (isAuthor) {
             return 'A report author cannot review their own Work Report.';
         }
+        const resolvedSupervisorChain =
+            facts.ResolvedSupervisorPersonIDs && facts.ResolvedSupervisorPersonIDs.length > 0
+                ? facts.ResolvedSupervisorPersonIDs
+                : facts.ResolvedSupervisorPersonID
+                  ? [facts.ResolvedSupervisorPersonID]
+                  : [];
         if (!facts.CallerIsPrivileged) {
-            if (!facts.ResolvedSupervisorPersonID) {
+            if (resolvedSupervisorChain.length === 0) {
                 return 'No supervisor could be resolved for the report author; review refused.';
             }
-            if (!callerMatchesPerson(facts.CallerPersonIDs, facts.ResolvedSupervisorPersonID)) {
+            if (!callerMatchesAnyPerson(facts.CallerPersonIDs, resolvedSupervisorChain)) {
                 return 'Only the resolved supervisor for the report author may review this Work Report.';
             }
         }
@@ -151,54 +259,63 @@ export function WorkReportRefusal(facts: WorkReportAuthorityFacts): string | nul
 }
 
 /**
- * Builds a SQL `ExtraFilter` restricting `MJ_BizApps_Tasks: Work Reports` rows to those visible
- * to `user` (the author's own reports, reports from their direct/indirect supervisees via
- * `MJ_BizApps_Common: People` or `MJ: Employees`, or all rows for privileged administrators).
+ * Evaluates whether a `WorkReport` delete is permitted.
+ * Only a privileged administrator or the report's author (while the report is still in `'Draft'` status)
+ * may delete a `WorkReport`.
  */
-export function WorkReportRowFilterForUser(user: UserInfo): string {
-    if (!user || !IsValidUUID(user.ID)) {
-        return '1 = 0';
+export function WorkReportDeleteRefusal(facts: WorkReportDeleteAuthorityFacts): string | null {
+    if (!facts.CallerUserID) {
+        return 'Work Report could not be deleted: a signed-in user context is required.';
     }
-    if (IsPrivilegedWorkReportUser(user)) {
-        return '1 = 1';
+    if (facts.CallerIsPrivileged) {
+        return null;
     }
-    const uid = user.ID;
-    return `EXISTS (
-        SELECT 1
-        FROM [__mj_BizAppsCommon].[vwPeople] p_self
-        WHERE p_self.[ID] = [PersonID]
-          AND (
-              p_self.[LinkedUserID] = '${uid}'
-              OR p_self.[Email] = (SELECT u.[Email] FROM [__mj].[vwUsers] u WHERE u.[ID] = '${uid}')
-          )
-    )
-    OR EXISTS (
-        SELECT 1
-        FROM [__mj_BizAppsCommon].[vwPeople] p_author
-        INNER JOIN [__mj_BizAppsCommon].[vwPeople] p_sup ON p_author.[SupervisorPersonID] = p_sup.[ID]
-        WHERE p_author.[ID] = [PersonID]
-          AND (
-              p_sup.[LinkedUserID] = '${uid}'
-              OR p_sup.[Email] = (SELECT u.[Email] FROM [__mj].[vwUsers] u WHERE u.[ID] = '${uid}')
-          )
-    )
-    OR EXISTS (
-        SELECT 1
-        FROM [__mj_BizAppsCommon].[vwPeople] p_author
-        INNER JOIN [__mj_BizAppsCommon].[vwPeople] p_mid ON p_author.[SupervisorPersonID] = p_mid.[ID]
-        INNER JOIN [__mj_BizAppsCommon].[vwPeople] p_sup2 ON p_mid.[SupervisorPersonID] = p_sup2.[ID]
-        WHERE p_author.[ID] = [PersonID]
-          AND (
-              p_sup2.[LinkedUserID] = '${uid}'
-              OR p_sup2.[Email] = (SELECT u.[Email] FROM [__mj].[vwUsers] u WHERE u.[ID] = '${uid}')
-          )
-    )
-    OR EXISTS (
-        SELECT 1
-        FROM [__mj_BizAppsCommon].[vwPeople] p_author
-        INNER JOIN [__mj].[vwEmployees] e_author ON LOWER(LTRIM(RTRIM(e_author.[Email]))) = LOWER(LTRIM(RTRIM(p_author.[Email])))
-        INNER JOIN [__mj].[vwEmployees] e_sup ON e_author.[SupervisorID] = e_sup.[ID]
-        WHERE p_author.[ID] = [PersonID]
-          AND LOWER(LTRIM(RTRIM(e_sup.[Email]))) = LOWER(LTRIM(RTRIM((SELECT u.[Email] FROM [__mj].[vwUsers] u WHERE u.[ID] = '${uid}'))))
-    )`;
+    if (facts.CallerPersonIDs.length === 0) {
+        return 'Work Report could not be deleted: the signed-in user could not be resolved to an active Person record.';
+    }
+    const status = facts.Status ?? 'Draft';
+    if (status !== 'Draft') {
+        return `Cannot delete a '${status}' Work Report; only 'Draft' reports may be deleted.`;
+    }
+    if (!callerMatchesPerson(facts.CallerPersonIDs, facts.PersonID)) {
+        return 'Only the report author (or a privileged administrator) may delete a Draft Work Report.';
+    }
+    return null;
+}
+
+/**
+ * Evaluates whether a `WorkReportItem` create, update, or delete is permitted.
+ * Items may only be created, updated, or deleted while their parent `WorkReport` is in `'Draft'` status,
+ * and only by the parent report's author (or a privileged administrator).
+ */
+export function WorkReportItemRefusal(facts: WorkReportItemAuthorityFacts): string | null {
+    if (!facts.CallerUserID) {
+        return `Work Report Item could not be ${facts.Operation}d: a signed-in user context is required.`;
+    }
+    if (!facts.WorkReportID || !IsValidUUID(facts.WorkReportID)) {
+        return `Work Report Item could not be ${facts.Operation}d: a valid WorkReportID is required.`;
+    }
+    if (
+        facts.Operation === 'update' &&
+        facts.PriorWorkReportID &&
+        !UUIDsEqual(facts.PriorWorkReportID, facts.WorkReportID)
+    ) {
+        return 'The WorkReportID of an existing Work Report Item cannot be changed.';
+    }
+    if (!facts.ParentReportExists) {
+        return `Work Report Item could not be ${facts.Operation}d: parent Work Report '${facts.WorkReportID}' was not found.`;
+    }
+    if (facts.CallerIsPrivileged) {
+        return null;
+    }
+    if (facts.CallerPersonIDs.length === 0) {
+        return `Work Report Item could not be ${facts.Operation}d: the signed-in user could not be resolved to an active Person record.`;
+    }
+    if (facts.ParentReportStatus !== 'Draft') {
+        return `Cannot ${facts.Operation} items on a '${facts.ParentReportStatus ?? 'Unknown'}' Work Report; only 'Draft' reports can be edited.`;
+    }
+    if (!callerMatchesPerson(facts.CallerPersonIDs, facts.ParentReportPersonID)) {
+        return `Only the Work Report author may ${facts.Operation} its items.`;
+    }
+    return null;
 }
