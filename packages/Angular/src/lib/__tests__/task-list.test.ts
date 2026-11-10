@@ -132,6 +132,7 @@ describe('TaskListComponent pending Field Suggestions badge & filter', () => {
             IsOverdue: false,
             IsDueSoon: false,
             PendingSuggestionCount: 2,
+            PendingSuggestionFields: ['DueDate', 'EffortHours'],
         };
         const taskWithoutSuggestion: TaskRow = {
             ID: '22222222-2222-4222-8222-222222222222',
@@ -152,7 +153,11 @@ describe('TaskListComponent pending Field Suggestions badge & filter', () => {
         component.tasks = [taskWithSuggestion, taskWithoutSuggestion];
         component.applyFilters();
 
+        expect(component.totalPendingSuggestionsCount).toBe(2);
         expect(component.tasksWithPendingSuggestionsCount).toBe(1);
+        expect(component.getTaskSuggestionTooltip(taskWithSuggestion)).toBe(
+            '2 pending suggestions: DueDate, EffortHours',
+        );
         expect(component.filteredTasks).toHaveLength(2);
 
         component.togglePendingSuggestionsFilter();

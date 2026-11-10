@@ -810,6 +810,11 @@ describe('WorkReportService', () => {
             expect(counts.get(TASK_DONE.toLowerCase())).toBe(2);
             expect(counts.get(TASK_BLOCKED.toLowerCase())).toBe(1);
             expect(counts.get(TASK_ACTIVE.toLowerCase())).toBeUndefined();
+            const calledFilter = String(runViewMock.mock.calls[0][0].ExtraFilter);
+            expect(calledFilter).toContain('Outcome IS NULL');
+            expect(calledFilter).toContain('IsResolved = 0');
+            expect(calledFilter).toContain('(IsArchived IS NULL OR IsArchived = 0)');
+            expect(calledFilter).not.toContain("Status = 'Pending'");
         });
 
         it('logs a clear message when MJ: Field Suggestions is absent on a pre-6.3 host', async () => {

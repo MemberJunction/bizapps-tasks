@@ -569,7 +569,9 @@ export async function LoadPendingFieldSuggestionCountsForTasks(
             EntityName: FIELD_SUGGESTIONS_ENTITY_NAME,
             ExtraFilter:
                 `LinkedEntityID = '${EscapeSQLString(tasksEntityID)}' ` +
-                `AND Status = 'Pending' ` +
+                `AND Outcome IS NULL ` +
+                `AND IsResolved = 0 ` +
+                `AND (IsArchived IS NULL OR IsArchived = 0) ` +
                 `AND LinkedRecordID IN (${inList})`,
             Fields: ['ID', 'LinkedRecordID'],
             ResultType: 'simple',

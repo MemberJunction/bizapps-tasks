@@ -47,9 +47,12 @@ Rather than copying external issue/PR columns onto `__mj_BizAppsTasks.Task` or w
 }
 ```
 
-- Agents, sync connectors, and LLM inference prompts propose changes to task fields (`DueAt`, `HoursEstimated`, `ParentID`, `Priority`, etc.) by creating `MJ: Field Suggestions` records (`AnchorType = 'field'`, `AnchorKey = '<FieldName>'`, `SuggestedValue`, `Confidence`, `Source`) linked to `MJ_BizApps_Tasks: Tasks`.
-- Humans review and accept or reject suggestions inline in the task record form or conversation thread, preserving provenance (`Outcome = 'Accepted' | 'Rejected' | 'Superseded'`, `ResolvedByUserID`, `ResolvedAt`).
-- `<bizapps-task-list>` queries `LoadPendingFieldSuggestionCountsForTasks()` (via `EntityByName`) to render per-row suggestion count chips and a toolbar **Suggestions** filter toggle (`[PendingSuggestionsOnly]`). On a pre-6.3 host where `MJ: Field Suggestions` is not registered, `LoadPendingFieldSuggestionCountsForTasks()` logs a diagnostic status message and returns an empty map cleanly.
+- Agents, sync connectors, and LLM inference prompts propose changes to task fields (`DueAt`, `HoursEstimated`, `ParentID`, `Priority`, etc.) by creating `MJ: Field Suggestions` records (`AnchorType = 'field'`, `AnchorKey = '<FieldName>'`, `SuggestedValue`, `Confidence`, `Source`) linked to `MJ_BizApps_Tasks: Tasks` via `LinkedEntityID` and `LinkedRecordID`.
+- Humans review and accept or reject suggestions inline in the task record form or conversation thread, preserving provenance (`Outcome = 'Accepted' | 'Rejected' | 'Superseded'`, `IsResolved`). Unresolved pending suggestions have `Outcome IS NULL`, `IsResolved = 0`, and `IsArchived = 0`.
+- `TaskFieldSuggestionsHelper` (`@mj-biz-apps/tasks-ng`) queries unresolved `MJ: Field Suggestions` rows via `RunView` (`ResultType: 'simple'`) to power:
+  - A **"Pending Suggestions"** filter pill (`fa-solid fa-wand-magic-sparkles` with total pending count badge) in `<bizapps-tasks-dashboard-page>` and `<bizapps-task-list>` (`[PendingSuggestionsOnly]`).
+  - Per-task pending suggestion badge pills and field tooltips (e.g., `"2 pending suggestions: DueAt, HoursEstimated"`) across `<bizapps-task-list>`, `<bizapps-task-kanban>`, and `<bizapps-task-detail-panel>`.
+  - Graceful pre-6.3 host compatibility: when `MJ: Field Suggestions` is absent from `provider.Entities` on a `6.2.1` database, `TaskFieldSuggestionsHelper.LoadPendingSuggestions()` returns `{ available: false, byTaskId: new Map() }` cleanly with zero runtime errors or console warnings.
 
 ---
 
