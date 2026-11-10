@@ -1,5 +1,16 @@
 # @mj-biz-apps/tasks-entities
 
+## 1.11.1
+
+## 1.11.0
+
+### Minor Changes
+
+- bd16eee: Move to MemberJunction's 6.2 LTS line: every `@memberjunction/*` range and the core/global overrides are `^6.2.1` (exact `6.2.1` devDependency anchors), and `mjVersionRange` is `>=6.2.1 <7.0.0`. Hosts must run MJ 6.2.1 or later to install this release.
+- a2bab10: Populate `EntityField.EntityIDFieldName` metadata on polymorphic foreign-key record-ID fields so MemberJunction forms, grids, cards, and detail panels resolve target record names and render smart clickable record links.
+- f50bd0d: `metadata/entities/.polymorphic-fk-entity-fields.json` gives every `MJ: Entity Fields` entry a `primaryKey` lookup (`@lookup:MJ: Entity Fields.EntityID=@lookup:MJ: Entities.Name=<entity>&Name=<field>`). The entries had none, and `mj sync push` creates a new row for any record without a `primaryKey`, so on a fresh database it tried to insert a second field row with a NULL `EntityID` and the app's whole metadata push rolled back. With the lookup, push updates the field row CodeGen created and sets its `EntityIDFieldName`.
+- 55de4fa: Add the v1.11.x Metadata_Sync migration (with its PostgreSQL counterpart). It sets `EntityIDFieldName` on Task Assignments `AssigneeRecordID` and Task Links `RecordID`, so installs get the polymorphic record links that `metadata/entities/.polymorphic-fk-entity-fields.json` declares. The installer runs migrations and never reads `metadata/`, so without this migration the metadata change reached no one.
+
 ## 1.10.0
 
 ### Minor Changes
