@@ -162,6 +162,18 @@ describe('TaskAssignmentEntityServer', () => {
         expect(filtersSeen).toEqual([]);
     });
 
+    it('switches the role rule off while ApprovalReassignRoles is absent, empty or blank', async () => {
+        for (const value of [undefined, '', '  ,  ']) {
+            db.settings = new Map();
+            if (value !== undefined) db.settings.set('ApprovalReassignRoles', value);
+            expect((await saved(OTHER_PERSON).ValidateAsync()).Success).toBe(true);
+            const a = saved();
+            expect(await a.Delete()).toBe(true);
+            expect(a.deleted).toBe(true);
+        }
+        expect(filtersSeen.some((f) => f.startsWith('MJ: User Roles'))).toBe(false);
+    });
+
     it('refuses reassigning an approval to the signed-in user directly as an MJ: Users row', async () => {
         const a = saved();
         a.old.set('AssigneeEntityID', PEOPLE_ID);
@@ -173,18 +185,20 @@ describe('TaskAssignmentEntityServer', () => {
     });
 
     it('refuses a business user reassigning an approval to another person', async () => {
+        db.settings.set('ApprovalReassignRoles', 'Finance Admin');
         const result = await saved(OTHER_PERSON).ValidateAsync();
         expect(result.Success).toBe(false);
         expect(result.Errors[0].Message).toBe(REASSIGN_REFUSAL);
     });
 
-    it('refuses a business user reassigning an approval to themselves', async () => {
+    it('refuses a business user reassigning an approval to themselves, with the setting empty', async () => {
         const result = await saved(MY_PERSON).ValidateAsync();
         expect(result.Success).toBe(false);
         expect(result.Errors[0].Message).toBe(SELF_ASSIGN_REFUSAL);
     });
 
     it('refuses moving an approval assignment onto another task', async () => {
+        db.settings.set('ApprovalReassignRoles', 'Finance Admin');
         const a = saved();
         a.old.set('TaskID', TASK_ID);
         a.TaskID = OTHER_TASK_ID;
@@ -251,6 +265,7 @@ describe('TaskAssignmentEntityServer', () => {
     });
 
     it('refuses a business user deleting an approval assignment, with a readable message', async () => {
+        db.settings.set('ApprovalReassignRoles', 'Finance Admin');
         const a = saved();
         expect(await a.Delete()).toBe(false);
         expect(a.deleted).toBe(false);
@@ -275,6 +290,7 @@ describe('TaskAssignmentEntityServer', () => {
     });
 
     it('fails closed when the task cannot be looked up', async () => {
+        db.settings.set('ApprovalReassignRoles', 'Finance Admin');
         db.failTaskLookup = true;
         const result = await saved(OTHER_PERSON).ValidateAsync();
         expect(result.Success).toBe(false);

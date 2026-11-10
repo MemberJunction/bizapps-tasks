@@ -8,8 +8,9 @@
  * (order review, among others) legitimately assign the acting user. On a task whose type is an approval
  * type (`TaskType.IsApproval`):
  *   1. nobody may reassign the task to themselves, whatever their role;
- *   2. changing an assignment's task or assignee, or deleting it, is refused unless the user holds a
- *      role the Tasks setting `ApprovalReassignRoles` names. Empty (the default) lets nobody.
+ *   2. while the Tasks setting `ApprovalReassignRoles` names roles, changing an assignment's task or
+ *      assignee, or deleting it, is refused unless the user holds one of them. Empty (the default)
+ *      switches this rule off; rule 1 still applies.
  * Any other change is accepted as before, and a non-approval task is never checked.
  *
  * CONNECTS TO:
@@ -79,7 +80,7 @@ export class TaskAssignmentEntityServer extends mjBizAppsTasksTaskAssignmentEnti
         if (!(await this.touchesApprovalTask(user))) return null;
         if (!user) return NO_USER_REFUSAL;
         if (await this.assigneeIsUser(user)) return SELF_ASSIGN_REFUSAL;
-        return (await this.holdsReassignRole(user)) ? null : REASSIGN_REFUSAL;
+        return (await this.mayReassign(user)) ? null : REASSIGN_REFUSAL;
     }
 
     /** Why this assignment must not be deleted, or null. */
@@ -87,7 +88,7 @@ export class TaskAssignmentEntityServer extends mjBizAppsTasksTaskAssignmentEnti
         const user = this.ContextCurrentUser;
         if (!(await this.touchesApprovalTask(user))) return null;
         if (!user) return NO_USER_REFUSAL;
-        return (await this.holdsReassignRole(user)) ? null : REMOVE_REFUSAL;
+        return (await this.mayReassign(user)) ? null : REMOVE_REFUSAL;
     }
 
     /** Runs a check; a check that cannot be completed refuses rather than lets the write through. */
@@ -139,13 +140,14 @@ export class TaskAssignmentEntityServer extends mjBizAppsTasksTaskAssignmentEnti
     }
 
     /**
-     * Whether the user holds a role `ApprovalReassignRoles` names, matched trimmed and case-insensitively
-     * in code so the database collation cannot change the answer. No roles configured lets nobody.
+     * Whether the user may reassign or remove an approval assignment: anyone while `ApprovalReassignRoles`
+     * is empty (the rule is off), otherwise a holder of a role it names, matched trimmed and
+     * case-insensitively in code so the database collation cannot change the answer.
      */
-    private async holdsReassignRole(user: UserInfo): Promise<boolean> {
+    private async mayReassign(user: UserInfo): Promise<boolean> {
         await TasksSettings.Load(Metadata.Provider, user);
         const allowed = TasksSettings.ApprovalReassignRoles(Metadata.Provider);
-        if (allowed.length === 0) return false;
+        if (allowed.length === 0) return true;
         const held = await this.roleNames(USER_ROLES_ENTITY, `UserID = ${guid(user.ID, 'UserID')}`, 'Role', user);
         if (allowed.some((role) => held.has(role.toLowerCase()))) return true;
         await this.logUnknownRoles(allowed, user);

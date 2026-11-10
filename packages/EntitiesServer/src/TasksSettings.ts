@@ -32,8 +32,9 @@ export const TASKS_SETTING = {
     SelfApprovalExemptRole: 'SelfApprovalExemptRole',
     /**
      * Comma-separated NAMES of the MJ roles whose holders may reassign or remove an assignment on an
-     * approval task (bc-aidp-next-golive#389). Empty lets nobody: workflows only ever create approval
-     * assignments, so nothing else needs to move one.
+     * approval task (bc-aidp-next-golive#389). Empty or unset switches that rule off, so anyone who may
+     * edit an assignment may reassign or remove it. Reassigning an approval to yourself is refused
+     * either way.
      */
     ApprovalReassignRoles: 'ApprovalReassignRoles',
 } as const;
@@ -76,7 +77,7 @@ export class TasksSettings {
         return value ? value : null;
     }
 
-    /** The roles that may reassign or remove an approval assignment; empty when none is configured. */
+    /** The roles that may reassign or remove an approval assignment; empty switches the rule off. */
     public static ApprovalReassignRoles(provider: IMetadataProvider): string[] {
         const raw = this.raw(TASKS_SETTING.ApprovalReassignRoles, provider) ?? '';
         return raw.split(',').map((r) => r.trim()).filter((r) => r.length > 0);
