@@ -1,5 +1,14 @@
 # @mj-biz-apps/tasks-integration-tests
 
+## 1.12.0
+
+### Patch Changes
+
+- Updated dependencies [7b3ea77]
+- Updated dependencies [86d0081]
+  - @mj-biz-apps/tasks-entities-server@1.12.0
+  - @mj-biz-apps/tasks-entities@1.12.0
+
 ## 1.11.1
 
 ### Patch Changes
