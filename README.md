@@ -69,21 +69,23 @@ mj app remove bizapps-tasks     # Uninstall (--keep-data to preserve schema)
 
 ---
 
-## Architecture & Lifecycle Guide
+## Architecture & Lifecycle Guides
 
-For detailed deep-dives on **Task Types**, **Dynamic Task Type Statuses (`TaskTypeStatus`)**, **Event-Driven Action Hooks**, **Flow Agent Integration**, and **Multi-Domain Project Structures**, see the [**Task Workflow & Lifecycle Guide**](./guides/TASK_WORKFLOW_AND_LIFECYCLE_GUIDE.md).
+- [**Task Workflow & Lifecycle Guide**](./guides/TASK_WORKFLOW_AND_LIFECYCLE_GUIDE.md) — **Task Types**, **Dynamic Task Type Statuses (`TaskTypeStatus`)**, **Event-Driven Action Hooks**, **Flow Agent Integration**, and **Multi-Domain Project Structures**.
+- [**Work Bus Extensions, Field Suggestions & 15Five Work Reports Guide**](./guides/WORK_BUS_AND_15FIVE_REPORTS_GUIDE.md) — Declarative IS-A subtype extensions (`TaskType.ExtensionEntity` + `SubtypeSelector`), `FIELD_SUGGESTION` review chips on `Tasks`, and **15Five Work Reports** (`WorkReport`, `WorkReportItem`, Chief of Staff `Reports` resource, skill, and supervisor review handoff).
 
 ---
 
 ## What You Get
 
-### 16 Database Tables
+### 18 Database Tables
 
 All tables live in the `__mj_BizAppsTasks` SQL schema, deployed via migrations.
 
 | Category | Tables | Purpose |
 |----------|--------|---------|
-| **Core & Workflow** | Task, TaskType, TaskTypeStatus, TaskCategory, TaskRole | Work items, unique type codes, dynamic domain stages, and action hooks |
+| **Core & Workflow** | Task, TaskType, TaskTypeStatus, TaskCategory, TaskRole, TaskCheckIn, TaskDecision, TaskDecisionOutcome | Work items, IS-A `ExtensionEntity` subtype routing, dynamic domain stages, check-ins, decisions, and action hooks |
+| **Reporting (15Five)** | WorkReport, WorkReportItem | Daily/weekly 5-minute work summaries (`Draft` -> `Submitted` -> `Reviewed`) and supervisor feedback routed via `MJ: Employees.SupervisorID` |
 | **Assignment** | TaskAssignment | Multi-person polymorphic assignment (People and AI Agents) |
 | **Linking** | TaskLink | Polymorphic attachment to any entity (contracts, orders, committees, meetings) |
 | **Collaboration** | TaskComment, TaskActivity | Threaded discussion and automatic server-authoritative audit log |

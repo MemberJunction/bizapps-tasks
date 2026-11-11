@@ -2,9 +2,15 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, in
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BaseFormsModule } from '@memberjunction/ng-base-forms';
-import { Metadata, RunView, CompositeKey } from '@memberjunction/core';
+import { Metadata, RunView, CompositeKey, type IMetadataProvider, type IRunViewProvider } from '@memberjunction/core';
+import { NormalizeUUID } from '@memberjunction/global';
 import { OpenTaskRecord } from '../../open-task-record';
 import { TaskAssigneeInfo } from '../task-assignee-list/task-assignee-list.component';
+import {
+    FormatPendingSuggestionTooltip,
+    TaskFieldSuggestionsHelper,
+    type TaskPendingSuggestionsSummary,
+} from '../../task-field-suggestions.helper';
 
 /**
  * A single entry in the activity/comment timeline displayed by
@@ -198,6 +204,22 @@ export class BeforeCommentPostedEvent {
                         </div>
                     }
 
+                    <!-- Pending Field Suggestions -->
+                    @if (pendingSuggestionSummary && pendingSuggestionSummary.pendingCount > 0) {
+                        <div class="suggestions-banner" [attr.title]="pendingSuggestionTooltip">
+                            <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+                            <div class="suggestions-banner-body">
+                                <strong>{{ pendingSuggestionTooltip }}</strong>
+                                @if (pendingSuggestionSummary.topPreviewLabel) {
+                                    <p>{{ pendingSuggestionSummary.topPreviewLabel }}</p>
+                                }
+                            </div>
+                            <button type="button" class="btn-review-suggestions" (click)="onOpenFullRecord()">
+                                Review
+                            </button>
+                        </div>
+                    }
+
                     <!-- Assignees -->
                     <div class="field-block">
                         <label>Assignees</label>
@@ -383,6 +405,24 @@ export class BeforeCommentPostedEvent {
         .blocked-banner strong { font-size: 13px; color: var(--mj-status-error-text); }
         .blocked-banner p { font-size: 13px; color: var(--mj-status-error-text); margin: 2px 0 0; line-height: 1.4; }
 
+        /* ─── Pending Suggestions Banner ─── */
+        .suggestions-banner {
+            display: flex; align-items: center; gap: 10px; padding: 12px 16px; margin-bottom: 16px;
+            background: var(--mj-status-info-bg); border-radius: var(--mj-radius-md);
+            border: 1px solid var(--mj-status-info-border);
+        }
+        .suggestions-banner i { color: var(--mj-status-info); font-size: 15px; flex-shrink: 0; }
+        .suggestions-banner-body { flex: 1; min-width: 0; }
+        .suggestions-banner-body strong { display: block; font-size: 13px; color: var(--mj-status-info-text); }
+        .suggestions-banner-body p { font-size: 12px; color: var(--mj-status-info-text); margin: 2px 0 0; line-height: 1.4; }
+        .btn-review-suggestions {
+            padding: 5px 10px; border: 1px solid var(--mj-status-info-border); border-radius: var(--mj-radius-md);
+            background: var(--mj-bg-surface); color: var(--mj-status-info-text); font-size: 12px;
+            font-weight: var(--mj-font-semibold); cursor: pointer; font-family: inherit; flex-shrink: 0;
+            transition: border-color 0.15s, color 0.15s;
+        }
+        .btn-review-suggestions:hover { border-color: var(--mj-brand-primary); color: var(--mj-brand-primary); }
+
         /* ─── Assignees ─── */
         .assignee-row {
             display: flex; align-items: center; gap: 8px; padding: 6px 0;
@@ -456,6 +496,16 @@ export class TaskDetailPanelComponent implements OnChanges {
     // ── Inputs ──────────────────────────────────────────────
 
     /**
+     * Optional metadata/data provider for multi-provider embeds.
+     * Falls back to `Metadata.Provider` when omitted.
+     */
+    @Input() Provider: IMetadataProvider | null = null;
+
+    public get ProviderToUse(): IMetadataProvider {
+        return this.Provider ?? Metadata.Provider;
+    }
+
+    /**
      * ID of the task to display. When changed, the panel reloads all data
      * (task fields, assignees, timeline, parent). Pass `null` to hide the panel.
      */
@@ -524,6 +574,8 @@ export class TaskDetailPanelComponent implements OnChanges {
     taskLinks: { ID: string; EntityName: string; Description: string | null }[] = [];
     /** @internal Merged activity + comment timeline, sorted newest-first. */
     timeline: ActivityEntry[] = [];
+    /** @internal Aggregated pending Field Suggestions summary for the active task. */
+    pendingSuggestionSummary: TaskPendingSuggestionsSummary | null = null;
     /** @internal */
     loading = false;
     /** @internal */
@@ -548,6 +600,19 @@ export class TaskDetailPanelComponent implements OnChanges {
         return status?.replace(/([a-z])([A-Z])/g, '$1 $2') ?? '';
     }
 
+    /** @internal Formatted tooltip summarizing pending suggestions on the active task. */
+    get pendingSuggestionTooltip(): string {
+        return FormatPendingSuggestionTooltip(this.pendingSuggestionSummary);
+    }
+
+    private createRunView(): RunView {
+        const p = this.ProviderToUse;
+        if (p && typeof (p as Partial<IRunViewProvider>).RunView === 'function') {
+            return RunView.FromMetadataProvider(p);
+        }
+        return new RunView();
+    }
+
     /**
      * Reloads all task data from the server: task fields, assignees,
      * timeline, and parent task name. Call this after external mutations.
@@ -557,7 +622,7 @@ export class TaskDetailPanelComponent implements OnChanges {
         this.loading = true;
         this.cdr.markForCheck();
 
-        const rv = new RunView();
+        const rv = this.createRunView();
         const result = await rv.RunView<TaskRow>({
             EntityName: 'MJ_BizApps_Tasks: Tasks',
             ExtraFilter: `ID = '${this.TaskID}'`,
@@ -565,15 +630,30 @@ export class TaskDetailPanelComponent implements OnChanges {
         });
         this.task = result?.Results?.[0] ?? null;
 
-        await Promise.all([this.loadAssignees(), this.loadTimeline(), this.loadParentTask(), this.loadTaskLinks()]);
+        await Promise.all([
+            this.loadAssignees(),
+            this.loadTimeline(),
+            this.loadParentTask(),
+            this.loadTaskLinks(),
+            this.loadPendingSuggestions(),
+        ]);
         this.loading = false;
         this.cdr.markForCheck();
+    }
+
+    private async loadPendingSuggestions(): Promise<void> {
+        this.pendingSuggestionSummary = null;
+        if (!this.TaskID) return;
+        const res = await TaskFieldSuggestionsHelper.LoadPendingSuggestions(this.ProviderToUse, {
+            taskIds: [this.TaskID],
+        });
+        this.pendingSuggestionSummary = res.byTaskId.get(NormalizeUUID(this.TaskID)) ?? null;
     }
 
     private async loadParentTask(): Promise<void> {
         this.parentTaskName = null;
         if (!this.task?.ParentID) return;
-        const rv = new RunView();
+        const rv = this.createRunView();
         const result = await rv.RunView<{ Name: string }>({
             EntityName: 'MJ_BizApps_Tasks: Tasks',
             ExtraFilter: `ID = '${this.task.ParentID}'`,
@@ -586,14 +666,14 @@ export class TaskDetailPanelComponent implements OnChanges {
     private async loadTaskLinks(): Promise<void> {
         this.taskLinks = [];
         if (!this.TaskID) return;
-        const rv = new RunView();
+        const rv = this.createRunView();
         const [linksResult, entitiesResult] = await Promise.all([
             rv.RunView<{ ID: string; EntityID: string; Description: string | null }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Links',
                 ExtraFilter: `TaskID = '${this.TaskID}'`,
                 ResultType: 'simple',
             }),
-            new RunView().RunView<{ ID: string; Name: string }>({
+            this.createRunView().RunView<{ ID: string; Name: string }>({
                 EntityName: 'MJ: Entities',
                 ResultType: 'simple',
             }),
@@ -611,18 +691,18 @@ export class TaskDetailPanelComponent implements OnChanges {
 
     private async loadAssignees(): Promise<void> {
         if (!this.TaskID) return;
-        const rv = new RunView();
+        const rv = this.createRunView();
         const [assignmentResult, peopleResult, rolesResult] = await Promise.all([
             rv.RunView<{ AssigneeRecordID: string; RoleID: string; Status: 'Pending' | 'InProgress' | 'Completed' | null }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Assignments',
                 ExtraFilter: `TaskID = '${this.TaskID}'`,
                 ResultType: 'simple',
             }),
-            new RunView().RunView<PersonRow>({
+            this.createRunView().RunView<PersonRow>({
                 EntityName: 'MJ_BizApps_Common: People',
                 ResultType: 'simple',
             }),
-            new RunView().RunView<{ ID: string; Name: string }>({
+            this.createRunView().RunView<{ ID: string; Name: string }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Roles',
                 ResultType: 'simple',
             }),
@@ -647,7 +727,7 @@ export class TaskDetailPanelComponent implements OnChanges {
 
     private async loadTimeline(): Promise<void> {
         if (!this.TaskID) return;
-        const rv = new RunView();
+        const rv = this.createRunView();
 
         const [activities, comments, people] = await Promise.all([
             rv.RunView<{ __mj_CreatedAt: Date; PersonID: string | null; ActivityType: string; Description: string | null }>({
@@ -656,13 +736,13 @@ export class TaskDetailPanelComponent implements OnChanges {
                 OrderBy: '__mj_CreatedAt DESC',
                 ResultType: 'simple',
             }),
-            new RunView().RunView<{ __mj_CreatedAt: Date; PersonID: string; Content: string }>({
+            this.createRunView().RunView<{ __mj_CreatedAt: Date; PersonID: string; Content: string }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Comments',
                 ExtraFilter: `TaskID = '${this.TaskID}'`,
                 OrderBy: '__mj_CreatedAt DESC',
                 ResultType: 'simple',
             }),
-            new RunView().RunView<PersonRow>({
+            this.createRunView().RunView<PersonRow>({
                 EntityName: 'MJ_BizApps_Common: People',
                 ResultType: 'simple',
             }),

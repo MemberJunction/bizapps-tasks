@@ -1,0 +1,13 @@
+{
+  "entity": "MJ: Row Level Security Filters",
+  "filePattern": "**/.*.json",
+  "pull": {
+    "createNewFileIfNotFound": true,
+    "newFileName": ".work-report-rls-filters.json",
+    "appendRecordsToExistingFile": true,
+    "updateExistingRecords": true,
+    "ignoreNullFields": true,
+    "ignoreVirtualFields": true,
+    "filter": "Name LIKE 'UI: Work Report%'"
+  }
+}

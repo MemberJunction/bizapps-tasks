@@ -3,9 +3,13 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 // vi.hoisted so the mock factory (which is hoisted above imports) can see these.
 const { runViewMock } = vi.hoisted(() => ({ runViewMock: vi.fn() }));
 
-vi.mock('@memberjunction/global', () => ({
-  RegisterClass: () => () => {},
-}));
+vi.mock('@memberjunction/global', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@memberjunction/global')>();
+  return {
+    ...actual,
+    RegisterClass: () => () => {},
+  };
+});
 
 vi.mock('@memberjunction/core', () => {
   class FakeValidationResult {

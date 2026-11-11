@@ -61,3 +61,7 @@ export * from './lib/pages/my-tasks.page.js';
 export * from './lib/pages/approvals.page.js';
 export * from './lib/pages/templates.page.js';
 export * from './lib/sections/tasks-sections.component.js';
+export * from './lib/chief-of-staff/chief-of-staff-work-reports.component.js';
+
+// Cross-version helpers
+export * from './lib/task-field-suggestions.helper.js';

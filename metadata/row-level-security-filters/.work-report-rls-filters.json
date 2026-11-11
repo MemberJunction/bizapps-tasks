@@ -1,0 +1,32 @@
+[
+  {
+    "fields": {
+      "Name": "UI: Work Reports - Author or Supervisor Chain",
+      "Description": "Restricts Work Report reads and updates to the report author (via LinkedUserID or unlinked email fallback), their supervisor chain (MJ: Employees.SupervisorID up to 3 levels), or administrative roles (Owner, System Administrator, Administrator, Admin, Administration).",
+      "FilterText": "([PersonID] IN (SELECT [p].[ID] FROM [__mj_BizAppsCommon].[Person] [p] INNER JOIN [__mj].[User] [u] ON [u].[ID] = '{{UserID}}' WHERE [p].[LinkedUserID] = [u].[ID] OR [u].[LinkedEntityRecordID] = CAST([p].[ID] AS NVARCHAR(50)) OR ([p].[LinkedUserID] IS NULL AND LOWER([p].[Email]) = LOWER([u].[Email]))) OR [PersonID] IN (SELECT [p].[ID] FROM [__mj_BizAppsCommon].[Person] [p] LEFT JOIN [__mj].[User] [au] ON [au].[ID] = [p].[LinkedUserID] OR [au].[LinkedEntityRecordID] = CAST([p].[ID] AS NVARCHAR(50)) INNER JOIN [__mj].[Employee] [emp] ON [emp].[ID] = [au].[EmployeeID] OR LOWER([emp].[Email]) = LOWER(COALESCE([au].[Email], CASE WHEN [p].[LinkedUserID] IS NULL THEN [p].[Email] ELSE NULL END)) INNER JOIN [__mj].[Employee] [sup] ON [sup].[Active] = 1 INNER JOIN [__mj].[User] [u] ON [u].[ID] = '{{UserID}}' AND ([u].[EmployeeID] = [sup].[ID] OR LOWER([u].[Email]) = LOWER([sup].[Email])) LEFT JOIN [__mj].[Employee] [mgr1] ON [mgr1].[ID] = [emp].[SupervisorID] LEFT JOIN [__mj].[Employee] [mgr2] ON [mgr2].[ID] = [mgr1].[SupervisorID] WHERE [emp].[SupervisorID] = [sup].[ID] OR [mgr1].[SupervisorID] = [sup].[ID] OR [mgr2].[SupervisorID] = [sup].[ID]) OR EXISTS (SELECT 1 FROM [__mj].[User] [u] LEFT JOIN [__mj].[UserRole] [ur] ON [ur].[UserID] = [u].[ID] LEFT JOIN [__mj].[Role] [r] ON [r].[ID] = [ur].[RoleID] WHERE [u].[ID] = '{{UserID}}' AND (LTRIM(RTRIM([u].[Type])) = 'Owner' OR [r].[Name] IN ('System Administrator', 'Administrator', 'Admin', 'Administration'))))"
+    },
+    "primaryKey": {
+      "ID": "DC505938-81AC-4EFF-A6FF-99BFB5B11018"
+    }
+  },
+  {
+    "fields": {
+      "Name": "UI: Work Report Items - Author or Supervisor Chain",
+      "Description": "Restricts Work Report Item reads to items whose parent Work Report belongs to the author, their supervisor chain (up to 3 levels), or an administrative role.",
+      "FilterText": "([WorkReportID] IN (SELECT [wr].[ID] FROM [__mj_BizAppsTasks].[WorkReport] [wr] WHERE [wr].[PersonID] IN (SELECT [p].[ID] FROM [__mj_BizAppsCommon].[Person] [p] INNER JOIN [__mj].[User] [u] ON [u].[ID] = '{{UserID}}' WHERE [p].[LinkedUserID] = [u].[ID] OR [u].[LinkedEntityRecordID] = CAST([p].[ID] AS NVARCHAR(50)) OR ([p].[LinkedUserID] IS NULL AND LOWER([p].[Email]) = LOWER([u].[Email]))) OR [wr].[PersonID] IN (SELECT [p].[ID] FROM [__mj_BizAppsCommon].[Person] [p] LEFT JOIN [__mj].[User] [au] ON [au].[ID] = [p].[LinkedUserID] OR [au].[LinkedEntityRecordID] = CAST([p].[ID] AS NVARCHAR(50)) INNER JOIN [__mj].[Employee] [emp] ON [emp].[ID] = [au].[EmployeeID] OR LOWER([emp].[Email]) = LOWER(COALESCE([au].[Email], CASE WHEN [p].[LinkedUserID] IS NULL THEN [p].[Email] ELSE NULL END)) INNER JOIN [__mj].[Employee] [sup] ON [sup].[Active] = 1 INNER JOIN [__mj].[User] [u] ON [u].[ID] = '{{UserID}}' AND ([u].[EmployeeID] = [sup].[ID] OR LOWER([u].[Email]) = LOWER([sup].[Email])) LEFT JOIN [__mj].[Employee] [mgr1] ON [mgr1].[ID] = [emp].[SupervisorID] LEFT JOIN [__mj].[Employee] [mgr2] ON [mgr2].[ID] = [mgr1].[SupervisorID] WHERE [emp].[SupervisorID] = [sup].[ID] OR [mgr1].[SupervisorID] = [sup].[ID] OR [mgr2].[SupervisorID] = [sup].[ID]) OR EXISTS (SELECT 1 FROM [__mj].[User] [u] LEFT JOIN [__mj].[UserRole] [ur] ON [ur].[UserID] = [u].[ID] LEFT JOIN [__mj].[Role] [r] ON [r].[ID] = [ur].[RoleID] WHERE [u].[ID] = '{{UserID}}' AND (LTRIM(RTRIM([u].[Type])) = 'Owner' OR [r].[Name] IN ('System Administrator', 'Administrator', 'Admin', 'Administration')))))"
+    },
+    "primaryKey": {
+      "ID": "E2D9FE26-3490-48C5-A60B-42F1B2973B19"
+    }
+  },
+  {
+    "fields": {
+      "Name": "UI: Work Report Items - Draft Author Only",
+      "Description": "Restricts Work Report Item creates and updates to items whose parent Work Report is in Draft status and authored by the signed-in user (or an administrative role).",
+      "FilterText": "([WorkReportID] IN (SELECT [wr].[ID] FROM [__mj_BizAppsTasks].[WorkReport] [wr] WHERE ([wr].[Status] = 'Draft' AND [wr].[PersonID] IN (SELECT [p].[ID] FROM [__mj_BizAppsCommon].[Person] [p] INNER JOIN [__mj].[User] [u] ON [u].[ID] = '{{UserID}}' WHERE [p].[LinkedUserID] = [u].[ID] OR [u].[LinkedEntityRecordID] = CAST([p].[ID] AS NVARCHAR(50)) OR ([p].[LinkedUserID] IS NULL AND LOWER([p].[Email]) = LOWER([u].[Email])))) OR EXISTS (SELECT 1 FROM [__mj].[User] [u] LEFT JOIN [__mj].[UserRole] [ur] ON [ur].[UserID] = [u].[ID] LEFT JOIN [__mj].[Role] [r] ON [r].[ID] = [ur].[RoleID] WHERE [u].[ID] = '{{UserID}}' AND (LTRIM(RTRIM([u].[Type])) = 'Owner' OR [r].[Name] IN ('System Administrator', 'Administrator', 'Admin', 'Administration')))))"
+    },
+    "primaryKey": {
+      "ID": "E3B9CECC-3CEF-4461-8CB1-3DD5A76FB16E"
+    }
+  }
+]

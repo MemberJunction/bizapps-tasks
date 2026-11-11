@@ -103,3 +103,69 @@ describe('computeDueStatus helper', () => {
         expect(cancelledRes.isDueSoon).toBe(false);
     });
 });
+
+describe('TaskListComponent pending Field Suggestions badge & filter', () => {
+    it('counts tasks with unresolved Field Suggestions and filters when togglePendingSuggestionsFilter is activated', () => {
+        const cdr: ChangeDetectorRef = {
+            markForCheck: vi.fn(),
+            detach: vi.fn(),
+            detectChanges: vi.fn(),
+            checkNoChanges: vi.fn(),
+            reattach: vi.fn(),
+        };
+        const injector = Injector.create({
+            providers: [{ provide: ChangeDetectorRef, useValue: cdr }],
+        });
+        const component = runInInjectionContext(injector, () => new TaskListComponent());
+
+        const taskWithSuggestion: TaskRow = {
+            ID: '11111111-1111-4111-8111-111111111111',
+            Name: 'Review Due Date Suggestion',
+            Description: null,
+            Status: 'Open',
+            Priority: 'High',
+            DueAt: null,
+            PercentComplete: 0,
+            HoursEstimated: null,
+            ParentID: null,
+            Depth: 0,
+            IsOverdue: false,
+            IsDueSoon: false,
+            PendingSuggestionCount: 2,
+            PendingSuggestionFields: ['DueDate', 'EffortHours'],
+        };
+        const taskWithoutSuggestion: TaskRow = {
+            ID: '22222222-2222-4222-8222-222222222222',
+            Name: 'Clean Task',
+            Description: null,
+            Status: 'Open',
+            Priority: 'Medium',
+            DueAt: null,
+            PercentComplete: 0,
+            HoursEstimated: null,
+            ParentID: null,
+            Depth: 0,
+            IsOverdue: false,
+            IsDueSoon: false,
+            PendingSuggestionCount: 0,
+        };
+
+        component.tasks = [taskWithSuggestion, taskWithoutSuggestion];
+        component.applyFilters();
+
+        expect(component.totalPendingSuggestionsCount).toBe(2);
+        expect(component.tasksWithPendingSuggestionsCount).toBe(1);
+        expect(component.getTaskSuggestionTooltip(taskWithSuggestion)).toBe(
+            '2 pending suggestions: DueDate, EffortHours',
+        );
+        expect(component.filteredTasks).toHaveLength(2);
+
+        component.togglePendingSuggestionsFilter();
+        expect(component.pendingSuggestionsOnly).toBe(true);
+        expect(component.filteredTasks.map((t) => t.ID)).toEqual([taskWithSuggestion.ID]);
+
+        component.togglePendingSuggestionsFilter();
+        expect(component.pendingSuggestionsOnly).toBe(false);
+        expect(component.filteredTasks).toHaveLength(2);
+    });
+});

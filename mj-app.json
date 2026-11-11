@@ -25,7 +25,8 @@
   },
   "migrations": {
     "directory": "migrations",
-    "engine": "skyway"
+    "engine": "skyway",
+    "teardownDirectory": "teardown"
   },
   "metadata": {
     "directory": "metadata"

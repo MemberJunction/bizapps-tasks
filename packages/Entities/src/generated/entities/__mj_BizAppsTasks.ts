@@ -1,5 +1,5 @@
 import { BaseEntity, EntitySaveOptions, EntityDeleteOptions, CompositeKey, ValidationResult, ValidationErrorInfo, ValidationErrorType, Metadata, ProviderType, DatabaseProviderBase, RunView } from "@memberjunction/core";
-import { RegisterClass } from "@memberjunction/global";
+import { RegisterClass, UUIDsEqual } from "@memberjunction/global";
 import { z } from "zod";
 
      
@@ -1332,6 +1332,11 @@ export const mjBizAppsTasksTaskTypeSchema = z.object({
         * * SQL Data Type: bit
         * * Default Value: 0
         * * Description: When true, tasks of this type are approvals: they appear in the approvals inbox of each assignee, who records a decision on them.`),
+    ExtensionEntity: z.string().nullable().describe(`
+        * * Field Name: ExtensionEntity
+        * * Display Name: Extension Entity
+        * * SQL Data Type: nvarchar(255)
+        * * Description: Optional MemberJunction Entity name (e.g. MJ_BizApps_Tasks_GitHub: GitHub Issue Tasks) of the disjoint IS-A child of MJ_BizApps_Tasks: Tasks provisioned for tasks of this type. Read declaratively by Task SubtypeSelector (TypeID.ExtensionEntity).`),
     OnAssignAction: z.string().nullable().describe(`
         * * Field Name: OnAssignAction
         * * Display Name: On Assign Action
@@ -1631,6 +1636,163 @@ export const mjBizAppsTasksTaskSchema = z.object({
 });
 
 export type mjBizAppsTasksTaskEntityType = z.infer<typeof mjBizAppsTasksTaskSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Work Report Items
+ */
+export const mjBizAppsTasksWorkReportItemSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()`),
+    WorkReportID: z.string().describe(`
+        * * Field Name: WorkReportID
+        * * Display Name: Work Report
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Work Reports (vwWorkReports.ID)
+        * * Description: Parent WorkReport that owns this line item.`),
+    TaskID: z.string().nullable().describe(`
+        * * Field Name: TaskID
+        * * Display Name: Task ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
+        * * Description: Optional Task referenced by this report item.`),
+    Section: z.union([z.literal('AtRisk'), z.literal('Blockers'), z.literal('Completed'), z.literal('InProgress'), z.literal('Next')]).describe(`
+        * * Field Name: Section
+        * * Display Name: Section
+        * * SQL Data Type: nvarchar(50)
+        * * Default Value: Completed
+    * * Value List Type: List
+    * * Possible Values 
+    *   * AtRisk
+    *   * Blockers
+    *   * Completed
+    *   * InProgress
+    *   * Next
+        * * Description: Report section this line belongs to: Completed, InProgress, Next, Blockers, or AtRisk.`),
+    Summary: z.string().describe(`
+        * * Field Name: Summary
+        * * Display Name: Summary
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: Concise description of the progress, next step, blocker, or risk for this line item.`),
+    Sequence: z.number().describe(`
+        * * Field Name: Sequence
+        * * Display Name: Sequence
+        * * SQL Data Type: int
+        * * Default Value: 0
+        * * Description: Display order within the parent WorkReport (ascending).`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Task: z.string().nullable().describe(`
+        * * Field Name: Task
+        * * Display Name: Task Description
+        * * SQL Data Type: nvarchar(255)`),
+});
+
+export type mjBizAppsTasksWorkReportItemEntityType = z.infer<typeof mjBizAppsTasksWorkReportItemSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Work Reports
+ */
+export const mjBizAppsTasksWorkReportSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()`),
+    PersonID: z.string().describe(`
+        * * Field Name: PersonID
+        * * Display Name: Person
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: The Person record whose work is summarized in this report.`),
+    PeriodStart: z.date().describe(`
+        * * Field Name: PeriodStart
+        * * Display Name: Period Start
+        * * SQL Data Type: date
+        * * Description: Inclusive start date of the reporting window.`),
+    PeriodEnd: z.date().describe(`
+        * * Field Name: PeriodEnd
+        * * Display Name: Period End
+        * * SQL Data Type: date
+        * * Description: Inclusive end date of the reporting window.`),
+    Title: z.string().nullable().describe(`
+        * * Field Name: Title
+        * * Display Name: Title
+        * * SQL Data Type: nvarchar(255)
+        * * Description: Optional concise headline for the report (e.g., Daily 15Five — 2026-11-09).`),
+    Body: z.string().describe(`
+        * * Field Name: Body
+        * * Display Name: Body
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: Markdown body of the work report covering accomplishments, next priorities, blockers, and at-risk objectives.`),
+    Status: z.union([z.literal('Draft'), z.literal('Reviewed'), z.literal('Submitted')]).describe(`
+        * * Field Name: Status
+        * * Display Name: Status
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: Draft
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Draft
+    *   * Reviewed
+    *   * Submitted
+        * * Description: Lifecycle status of the report: Draft (awaiting author approval), Submitted (approved by author, awaiting supervisor review), or Reviewed (supervisor feedback recorded).`),
+    AuthoredByAgentRunID: z.string().nullable().describe(`
+        * * Field Name: AuthoredByAgentRunID
+        * * Display Name: Authored By Agent Run
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: AI Agent Runs (vwAIAgentRuns.ID)
+        * * Description: Optional AI Agent Run that drafted this work report.`),
+    SupervisorFeedback: z.string().nullable().describe(`
+        * * Field Name: SupervisorFeedback
+        * * Display Name: Supervisor Feedback
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: Feedback drafted by the supervisor Chief of Staff and approved/edited by the supervisor.`),
+    ReviewedByPersonID: z.string().nullable().describe(`
+        * * Field Name: ReviewedByPersonID
+        * * Display Name: Reviewed By Person
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: The supervisor Person record who reviewed and approved feedback on this report.`),
+    ReviewedAt: z.date().nullable().describe(`
+        * * Field Name: ReviewedAt
+        * * Display Name: Reviewed At
+        * * SQL Data Type: datetimeoffset
+        * * Description: Timestamp when supervisor feedback was approved and recorded on this report.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Person: z.string().nullable().describe(`
+        * * Field Name: Person
+        * * Display Name: Person Name
+        * * SQL Data Type: nvarchar(250)`),
+    AuthoredByAgentRun: z.string().nullable().describe(`
+        * * Field Name: AuthoredByAgentRun
+        * * Display Name: Authored By Agent Run Name
+        * * SQL Data Type: nvarchar(255)`),
+    ReviewedByPerson: z.string().nullable().describe(`
+        * * Field Name: ReviewedByPerson
+        * * Display Name: Reviewed By Person Name
+        * * SQL Data Type: nvarchar(250)`),
+});
+
+export type mjBizAppsTasksWorkReportEntityType = z.infer<typeof mjBizAppsTasksWorkReportSchema>;
  
  
 
@@ -3097,7 +3259,7 @@ export class mjBizAppsTasksTaskDependencyEntity extends BaseEntity<mjBizAppsTask
     * @method
     */
     public ValidateTaskIDNotEqualToDependsOnTaskID(result: ValidationResult) {
-    	if (this.TaskID != null && this.DependsOnTaskID != null && this.TaskID === this.DependsOnTaskID) {
+    	if (this.TaskID != null && this.DependsOnTaskID != null && UUIDsEqual(this.TaskID, this.DependsOnTaskID)) {
     		result.Errors.push(new ValidationErrorInfo(
     			"DependsOnTaskID",
     			"A task cannot depend on itself. TaskID and DependsOnTaskID must be different.",
@@ -4006,7 +4168,7 @@ export class mjBizAppsTasksTaskTemplateItemDependencyEntity extends BaseEntity<m
     * @method
     */
     public ValidateItemIDNotEqualToDependsOnItemID(result: ValidationResult) {
-    	if (this.ItemID != null && this.DependsOnItemID != null && this.ItemID === this.DependsOnItemID) {
+    	if (this.ItemID != null && this.DependsOnItemID != null && UUIDsEqual(this.ItemID, this.DependsOnItemID)) {
     		result.Errors.push(new ValidationErrorInfo(
     			"DependsOnItemID",
     			"An item cannot depend on itself. ItemID and DependsOnItemID must be different.",
@@ -5138,6 +5300,19 @@ export class mjBizAppsTasksTaskTypeEntity extends BaseEntity<mjBizAppsTasksTaskT
     }
 
     /**
+    * * Field Name: ExtensionEntity
+    * * Display Name: Extension Entity
+    * * SQL Data Type: nvarchar(255)
+    * * Description: Optional MemberJunction Entity name (e.g. MJ_BizApps_Tasks_GitHub: GitHub Issue Tasks) of the disjoint IS-A child of MJ_BizApps_Tasks: Tasks provisioned for tasks of this type. Read declaratively by Task SubtypeSelector (TypeID.ExtensionEntity).
+    */
+    get ExtensionEntity(): string | null {
+        return this.Get('ExtensionEntity');
+    }
+    set ExtensionEntity(value: string | null) {
+        this.Set('ExtensionEntity', value);
+    }
+
+    /**
     * * Field Name: OnAssignAction
     * * Display Name: On Assign Action
     * * SQL Data Type: nvarchar(425)
@@ -5885,5 +6060,418 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     */
     get CommentsCount(): number {
         return this.Get('CommentsCount');
+    }
+}
+
+
+/**
+ * MJ_BizApps_Tasks: Work Report Items - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: WorkReportItem
+ * * Base View: vwWorkReportItems
+ * * @description Individual line items in a WorkReport linking each accomplishment, next step, blocker, or at-risk item to its originating Task.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Work Report Items')
+export class mjBizAppsTasksWorkReportItemEntity extends BaseEntity<mjBizAppsTasksWorkReportItemEntityType> {
+    /**
+    * Loads the MJ_BizApps_Tasks: Work Report Items record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Work Report Items record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksWorkReportItemEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: WorkReportID
+    * * Display Name: Work Report
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Work Reports (vwWorkReports.ID)
+    * * Description: Parent WorkReport that owns this line item.
+    */
+    get WorkReportID(): string {
+        return this.Get('WorkReportID');
+    }
+    set WorkReportID(value: string) {
+        this.Set('WorkReportID', value);
+    }
+
+    /**
+    * * Field Name: TaskID
+    * * Display Name: Task ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
+    * * Description: Optional Task referenced by this report item.
+    */
+    get TaskID(): string | null {
+        return this.Get('TaskID');
+    }
+    set TaskID(value: string | null) {
+        this.Set('TaskID', value);
+    }
+
+    /**
+    * * Field Name: Section
+    * * Display Name: Section
+    * * SQL Data Type: nvarchar(50)
+    * * Default Value: Completed
+    * * Value List Type: List
+    * * Possible Values 
+    *   * AtRisk
+    *   * Blockers
+    *   * Completed
+    *   * InProgress
+    *   * Next
+    * * Description: Report section this line belongs to: Completed, InProgress, Next, Blockers, or AtRisk.
+    */
+    get Section(): 'AtRisk' | 'Blockers' | 'Completed' | 'InProgress' | 'Next' {
+        return this.Get('Section');
+    }
+    set Section(value: 'AtRisk' | 'Blockers' | 'Completed' | 'InProgress' | 'Next') {
+        this.Set('Section', value);
+    }
+
+    /**
+    * * Field Name: Summary
+    * * Display Name: Summary
+    * * SQL Data Type: nvarchar(MAX)
+    * * Description: Concise description of the progress, next step, blocker, or risk for this line item.
+    */
+    get Summary(): string {
+        return this.Get('Summary');
+    }
+    set Summary(value: string) {
+        this.Set('Summary', value);
+    }
+
+    /**
+    * * Field Name: Sequence
+    * * Display Name: Sequence
+    * * SQL Data Type: int
+    * * Default Value: 0
+    * * Description: Display order within the parent WorkReport (ascending).
+    */
+    get Sequence(): number {
+        return this.Get('Sequence');
+    }
+    set Sequence(value: number) {
+        this.Set('Sequence', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: Task
+    * * Display Name: Task Description
+    * * SQL Data Type: nvarchar(255)
+    */
+    get Task(): string | null {
+        return this.Get('Task');
+    }
+}
+
+
+/**
+ * MJ_BizApps_Tasks: Work Reports - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: WorkReport
+ * * Base View: vwWorkReports
+ * * @description Daily or periodic 15Five work reports summarizing what got done, what is next, blockers, and at-risk objectives for a person, drafted by their Chief of Staff and reviewed with supervisor feedback.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Work Reports')
+export class mjBizAppsTasksWorkReportEntity extends BaseEntity<mjBizAppsTasksWorkReportEntityType> {
+    /**
+    * Loads the MJ_BizApps_Tasks: Work Reports record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Work Reports record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksWorkReportEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * Validate() method override for MJ_BizApps_Tasks: Work Reports entity. This is an auto-generated method that invokes the generated validators for this entity for the following fields:
+    * * Table-Level: The period end date must be on or after the period start date.
+    * @public
+    * @method
+    * @override
+    */
+    public override Validate(): ValidationResult {
+        const result = super.Validate();
+        this.ValidatePeriodEndOnOrAfterPeriodStart(result);
+        result.Success = result.Success && (result.Errors.length === 0);
+
+        return result;
+    }
+
+    /**
+    * The period end date must be on or after the period start date.
+    * @param result - the ValidationResult object to add any errors or warnings to
+    * @public
+    * @method
+    */
+    	public ValidatePeriodEndOnOrAfterPeriodStart(result: ValidationResult) {
+    		if (this.PeriodStart != null && this.PeriodEnd != null && new Date(this.PeriodEnd).getTime() < new Date(this.PeriodStart).getTime()) {
+    			result.Errors.push(new ValidationErrorInfo(
+    				"PeriodEnd",
+    				"Period end date must be on or after the period start date.",
+    				this.PeriodEnd,
+    				ValidationErrorType.Failure
+    			));
+    		}
+    	}
+
+    /**
+    * * Field Name: ID
+    * * Display Name: ID
+    * * SQL Data Type: uniqueidentifier
+    * * Default Value: newsequentialid()
+    */
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    /**
+    * * Field Name: PersonID
+    * * Display Name: Person
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+    * * Description: The Person record whose work is summarized in this report.
+    */
+    get PersonID(): string {
+        return this.Get('PersonID');
+    }
+    set PersonID(value: string) {
+        this.Set('PersonID', value);
+    }
+
+    /**
+    * * Field Name: PeriodStart
+    * * Display Name: Period Start
+    * * SQL Data Type: date
+    * * Description: Inclusive start date of the reporting window.
+    */
+    get PeriodStart(): Date {
+        return this.Get('PeriodStart');
+    }
+    set PeriodStart(value: Date) {
+        this.Set('PeriodStart', value);
+    }
+
+    /**
+    * * Field Name: PeriodEnd
+    * * Display Name: Period End
+    * * SQL Data Type: date
+    * * Description: Inclusive end date of the reporting window.
+    */
+    get PeriodEnd(): Date {
+        return this.Get('PeriodEnd');
+    }
+    set PeriodEnd(value: Date) {
+        this.Set('PeriodEnd', value);
+    }
+
+    /**
+    * * Field Name: Title
+    * * Display Name: Title
+    * * SQL Data Type: nvarchar(255)
+    * * Description: Optional concise headline for the report (e.g., Daily 15Five — 2026-11-09).
+    */
+    get Title(): string | null {
+        return this.Get('Title');
+    }
+    set Title(value: string | null) {
+        this.Set('Title', value);
+    }
+
+    /**
+    * * Field Name: Body
+    * * Display Name: Body
+    * * SQL Data Type: nvarchar(MAX)
+    * * Description: Markdown body of the work report covering accomplishments, next priorities, blockers, and at-risk objectives.
+    */
+    get Body(): string {
+        return this.Get('Body');
+    }
+    set Body(value: string) {
+        this.Set('Body', value);
+    }
+
+    /**
+    * * Field Name: Status
+    * * Display Name: Status
+    * * SQL Data Type: nvarchar(20)
+    * * Default Value: Draft
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Draft
+    *   * Reviewed
+    *   * Submitted
+    * * Description: Lifecycle status of the report: Draft (awaiting author approval), Submitted (approved by author, awaiting supervisor review), or Reviewed (supervisor feedback recorded).
+    */
+    get Status(): 'Draft' | 'Reviewed' | 'Submitted' {
+        return this.Get('Status');
+    }
+    set Status(value: 'Draft' | 'Reviewed' | 'Submitted') {
+        this.Set('Status', value);
+    }
+
+    /**
+    * * Field Name: AuthoredByAgentRunID
+    * * Display Name: Authored By Agent Run
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ: AI Agent Runs (vwAIAgentRuns.ID)
+    * * Description: Optional AI Agent Run that drafted this work report.
+    */
+    get AuthoredByAgentRunID(): string | null {
+        return this.Get('AuthoredByAgentRunID');
+    }
+    set AuthoredByAgentRunID(value: string | null) {
+        this.Set('AuthoredByAgentRunID', value);
+    }
+
+    /**
+    * * Field Name: SupervisorFeedback
+    * * Display Name: Supervisor Feedback
+    * * SQL Data Type: nvarchar(MAX)
+    * * Description: Feedback drafted by the supervisor Chief of Staff and approved/edited by the supervisor.
+    */
+    get SupervisorFeedback(): string | null {
+        return this.Get('SupervisorFeedback');
+    }
+    set SupervisorFeedback(value: string | null) {
+        this.Set('SupervisorFeedback', value);
+    }
+
+    /**
+    * * Field Name: ReviewedByPersonID
+    * * Display Name: Reviewed By Person
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+    * * Description: The supervisor Person record who reviewed and approved feedback on this report.
+    */
+    get ReviewedByPersonID(): string | null {
+        return this.Get('ReviewedByPersonID');
+    }
+    set ReviewedByPersonID(value: string | null) {
+        this.Set('ReviewedByPersonID', value);
+    }
+
+    /**
+    * * Field Name: ReviewedAt
+    * * Display Name: Reviewed At
+    * * SQL Data Type: datetimeoffset
+    * * Description: Timestamp when supervisor feedback was approved and recorded on this report.
+    */
+    get ReviewedAt(): Date | null {
+        return this.Get('ReviewedAt');
+    }
+    set ReviewedAt(value: Date | null) {
+        this.Set('ReviewedAt', value);
+    }
+
+    /**
+    * * Field Name: __mj_CreatedAt
+    * * Display Name: Created At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    /**
+    * * Field Name: __mj_UpdatedAt
+    * * Display Name: Updated At
+    * * SQL Data Type: datetimeoffset
+    * * Default Value: getutcdate()
+    */
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    /**
+    * * Field Name: Person
+    * * Display Name: Person Name
+    * * SQL Data Type: nvarchar(250)
+    */
+    get Person(): string | null {
+        return this.Get('Person');
+    }
+
+    /**
+    * * Field Name: AuthoredByAgentRun
+    * * Display Name: Authored By Agent Run Name
+    * * SQL Data Type: nvarchar(255)
+    */
+    get AuthoredByAgentRun(): string | null {
+        return this.Get('AuthoredByAgentRun');
+    }
+
+    /**
+    * * Field Name: ReviewedByPerson
+    * * Display Name: Reviewed By Person Name
+    * * SQL Data Type: nvarchar(250)
+    */
+    get ReviewedByPerson(): string | null {
+        return this.Get('ReviewedByPerson');
     }
 }

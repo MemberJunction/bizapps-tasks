@@ -199,7 +199,8 @@
   },
   {
     "_comments": [
-      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human.",
+      "Enable MJ core Comments + Field Suggestions on Tasks so inferred planning values remain reviewable suggestions."
     ],
     "fields": {
       "DisplayName": "Tasks",
@@ -210,6 +211,13 @@
             "RelatedRolePolicy": "smart",
             "PrimaryRelatedBudget": 6
           }
+        },
+        "Comments": {
+          "Enabled": true,
+          "AllowedCommentTypes": [
+            "COMMENT",
+            "FIELD_SUGGESTION"
+          ]
         }
       }
     },
@@ -219,6 +227,28 @@
     "sync": {
       "lastModified": "2026-08-24T20:07:32.976Z",
       "checksum": "e92068d50ce08823da0460a638b4aa719ed60ea6ae3c70390cf2fa8c6b9d7dcb"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Work Report Items"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Work Report Items"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Work Reports"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Work Reports"
     }
   }
 ]

@@ -15,9 +15,13 @@ const { runViewMock, getEntityObjectMock } = vi.hoisted(() => ({
   getEntityObjectMock: vi.fn(),
 }));
 
-vi.mock('@memberjunction/global', () => ({
-  RegisterClass: () => () => {},
-}));
+vi.mock('@memberjunction/global', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@memberjunction/global')>();
+  return {
+    ...actual,
+    RegisterClass: () => () => {},
+  };
+});
 
 vi.mock('@memberjunction/core', () => {
   class FakeValidationResult {

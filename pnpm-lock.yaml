@@ -41,6 +41,12 @@ importers:
       '@memberjunction/credentials':
         specifier: ^6.2.1
         version: 6.2.1
+      '@mj-biz-apps/tasks-core':
+        specifier: ^1.10.0
+        version: link:../Core
+      '@mj-biz-apps/tasks-entities':
+        specifier: ^1.10.0
+        version: link:../Entities
     devDependencies:
       '@memberjunction/actions':
         specifier: 6.2.1

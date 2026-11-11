@@ -1,6 +1,6 @@
 import { Component, EventEmitter, Input, Output, ViewChild, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { BaseEntity } from '@memberjunction/core';
+import { BaseEntity, type IMetadataProvider } from '@memberjunction/core';
 import { OpenTaskRecord } from '../../open-task-record';
 import { TaskPanelComponent, TaskViewMode } from '../task-panel/task-panel.component';
 import { TaskTemplateWizardComponent } from '../task-template-wizard/task-template-wizard.component';
@@ -44,8 +44,11 @@ type PanelMode = 'none' | 'detail' | 'edit' | 'template';
 
                 <bizapps-task-panel
                     #taskPanel
+                    [Provider]="Provider"
                     [CategoryID]="CategoryID"
                     [ExtraFilter]="ExtraFilter"
+                    [PendingSuggestionsOnly]="PendingSuggestionsOnly"
+                    (PendingSuggestionsOnlyChange)="onPendingSuggestionsOnlyChange($event)"
                     [PersonID]="PersonID"
                     [ShowDelete]="ShowDelete"
                     [AllowedViewModes]="EnabledViews"
@@ -112,6 +115,28 @@ type PanelMode = 'none' | 'detail' | 'edit' | 'template';
 })
 export class TaskDashboardComponent implements OnInit {
     // ── Inputs ──────────────────────────────────────────────
+
+    /** Optional metadata/data provider forwarded to {@link TaskPanelComponent}. */
+    @Input() Provider: IMetadataProvider | null = null;
+
+    private _pendingSuggestionsOnly = false;
+
+    /** When true, filters inner views to tasks with unresolved Field Suggestions. */
+    @Input()
+    get PendingSuggestionsOnly(): boolean {
+        return this._pendingSuggestionsOnly;
+    }
+    set PendingSuggestionsOnly(value: boolean) {
+        this._pendingSuggestionsOnly = Boolean(value);
+    }
+
+    @Output() PendingSuggestionsOnlyChange = new EventEmitter<boolean>();
+
+    /** @internal */
+    onPendingSuggestionsOnlyChange(next: boolean): void {
+        this._pendingSuggestionsOnly = Boolean(next);
+        this.PendingSuggestionsOnlyChange.emit(this._pendingSuggestionsOnly);
+    }
 
     /**
      * Filter all views (list, kanban, gantt) to a specific category.

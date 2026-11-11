@@ -4,7 +4,13 @@ import { describe, it, expect, vi } from 'vitest';
 // Each custom action has focused tests alongside this smoke test.
 vi.mock('@memberjunction/actions-base', () => ({}));
 vi.mock('@memberjunction/actions', () => ({ BaseAction: class {}, ActionEngineServer: class {} }));
-vi.mock('@memberjunction/global', () => ({ RegisterClass: () => () => {}, MJGlobal: {} }));
+vi.mock('@memberjunction/global', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@memberjunction/global')>();
+  return {
+    ...actual,
+    RegisterClass: () => () => {},
+  };
+});
 vi.mock('@memberjunction/core', () => ({ Metadata: class {}, RunView: class {}, RunQuery: class {} }));
 vi.mock('@memberjunction/credentials', () => ({ CredentialEngine: class {} }));
 

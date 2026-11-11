@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, inject, Input, Output, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { type IMetadataProvider } from '@memberjunction/core';
 import { OpenTaskRecord } from '../../open-task-record';
 import { TaskListComponent, TaskRow, BeforeTaskSelectedEvent, BeforeStatusChangeEvent, computeDueStatus } from '../task-list/task-list.component';
 import { TaskKanbanComponent, BeforeKanbanStatusChangeEvent, AfterKanbanStatusChangeEvent, KanbanTaskData } from '../task-kanban/task-kanban.component';
@@ -129,9 +130,12 @@ const ALL_VIEW_OPTIONS: Record<TaskViewMode, ViewToggleOption> = {
                         <div class="task-panel-list">
                             <bizapps-task-list
                                 #taskList
+                                [Provider]="Provider"
                                 [CategoryID]="CategoryID"
                                 [ExtraFilter]="ExtraFilter"
                                 [StatusFilter]="StatusFilter"
+                                [PendingSuggestionsOnly]="PendingSuggestionsOnly"
+                                (PendingSuggestionsOnlyChange)="onPendingSuggestionsOnlyChange($event)"
                                 [ShowCreateButton]="ShowCreateButton"
                                 [ShowQuickAdd]="ShowQuickAdd"
                                 [QuickAddDefaultTypeID]="DefaultTypeID"
@@ -152,8 +156,10 @@ const ALL_VIEW_OPTIONS: Record<TaskViewMode, ViewToggleOption> = {
                         <div class="task-panel-kanban">
                             <bizapps-task-kanban
                                 #taskKanban
+                                [Provider]="Provider"
                                 [CategoryID]="CategoryID"
                                 [ExtraFilter]="ExtraFilter"
+                                [PendingSuggestionsOnly]="PendingSuggestionsOnly"
                                 [ReadOnly]="ReadOnly"
                                 (TaskClicked)="onTaskClicked($event)"
                                 (TaskDoubleClicked)="onOpenFullRecord($event)"
@@ -184,6 +190,7 @@ const ALL_VIEW_OPTIONS: Record<TaskViewMode, ViewToggleOption> = {
                     @if (panelMode === 'detail' && selectedTaskID) {
                         <bizapps-task-detail-panel
                             #detailPanel
+                            [Provider]="Provider"
                             [TaskID]="selectedTaskID"
                             [PersonID]="PersonID"
                             [ShowDelete]="ShowDelete"
@@ -264,6 +271,33 @@ const ALL_VIEW_OPTIONS: Record<TaskViewMode, ViewToggleOption> = {
 })
 export class TaskPanelComponent {
     // ── Inputs ──────────────────────────────────────────────
+
+    /** Optional metadata/data provider forwarded to child components. */
+    @Input() Provider: IMetadataProvider | null = null;
+
+    private _pendingSuggestionsOnly = false;
+
+    /** When true, filters inner list/kanban views to tasks with pending Field Suggestions. */
+    @Input()
+    public get PendingSuggestionsOnly(): boolean {
+        return this._pendingSuggestionsOnly;
+    }
+    public set PendingSuggestionsOnly(value: boolean) {
+        const next = Boolean(value);
+        if (next !== this._pendingSuggestionsOnly) {
+            this._pendingSuggestionsOnly = next;
+            this.cdr.markForCheck();
+        }
+    }
+
+    @Output() PendingSuggestionsOnlyChange = new EventEmitter<boolean>();
+
+    /** @internal */
+    onPendingSuggestionsOnlyChange(next: boolean): void {
+        this._pendingSuggestionsOnly = Boolean(next);
+        this.PendingSuggestionsOnlyChange.emit(this._pendingSuggestionsOnly);
+        this.cdr.markForCheck();
+    }
 
     /**
      * Filter tasks to a specific category. Passed through to the inner
