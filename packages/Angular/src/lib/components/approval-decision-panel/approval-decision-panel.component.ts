@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, in
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RunView } from '@memberjunction/core';
-import { TaskOrchestrationService, TaskDecisionOutcomeCode } from '@mj-biz-apps/tasks-core';
+import { TaskOrchestrationService, TaskDecisionOutcomeCode, TaskClosedError } from '@mj-biz-apps/tasks-core';
 
 /** A selectable decision outcome loaded from the TaskDecisionOutcome lookup. */
 export interface DecisionOutcomeOption {
@@ -172,6 +172,12 @@ export class ApprovalDecisionPanelComponent implements OnInit {
     /** Emitted when the user cancels without recording a decision. */
     @Output() Cancelled = new EventEmitter<void>();
 
+    /**
+     * Emitted with the task ID when a decision is refused because the task was closed
+     * (Completed or Cancelled) after this panel loaded. Hosts listing open tasks should reload.
+     */
+    @Output() TaskClosed = new EventEmitter<string>();
+
     // ── State ───────────────────────────────────────────────
 
     public Loading = false;
@@ -262,6 +268,9 @@ export class ApprovalDecisionPanelComponent implements OnInit {
             });
         } catch (err) {
             this.SaveError = err instanceof Error ? err.message : String(err);
+            if (err instanceof TaskClosedError) {
+                this.TaskClosed.emit(err.TaskID);
+            }
         } finally {
             this.Saving = false;
             this.cdr.detectChanges();

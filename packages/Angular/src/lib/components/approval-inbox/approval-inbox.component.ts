@@ -75,6 +75,7 @@ export interface ApprovalRow {
                     [TaskID]="SelectedApprovalID"
                     [DecidedByPersonID]="ApproverPersonID"
                     (DecisionRecorded)="onDecisionRecorded($event)"
+                    (TaskClosed)="onTaskClosed()"
                     (Cancelled)="SelectedApprovalID = null">
                 </bizapps-approval-decision-panel>
             }
@@ -243,6 +244,14 @@ export class ApprovalInboxComponent implements OnInit {
         this.SelectedApprovalID = null;
         this.DecisionRecorded.emit(event);
         this.cdr.detectChanges();
+    }
+
+    /**
+     * The selected task was closed elsewhere and the panel refused the decision. Reload the
+     * list so the closed task drops out; the panel stays open showing why until dismissed.
+     */
+    onTaskClosed(): void {
+        void this.Refresh();
     }
 
     /**
