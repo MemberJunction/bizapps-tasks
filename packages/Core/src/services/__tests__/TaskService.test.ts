@@ -2,10 +2,14 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 const runViewMock = vi.fn();
 const getEntityObjectMock = vi.fn();
+const runViewProviders: unknown[] = [];
 
 vi.mock('@memberjunction/core', () => {
   return {
     RunView: class {
+      constructor(provider?: unknown) {
+        runViewProviders.push(provider);
+      }
       RunView(...args: unknown[]) {
         return runViewMock(...args);
       }
@@ -63,9 +67,27 @@ function makeFakeEntity(initial: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  runViewProviders.length = 0;
 });
 
 describe('TaskService.rollupParentProgress', () => {
+  it('reads and writes on a supplied provider, including up the tree', async () => {
+    const provider = { GetEntityObject: vi.fn(), RunView: vi.fn() };
+    const parent = makeFakeEntity({ PercentComplete: 0, Status: 'InProgress', ParentID: 'grand-1' });
+    const grandParent = makeFakeEntity({ PercentComplete: 50, Status: 'InProgress', ParentID: null });
+    provider.GetEntityObject.mockResolvedValueOnce(parent).mockResolvedValueOnce(grandParent);
+    runViewMock
+      .mockResolvedValueOnce({ Results: [{ PercentComplete: 100, Status: 'Completed' }] })
+      .mockResolvedValueOnce({ Results: [{ PercentComplete: 100, Status: 'Completed' }] });
+    const svc = new TaskService();
+
+    await svc.rollupParentProgress('parent-1', undefined, provider as never);
+
+    expect(runViewProviders).toEqual([provider, provider]);
+    expect(provider.GetEntityObject).toHaveBeenCalledTimes(2);
+    expect(getEntityObjectMock).not.toHaveBeenCalled();
+  });
+
   it('returns early and does not load the parent when there are no children', async () => {
     runViewMock.mockResolvedValueOnce({ Results: [] });
     const svc = new TaskService();
@@ -259,5 +281,21 @@ describe('TaskService.logActivity', () => {
     expect(setFields).not.toContain('PreviousValue');
     expect(setFields).not.toContain('NewValue');
     expect(activity.Set).toHaveBeenCalledWith('TaskID', 'task-2');
+  });
+
+  it('creates the activity on the supplied provider instead of the global provider', async () => {
+    const activity = makeFakeEntity();
+    const provider = { GetEntityObject: vi.fn().mockResolvedValueOnce(activity) };
+
+    const svc = new TaskService();
+    await svc.logActivity({
+      taskID: 'task-3',
+      activityType: 'Created',
+      description: 'Task created in tx',
+    }, undefined, provider as never);
+
+    expect(provider.GetEntityObject).toHaveBeenCalledWith('MJ_BizApps_Tasks: Task Activities', undefined);
+    expect(getEntityObjectMock).not.toHaveBeenCalled();
+    expect(activity.Save).toHaveBeenCalledOnce();
   });
 });

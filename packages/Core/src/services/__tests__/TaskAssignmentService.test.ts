@@ -94,6 +94,28 @@ describe('TaskAssignmentService.assignToTask', () => {
     expect(fields).not.toContain('RoleNotes');
     expect(fields).not.toContain('AssignedByPersonID');
   });
+
+  it('creates both the assignment and the activity on the supplied provider', async () => {
+    const assignment = makeFakeEntity();
+    const activity = makeFakeEntity();
+    const provider = {
+      GetEntityObject: vi.fn()
+        .mockResolvedValueOnce(assignment)
+        .mockResolvedValueOnce(activity),
+    };
+
+    const svc = new TaskAssignmentService();
+    await svc.assignToTask({
+      taskID: 'task-tx',
+      assigneeEntityID: 'entity-1',
+      assigneeRecordID: 'person-2',
+    }, undefined, provider as never);
+
+    expect(provider.GetEntityObject).toHaveBeenCalledTimes(2);
+    expect(provider.GetEntityObject).toHaveBeenNthCalledWith(1, 'MJ_BizApps_Tasks: Task Assignments', undefined);
+    expect(provider.GetEntityObject).toHaveBeenNthCalledWith(2, 'MJ_BizApps_Tasks: Task Activities', undefined);
+    expect(getEntityObjectMock).not.toHaveBeenCalled();
+  });
 });
 
 describe('TaskAssignmentService.assignToTask — a refused save', () => {
@@ -142,7 +164,7 @@ describe('TaskAssignmentService.getAssignmentsForTask', () => {
     expect(runViewMock).toHaveBeenCalledWith(expect.objectContaining({
       EntityName: 'MJ_BizApps_Tasks: Task Assignments',
       ExtraFilter: "TaskID = 'task-4'",
-    }));
+    }), undefined);
   });
 
   it('returns an empty array when RunView yields no results', async () => {

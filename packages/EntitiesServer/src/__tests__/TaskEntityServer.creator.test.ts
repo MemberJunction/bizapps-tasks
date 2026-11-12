@@ -28,12 +28,15 @@ vi.mock('@memberjunction/core', () => {
     class ValidationErrorInfo { constructor(public Source: string, public Message: string, public Value: unknown, public Type?: string) {} }
     const provider = {
         EntityByID: (id: string) => (id === PEOPLE_ID ? { Name: 'MJ_BizApps_Common: People', ParentChain: [] } : null),
+        GetEntityObject: async () => ({ NewRecord: vi.fn(), Save: vi.fn().mockResolvedValue(true), Load: vi.fn().mockResolvedValue(true) }),
+        RunView: async () => ({ Success: true, Results: [] }),
     };
     return {
         BaseEntity: class {
             public ContextCurrentUser: { ID: string; LinkedEntityID?: string; LinkedEntityRecordID?: string } | null = { ID: USER_ID };
             public Fields: Array<{ CodeName: string; Dirty: boolean; Value: unknown; OldValue: unknown }> = [];
             public IsSaved = false;
+            public ProviderToUse = provider;
             public RunViewProviderToUse = {};
             private _fieldValues: Record<string, unknown> = {};
             public Get(fieldName: string) { return this._fieldValues[fieldName]; }

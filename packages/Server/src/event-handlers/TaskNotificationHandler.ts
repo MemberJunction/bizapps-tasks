@@ -13,6 +13,7 @@
 import {
     BaseEntity,
     BaseEntityEvent,
+    IEntityDataProvider,
     LogError,
     LogStatus,
     Metadata,
@@ -21,6 +22,32 @@ import {
 } from '@memberjunction/core';
 import { MJEventType, MJGlobal, MJEvent } from '@memberjunction/global';
 import { Subscription } from 'rxjs';
+
+/**
+ * The post-commit scheduling surface of MJ's `DatabaseProviderBase` (MJ 6.1.3+).
+ * Declared locally so notifications and `OnAssign` hooks wait for the caller's open
+ * transaction to commit (and are dropped on rollback), while still working against
+ * providers without a post-commit scheduler.
+ */
+interface PostCommitScheduler {
+    RunAfterCommit(task: () => Promise<void>, description?: string, token?: object): void;
+    CapturePostCommitToken(): object | undefined;
+}
+
+function isPostCommitScheduler(provider: IEntityDataProvider | null | undefined): provider is IEntityDataProvider & PostCommitScheduler {
+    const candidate = provider as Partial<PostCommitScheduler> | null | undefined;
+    return typeof candidate?.RunAfterCommit === 'function' && typeof candidate?.CapturePostCommitToken === 'function';
+}
+
+function scheduleAfterCommit(entity: BaseEntity, description: string, task: () => Promise<void>): void {
+    const provider = entity.ProviderToUse;
+    if (isPostCommitScheduler(provider)) {
+        const token = provider.CapturePostCommitToken();
+        provider.RunAfterCommit(task, description, token);
+    } else {
+        void task();
+    }
+}
 
 /** Entity names we listen for */
 const TASKS_ENTITY = 'MJ_BizApps_Tasks: Tasks';
@@ -90,22 +117,29 @@ export function InitTaskNotificationHandler(): void {
 // Event Router
 // ---------------------------------------------------------------------------
 
-function handleEntityEvent(event: BaseEntityEvent): void {
+export function handleEntityEvent(event: BaseEntityEvent): void {
     if (event.type !== 'save' || !event.baseEntity) {
         return;
     }
 
-    const entityName = event.baseEntity.EntityInfo.Name;
+    const entity = event.baseEntity;
+    const entityName = entity.EntityInfo.Name;
 
     switch (entityName) {
         case TASKS_ENTITY:
-            handleTaskSave(event).catch(logHandlerError('TaskSave'));
+            scheduleAfterCommit(entity, 'Task save notifications and hooks', () =>
+                handleTaskSave(event).catch(logHandlerError('TaskSave')),
+            );
             break;
         case TASK_ASSIGNMENTS_ENTITY:
-            handleAssignmentSave(event).catch(logHandlerError('AssignmentSave'));
+            scheduleAfterCommit(entity, 'Task assignment notification and OnAssign hook', () =>
+                handleAssignmentSave(event).catch(logHandlerError('AssignmentSave')),
+            );
             break;
         case TASK_COMMENTS_ENTITY:
-            handleCommentSave(event).catch(logHandlerError('CommentSave'));
+            scheduleAfterCommit(entity, 'Task comment notifications', () =>
+                handleCommentSave(event).catch(logHandlerError('CommentSave')),
+            );
             break;
     }
 }

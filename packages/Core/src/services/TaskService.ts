@@ -1,4 +1,4 @@
-import { CompositeKey, Metadata, RunView, UserInfo } from "@memberjunction/core";
+import { CompositeKey, IMetadataProvider, IRunViewProvider, Metadata, RunView, UserInfo } from "@memberjunction/core";
 import type {
     mjBizAppsTasksTaskActivityEntity,
     mjBizAppsTasksTaskEntity,
@@ -39,9 +39,16 @@ export class TaskService {
      * Weighting: explicit RollupWeight (when != 1 or when HoursEstimated is absent),
      * otherwise HoursEstimated if > 0, otherwise equal weight (1).
      * Recurses up the tree so grandparent objectives also update.
+     *
+     * Pass `provider` to read and write on the provider the child task was saved on; without it
+     * the process-global provider is used.
      */
-    async rollupParentProgress(parentTaskID: string, contextUser?: UserInfo): Promise<void> {
-        const rv = new RunView();
+    async rollupParentProgress(
+        parentTaskID: string,
+        contextUser?: UserInfo,
+        provider?: IMetadataProvider & IRunViewProvider,
+    ): Promise<void> {
+        const rv = new RunView(provider);
         const children = await rv.RunView<TaskRollupChildRow>({
             EntityName: 'MJ_BizApps_Tasks: Tasks',
             ExtraFilter: `ParentID = '${parentTaskID}'`,
@@ -85,7 +92,7 @@ export class TaskService {
             : null;
 
         // Load the parent task as a strongly-typed entity to trigger subclass validation
-        const parentTask = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>(
+        const parentTask = await (provider ?? Metadata.Provider).GetEntityObject<mjBizAppsTasksTaskEntity>(
             'MJ_BizApps_Tasks: Tasks',
             contextUser
         );
@@ -122,7 +129,7 @@ export class TaskService {
         // Recurse up the tree
         const grandParentID = parentTask.ParentID;
         if (grandParentID) {
-            await this.rollupParentProgress(grandParentID, contextUser);
+            await this.rollupParentProgress(grandParentID, contextUser, provider);
         }
     }
 
@@ -244,6 +251,9 @@ export class TaskService {
     /**
      * Creates a TaskActivity record for an auditable change.
      * Called from entity subclass hooks or service methods after a save.
+     *
+     * Pass `provider` to create the activity on the provider the caller's transaction is open on;
+     * without it the process-global provider is used.
      */
     async logActivity(params: {
         taskID: string;
@@ -252,8 +262,8 @@ export class TaskService {
         previousValue?: string;
         newValue?: string;
         description: string;
-    }, contextUser?: UserInfo): Promise<void> {
-        const activity = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskActivityEntity>(
+    }, contextUser?: UserInfo, provider?: IMetadataProvider): Promise<void> {
+        const activity = await (provider ?? Metadata.Provider).GetEntityObject<mjBizAppsTasksTaskActivityEntity>(
             'MJ_BizApps_Tasks: Task Activities',
             contextUser
         );
