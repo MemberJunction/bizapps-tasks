@@ -319,8 +319,9 @@ BizApps Tasks requires an existing MJ database with:
 ### Deploy and Build
 
 ```bash
-# Run migrations (specify schema and directory)
-npx @memberjunction/cli migrate --schema __mj_BizAppsTasks --dir ./migrations
+# Run migrations. With DB_PLATFORM=postgresql this runs migrations-pg/ instead of
+# migrations/; the swap happens only when no --dir is passed.
+npm run mj:migrate
 
 # Generate TypeScript/GraphQL/Angular code
 npm run mj:codegen

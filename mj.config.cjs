@@ -50,6 +50,12 @@ module.exports = {
     '__mj_BizAppsCommon': '@mj-biz-apps/common-entities',
   },
 
+  // Migrations source. `pnpm run mj:migrate` passes no --dir, so `mj migrate` reads
+  // this location and, with DB_PLATFORM=postgresql, swaps it to ./migrations-pg. An
+  // explicit --dir turns that swap off. Leave `mjRepoVersion` unset here: when it is
+  // set and no --dir is given, `mj migrate` fetches MJ core's migrations instead of this repo's.
+  migrationsLocation: 'filesystem:./migrations',
+
   // SQL output configuration with Flyway placeholders.
   // The app's own schema (__mj_BizAppsTasks) maps to ${flyway:defaultSchema} so it is
   // resolved at migrate time; core MJ uses the named ${mjSchema} placeholder.
