@@ -2,11 +2,15 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 type ViewParams = { EntityName: string; ExtraFilter?: string; Fields?: string[] };
 
-const { runView, runAction, saveNotification } = vi.hoisted(() => ({
+const { runView, runAction, saveNotification, resolveRoleUsers, notifiedUsers } = vi.hoisted(() => ({
   runView: vi.fn(),
   runAction: vi.fn(),
   saveNotification: vi.fn(),
+  resolveRoleUsers: vi.fn(),
+  notifiedUsers: [] as string[],
 }));
+
+const ROLES_ENTITY = 'roles-entity';
 
 vi.mock('@memberjunction/core', () => ({
   BaseEntity: class { static BaseEventCode = 'BaseEntity'; },
@@ -14,7 +18,11 @@ vi.mock('@memberjunction/core', () => ({
   LogStatus: vi.fn(),
   Metadata: class {
     GetEntityObject() {
-      return Promise.resolve({ NewRecord() {}, Set() {}, Save: saveNotification });
+      return Promise.resolve({
+        NewRecord() {},
+        Set(field: string, value: string) { if (field === 'UserID') notifiedUsers.push(value); },
+        Save: saveNotification,
+      });
     }
   },
   RunView: class { RunView = runView; },
@@ -41,6 +49,11 @@ vi.mock('@mj-biz-apps/common-entities', () => {
     ResolveUserIDForPerson: async (personID: string) => (await linkedUsers([personID])).get(personID.toLowerCase()) ?? null,
   };
 });
+vi.mock('../../role-assignees.js', () => ({
+  IsRoleEntityID: (id: string | null | undefined) => id === ROLES_ENTITY,
+  ResolveUserIDsForRoles: resolveRoleUsers,
+  RoleName: (id: string) => (id === 'role-finance' ? 'Finance' : null),
+}));
 vi.mock('@memberjunction/actions', () => ({
   ActionEngineServer: { Instance: { Config: vi.fn(), Actions: [{ ID: 'assign-action' }], RunAction: runAction } },
 }));
@@ -85,6 +98,7 @@ const paramsPassed = () =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  notifiedUsers.length = 0;
   runAction.mockResolvedValue({ Success: true });
   saveNotification.mockResolvedValue(true);
 });
@@ -132,5 +146,46 @@ describe('handleAssignmentSave', () => {
     await handleAssignmentSave(event);
 
     expect(runAction).not.toHaveBeenCalled();
+  });
+});
+
+describe('handleAssignmentSave for a role assignee (bc-aidp-next-golive#442)', () => {
+  function roleAssignmentCreated() {
+    const fields: Record<string, string | null> = { AssigneeEntityID: ROLES_ENTITY, AssigneeRecordID: 'role-finance', TaskID: 'task-1', RoleID: null };
+    return {
+      type: 'save',
+      saveSubType: 'create',
+      baseEntity: { ContextCurrentUser: { ID: 'user-ctx' }, Get: (f: string) => fields[f] },
+    } as unknown as Parameters<typeof handleAssignmentSave>[0];
+  }
+
+  it('notifies every active holder of the role', async () => {
+    mockViews(null);
+    resolveRoleUsers.mockResolvedValue(['user-a', 'user-b']);
+
+    await handleAssignmentSave(roleAssignmentCreated());
+
+    expect(resolveRoleUsers).toHaveBeenCalledWith(['role-finance'], { ID: 'user-ctx' });
+    expect(notifiedUsers).toEqual(['user-a', 'user-b']);
+    expect(runView.mock.calls.some(([p]) => (p as ViewParams).EntityName === 'MJ_BizApps_Common: People')).toBe(false);
+  });
+
+  it('names the role, not a person, to the OnAssign action', async () => {
+    mockViews(null);
+    resolveRoleUsers.mockResolvedValue([]);
+
+    await handleAssignmentSave(roleAssignmentCreated());
+
+    expect(saveNotification).not.toHaveBeenCalled();
+    expect(paramsPassed()).toMatchObject({ AssigneePersonID: null, AssigneeName: 'Finance' });
+  });
+
+  it('still invokes the OnAssign action when the member lookup fails', async () => {
+    mockViews(null);
+    resolveRoleUsers.mockRejectedValue(new Error('database down'));
+
+    await handleAssignmentSave(roleAssignmentCreated());
+
+    expect(runAction).toHaveBeenCalledOnce();
   });
 });

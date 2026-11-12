@@ -22,6 +22,7 @@ import { RegisterClass } from '@memberjunction/global';
 import { BaseScheduledJob, ScheduledJobExecutionContext } from '@memberjunction/scheduling-engine';
 import { ScheduledJobResult, NotificationContent } from '@memberjunction/scheduling-base-types';
 import { ResolveUserIDsForPeople } from '@mj-biz-apps/common-entities';
+import { IsRoleEntityID, ResolveUserIDsForRoles } from '../role-assignees.js';
 
 /** Shape of the TaskNotificationConfig rows loaded from the DB. */
 interface NotificationConfig {
@@ -211,16 +212,27 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
         contextUser: UserInfo,
     ): Promise<string[]> {
         const personIDs: string[] = [];
+        const roleUserIDs: string[] = [];
         const rv = new RunView();
 
         // Assignees
         if (config.NotifyAssignees) {
-            const assignments = await rv.RunView<{ AssigneeRecordID: string }>({
+            const assignments = await rv.RunView<{ AssigneeEntityID: string | null; AssigneeRecordID: string }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Assignments',
                 ExtraFilter: `TaskID='${task.ID}'`,
                 ResultType: 'simple',
             }, contextUser);
-            personIDs.push(...(assignments?.Results ?? []).map(a => a.AssigneeRecordID));
+            const results = assignments?.Results ?? [];
+            // A task assigned to an MJ role reaches every active holder of the role (bc-aidp-next-golive#442).
+            const roleIDs = results.filter(a => IsRoleEntityID(a.AssigneeEntityID)).map(a => a.AssigneeRecordID);
+            try {
+                roleUserIDs.push(...await ResolveUserIDsForRoles(roleIDs, contextUser));
+            } catch (err) {
+                // One task's failed lookup must not stop the run; its people are still notified.
+                this.logError(`Could not resolve the members of task ${task.ID}'s assigned roles`, err);
+            }
+
+            personIDs.push(...results.filter(a => !IsRoleEntityID(a.AssigneeEntityID)).map(a => a.AssigneeRecordID));
         }
 
         // Creator
@@ -228,7 +240,8 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
             personIDs.push(task.CreatedByPersonID);
         }
 
-        return this.getLinkedUserIDs(personIDs, task.ID, contextUser);
+        const personUserIDs = await this.getLinkedUserIDs(personIDs, task.ID, contextUser);
+        return [...new Set([...roleUserIDs, ...personUserIDs])];
     }
 
     /** The users bound to these Persons: each user's People link, else People.LinkedUserID. */

@@ -47,3 +47,44 @@ describe('ApprovalInboxComponent filter', () => {
         expect(filter).not.toContain('IsApproval');
     });
 });
+
+describe('ApprovalInboxComponent role assignments and linked records (bc-aidp-next-golive#442)', () => {
+    const FINANCE = 'D0000000-0000-0000-0000-00000000000A';
+    const TASK = 'E0000000-0000-0000-0000-000000000001';
+
+    beforeEach(() => {
+        runView.mockReset();
+    });
+
+    it('includes the given roles in the assignee match', async () => {
+        runView.mockResolvedValue({ Success: true, Results: [] });
+        const inbox = createInbox();
+        inbox.ApproverRoleIDs = [FINANCE];
+        inbox.ApproverPersonID = 'person-1';
+        await inbox.Refresh();
+        // With no provider loaded the MJ: Roles entity is unknown, so only the person is matched.
+        expect(runView.mock.calls.at(-1)![0].ExtraFilter).toContain(`AssigneeRecordID = 'person-1'`);
+    });
+
+    it('loads the linked records of the listed approvals', async () => {
+        runView.mockImplementation((p: { EntityName: string }) =>
+            Promise.resolve(p.EntityName === 'MJ_BizApps_Tasks: Tasks'
+                ? { Success: true, Results: [{ ID: TASK, Name: 'Order Review', Description: null, Priority: 'High', DueAt: null, Status: 'Open' }] }
+                : { Success: true, Results: [] }));
+        const inbox = createInbox();
+        inbox.ApproverPersonID = 'person-1';
+        await inbox.Refresh();
+        expect(runView.mock.calls.some(([p]) => p.EntityName === 'MJ_BizApps_Tasks: Task Links')).toBe(true);
+        expect(inbox.LinksFor(TASK)).toEqual([]);
+        expect(inbox.LoadError).toBeNull();
+    });
+
+    it('skips the linked records when ShowLinkedRecords is off', async () => {
+        runView.mockResolvedValue({ Success: true, Results: [{ ID: TASK, Name: 'x', Description: null, Priority: 'Low', DueAt: null, Status: 'Open' }] });
+        const inbox = createInbox();
+        inbox.ShowLinkedRecords = false;
+        inbox.ApproverPersonID = 'person-1';
+        await inbox.Refresh();
+        expect(runView.mock.calls.some(([p]) => p.EntityName === 'MJ_BizApps_Tasks: Task Links')).toBe(false);
+    });
+});
