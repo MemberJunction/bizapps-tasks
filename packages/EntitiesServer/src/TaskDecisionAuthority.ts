@@ -11,7 +11,8 @@
  *   1. the decision is attributed to the deciding user's own Person, or to nobody;
  *   2. the deciding user holds an ACTIVE (Pending or InProgress) assignment on the task — assigned
  *      through a Person bound to the user, or assigned as the user directly (accounting assigns its
- *      batch approver as an `MJ: Users` row). A Completed assignment no longer authorises a decision;
+ *      batch approver as an `MJ: Users` row), or assigned to an MJ role the user holds (a shared queue,
+ *      bc-aidp-next-golive#442). A Completed assignment no longer authorises a decision;
  *   3. a named `TaskAssignmentID` is one of the decider's own active assignments; and
  *   4. the decider is not the task's creator (`Task.CreatedByPersonID`), unless they hold the role
  *      the `SelfApprovalExemptRole` setting names. TaskEntityServer records the creator from the
@@ -58,6 +59,10 @@ export interface TaskDecisionFacts {
     IsPeopleEntityID: (entityID: string) => boolean;
     /** The `MJ: Users` entity ID, for assignments made to a user directly. */
     UsersEntityID: string | null;
+    /** The `MJ: Roles` entity ID, for assignments made to a role. */
+    RolesEntityID: string | null;
+    /** The MJ roles the deciding user holds. */
+    DeciderRoleIDs: readonly string[];
     /** Whether the decider holds the `SelfApprovalExemptRole` role. */
     DeciderIsExempt: boolean;
 }
@@ -69,7 +74,8 @@ const same = (a: string | null | undefined, b: string | null | undefined): boole
 export function DeciderAssignments(facts: TaskDecisionFacts): DecisionAssignmentFact[] {
     return facts.Assignments.filter((a) =>
         (facts.IsPeopleEntityID(a.AssigneeEntityID) && facts.DeciderPersonIDs.some((p) => same(p, a.AssigneeRecordID))) ||
-        (same(a.AssigneeEntityID, facts.UsersEntityID) && same(a.AssigneeRecordID, facts.DeciderUserID)),
+        (same(a.AssigneeEntityID, facts.UsersEntityID) && same(a.AssigneeRecordID, facts.DeciderUserID)) ||
+        (same(a.AssigneeEntityID, facts.RolesEntityID) && facts.DeciderRoleIDs.some((r) => same(r, a.AssigneeRecordID))),
     );
 }
 

@@ -117,6 +117,8 @@ export class TaskDecisionEntityServer extends mjBizAppsTasksTaskDecisionEntity {
             Assignments: assignmentRes.Results as DecisionAssignmentFact[],
             IsPeopleEntityID: (entityID: string) => isPeopleEntity(provider, entityID),
             UsersEntityID: provider.EntityByName(USERS_ENTITY)?.ID ?? null,
+            RolesEntityID: provider.EntityByName(ROLES_ENTITY)?.ID ?? null,
+            DeciderRoleIDs: (user.UserRoles ?? []).map((r) => r.RoleID),
             // Only read when it matters: the decider created the task.
             DeciderIsExempt: creatorIsDecider ? await this.holdsExemptRole(rv, provider, user) : false,
         };

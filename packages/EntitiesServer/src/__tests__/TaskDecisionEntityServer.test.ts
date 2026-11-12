@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const PEOPLE_ID = 'A0000000-0000-0000-0000-000000000001';
 const USERS_ID = 'A0000000-0000-0000-0000-000000000002';
+const ROLES_ID = 'A0000000-0000-0000-0000-000000000003';
+const FINANCE_ROLE = 'F0000000-0000-0000-0000-000000000002';
 const APP_ID = 'A0000000-0000-0000-0000-0000000000AA';
 const TASK_ID = 'D0000000-0000-0000-0000-000000000001';
 const TYPE_ID = 'E0000000-0000-0000-0000-000000000001';
@@ -59,7 +61,7 @@ vi.mock('@memberjunction/core', () => {
     const provider = {
         Applications: [{ Name: 'Tasks', ID: APP_ID }],
         EntityByID: (id: string) => (id === PEOPLE_ID ? { Name: 'MJ_BizApps_Common: People', ParentChain: [] } : id === USERS_ID ? { Name: 'MJ: Users', ParentChain: [] } : null),
-        EntityByName: (name: string) => (name === 'MJ: Users' ? { ID: USERS_ID } : null),
+        EntityByName: (name: string) => (name === 'MJ: Users' ? { ID: USERS_ID } : name === 'MJ: Roles' ? { ID: ROLES_ID } : null),
     };
     return {
         BaseEntity: class {},
@@ -86,7 +88,7 @@ vi.mock('@mj-biz-apps/tasks-entities', () => ({
         TaskAssignmentID: string | null = null;
         IsSaved = false;
         RunViewProviderToUse = {};
-        ContextCurrentUser: { ID: string; LinkedEntityID?: string; LinkedEntityRecordID?: string } | null = { ID: USER_ID };
+        ContextCurrentUser: { ID: string; LinkedEntityID?: string; LinkedEntityRecordID?: string; UserRoles?: Array<{ RoleID: string }> } | null = { ID: USER_ID };
         dirty = new Set<string>();
         GetFieldByName(name: string) { return { Dirty: this.dirty.has(name) }; }
         async ValidateAsync() {
@@ -169,6 +171,20 @@ describe('TaskDecisionEntityServer', () => {
         expect(result.Success).toBe(false);
         expect(result.Errors[0].Message).toMatch(/already completed/);
         expect(fieldsSeen.get('MJ_BizApps_Tasks: Task Assignments')).toContain('Status');
+    });
+
+    it('accepts a holder of the MJ role the task is assigned to (bc-aidp-next-golive#442)', async () => {
+        db.assignments = [{ ID: 'asg-r', AssigneeEntityID: ROLES_ID, AssigneeRecordID: FINANCE_ROLE, Status: 'Pending' }];
+        const d = decision();
+        d.ContextCurrentUser = { ID: USER_ID, UserRoles: [{ RoleID: FINANCE_ROLE }] };
+        expect((await d.ValidateAsync()).Success).toBe(true);
+    });
+
+    it('refuses a user outside the MJ role the task is assigned to', async () => {
+        db.assignments = [{ ID: 'asg-r', AssigneeEntityID: ROLES_ID, AssigneeRecordID: FINANCE_ROLE, Status: 'Pending' }];
+        const result = await decision().ValidateAsync();
+        expect(result.Success).toBe(false);
+        expect(result.Errors[0].Message).toMatch(/not assigned to you/);
     });
 
     it('does not check a task whose type is not an approval type', async () => {
