@@ -725,7 +725,11 @@ export class TaskDetailPanelComponent implements OnChanges {
         this.AfterCommentPosted.emit();
     }
 
-    /** @internal Deletes child records then the task itself. */
+    /**
+     * @internal Deletes child records then the task itself. Assignments go first and the first refused
+     * child delete stops everything: the server refuses removing an approval's assignee (golive #389),
+     * and that must not cost the task its activities, comments and tags.
+     */
     async onDelete(): Promise<void> {
         this.confirmingDelete = false;
         if (!this.TaskID) return;
@@ -733,10 +737,10 @@ export class TaskDetailPanelComponent implements OnChanges {
             const rv = new RunView();
             // Delete child records in dependency order
             const childEntities = [
+                'MJ_BizApps_Tasks: Task Assignments',
                 'MJ_BizApps_Tasks: Task Activities',
                 'MJ_BizApps_Tasks: Task Comments',
                 'MJ_BizApps_Tasks: Task Tag Links',
-                'MJ_BizApps_Tasks: Task Assignments',
                 'MJ_BizApps_Tasks: Task Dependencies',
                 'MJ_BizApps_Tasks: Task Links',
                 'MJ_BizApps_Tasks: Task Notification Logs',
@@ -751,7 +755,10 @@ export class TaskDetailPanelComponent implements OnChanges {
                     const child = await Metadata.Provider.GetEntityObject(entityName);
                     const pk = new CompositeKey([{ FieldName: 'ID', Value: row.ID }]);
                     await child.InnerLoad(pk);
-                    await child.Delete();
+                    if (!(await child.Delete())) {
+                        console.error(`Delete failed: ${entityName} ${row.ID}: ${child.LatestResult?.CompleteMessage ?? 'unknown error'}`);
+                        return;
+                    }
                 }
             }
 

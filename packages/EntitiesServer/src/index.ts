@@ -9,10 +9,12 @@
 import { TaskEntityServer } from './TaskEntityServer.js';
 import { TaskCheckInEntityServer } from './TaskCheckInEntityServer.js';
 import { TaskDecisionEntityServer } from './TaskDecisionEntityServer.js';
+import { TaskAssignmentEntityServer } from './TaskAssignmentEntityServer.js';
 
 export { TaskEntityServer } from './TaskEntityServer.js';
 export { TaskCheckInEntityServer } from './TaskCheckInEntityServer.js';
 export { TaskDecisionEntityServer, TASK_DECISION_ENTITY } from './TaskDecisionEntityServer.js';
+export { TaskAssignmentEntityServer, TASK_ASSIGNMENT_ENTITY } from './TaskAssignmentEntityServer.js';
 export { TaskDecisionRefusal, DeciderAssignments, type TaskDecisionFacts, type DecisionAssignmentFact } from './TaskDecisionAuthority.js';
 export { TasksSettings, TASKS_SETTING, TASKS_APPLICATION_NAME, type TasksSettingKey } from './TasksSettings.js';
 
@@ -23,7 +25,7 @@ export { TasksSettings, TASKS_SETTING, TASKS_APPLICATION_NAME, type TasksSetting
  */
 export function LoadBizAppsTasksEntitiesServer(): void {
     // Reference the classes so bundlers cannot tree-shake the registrations away.
-    const anchor = [TaskEntityServer, TaskCheckInEntityServer, TaskDecisionEntityServer];
+    const anchor = [TaskEntityServer, TaskCheckInEntityServer, TaskDecisionEntityServer, TaskAssignmentEntityServer];
     if (!anchor.length) {
         throw new Error('TaskEntityServer anchor missing');
     }
