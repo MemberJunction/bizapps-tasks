@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, in
 import { CommonModule } from '@angular/common';
 import { RunView } from '@memberjunction/core';
 import { ApprovalDecisionPanelComponent, DecisionRecordedEvent } from '../approval-decision-panel/approval-decision-panel.component';
-import { ApprovalTypePredicate } from './approval-type-predicate';
+import { PendingApprovalFilter } from '../../task-filters';
 
 /** A pending approval-request task shown in the inbox. */
 export interface ApprovalRow {
@@ -201,7 +201,7 @@ export class ApprovalInboxComponent implements OnInit {
         this.LoadError = null;
         this.cdr.detectChanges();
         try {
-            const filter = await this.buildPendingFilter();
+            const filter = PendingApprovalFilter(this._approverPersonID, this.ApprovalTypeName);
             const result = await new RunView().RunView<ApprovalRow>({
                 EntityName: 'MJ_BizApps_Tasks: Tasks',
                 ExtraFilter: filter,
@@ -243,19 +243,5 @@ export class ApprovalInboxComponent implements OnInit {
         this.SelectedApprovalID = null;
         this.DecisionRecorded.emit(event);
         this.cdr.detectChanges();
-    }
-
-    /**
-     * Builds the ExtraFilter for pending approvals: tasks of an approval TaskType,
-     * assigned to this approver, still open, and without any terminal decision yet.
-     */
-    private async buildPendingFilter(): Promise<string> {
-        const personID = this._approverPersonID.replace(/'/g, "''");
-        return [
-            `TypeID IN (SELECT ID FROM __mj_BizAppsTasks.vwTaskTypes WHERE ${ApprovalTypePredicate(this.ApprovalTypeName)})`,
-            `Status NOT IN ('Completed', 'Cancelled')`,
-            `ID IN (SELECT TaskID FROM __mj_BizAppsTasks.vwTaskAssignments WHERE AssigneeRecordID = '${personID}')`,
-            `ID NOT IN (SELECT d.TaskID FROM __mj_BizAppsTasks.vwTaskDecisions d INNER JOIN __mj_BizAppsTasks.vwTaskDecisionOutcomes o ON d.OutcomeID = o.ID WHERE o.IsTerminal = 1)`,
-        ].join(' AND ');
     }
 }

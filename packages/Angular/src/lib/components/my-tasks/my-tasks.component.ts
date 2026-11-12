@@ -1,5 +1,6 @@
 import { Component, EventEmitter, Input, Output, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { AssignedToPersonFilter } from '../../task-filters';
 import { TaskListComponent, TaskRow, BeforeTaskSelectedEvent, BeforeStatusChangeEvent } from '../task-list/task-list.component';
 
 /**
@@ -118,6 +119,6 @@ export class MyTasksComponent {
     /** @internal Builds the ExtraFilter to scope tasks by assignee PersonID. */
     get assigneeFilter(): string {
         if (!this.PersonID) return '';
-        return `ID IN (SELECT TaskID FROM __mj_BizAppsTasks.vwTaskAssignments WHERE AssigneeRecordID = '${this.PersonID}')`;
+        return AssignedToPersonFilter(this.PersonID);
     }
 }
