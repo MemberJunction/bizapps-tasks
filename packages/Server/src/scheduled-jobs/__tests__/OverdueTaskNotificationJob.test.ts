@@ -25,6 +25,23 @@ vi.mock('@memberjunction/core', () => {
   };
 });
 
+// The resolver answers from the mocked People rows' LinkedUserID here; its own rules (the user's
+// People link first) are covered by @mj-biz-apps/common-entities' own tests.
+vi.mock('@mj-biz-apps/common-entities', () => {
+  const linkedUsers = async (personIDs: string[]): Promise<Map<string, string>> => {
+    const found = new Map<string, string>();
+    for (const personID of personIDs) {
+      const res = await runViewMock({ EntityName: 'MJ_BizApps_Common: People', ExtraFilter: `ID='${personID}'`, Fields: ['ID', 'LinkedUserID'] });
+      const userID = res?.Results?.[0]?.LinkedUserID;
+      if (userID) found.set(personID.toLowerCase(), userID);
+    }
+    return found;
+  };
+  return {
+    ResolveUserIDsForPeople: linkedUsers,
+    ResolveUserIDForPerson: async (personID: string) => (await linkedUsers([personID])).get(personID.toLowerCase()) ?? null,
+  };
+});
 vi.mock('@memberjunction/core-entities', () => ({ MJScheduledJobEntity: class {} }));
 
 // BaseScheduledJob provides log/logError; the subclass calls them.
@@ -36,6 +53,12 @@ vi.mock('@memberjunction/scheduling-engine', () => ({
 }));
 
 vi.mock('@memberjunction/scheduling-base-types', () => ({}));
+
+const { resolveRoleUsers } = vi.hoisted(() => ({ resolveRoleUsers: vi.fn() }));
+vi.mock('../../role-assignees.js', () => ({
+  IsRoleEntityID: (id: string | null | undefined) => id === 'roles-entity',
+  ResolveUserIDsForRoles: resolveRoleUsers,
+}));
 
 import { OverdueTaskNotificationJob } from '../OverdueTaskNotificationJob.js';
 
@@ -87,6 +110,7 @@ function wireRunView(opts: {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  resolveRoleUsers.mockResolvedValue([]);
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
   // Default: GetEntityObject returns a no-op savable entity (notifications, logs, stamps)
@@ -246,5 +270,41 @@ describe('OverdueTaskNotificationJob.FormatNotification', () => {
     const job = new OverdueTaskNotificationJob();
     const content = job.FormatNotification(makeContext(), { Success: true, Details: { tasksNotified: 0 } } as any);
     expect(content.Priority).toBe('Low');
+  });
+});
+
+describe('OverdueTaskNotificationJob.Execute — role assignees (bc-aidp-next-golive#442)', () => {
+  const task = {
+    ID: 'task-r', Name: 'Order Review', TypeID: 'type-1', Status: 'Open', Priority: 'High',
+    DueAt: '2026-06-08T12:00:00Z', OverdueNotifiedAt: null, CreatedByPersonID: null,
+  };
+
+  it('notifies the active holders of an assigned MJ role', async () => {
+    resolveRoleUsers.mockResolvedValue(['user-a', 'user-b']);
+    wireRunView({
+      configs: [globalConfig()],
+      tasks: [task],
+      assignments: [{ AssigneeEntityID: 'roles-entity', AssigneeRecordID: 'role-finance' }],
+    });
+    const result = await new OverdueTaskNotificationJob().Execute(makeContext());
+    expect(resolveRoleUsers).toHaveBeenCalledWith(['role-finance'], {});
+    expect(result.Details?.tasksNotified).toBe(1);
+    expect(runViewMock.mock.calls.some(([p]) => p.EntityName === 'MJ_BizApps_Common: People' && p.ExtraFilter.includes('role-finance'))).toBe(false);
+  });
+
+  it('keeps going when the role lookup fails', async () => {
+    resolveRoleUsers.mockRejectedValue(new Error('database down'));
+    wireRunView({
+      configs: [globalConfig()],
+      tasks: [task],
+      assignments: [
+        { AssigneeEntityID: 'roles-entity', AssigneeRecordID: 'role-finance' },
+        { AssigneeEntityID: 'people-entity', AssigneeRecordID: 'person-1' },
+      ],
+      people: [{ ID: 'person-1', LinkedUserID: 'user-1' }],
+    });
+    const result = await new OverdueTaskNotificationJob().Execute(makeContext());
+    expect(result.Success).toBe(true);
+    expect(result.Details?.tasksNotified).toBe(1);
   });
 });
