@@ -80,7 +80,7 @@ export class TaskAssignmentService {
         const rv = new RunView();
         const result = await rv.RunView<BaseEntity>({
             EntityName: 'MJ_BizApps_Tasks: Task Assignments',
-            ExtraFilter: `TaskID = '${taskID}'`,
+            ExtraFilter: `TaskID = '${taskID.replace(/'/g, "''")}'`,
             ResultType: 'entity_object',
         });
         return result?.Results ?? [];

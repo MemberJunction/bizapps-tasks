@@ -44,7 +44,7 @@ export class TaskService {
         const rv = new RunView();
         const children = await rv.RunView<TaskRollupChildRow>({
             EntityName: 'MJ_BizApps_Tasks: Tasks',
-            ExtraFilter: `ParentID = '${parentTaskID}'`,
+            ExtraFilter: `ParentID = '${parentTaskID.replace(/'/g, "''")}'`,
             ResultType: 'simple',
         }, contextUser);
 

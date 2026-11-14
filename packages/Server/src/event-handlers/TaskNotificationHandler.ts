@@ -601,9 +601,11 @@ function errorText(error: unknown): string {
  */
 async function getPersonName(personID: string, contextUser: UserInfo): Promise<string | null> {
     const rv = new RunView();
+    // `personID` can be a TaskAssignment.AssigneeRecordID, which is free text (NVARCHAR, no FK) a
+    // caller controls, so it must not be able to break out of the filter literal.
     const result = await rv.RunView<{ FirstName: string; LastName: string }>({
         EntityName: 'MJ_BizApps_Common: People',
-        ExtraFilter: `ID='${personID}'`,
+        ExtraFilter: `ID='${personID.replace(/'/g, "''")}'`,
         Fields: ['ID', 'FirstName', 'LastName'],
         ResultType: 'simple',
         MaxRows: 1,
