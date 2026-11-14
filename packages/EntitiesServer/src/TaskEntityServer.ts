@@ -511,9 +511,11 @@ export class TaskEntityServer extends TaskEntity {
      */
     protected async loadDefaultTaskTypeStatus(typeID: string): Promise<mjBizAppsTasksTaskTypeStatusEntity | null> {
         const rv = new RunView();
+        // This runs BEFORE super.Save(), so TypeID is still unvalidated caller input (the FK has not
+        // been checked yet) and must not be able to break out of the filter literal.
         const result = await rv.RunView<mjBizAppsTasksTaskTypeStatusEntity>({
             EntityName: 'MJ_BizApps_Tasks: Task Type Status',
-            ExtraFilter: `TaskTypeID='${typeID}' AND IsDefault=1 AND IsActive=1`,
+            ExtraFilter: `TaskTypeID='${typeID.replace(/'/g, "''")}' AND IsDefault=1 AND IsActive=1`,
             ResultType: 'entity_object',
             MaxRows: 1,
         }, this.ContextCurrentUser);
