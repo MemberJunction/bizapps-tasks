@@ -41,8 +41,25 @@ import { DecisionRecordedEvent } from '../components/approval-decision-panel/app
         </div>
     `,
     styles: [`
-        :host { display: block; width: 100%; height: 100%; }
-        .mjt-page-wrap { display: flex; flex-direction: column; gap: 16px; padding: 16px; box-sizing: border-box; }
+        :host {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        .mjt-page-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding: 16px;
+            height: 100%;
+            min-height: 0;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
         .mjt-header-card {
             background: var(--mj-bg-surface-card, #ffffff); border: 1px solid var(--mj-border-default, #e2e8f0);
             border-radius: var(--mj-radius-lg, 12px); padding: 16px 20px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);

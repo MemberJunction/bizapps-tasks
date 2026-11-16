@@ -189,8 +189,29 @@ export interface TaskKPIs {
         </div>
     `,
     styles: [`
-        :host { display: block; width: 100%; height: 100%; }
-        .mjt-dashboard { display: flex; flex-direction: column; gap: 16px; padding: 16px; min-width: 0; box-sizing: border-box; }
+        /* The page's own scroll container (bc-aidp-next-golive#392).
+           The shell sizes this host to its content pane and clips overflow with no window scrollbar
+           behind it, so the host hides overflow and .mjt-dashboard carries overflow-y:auto. */
+        :host {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        .mjt-dashboard {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding: 16px;
+            height: 100%;
+            min-height: 0;
+            min-width: 0;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
 
         /* Header Card */
         .mjt-header-card {
