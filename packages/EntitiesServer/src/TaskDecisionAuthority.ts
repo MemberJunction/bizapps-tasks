@@ -14,8 +14,8 @@
  *      batch approver as an `MJ: Users` row), or assigned to an MJ role the user holds (a shared queue,
  *      bc-aidp-next-golive#442). A Completed assignment no longer authorises a decision;
  *   3. a named `TaskAssignmentID` is one of the decider's own active assignments; and
- *   4. the decider is not the task's creator (`Task.CreatedByPersonID`), unless they hold the role
- *      the `SelfApprovalExemptRole` setting names. TaskEntityServer records the creator from the
+ *   4. the decider is not the task's creator (`Task.CreatedByPersonID`), unless they hold one of the
+ *      roles the `SelfApprovalExemptRole` setting lists (comma-separated; one name still works). TaskEntityServer records the creator from the
  *      signed-in user when the caller leaves it unset, and refuses changing it once recorded, so this
  *      holds for callers that never pass a creator. A task whose creating user has no Person (a
  *      service account) still has no creator, and is nobody's own request.
@@ -63,7 +63,7 @@ export interface TaskDecisionFacts {
     RolesEntityID: string | null;
     /** The MJ roles the deciding user holds. */
     DeciderRoleIDs: readonly string[];
-    /** Whether the decider holds the `SelfApprovalExemptRole` role. */
+    /** Whether the decider holds a role the `SelfApprovalExemptRole` setting lists. */
     DeciderIsExempt: boolean;
 }
 

@@ -32,6 +32,16 @@ describe('TasksSettings', () => {
         expect(TasksSettings.PreventSelfApproval(provider)).toBe(false);
     });
 
+    it('reads SelfApprovalExemptRole as a list: one name (the original format) or comma-separated names', () => {
+        expect(TasksSettings.SelfApprovalExemptRoles(provider)).toEqual([]);
+        settings.set('SelfApprovalExemptRole', ' CEO Approver ');
+        expect(TasksSettings.SelfApprovalExemptRoles(provider)).toEqual(['CEO Approver']);
+        settings.set('SelfApprovalExemptRole', 'CEO Approver, ,CFO');
+        expect(TasksSettings.SelfApprovalExemptRoles(provider)).toEqual(['CEO Approver', 'CFO']);
+        settings.set('SelfApprovalExemptRole', '  ');
+        expect(TasksSettings.SelfApprovalExemptRoles(provider)).toEqual([]);
+    });
+
     it('reads ApprovalReassignRoles as a comma-separated list, empty by default', () => {
         expect(TasksSettings.ApprovalReassignRoles(provider)).toEqual([]);
         settings.set('ApprovalReassignRoles', ' Finance Admin , ,Integration ');
