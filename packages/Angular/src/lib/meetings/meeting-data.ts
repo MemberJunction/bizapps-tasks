@@ -116,6 +116,7 @@ const same = (a: string | null | undefined, b: string | null | undefined): boole
 /** The meeting reads in flight or just finished, shared by the panels of one page. */
 const detailCache = new Map<string, { promise: Promise<MeetingDetail>; at: number }>();
 const DETAIL_SHARE_MS = 3000;
+const meetingChangeListeners = new Set<(meetingId: string) => void>();
 const quote = (value: string): string => value.replace(/'/g, "''");
 const dateLabel = (value: string | Date | null | undefined): string => (value ? new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '');
 
@@ -215,7 +216,7 @@ export class MeetingData {
      * Meeting rows for a list. `mine` keeps the meetings the viewer organizes or is invited to; otherwise every meeting the
      * viewer may read. The viewer's answer comes from their attendee row.
      */
-    async LoadMeetingRows(options: { mine: boolean; from?: Date | null; through?: Date | null; extraFilter?: string }): Promise<MeetingRow[]> {
+    async LoadMeetingRows(options: { mine: boolean; from?: Date | null; through?: Date | null; extraFilter?: string; order?: 'asc' | 'desc' }): Promise<MeetingRow[]> {
         if (!this.typeIcons.size) await this.LoadTypes();
         const personId = await this.CurrentPersonId();
         const filters: string[] = [];
@@ -240,7 +241,8 @@ export class MeetingData {
             if (!parts.length) return [];
             filters.push(`(${parts.join(' OR ')})`);
         }
-        const meetings = await this.rows<MeetingRecordRow>(MEETING_ENTITY, filters.join(' AND '), MEETING_FIELDS, 'StartsAt ASC', 500);
+        const orderBy = options.order === 'desc' ? 'StartsAt DESC' : 'StartsAt ASC';
+        const meetings = await this.rows<MeetingRecordRow>(MEETING_ENTITY, filters.join(' AND '), MEETING_FIELDS, orderBy, 500);
         if (!meetings.length) return [];
         const ids = meetings.map((m) => `'${m.ID}'`).join(',');
         const attendees = await this.rows<AttendeeRecordRow>(MEETING_ATTENDEE_ENTITY, `MeetingID IN (${ids})`, ATTENDEE_FIELDS, '', 5000);
@@ -297,6 +299,22 @@ export class MeetingData {
     /** Forgets every shared read: the next loadMeeting reads the server. Called after any change made here. */
     static ForgetDetails(): void {
         detailCache.clear();
+    }
+
+    /** Subscribes to meeting status/detail notifications emitted by the hero panel. Returns an unsubscribe function. */
+    static OnMeetingChanged(listener: (meetingId: string) => void): () => void {
+        meetingChangeListeners.add(listener);
+        return () => {
+            meetingChangeListeners.delete(listener);
+        };
+    }
+
+    /** Notifies sibling panels on the same page that the meeting changed on the server. */
+    static NotifyMeetingChanged(meetingId: string): void {
+        detailCache.clear();
+        for (const listener of meetingChangeListeners) {
+            listener(meetingId);
+        }
     }
 
     private async loadMeetingNow(meetingId: string): Promise<MeetingDetail> {
@@ -428,19 +446,31 @@ export class MeetingData {
         }
     }
 
-    StartMeeting(id: string): Promise<MeetingStatusChange> {
+    async StartMeeting(id: string): Promise<MeetingStatusChange> {
         MeetingData.ForgetDetails();
-        return new MeetingService(Metadata.Provider).startMeeting(id, this.user);
+        try {
+            return await new MeetingService(Metadata.Provider).startMeeting(id, this.user);
+        } finally {
+            MeetingData.NotifyMeetingChanged(id);
+        }
     }
 
-    EndMeeting(id: string): Promise<MeetingStatusChange> {
+    async EndMeeting(id: string): Promise<MeetingStatusChange> {
         MeetingData.ForgetDetails();
-        return new MeetingService(Metadata.Provider).endMeeting(id, this.user);
+        try {
+            return await new MeetingService(Metadata.Provider).endMeeting(id, this.user);
+        } finally {
+            MeetingData.NotifyMeetingChanged(id);
+        }
     }
 
-    CancelMeeting(id: string, reason: string | null): Promise<MeetingStatusChange> {
+    async CancelMeeting(id: string, reason: string | null): Promise<MeetingStatusChange> {
         MeetingData.ForgetDetails();
-        return new MeetingService(Metadata.Provider).cancelMeeting(id, reason, this.user);
+        try {
+            return await new MeetingService(Metadata.Provider).cancelMeeting(id, reason, this.user);
+        } finally {
+            MeetingData.NotifyMeetingChanged(id);
+        }
     }
 
     async Respond(attendeeId: string, response: ResponseStatus): Promise<void> {

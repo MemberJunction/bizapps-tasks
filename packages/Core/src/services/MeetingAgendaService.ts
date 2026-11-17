@@ -192,6 +192,7 @@ export class MeetingAgendaService {
         const copies = new Map<string, string>(); // source id → copy id
         const made: mjBizAppsTasksMeetingAgendaItemEntity[] = [];
         for (const source of items) {
+            if (source.Status === 'Done' || source.Status === 'Skipped') continue;
             // A sub-item travels with its parent; one whose parent stays is carried as a top-level item of its own
             const parentCopy = source.ParentID ? copies.get(source.ParentID.toLowerCase()) : undefined;
             if (!unfinished.has(source.ID.toLowerCase()) && !parentCopy) continue;

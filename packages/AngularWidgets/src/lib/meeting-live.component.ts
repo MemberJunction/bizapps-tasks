@@ -32,6 +32,87 @@ export function elapsedSince(startedAt: Date | null, now: Date): number {
     return startedAt ? Math.max(0, Math.floor((now.getTime() - startedAt.getTime()) / 1000)) : 0;
 }
 
+export interface LiveSelectionState {
+    index: number;
+    currentItemId: string | null;
+    runningItemId: string | null;
+    outcome: string;
+}
+
+const sameId = (a: string | null | undefined, b: string | null | undefined): boolean =>
+    Boolean(a && b && a.toLowerCase() === b.toLowerCase());
+
+/**
+ * Resolves the active agenda item and outcome when `Items` updates in the live meeting view:
+ * - Moves `index` when the running (`InProgress`) item's ID changes, or on first load, or when the current item was absent/completed.
+ * - Resets `outcome` ONLY when the selected item's ID actually changes, so typing an outcome while marking attendance or adding a quick note never wipes the user's text.
+ */
+export function resolveLiveSelection(
+    tree: ReadonlyArray<{ item: AgendaItemModel; depth: number }>,
+    state: LiveSelectionState,
+): LiveSelectionState {
+    if (!tree.length) {
+        return { index: 0, currentItemId: null, runningItemId: null, outcome: '' };
+    }
+    const runningIndex = tree.findIndex((entry) => entry.item.status === 'InProgress');
+    const newRunningId = runningIndex >= 0 ? tree[runningIndex].item.id : null;
+    const openIndex = tree.findIndex((entry) => entry.item.status === 'Planned');
+    const preservedIndex = state.currentItemId
+        ? tree.findIndex((entry) => sameId(entry.item.id, state.currentItemId))
+        : -1;
+
+    let nextIndex = preservedIndex >= 0 ? preservedIndex : Math.min(Math.max(0, state.index), tree.length - 1);
+    const runningChanged = !sameId(newRunningId, state.runningItemId) && (newRunningId !== null || state.runningItemId !== null);
+
+    if (runningChanged) {
+        if (runningIndex >= 0) {
+            nextIndex = runningIndex;
+        } else if (openIndex >= 0 && (preservedIndex < 0 || tree[preservedIndex]?.item.status === 'Done')) {
+            nextIndex = openIndex;
+        }
+    } else if (state.currentItemId === null || preservedIndex < 0) {
+        if (runningIndex >= 0) {
+            nextIndex = runningIndex;
+        } else if (openIndex >= 0) {
+            nextIndex = openIndex;
+        }
+    }
+
+    const nextItem = tree[nextIndex]?.item ?? null;
+    const nextItemId = nextItem?.id ?? null;
+    const itemChanged = !sameId(nextItemId, state.currentItemId);
+
+    return {
+        index: nextIndex,
+        currentItemId: nextItemId,
+        runningItemId: newRunningId,
+        outcome: itemChanged ? (nextItem?.outcome ?? '') : state.outcome,
+    };
+}
+
+/**
+ * Settles a widget's pending form-submission flag when an async save finishes:
+ * - `'keep'`: save is not pending or is still in progress (`isBusy === true`).
+ * - `'clear'`: save finished cleanly (`!isBusy && !errorMessage`) — clear the draft and reset `pending = false`.
+ * - `'reset-pending'`: save finished with an error (`!isBusy && errorMessage`) — keep the draft open so the user's text is preserved, and reset `pending = false` so a subsequent unrelated action in the same panel does not wipe the kept draft!
+ */
+export function settleSubmittedDraft(
+    pending: boolean,
+    isBusy: boolean,
+    errorMessage: string,
+): 'keep' | 'clear' | 'reset-pending' {
+    if (!pending || isBusy) return 'keep';
+    return errorMessage.trim().length > 0 ? 'reset-pending' : 'clear';
+}
+
+export function shouldClearSubmittedDraft(
+    pending: boolean,
+    isBusy: boolean,
+    errorMessage: string,
+): boolean {
+    return settleSubmittedDraft(pending, isBusy, errorMessage) === 'clear';
+}
+
 /**
  * The live meeting (the meetings plan, § 5): the current item and its timer against its planned length, next and
  * previous, attendance check-in, a quick note on the item, a follow-up filed as it comes up, and End. The host saves
@@ -108,7 +189,7 @@ export function elapsedSince(startedAt: Date | null, now: Date): number {
                         <ol class="agenda">
                             @for (entry of Tree; track entry.item.id; let i = $index) {
                                 <li [class.current]="i === index" [class.done]="entry.item.status === 'Done'" [style.padding-left.px]="8 + entry.depth * 16">
-                                    <button type="button" class="agenda-btn" (click)="index = i; resetItemClock()">
+                                    <button type="button" class="agenda-btn" (click)="selectItem(i)">
                                         <i [class]="iconFor(entry.item.status)" aria-hidden="true"></i>
                                         <span class="mjt-grow">{{ entry.item.name }}</span>
                                         <span class="mjt-small mjt-muted">{{ entry.item.durationMinutes != null ? formatMinutes(entry.item.durationMinutes) : '' }}</span>
@@ -184,6 +265,10 @@ export class MeetingLiveComponent implements OnChanges, OnDestroy {
     protected quickNote = '';
     protected followUp = '';
     protected now = new Date();
+    private currentItemId: string | null = null;
+    private runningItemId: string | null = null;
+    private pendingQuickNote = false;
+    private pendingFollowUp = false;
     private itemClockFrom = new Date();
     private ticker: ReturnType<typeof setInterval> | null = null;
     public readonly formatMinutes = formatMinutes;
@@ -211,13 +296,36 @@ export class MeetingLiveComponent implements OnChanges, OnDestroy {
 
     ngOnChanges(changes: SimpleChanges): void {
         if (changes['Items']) {
-            // Land on the item in progress, else the first not done
-            const tree = this.Tree;
-            const running = tree.findIndex((entry) => entry.item.status === 'InProgress');
-            const open = tree.findIndex((entry) => entry.item.status === 'Planned');
-            if (running >= 0) this.index = running;
-            else if (open >= 0 && (this.index >= tree.length || tree[this.index]?.item.status === 'Done')) this.index = open;
-            this.outcome = this.Current?.outcome ?? '';
+            const next = resolveLiveSelection(this.Tree, {
+                index: this.index,
+                currentItemId: this.currentItemId,
+                runningItemId: this.runningItemId,
+                outcome: this.outcome,
+            });
+            const changedItem = next.currentItemId !== this.currentItemId;
+            this.index = next.index;
+            this.currentItemId = next.currentItemId;
+            this.runningItemId = next.runningItemId;
+            this.outcome = next.outcome;
+            if (changedItem) {
+                this.itemClockFrom = new Date();
+            }
+        }
+        if (changes['Busy'] || changes['Items'] || changes['ErrorMessage']) {
+            const noteAction = settleSubmittedDraft(this.pendingQuickNote, this.Busy, this.ErrorMessage);
+            if (noteAction === 'clear') {
+                this.quickNote = '';
+                this.pendingQuickNote = false;
+            } else if (noteAction === 'reset-pending') {
+                this.pendingQuickNote = false;
+            }
+            const followUpAction = settleSubmittedDraft(this.pendingFollowUp, this.Busy, this.ErrorMessage);
+            if (followUpAction === 'clear') {
+                this.followUp = '';
+                this.pendingFollowUp = false;
+            } else if (followUpAction === 'reset-pending') {
+                this.pendingFollowUp = false;
+            }
         }
         if (!this.ticker) this.ticker = setInterval(() => this.tick(), 1000);
     }
@@ -231,6 +339,13 @@ export class MeetingLiveComponent implements OnChanges, OnDestroy {
         this.cdr.markForCheck();
     }
 
+    protected selectItem(i: number): void {
+        if (i < 0 || i >= this.Tree.length) return;
+        this.index = i;
+        this.currentItemId = this.Current?.id ?? null;
+        this.resetItemClock();
+    }
+
     protected resetItemClock(): void {
         this.itemClockFrom = new Date();
         this.outcome = this.Current?.outcome ?? '';
@@ -239,8 +354,7 @@ export class MeetingLiveComponent implements OnChanges, OnDestroy {
     protected go(delta: -1 | 1): void {
         const next = this.index + delta;
         if (next < 0 || next >= this.Tree.length) return;
-        this.index = next;
-        this.resetItemClock();
+        this.selectItem(next);
     }
 
     protected isOver(item: AgendaItemModel): boolean {
@@ -259,15 +373,15 @@ export class MeetingLiveComponent implements OnChanges, OnDestroy {
     protected sendNote(item: AgendaItemModel | null): void {
         const body = this.quickNote.trim();
         if (!body) return;
+        this.pendingQuickNote = true;
         this.NoteRequested.emit({ item, body });
-        this.quickNote = '';
     }
 
     protected sendFollowUp(item: AgendaItemModel | null): void {
         const name = this.followUp.trim();
         if (!name) return;
+        this.pendingFollowUp = true;
         this.FollowUpRequested.emit({ item, name });
-        this.followUp = '';
     }
 
     protected iconFor(status: AgendaItemStatus): string {

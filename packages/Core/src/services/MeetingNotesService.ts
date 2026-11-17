@@ -25,10 +25,12 @@ import {
 import { callerAdministersMeetings, callerIsOrganizer } from '../meetings/meeting-access.js';
 import { PEOPLE_ENTITY, personIdForUser } from '../meetings/person-user.js';
 import {
+    extractClaimedProposedTaskId,
     isActiveProposedTaskClaim,
     isFinalizedProposedTaskId,
     markProposedTaskAccepted,
     markProposedTaskDismissed,
+    parseDueDate,
     parseProposedTasks,
     serializeProposedTasks,
     type ProposedTask,
@@ -272,19 +274,40 @@ export class MeetingNotesService {
             };
         }
 
+        const attendeeNameByPersonId = new Map<string, string>();
+        for (const att of contextInput.attendees) {
+            if (!att.PersonID) continue;
+            const label = (att.DisplayName || att.Person || att.Email || '').trim();
+            attendeeNameByPersonId.set(att.PersonID.toLowerCase(), label);
+        }
+        const validAgendaItemIds = new Set(contextInput.agendaItems.map((item) => item.ID.toLowerCase()));
+
         const proposals = parseProposedTasks(
             JSON.stringify(
-                (drafted.proposedTasks ?? []).map((p, index) => ({
-                    id: p.id ?? `proposal-${index + 1}`,
-                    title: p.title,
-                    description: p.description ?? null,
-                    assigneePersonId: p.assigneePersonId ?? null,
-                    assigneeName: p.assigneeName ?? null,
-                    dueAt: p.dueAt ?? null,
-                    agendaItemId: p.agendaItemId ?? options.agendaItemId ?? null,
-                    status: 'Pending',
-                    taskId: null,
-                })),
+                (drafted.proposedTasks ?? []).map((p, index) => {
+                    const rawPersonId = p.assigneePersonId?.trim() || null;
+                    const validPersonId =
+                        rawPersonId && attendeeNameByPersonId.has(rawPersonId.toLowerCase()) ? rawPersonId : null;
+                    const resolvedName = validPersonId
+                        ? attendeeNameByPersonId.get(validPersonId.toLowerCase()) || null
+                        : null;
+                    const candidateItemId = (p.agendaItemId ?? options.agendaItemId)?.trim() || null;
+                    const validAgendaItemId =
+                        candidateItemId && validAgendaItemIds.has(candidateItemId.toLowerCase())
+                            ? candidateItemId
+                            : null;
+                    return {
+                        id: `proposal-${index + 1}`,
+                        title: p.title,
+                        description: p.description ?? null,
+                        assigneePersonId: validPersonId,
+                        assigneeName: resolvedName,
+                        dueAt: p.dueAt ?? null,
+                        agendaItemId: validAgendaItemId,
+                        status: 'Pending',
+                        taskId: null,
+                    };
+                }),
             ),
         );
 
@@ -348,7 +371,8 @@ export class MeetingNotesService {
             }
         }
 
-        const typeRes = await RunView.FromMetadataProvider(this.provider).RunView<{ ID: string }>(
+        const rv = RunView.FromMetadataProvider(this.provider);
+        const typeRes = await rv.RunView<{ ID: string }>(
             {
                 EntityName: TASK_TYPES_ENTITY,
                 ExtraFilter: `Code = '${ACTION_ITEM_CODE}'`,
@@ -363,9 +387,23 @@ export class MeetingNotesService {
             throw new Error('The Action Item task type (ACTION_ITEM) is not installed.');
         }
 
-        // Claim the proposal on the note first with an expiring timestamp so a concurrent call is refused while an interrupted call can recover
+        const priorClaimedTaskId = extractClaimedProposedTaskId(existing.taskId);
+        const task = await this.provider.GetEntityObject<TaskEntity>(TASKS_ENTITY, contextUser);
+        let taskAlreadySaved = false;
+        if (priorClaimedTaskId && typeof task.Load === 'function') {
+            taskAlreadySaved = await task.Load(priorClaimedTaskId);
+        }
+        if (!taskAlreadySaved) {
+            task.NewRecord();
+            if (priorClaimedTaskId) {
+                (task as { ID: string }).ID = priorClaimedTaskId;
+            }
+        }
+
+        // Claim the proposal on the note first with an expiring timestamp and the pre-assigned task ID so a concurrent call is refused
+        // while an interrupted call (or a retry after an expired claim) reuses the exact same task ID and never creates a duplicate task.
         const previousProposedTasks = note.ProposedTasks;
-        const claimedProposals = markProposedTaskAccepted(proposals, proposalId, `in-flight:${Date.now()}`);
+        const claimedProposals = markProposedTaskAccepted(proposals, proposalId, `in-flight:${Date.now()}:${task.ID}`);
         note.ProposedTasks = serializeProposedTasks(claimedProposals);
         if (!(await note.Save())) {
             throw new Error(`The note's proposed tasks were not updated: ${entityFailure(note)}`);
@@ -378,74 +416,108 @@ export class MeetingNotesService {
             null;
 
         const dueAtRaw = overrides.dueAt !== undefined ? overrides.dueAt : existing.dueAt;
-        const dueAt = dueAtRaw instanceof Date ? dueAtRaw : dueAtRaw ? new Date(dueAtRaw) : null;
+        const dueAt = parseDueDate(dueAtRaw);
 
-        const task = await this.provider.GetEntityObject<TaskEntity>(TASKS_ENTITY, contextUser);
-        task.NewRecord();
-        task.Name = (overrides.title ?? existing.title).trim();
-        task.Description = overrides.description !== undefined ? overrides.description : existing.description;
-        task.TypeID = actionTypeId;
-        task.Status = 'Open';
-        task.Priority = overrides.priority ?? 'Medium';
-        task.PercentComplete = 0;
-        task.DueAt = dueAt && !Number.isNaN(dueAt.getTime()) ? dueAt : null;
-        task.CreatedByPersonID = createdByPersonId;
-        let taskSaved = false;
+        if (!taskAlreadySaved) {
+            task.Name = (overrides.title ?? existing.title).trim();
+            task.Description = overrides.description !== undefined ? overrides.description : existing.description;
+            task.TypeID = actionTypeId;
+            task.Status = 'Open';
+            task.Priority = overrides.priority ?? 'Medium';
+            task.PercentComplete = 0;
+            task.DueAt = dueAt;
+            task.CreatedByPersonID = createdByPersonId;
+            let taskSaved = false;
+            try {
+                taskSaved = await task.Save();
+            } catch (saveError) {
+                note.ProposedTasks = previousProposedTasks;
+                await note.Save();
+                throw saveError;
+            }
+            if (!taskSaved) {
+                note.ProposedTasks = previousProposedTasks;
+                await note.Save();
+                throw new Error(`The action item task was not saved: ${entityFailure(task)}`);
+            }
+        }
+
         try {
-            taskSaved = await task.Save();
-        } catch (saveError) {
-            note.ProposedTasks = previousProposedTasks;
+            const targetAgendaItemId =
+                overrides.agendaItemId !== undefined ? overrides.agendaItemId : (existing.agendaItemId ?? note.AgendaItemID);
+            const targetEntityName = targetAgendaItemId ? MEETING_AGENDA_ITEM_ENTITY : MEETING_ENTITY;
+            const targetRecordId = targetAgendaItemId ?? note.MeetingID;
+            const targetEntity = this.provider.Entities.find((e) => e.Name === targetEntityName);
+            if (targetEntity) {
+                const existingLinkRes = await rv.RunView<{ ID: string }>(
+                    {
+                        EntityName: TASK_LINKS_ENTITY,
+                        ExtraFilter: `TaskID = '${task.ID.replace(/'/g, "''")}' AND EntityID = '${targetEntity.ID.replace(/'/g, "''")}' AND RecordID = '${targetRecordId.replace(/'/g, "''")}'`,
+                        Fields: ['ID'],
+                        ResultType: 'simple',
+                        MaxRows: 1,
+                    },
+                    contextUser,
+                );
+                const hasExistingLink = existingLinkRes.Success && (existingLinkRes.Results?.length ?? 0) > 0;
+                if (!hasExistingLink) {
+                    const link = await this.provider.GetEntityObject<mjBizAppsTasksTaskLinkEntity>(TASK_LINKS_ENTITY, contextUser);
+                    link.NewRecord();
+                    link.TaskID = task.ID;
+                    link.EntityID = targetEntity.ID;
+                    link.RecordID = targetRecordId;
+                    link.Description = 'Action item accepted from meeting notes';
+                    if (!(await link.Save())) {
+                        throw new Error(`The task link was not saved: ${entityFailure(link)}`);
+                    }
+                }
+            }
+
+            const assigneePersonId =
+                overrides.assigneePersonId !== undefined ? overrides.assigneePersonId : existing.assigneePersonId;
+            if (assigneePersonId) {
+                const peopleEntity = this.provider.Entities.find((e) => e.Name === PEOPLE_ENTITY);
+                if (peopleEntity) {
+                    const existingAssignRes = await rv.RunView<{ ID: string }>(
+                        {
+                            EntityName: 'MJ_BizApps_Tasks: Task Assignments',
+                            ExtraFilter: `TaskID = '${task.ID.replace(/'/g, "''")}' AND AssigneeEntityID = '${peopleEntity.ID.replace(/'/g, "''")}' AND AssigneeRecordID = '${assigneePersonId.replace(/'/g, "''")}'`,
+                            Fields: ['ID'],
+                            ResultType: 'simple',
+                            MaxRows: 1,
+                        },
+                        contextUser,
+                    );
+                    const hasExistingAssign = existingAssignRes.Success && (existingAssignRes.Results?.length ?? 0) > 0;
+                    if (!hasExistingAssign) {
+                        const assignment = await this.provider.GetEntityObject<mjBizAppsTasksTaskAssignmentEntity>(
+                            'MJ_BizApps_Tasks: Task Assignments',
+                            contextUser,
+                        );
+                        assignment.NewRecord();
+                        assignment.TaskID = task.ID;
+                        assignment.AssigneeEntityID = peopleEntity.ID;
+                        assignment.AssigneeRecordID = assigneePersonId;
+                        assignment.AssignedByPersonID = createdByPersonId;
+                        if (!(await assignment.Save())) {
+                            throw new Error(`The task assignment was not saved: ${entityFailure(assignment)}`);
+                        }
+                    }
+                }
+            }
+        } catch (postTaskError) {
+            note.ProposedTasks = serializeProposedTasks(
+                markProposedTaskAccepted(proposals, proposalId, `in-flight:0:${task.ID}`),
+            );
             await note.Save();
-            throw saveError;
-        }
-        if (!taskSaved) {
-            note.ProposedTasks = previousProposedTasks;
-            await note.Save();
-            throw new Error(`The action item task was not saved: ${entityFailure(task)}`);
+            throw postTaskError;
         }
 
-        // Persist the created taskId on the note immediately after task creation so any retry returns this task idempotently
+        // Finalize the proposal on the note only after Task, TaskLink, and TaskAssignment have all succeeded
         const updatedProposals = markProposedTaskAccepted(proposals, proposalId, task.ID);
         note.ProposedTasks = serializeProposedTasks(updatedProposals);
         if (!(await note.Save())) {
             throw new Error(`The note's proposed tasks were not updated: ${entityFailure(note)}`);
-        }
-
-        const targetAgendaItemId =
-            overrides.agendaItemId !== undefined ? overrides.agendaItemId : (existing.agendaItemId ?? note.AgendaItemID);
-        const targetEntityName = targetAgendaItemId ? MEETING_AGENDA_ITEM_ENTITY : MEETING_ENTITY;
-        const targetRecordId = targetAgendaItemId ?? note.MeetingID;
-        const targetEntity = this.provider.Entities.find((e) => e.Name === targetEntityName);
-        if (targetEntity) {
-            const link = await this.provider.GetEntityObject<mjBizAppsTasksTaskLinkEntity>(TASK_LINKS_ENTITY, contextUser);
-            link.NewRecord();
-            link.TaskID = task.ID;
-            link.EntityID = targetEntity.ID;
-            link.RecordID = targetRecordId;
-            link.Description = 'Action item accepted from meeting notes';
-            if (!(await link.Save())) {
-                throw new Error(`The task link was not saved: ${entityFailure(link)}`);
-            }
-        }
-
-        const assigneePersonId =
-            overrides.assigneePersonId !== undefined ? overrides.assigneePersonId : existing.assigneePersonId;
-        if (assigneePersonId) {
-            const peopleEntity = this.provider.Entities.find((e) => e.Name === PEOPLE_ENTITY);
-            if (peopleEntity) {
-                const assignment = await this.provider.GetEntityObject<mjBizAppsTasksTaskAssignmentEntity>(
-                    'MJ_BizApps_Tasks: Task Assignments',
-                    contextUser,
-                );
-                assignment.NewRecord();
-                assignment.TaskID = task.ID;
-                assignment.AssigneeEntityID = peopleEntity.ID;
-                assignment.AssigneeRecordID = assigneePersonId;
-                assignment.AssignedByPersonID = createdByPersonId;
-                if (!(await assignment.Save())) {
-                    throw new Error(`The task assignment was not saved: ${entityFailure(assignment)}`);
-                }
-            }
         }
 
         const acceptedProposal = updatedProposals.find((p) => p.id.toLowerCase() === proposalId.trim().toLowerCase())!;

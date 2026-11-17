@@ -32,6 +32,18 @@ interface ZoomCredentialValues {
     accountId?: string;
     host_user?: string;
     hostUser?: string;
+    join_before_host?: boolean;
+    joinBeforeHost?: boolean;
+    waiting_room?: boolean;
+    waitingRoom?: boolean;
+}
+
+const ZOOM_FETCH_TIMEOUT_MS = 15_000;
+const TOKEN_SAFETY_MARGIN_MS = 60_000;
+const tokenCache = new Map<string, { accessToken: string; expiresAtMs: number }>();
+
+export function clearZoomTokenCache(): void {
+    tokenCache.clear();
 }
 
 /**
@@ -51,6 +63,8 @@ export class ZoomVideoProvider extends VideoProviderBase {
     private clientSecret = '';
     private accountId = '';
     private hostUser = 'me';
+    private joinBeforeHost = true;
+    private waitingRoom = false;
     private configured = false;
 
     async Initialize(context: VideoProviderContext, contextUser: UserInfo): Promise<void> {
@@ -58,6 +72,8 @@ export class ZoomVideoProvider extends VideoProviderBase {
         this.clientSecret = '';
         this.accountId = '';
         this.hostUser = 'me';
+        this.joinBeforeHost = true;
+        this.waitingRoom = false;
         this.configured = false;
 
         const configValues = this.parseConfiguration(context.Configuration);
@@ -77,6 +93,10 @@ export class ZoomVideoProvider extends VideoProviderBase {
         this.clientSecret = (credValues.client_secret ?? credValues.clientSecret ?? '').trim();
         this.accountId = (credValues.account_id ?? credValues.accountId ?? configValues.account_id ?? configValues.accountId ?? '').trim();
         this.hostUser = (credValues.host_user ?? credValues.hostUser ?? configValues.host_user ?? configValues.hostUser ?? 'me').trim() || 'me';
+        const jbh = configValues.join_before_host ?? configValues.joinBeforeHost;
+        if (typeof jbh === 'boolean') this.joinBeforeHost = jbh;
+        const wr = configValues.waiting_room ?? configValues.waitingRoom;
+        if (typeof wr === 'boolean') this.waitingRoom = wr;
         this.configured = Boolean(this.clientId && this.clientSecret && this.accountId);
     }
 
@@ -96,8 +116,8 @@ export class ZoomVideoProvider extends VideoProviderBase {
             timezone: input.TimeZone || 'UTC',
             agenda: input.Description ?? '',
             settings: {
-                join_before_host: true,
-                waiting_room: false,
+                join_before_host: this.joinBeforeHost,
+                waiting_room: this.waitingRoom,
             },
         };
 
@@ -108,6 +128,7 @@ export class ZoomVideoProvider extends VideoProviderBase {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(body),
+            signal: AbortSignal.timeout(ZOOM_FETCH_TIMEOUT_MS),
         });
 
         if (!response.ok) {
@@ -146,6 +167,7 @@ export class ZoomVideoProvider extends VideoProviderBase {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(body),
+            signal: AbortSignal.timeout(ZOOM_FETCH_TIMEOUT_MS),
         });
 
         if (!response.ok) {
@@ -161,6 +183,7 @@ export class ZoomVideoProvider extends VideoProviderBase {
             headers: {
                 Authorization: `Bearer ${accessToken}`,
             },
+            signal: AbortSignal.timeout(ZOOM_FETCH_TIMEOUT_MS),
         });
 
         if (!response.ok && response.status !== 404) {
@@ -173,6 +196,11 @@ export class ZoomVideoProvider extends VideoProviderBase {
         if (!this.configured) {
             throw new Error('ZoomVideoProvider is not configured.');
         }
+        const cacheKey = `${this.accountId}:${this.clientId}`;
+        const cached = tokenCache.get(cacheKey);
+        if (cached && cached.expiresAtMs > Date.now()) {
+            return cached.accessToken;
+        }
         const basic = btoa(`${this.clientId}:${this.clientSecret}`);
         const url = `https://zoom.us/oauth/token?grant_type=account_credentials&account_id=${encodeURIComponent(this.accountId)}`;
         const response = await fetch(url, {
@@ -181,6 +209,7 @@ export class ZoomVideoProvider extends VideoProviderBase {
                 Authorization: `Basic ${basic}`,
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
+            signal: AbortSignal.timeout(ZOOM_FETCH_TIMEOUT_MS),
         });
 
         if (!response.ok) {
@@ -192,6 +221,8 @@ export class ZoomVideoProvider extends VideoProviderBase {
         if (!data.access_token) {
             throw new Error('Zoom token response contained no access_token.');
         }
+        const ttlMs = Math.max(0, (Number(data.expires_in) || 3600) * 1000 - TOKEN_SAFETY_MARGIN_MS);
+        tokenCache.set(cacheKey, { accessToken: data.access_token, expiresAtMs: Date.now() + ttlMs });
         return data.access_token;
     }
 

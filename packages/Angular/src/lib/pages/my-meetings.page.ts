@@ -92,7 +92,11 @@ export class MyMeetingsPageComponent implements OnInit {
         this.cdr.markForCheck();
         try {
             const now = new Date();
-            this.meetings = await this.data.LoadMeetingRows(this.range === 'upcoming' ? { mine: true, from: now } : { mine: true, through: now });
+            this.meetings = await this.data.LoadMeetingRows(
+                this.range === 'upcoming'
+                    ? { mine: true, from: now, order: 'asc' }
+                    : { mine: true, through: now, order: 'desc' },
+            );
         } catch (e) {
             this.error = `Your meetings could not be read: ${MeetingData.Message(e)}`;
             LogError(this.error);

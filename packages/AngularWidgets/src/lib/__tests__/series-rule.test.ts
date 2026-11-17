@@ -13,7 +13,8 @@ describe('the series editor\'s rule', () => {
     it('reads its own rules back, and refuses one it does not express', () => {
         expect(parseRecurrenceRuleDraft('RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=TU,TH;COUNT=10')).toEqual({ frequency: 'WEEKLY', interval: 2, byDay: ['TU', 'TH'], ends: 'count', until: null, count: 10 });
         expect(parseRecurrenceRuleDraft('FREQ=MONTHLY;UNTIL=20261231T235959Z')?.ends).toBe('until');
-        expect(parseRecurrenceRuleDraft('FREQ=YEARLY')).toBeNull();
+        expect(parseRecurrenceRuleDraft('FREQ=YEARLY')?.frequency).toBe('YEARLY');
+        expect(parseRecurrenceRuleDraft('FREQ=HOURLY')).toBeNull();
         expect(parseRecurrenceRuleDraft('FREQ=MONTHLY;BYMONTHDAY=15')).toBeNull();
         expect(parseRecurrenceRuleDraft('')).toBeNull();
     });

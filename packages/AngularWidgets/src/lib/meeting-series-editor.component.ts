@@ -68,6 +68,7 @@ export function emptySeriesDraft(timeZone: string, organizerPersonId: string | n
                         <option value="DAILY">{{ rule.interval > 1 ? 'days' : 'day' }}</option>
                         <option value="WEEKLY">{{ rule.interval > 1 ? 'weeks' : 'week' }}</option>
                         <option value="MONTHLY">{{ rule.interval > 1 ? 'months' : 'month' }}</option>
+                        <option value="YEARLY">{{ rule.interval > 1 ? 'years' : 'year' }}</option>
                     </select>
                 </div>
                 @if (rule.frequency === 'WEEKLY') {

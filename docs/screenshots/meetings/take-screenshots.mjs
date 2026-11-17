@@ -57,7 +57,7 @@ async function seed() {
     if (!staffPerson) {
         const person = await provider.GetEntityObject(it.PERSON_ENTITY, user);
         person.NewRecord();
-        const [first, ...rest] = (process.env.STAFF_NAME ?? STAFF_EMAIL.split('@')[0].replace(/[._-]+/g, ' ')).split(' ');
+        const [first, ...rest] = (process.env.STAFF_NAME ?? 'Alex Rivera').split(' ');
         person.FirstName = first;
         person.LastName = rest.join(' ') || null;
         person.Email = STAFF_EMAIL;

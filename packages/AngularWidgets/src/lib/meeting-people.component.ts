@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MJButtonDirective } from '@memberjunction/ng-ui-components';
 import { MEETING_TOKENS_CSS } from './tokens';
 import { ResponseChipComponent } from './meeting-chips.component';
+import { settleSubmittedDraft } from './meeting-live.component';
 import type { AttendanceStatus, AttendeeModel, PersonOption } from './types';
 
 export interface InviteRequest {
@@ -116,7 +117,7 @@ const ATTENDANCE: ReadonlyArray<{ value: AttendanceStatus; label: string }> = [
         .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
     `],
 })
-export class MeetingPeopleComponent {
+export class MeetingPeopleComponent implements OnChanges {
     @Input() Attendees: AttendeeModel[] = [];
     @Input() People: PersonOption[] = [];
     @Input() CanInvite = false;
@@ -132,16 +133,29 @@ export class MeetingPeopleComponent {
     protected invitePersonId: string | null = null;
     protected inviteEmail = '';
     protected inviteRole: 'Required' | 'Optional' = 'Required';
+    private pendingInvite = false;
     public readonly AttendanceOptions = ATTENDANCE;
+
+    ngOnChanges(changes: SimpleChanges): void {
+        if (changes['Busy'] || changes['Attendees'] || changes['ErrorMessage']) {
+            const action = settleSubmittedDraft(this.pendingInvite, this.Busy, this.ErrorMessage);
+            if (action === 'clear') {
+                this.inviting = false;
+                this.invitePersonId = null;
+                this.inviteEmail = '';
+                this.inviteRole = 'Required';
+                this.pendingInvite = false;
+            } else if (action === 'reset-pending') {
+                this.pendingInvite = false;
+            }
+        }
+    }
 
     protected submitInvite(): void {
         const email = this.inviteEmail.trim().toLowerCase();
         if (!this.invitePersonId && !email) return;
+        this.pendingInvite = true;
         this.InviteRequested.emit({ personId: this.invitePersonId, email: this.invitePersonId ? null : email, displayName: null, role: this.inviteRole });
-        this.inviting = false;
-        this.invitePersonId = null;
-        this.inviteEmail = '';
-        this.inviteRole = 'Required';
     }
 
     protected initials(attendee: AttendeeModel): string {

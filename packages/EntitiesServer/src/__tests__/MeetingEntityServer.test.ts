@@ -75,7 +75,7 @@ vi.mock('@memberjunction/core', () => {
 vi.mock('@mj-biz-apps/tasks-entities', async () => {
     const core = await import('@memberjunction/core');
     const Base = core.BaseEntity as unknown as new () => Record<string, unknown>;
-    const fields = ['ID', 'Name', 'Status', 'StartsAt', 'EndsAt', 'TimeZone', 'SeriesID', 'OccurrenceStartsAt', 'OrganizerPersonID', 'VideoProviderID', 'VideoMeetingID', 'ActualStartedAt', 'ActualEndedAt', 'CancelledAt', 'CancellationReason', 'Visibility', 'LocationType'];
+    const fields = ['ID', 'Name', 'Status', 'StartsAt', 'EndsAt', 'TimeZone', 'SeriesID', 'OccurrenceStartsAt', 'OrganizerPersonID', 'VideoProviderID', 'VideoMeetingID', 'VideoJoinURL', 'DialInDetails', 'ActualStartedAt', 'ActualEndedAt', 'CancelledAt', 'CancellationReason', 'Visibility', 'LocationType'];
     class mjBizAppsTasksMeetingEntity extends Base {}
     for (const field of fields) {
         Object.defineProperty(mjBizAppsTasksMeetingEntity.prototype, field, {
@@ -344,5 +344,70 @@ describe('a new meeting', () => {
         expect(nico.RespondedAt).toBeInstanceOf(Date);
         expect(old.Save).toHaveBeenCalled();
         expect(nico.Save).toHaveBeenCalled();
+    });
+
+    it('refuses direct API writes to VideoMeetingID, DialInDetails, or provider-managed VideoJoinURL, while allowing a custom VideoJoinURL when VideoProviderID is null', async () => {
+        const meeting = scheduled();
+        meeting.VideoMeetingID = 'spoofed-zoom-999';
+        const r1 = await meeting.ValidateAsync();
+        expect(r1.Success).toBe(false);
+        expect(r1.Errors[0].Source).toBe('VideoMeetingID');
+
+        const meeting2 = scheduled();
+        meeting2.DialInDetails = '+1 555-0100';
+        const r2 = await meeting2.ValidateAsync();
+        expect(r2.Success).toBe(false);
+        expect(r2.Errors[0].Source).toBe('DialInDetails');
+
+        const meeting3 = scheduled().seed({ VideoProviderID: 'VP-ZOOM' });
+        meeting3.VideoJoinURL = 'https://evil.example/join';
+        const r3 = await meeting3.ValidateAsync();
+        expect(r3.Success).toBe(false);
+        expect(r3.Errors[0].Source).toBe('VideoJoinURL');
+
+        // Custom join URL is allowed when VideoProviderID is null ("A link I type")
+        const meeting4 = scheduled();
+        meeting4.VideoJoinURL = 'https://custom.example/room';
+        expect((await meeting4.ValidateAsync()).Success).toBe(true);
+    });
+
+    it('handles VideoProviderID replacement by clearing old provider fields, preserving user-typed custom URLs when switching to null, and scheduling replace after commit', async () => {
+        // Switching from VP-1 (with zoom-111) to VP-2 clears VideoMeetingID, DialInDetails, and VideoJoinURL, and schedules replace
+        const meeting = scheduled().seed({
+            VideoProviderID: 'VP-1',
+            VideoMeetingID: 'zoom-111',
+            VideoJoinURL: 'https://zoom.us/j/111',
+            DialInDetails: '+1 555-1111',
+        });
+        meeting.VideoProviderID = 'VP-2';
+        expect(await meeting.Save()).toBe(true);
+        expect(meeting.VideoMeetingID).toBeNull();
+        expect(meeting.DialInDetails).toBeNull();
+        expect(meeting.VideoJoinURL).toBeNull();
+        expect(runAfterCommitMock).toHaveBeenCalledTimes(1);
+        expect(runAfterCommitMock.mock.calls[0][1]).toBe('replace video meeting for M1');
+
+        // Switching from VP-1 to null ("A link I type") while typing a custom VideoJoinURL keeps the typed URL
+        runAfterCommitMock.mockReset();
+        const meetingCustom = scheduled().seed({
+            VideoProviderID: 'VP-1',
+            VideoMeetingID: 'zoom-222',
+            VideoJoinURL: 'https://zoom.us/j/222',
+            DialInDetails: '+1 555-2222',
+        });
+        meetingCustom.VideoProviderID = null;
+        meetingCustom.VideoJoinURL = 'https://my-custom-link.example/meet';
+        expect(await meetingCustom.Save()).toBe(true);
+        expect(meetingCustom.VideoMeetingID).toBeNull();
+        expect(meetingCustom.DialInDetails).toBeNull();
+        expect(meetingCustom.VideoJoinURL).toBe('https://my-custom-link.example/meet');
+        expect(runAfterCommitMock).toHaveBeenCalledTimes(1);
+        expect(runAfterCommitMock.mock.calls[0][1]).toBe('replace video meeting for M1');
+
+        // Verify that a throwing video step is caught and logged without rejecting the after-commit task
+        (meetingCustom as unknown as { deleteVideoMeeting: () => Promise<void> }).deleteVideoMeeting = async () => {
+            throw new Error('Zoom API 503');
+        };
+        await expect(runAfterCommitMock.mock.calls[0][0]()).resolves.toBeUndefined();
     });
 });

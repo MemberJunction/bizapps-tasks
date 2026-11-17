@@ -42,11 +42,20 @@ export function normalizeRecurrenceRule(rule: string): string {
     return rule.replace(RULE_PREFIX, '').trim();
 }
 
+const ALLOWED_FREQS = new Set(['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY']);
+const SUB_DAILY_PARTS = /(^|;)\s*(BYHOUR|BYMINUTE|BYSECOND)\s*=/i;
+
 /** What is wrong with a rule, or null when it parses and names a frequency. */
 export function recurrenceRuleProblem(rule: string | null | undefined): string | null {
     if (!rule || !rule.trim()) return 'A series needs a recurrence rule, such as FREQ=WEEKLY;BYDAY=TU.';
     const value = normalizeRecurrenceRule(rule);
-    if (!/(^|;)FREQ=/i.test(value)) return 'A recurrence rule names its frequency: FREQ=DAILY, WEEKLY, MONTHLY or YEARLY.';
+    const freqMatch = /(?:^|;)\s*FREQ=([^;\s]+)/i.exec(value);
+    if (!freqMatch || !ALLOWED_FREQS.has(freqMatch[1].toUpperCase())) {
+        return 'A recurrence rule names its frequency: FREQ=DAILY, WEEKLY, MONTHLY or YEARLY.';
+    }
+    if (SUB_DAILY_PARTS.test(value)) {
+        return 'A recurrence rule cannot repeat by hour, minute or second.';
+    }
     try {
         const parsed = rrulestr(`RRULE:${value}`);
         if (!(parsed instanceof RRule)) return 'A series takes one RRULE, not a set.';
@@ -90,7 +99,12 @@ export function expandOccurrences(series: SeriesRecurrence, window: { from: Date
 
     const options = RRule.parseString(normalizeRecurrenceRule(series.rule));
     const rule = new RRule({ ...options, dtstart: toFloating(series.firstStartsAt, series.timeZone) });
-    const starts = rule.between(toFloating(window.from, series.timeZone), toFloating(window.through, series.timeZone), true);
+    const starts = rule.between(
+        toFloating(window.from, series.timeZone),
+        toFloating(window.through, series.timeZone),
+        true,
+        (_date, index) => index < max,
+    );
     return starts.slice(0, max).map((floating) => {
         const startsAt = fromFloating(floating, series.timeZone);
         return { occurrenceStartsAt: startsAt, startsAt, endsAt: new Date(startsAt.getTime() + series.durationMinutes * 60000) };

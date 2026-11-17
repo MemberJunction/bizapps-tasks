@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MJButtonDirective } from '@memberjunction/ng-ui-components';
 import { MEETING_TOKENS_CSS } from './tokens';
 import { formatMinutes } from './format';
+import { settleSubmittedDraft } from './meeting-live.component';
 import type { AgendaItemDraft, AgendaItemModel, AgendaItemTypeOption, PersonOption } from './types';
 
 export interface AgendaReorder {
@@ -167,7 +168,7 @@ const STATUS_CLASS: Record<AgendaItemModel['status'], string> = {
         .tools { display: flex; flex-wrap: wrap; gap: 2px; }
     `],
 })
-export class MeetingAgendaComponent {
+export class MeetingAgendaComponent implements OnChanges {
     @Input() Items: AgendaItemModel[] = [];
     @Input() ItemTypes: AgendaItemTypeOption[] = [];
     @Input() People: PersonOption[] = [];
@@ -185,7 +186,20 @@ export class MeetingAgendaComponent {
     @Output() DraftAgendaRequested = new EventEmitter<void>();
 
     protected draft: AgendaItemDraft | null = null;
+    private pendingSave = false;
     public readonly StatusClass = STATUS_CLASS;
+
+    ngOnChanges(changes: SimpleChanges): void {
+        if (changes['Busy'] || changes['Items'] || changes['ErrorMessage']) {
+            const action = settleSubmittedDraft(this.pendingSave, this.Busy, this.ErrorMessage);
+            if (action === 'clear') {
+                this.draft = null;
+                this.pendingSave = false;
+            } else if (action === 'reset-pending') {
+                this.pendingSave = false;
+            }
+        }
+    }
 
     public get Tree(): Array<{ item: AgendaItemModel; depth: number }> {
         return agendaTree(this.Items);
@@ -212,6 +226,7 @@ export class MeetingAgendaComponent {
     }
 
     protected openDraft(item: AgendaItemModel | null, parentId: string | null): void {
+        this.pendingSave = false;
         this.draft = item
             ? { id: item.id, parentId: item.parentId, name: item.name, description: item.description ?? '', typeId: item.typeId, presenterPersonId: item.presenterPersonId, durationMinutes: item.durationMinutes }
             : { id: null, parentId, name: '', description: '', typeId: null, presenterPersonId: null, durationMinutes: null };
@@ -225,8 +240,8 @@ export class MeetingAgendaComponent {
 
     protected submit(): void {
         if (!this.draft || !this.draft.name.trim()) return;
+        this.pendingSave = true;
         this.SaveRequested.emit({ ...this.draft, name: this.draft.name.trim() });
-        this.draft = null;
     }
 
     protected nameOf(id: string): string {

@@ -1,4 +1,4 @@
-import { CompositeKey, Metadata, RunView, type IMetadataProvider, type UserInfo } from '@memberjunction/core';
+import { CompositeKey, LogError, Metadata, RunView, WellKnownUserSource, type IMetadataProvider, type UserInfo } from '@memberjunction/core';
 import {
     CalendarEventLinks,
     type CalendarCredentialSource,
@@ -56,6 +56,8 @@ interface PersonEmailRow {
  * meeting when requested (`IsOnlineMeeting: true`), and records any returned `OnlineMeetingUrl` onto
  * `Meeting.VideoJoinURL`.
  */
+const inFlightByMeeting = new Map<string, Promise<unknown>>();
+
 export class MeetingCalendarSyncService {
     private readonly links: CalendarEventLinks;
 
@@ -67,8 +69,42 @@ export class MeetingCalendarSyncService {
     }
 
     /**
+     * Serializes after-commit video provisioning and calendar sync tasks per meeting so concurrent
+     * meeting and attendee saves never race each other into duplicate `CreateLinkedEvent` calls.
+     */
+    static enqueueSync<T>(meetingId: string, task: () => Promise<T>): Promise<T> {
+        const key = meetingId.trim().toLowerCase();
+        const prior = inFlightByMeeting.get(key) ?? Promise.resolve();
+        const next = prior.then(task, task);
+        const cleanup = (): void => {
+            if (inFlightByMeeting.get(key) === tracked) {
+                inFlightByMeeting.delete(key);
+            }
+        };
+        const tracked = next.then(cleanup, cleanup);
+        inFlightByMeeting.set(key, tracked);
+        return next;
+    }
+
+    private async resolveLinkUser(): Promise<UserInfo | null> {
+        try {
+            const systemUser = await WellKnownUserSource.Instance.GetSystemUser(this.provider);
+            if (systemUser) return systemUser;
+            LogError(
+                'MeetingCalendarSyncService: WellKnownUserSource.GetSystemUser returned null; refusing calendar sync because MJ: Calendar Event Links requires an elevated server user.',
+            );
+            return null;
+        } catch (error) {
+            LogError(
+                `MeetingCalendarSyncService: failed to resolve system user for MJ: Calendar Event Links: ${error instanceof Error ? error.message : String(error)}`,
+            );
+            return null;
+        }
+    }
+
+    /**
      * Creates or updates the calendar event linked to a meeting.
-     * Returns `null` when no calendar communication provider is configured.
+     * Returns `null` when no calendar communication provider is configured or the meeting is still a `Draft`.
      */
     async syncMeeting(
         meetingId: string,
@@ -83,6 +119,10 @@ export class MeetingCalendarSyncService {
             return { Success: false, ErrorMessage: `Meeting ${meetingId} was not found.` };
         }
 
+        if (meeting.Status === 'Draft') {
+            return null;
+        }
+
         if (meeting.Status === 'Cancelled') {
             return this.cancelMeetingEvent(meeting, contextUser, { ...options, providerName });
         }
@@ -95,9 +135,11 @@ export class MeetingCalendarSyncService {
             };
         }
 
+        const linkUser = await this.resolveLinkUser();
+        if (!linkUser) return null;
         const eventInput = await this.buildCalendarEventInput(meeting, contextUser);
         const recordKey = CompositeKey.FromID(meeting.ID);
-        const hasActiveLink = await this.hasActiveLink(meeting.ID, contextUser);
+        const hasActiveLink = await this.hasActiveLink(meeting.ID, linkUser);
 
         const result = hasActiveLink
             ? await this.links.UpdateLinkedEvent(
@@ -111,7 +153,7 @@ export class MeetingCalendarSyncService {
                       CredentialID: options.CredentialID,
                       CredentialName: options.CredentialName,
                   },
-                  contextUser,
+                  linkUser,
               )
             : await this.links.CreateLinkedEvent(
                   {
@@ -124,7 +166,7 @@ export class MeetingCalendarSyncService {
                       CredentialID: options.CredentialID,
                       CredentialName: options.CredentialName,
                   },
-                  contextUser,
+                  linkUser,
               );
 
         if (result.Success && result.Event?.OnlineMeetingUrl && !meeting.VideoJoinURL) {
@@ -146,7 +188,9 @@ export class MeetingCalendarSyncService {
         if (!providerName) return null;
 
         const meetingId = typeof meetingOrId === 'string' ? meetingOrId : meetingOrId.ID;
-        if (!(await this.hasActiveLink(meetingId, contextUser))) {
+        const linkUser = await this.resolveLinkUser();
+        if (!linkUser) return null;
+        if (!(await this.hasActiveLink(meetingId, linkUser))) {
             return null;
         }
 
@@ -161,7 +205,7 @@ export class MeetingCalendarSyncService {
                 CredentialID: options.CredentialID,
                 CredentialName: options.CredentialName,
             },
-            contextUser,
+            linkUser,
         );
     }
 
@@ -182,6 +226,17 @@ export class MeetingCalendarSyncService {
                 ErrorMessage: 'No calendar communication provider is configured.',
             };
         }
+        const linkUser = await this.resolveLinkUser();
+        if (!linkUser) {
+            return {
+                Success: false,
+                Changes: 0,
+                LinksUpdated: 0,
+                Resynced: false,
+                Errors: [],
+                ErrorMessage: 'Unable to resolve an authorized user for MJ: Calendar Event Links.',
+            };
+        }
         return this.links.SyncCalendar(
             {
                 ProviderName: providerName,
@@ -192,7 +247,7 @@ export class MeetingCalendarSyncService {
                 CredentialID: options.CredentialID,
                 CredentialName: options.CredentialName,
             },
-            contextUser,
+            linkUser,
         );
     }
 
@@ -260,10 +315,15 @@ export class MeetingCalendarSyncService {
         }
 
         const isOnlineMeeting = await this.shouldRequestCalendarOnlineMeeting(meeting, contextUser);
+        const bodyParts = [
+            meeting.Description?.trim() || null,
+            meeting.VideoJoinURL?.trim() ? `Join online: ${meeting.VideoJoinURL.trim()}` : null,
+            meeting.DialInDetails?.trim() ? `Dial-in:\n${meeting.DialInDetails.trim()}` : null,
+        ].filter((part): part is string => Boolean(part));
 
         return {
             Subject: meeting.Name,
-            Body: meeting.Description ?? undefined,
+            Body: bodyParts.length ? bodyParts.join('\n\n') : undefined,
             BodyType: 'Text',
             Start: meeting.StartsAt,
             End: meeting.EndsAt,

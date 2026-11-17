@@ -40,14 +40,14 @@ export async function callerAndMeeting(
     provider: IMetadataProvider,
     user: UserInfo | undefined,
     meetingId: string,
-): Promise<{ found: false } | { found: true; caller: MeetingCaller; owns: boolean; attends: boolean; organizerPersonId: string }> {
+): Promise<{ found: false } | { found: true; caller: MeetingCaller; owns: boolean; attends: boolean; organizerPersonId: string; status: mjBizAppsTasksMeetingEntity['Status'] }> {
     if (!user) return { found: false };
     const meeting = await provider.GetEntityObject<mjBizAppsTasksMeetingEntity>(MEETING_ENTITY, user);
     if (!(await meeting.Load(meetingId))) return { found: false };
     const caller = await meetingCaller(provider, user);
     const owns = callerOwnsMeeting(caller, meeting.OrganizerPersonID);
     const attends = owns ? true : await callerAttendsMeeting(provider, user, caller, meetingId);
-    return { found: true, caller, owns, attends, organizerPersonId: meeting.OrganizerPersonID };
+    return { found: true, caller, owns, attends, organizerPersonId: meeting.OrganizerPersonID, status: meeting.Status };
 }
 
 /** The value a field held before this save, or its current value when it did not change. */

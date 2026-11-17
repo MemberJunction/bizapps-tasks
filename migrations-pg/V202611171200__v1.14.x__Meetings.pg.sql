@@ -63,7 +63,7 @@ CREATE TABLE __mj_BizAppsTasks."VideoProvider" (
  CONSTRAINT "PK_VideoProvider" PRIMARY KEY ("ID"),
  CONSTRAINT "UQ_VideoProvider_Name" UNIQUE ("Name"),
  CONSTRAINT "UQ_VideoProvider_Code" UNIQUE ("Code"),
- CONSTRAINT "FK_VideoProvider_Credential" FOREIGN KEY ("CredentialID") REFERENCES ${mjSchema}.Credential(ID)
+ CONSTRAINT "FK_VideoProvider_Credential" FOREIGN KEY ("CredentialID") REFERENCES ${mjSchema}."Credential"("ID")
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS UX_VideoProvider_IsDefault ON __mj_BizAppsTasks."VideoProvider" ("IsDefault") WHERE "IsDefault" = TRUE;
@@ -89,7 +89,7 @@ CREATE TABLE __mj_BizAppsTasks."MeetingType" (
  CONSTRAINT "UQ_MeetingType_Name" UNIQUE ("Name"),
  CONSTRAINT "UQ_MeetingType_Code" UNIQUE ("Code"),
  CONSTRAINT "FK_MeetingType_DefaultVideoProvider" FOREIGN KEY ("DefaultVideoProviderID") REFERENCES __mj_BizAppsTasks."VideoProvider"("ID"),
- CONSTRAINT "FK_MeetingType_NotesPrompt" FOREIGN KEY ("NotesPromptID") REFERENCES ${mjSchema}.AIPrompt(ID),
+ CONSTRAINT "FK_MeetingType_NotesPrompt" FOREIGN KEY ("NotesPromptID") REFERENCES ${mjSchema}."AIPrompt"("ID"),
  CONSTRAINT "CK_MeetingType_DefaultDurationMinutes" CHECK ("DefaultDurationMinutes" IS NULL OR "DefaultDurationMinutes" > 0),
  CONSTRAINT "CK_MeetingType_DefaultLocationType" CHECK ("DefaultLocationType" IS NULL OR "DefaultLocationType" IN ('Virtual', 'InPerson', 'Hybrid', 'Phone')),
  CONSTRAINT "CK_MeetingType_DefaultVisibility" CHECK ("DefaultVisibility" IS NULL OR "DefaultVisibility" IN ('Standard', 'Private'))
@@ -178,7 +178,7 @@ CREATE TABLE __mj_BizAppsTasks."Meeting" (
  CONSTRAINT "FK_Meeting_Series" FOREIGN KEY ("SeriesID") REFERENCES __mj_BizAppsTasks."MeetingSeries"("ID"),
  CONSTRAINT "FK_Meeting_VideoProvider" FOREIGN KEY ("VideoProviderID") REFERENCES __mj_BizAppsTasks."VideoProvider"("ID"),
  CONSTRAINT "FK_Meeting_OrganizerPerson" FOREIGN KEY ("OrganizerPersonID") REFERENCES __mj_BizAppsCommon."Person"("ID"),
- CONSTRAINT "FK_Meeting_TranscriptFile" FOREIGN KEY ("TranscriptFileID") REFERENCES ${mjSchema}."File"(ID),
+ CONSTRAINT "FK_Meeting_TranscriptFile" FOREIGN KEY ("TranscriptFileID") REFERENCES ${mjSchema}."File"("ID"),
  CONSTRAINT "FK_Meeting_CreatedByPerson" FOREIGN KEY ("CreatedByPersonID") REFERENCES __mj_BizAppsCommon."Person"("ID"),
  CONSTRAINT "CK_Meeting_Status" CHECK ("Status" IN ('Draft', 'Scheduled', 'Postponed', 'InProgress', 'Completed', 'Cancelled')),
  CONSTRAINT "CK_Meeting_LocationType" CHECK ("LocationType" IN ('Virtual', 'InPerson', 'Hybrid', 'Phone')),
@@ -203,7 +203,7 @@ CREATE TABLE __mj_BizAppsTasks."MeetingSeriesAttendee" (
  CONSTRAINT "PK_MeetingSeriesAttendee" PRIMARY KEY ("ID"),
  CONSTRAINT "FK_MeetingSeriesAttendee_Series" FOREIGN KEY ("SeriesID") REFERENCES __mj_BizAppsTasks."MeetingSeries"("ID"),
  CONSTRAINT "FK_MeetingSeriesAttendee_Person" FOREIGN KEY ("PersonID") REFERENCES __mj_BizAppsCommon."Person"("ID"),
- CONSTRAINT "FK_MeetingSeriesAttendee_User" FOREIGN KEY ("UserID") REFERENCES ${mjSchema}."User"(ID),
+ CONSTRAINT "FK_MeetingSeriesAttendee_User" FOREIGN KEY ("UserID") REFERENCES ${mjSchema}."User"("ID"),
  CONSTRAINT "CK_MeetingSeriesAttendee_Role" CHECK ("Role" IN ('Required', 'Optional')),
  CONSTRAINT "CK_MeetingSeriesAttendee_PersonOrEmail" CHECK ("PersonID" IS NOT NULL OR "Email" IS NOT NULL)
 );
@@ -232,7 +232,7 @@ CREATE TABLE __mj_BizAppsTasks."MeetingAttendee" (
  CONSTRAINT "PK_MeetingAttendee" PRIMARY KEY ("ID"),
  CONSTRAINT "FK_MeetingAttendee_Meeting" FOREIGN KEY ("MeetingID") REFERENCES __mj_BizAppsTasks."Meeting"("ID"),
  CONSTRAINT "FK_MeetingAttendee_Person" FOREIGN KEY ("PersonID") REFERENCES __mj_BizAppsCommon."Person"("ID"),
- CONSTRAINT "FK_MeetingAttendee_User" FOREIGN KEY ("UserID") REFERENCES ${mjSchema}."User"(ID),
+ CONSTRAINT "FK_MeetingAttendee_User" FOREIGN KEY ("UserID") REFERENCES ${mjSchema}."User"("ID"),
  CONSTRAINT "CK_MeetingAttendee_Role" CHECK ("Role" IN ('Organizer', 'Required', 'Optional')),
  CONSTRAINT "CK_MeetingAttendee_ResponseStatus" CHECK ("ResponseStatus" IN ('None', 'Accepted', 'Tentative', 'Declined')),
  CONSTRAINT "CK_MeetingAttendee_AttendanceStatus" CHECK ("AttendanceStatus" IN ('Unknown', 'Present', 'Late', 'LeftEarly', 'Absent', 'Excused')),
@@ -292,7 +292,7 @@ CREATE TABLE __mj_BizAppsTasks."MeetingNote" (
  CONSTRAINT "FK_MeetingNote_Meeting" FOREIGN KEY ("MeetingID") REFERENCES __mj_BizAppsTasks."Meeting"("ID"),
  CONSTRAINT "FK_MeetingNote_AgendaItem" FOREIGN KEY ("AgendaItemID") REFERENCES __mj_BizAppsTasks."MeetingAgendaItem"("ID"),
  CONSTRAINT "FK_MeetingNote_AuthorPerson" FOREIGN KEY ("AuthorPersonID") REFERENCES __mj_BizAppsCommon."Person"("ID"),
- CONSTRAINT "FK_MeetingNote_AIPromptRun" FOREIGN KEY ("AIPromptRunID") REFERENCES ${mjSchema}.AIPromptRun(ID),
+ CONSTRAINT "FK_MeetingNote_AIPromptRun" FOREIGN KEY ("AIPromptRunID") REFERENCES ${mjSchema}."AIPromptRun"("ID"),
  CONSTRAINT "CK_MeetingNote_Kind" CHECK ("Kind" IN ('Notes', 'Summary', 'Decision')),
  CONSTRAINT "CK_MeetingNote_Source" CHECK ("Source" IN ('Manual', 'AI')),
  CONSTRAINT "CK_MeetingNote_Status" CHECK ("Status" IN ('Draft', 'Final'))
@@ -311,7 +311,7 @@ CREATE TABLE __mj_BizAppsTasks."MeetingLink" (
  CONSTRAINT "PK_MeetingLink" PRIMARY KEY ("ID"),
  CONSTRAINT "FK_MeetingLink_Meeting" FOREIGN KEY ("MeetingID") REFERENCES __mj_BizAppsTasks."Meeting"("ID"),
  CONSTRAINT "FK_MeetingLink_Series" FOREIGN KEY ("SeriesID") REFERENCES __mj_BizAppsTasks."MeetingSeries"("ID"),
- CONSTRAINT "FK_MeetingLink_Entity" FOREIGN KEY ("EntityID") REFERENCES ${mjSchema}.Entity(ID),
+ CONSTRAINT "FK_MeetingLink_Entity" FOREIGN KEY ("EntityID") REFERENCES ${mjSchema}."Entity"("ID"),
  CONSTRAINT "CK_MeetingLink_MeetingOrSeries" CHECK (("MeetingID" IS NOT NULL AND "SeriesID" IS NULL) OR ("MeetingID" IS NULL AND "SeriesID" IS NOT NULL))
 );
 

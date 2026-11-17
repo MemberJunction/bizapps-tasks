@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MJButtonDirective } from '@memberjunction/ng-ui-components';
 import { MEETING_TOKENS_CSS } from './tokens';
+import { settleSubmittedDraft } from './meeting-live.component';
 import type {
     AgendaItemModel,
     NoteDraft,
@@ -12,6 +13,14 @@ import type {
     ProposedTaskModel,
     TranscriptDraft,
 } from './types';
+
+export function canDraftNotesWithAI(canEditAll: boolean): boolean {
+    return canEditAll;
+}
+
+export function canManageNoteProposals(canWrite: boolean, canEditAll: boolean, isMine: boolean): boolean {
+    return canWrite && (canEditAll || isMine);
+}
 
 /**
  * The Notes section: notes by hand or drafted from a transcript (T3), on the meeting or on one agenda item, as Notes,
@@ -26,7 +35,9 @@ import type {
         <div class="head mjt-row">
             <div class="mjt-grow"><span class="mjt-strong">Notes</span> <span class="mjt-muted mjt-small">{{ Notes.length }}</span></div>
             @if (CanWrite && !draft && !transcriptDraft) {
-                <button mjButton Variant="secondary" Size="sm" [disabled]="Busy" (click)="openTranscriptDraft()"><i class="fa-solid fa-wand-magic-sparkles"></i>Draft from transcript</button>
+                @if (canDraftWithAI()) {
+                    <button mjButton Variant="secondary" Size="sm" [disabled]="Busy" (click)="openTranscriptDraft()"><i class="fa-solid fa-wand-magic-sparkles"></i>Draft from transcript</button>
+                }
                 <button mjButton Variant="primary" Size="sm" [disabled]="Busy" (click)="openDraft(null)"><i class="fa-solid fa-plus"></i>New note</button>
             }
         </div>
@@ -110,7 +121,7 @@ import type {
                                     @if (prop.assigneeName) { <span class="mjt-small mjt-muted"> · {{ prop.assigneeName }}</span> }
                                     @if (prop.dueAt) { <span class="mjt-small mjt-muted"> · due {{ prop.dueAt.slice(0, 10) }}</span> }
                                 </div>
-                                @if (prop.status === 'Pending' && CanWrite) {
+                                @if (prop.status === 'Pending' && canManageProposals(note)) {
                                     <button mjButton Variant="primary" Size="sm" [disabled]="Busy" (click)="acceptProposal(note.id, prop)"><i class="fa-solid fa-check"></i>Accept</button>
                                     <button mjButton Variant="secondary" Size="sm" [disabled]="Busy" (click)="dismissProposal(note.id, prop)">Dismiss</button>
                                 } @else if (prop.status === 'Accepted') {
@@ -143,7 +154,7 @@ import type {
         .prop-title.dismissed { text-decoration: line-through; opacity: 0.65; }
     `],
 })
-export class MeetingNotesComponent {
+export class MeetingNotesComponent implements OnChanges {
     @Input() Notes: NoteModel[] = [];
     @Input() AgendaItems: AgendaItemModel[] = [];
     @Input() People: PersonOption[] = [];
@@ -163,9 +174,39 @@ export class MeetingNotesComponent {
 
     protected draft: NoteDraft | null = null;
     protected transcriptDraft: TranscriptDraft | null = null;
+    private pendingSave = false;
+    private pendingTranscript = false;
+
+    ngOnChanges(changes: SimpleChanges): void {
+        if (changes['Busy'] || changes['Notes'] || changes['ErrorMessage']) {
+            const saveAction = settleSubmittedDraft(this.pendingSave, this.Busy, this.ErrorMessage);
+            if (saveAction === 'clear') {
+                this.draft = null;
+                this.pendingSave = false;
+            } else if (saveAction === 'reset-pending') {
+                this.pendingSave = false;
+            }
+            const transcriptAction = settleSubmittedDraft(this.pendingTranscript, this.Busy, this.ErrorMessage);
+            if (transcriptAction === 'clear') {
+                this.transcriptDraft = null;
+                this.pendingTranscript = false;
+            } else if (transcriptAction === 'reset-pending') {
+                this.pendingTranscript = false;
+            }
+        }
+    }
+
+    protected canDraftWithAI(): boolean {
+        return canDraftNotesWithAI(this.CanEditAll);
+    }
+
+    protected canManageProposals(note: NoteModel): boolean {
+        return canManageNoteProposals(this.CanWrite, this.CanEditAll, note.isMine);
+    }
 
     protected openDraft(note: NoteModel | null, kind: NoteKind = 'Notes'): void {
         this.transcriptDraft = null;
+        this.pendingSave = false;
         this.draft = note
             ? { id: note.id, agendaItemId: note.agendaItemId, kind: note.kind, title: note.title ?? '', body: note.body, status: note.status }
             : { id: null, agendaItemId: this.DefaultAgendaItemID, kind, title: '', body: '', status: 'Draft' };
@@ -173,24 +214,25 @@ export class MeetingNotesComponent {
 
     protected openTranscriptDraft(): void {
         this.draft = null;
+        this.pendingTranscript = false;
         this.transcriptDraft = { transcript: '', title: '', kind: 'Summary', agendaItemId: this.DefaultAgendaItemID };
     }
 
     protected submit(): void {
         if (!this.draft?.body.trim()) return;
+        this.pendingSave = true;
         this.SaveRequested.emit({ ...this.draft, title: this.draft.title.trim(), body: this.draft.body.trim() });
-        this.draft = null;
     }
 
     protected submitTranscript(): void {
         if (!this.transcriptDraft) return;
         if (!this.transcriptDraft.transcript.trim() && !this.TranscriptFileID) return;
+        this.pendingTranscript = true;
         this.TranscriptDraftRequested.emit({
             ...this.transcriptDraft,
             title: this.transcriptDraft.title.trim(),
             transcript: this.transcriptDraft.transcript.trim(),
         });
-        this.transcriptDraft = null;
     }
 
     protected acceptProposal(noteId: string, proposal: ProposedTaskModel): void {

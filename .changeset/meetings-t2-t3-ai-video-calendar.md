@@ -5,4 +5,4 @@
 "@mj-biz-apps/tasks-ng-widgets": minor
 ---
 
-Meetings T2, T3, and Video Conferencing: adds `MeetingNotesService` (`draftFromTranscript`, `acceptProposedTask`, `dismissProposedTask`) and `MeetingAgendaService.draftAgenda` backed by seeded `Meetings: Notes from Transcript` and `Meetings: Draft Agenda` AI prompts, `ZoomVideoProvider` (`VideoProviderBase` Server-to-Server OAuth via `CredentialEngine`), and `MeetingCalendarSyncService` / `MeetingCalendarEventLinkHandler` for `MJ: Calendar Event Links` synchronization.
+Meetings T2, T3, and Video Conferencing: adds `MeetingNotesService` (`draftFromTranscript`, `acceptProposedTask`, `dismissProposedTask`) and `MeetingAgendaService.draftAgenda` backed by seeded `Tasks: Meeting Notes from Transcript` and `Tasks: Draft Meeting Agenda` AI prompts, `ZoomVideoProvider` (`VideoProviderBase` Server-to-Server OAuth via `CredentialEngine`), and `MeetingCalendarSyncService` / `MeetingCalendarEventLinkHandler` for `MJ: Calendar Event Links` synchronization.

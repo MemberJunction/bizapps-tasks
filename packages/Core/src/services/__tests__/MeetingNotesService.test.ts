@@ -91,8 +91,16 @@ function buildFakeWorld() {
                     NewRecord() {
                         row.ID = `task-${++counter}`;
                     },
+                    Load: async (id: string) => {
+                        const existing = savedTasks.find((t) => t.ID === id);
+                        if (!existing) return false;
+                        Object.assign(row, existing);
+                        return true;
+                    },
                     Save: async () => {
-                        savedTasks.push({ ...row });
+                        const idx = savedTasks.findIndex((t) => t.ID === row.ID);
+                        if (idx >= 0) savedTasks[idx] = { ...row };
+                        else savedTasks.push({ ...row });
                         return true;
                     },
                 };
@@ -218,10 +226,11 @@ describe('MeetingNotesService', () => {
 
         const initialProposals = parseProposedTasks(note.ProposedTasks);
         expect(initialProposals).toHaveLength(2);
+        expect(initialProposals[0].id).toBe('proposal-1');
         expect(initialProposals[0].status).toBe('Pending');
 
-        // Accept prop-1 -> files an ACTION_ITEM task, links to the agenda item, assigns Jun, and records taskId
-        const accepted = await service.acceptProposedTask(note.ID, 'prop-1', USER);
+        // Accept proposal-1 -> files an ACTION_ITEM task, links to the agenda item, assigns Jun, and records taskId
+        const accepted = await service.acceptProposedTask(note.ID, 'proposal-1', USER);
         expect(accepted.task.Name).toBe('Circulate Q4 variance sheet');
         expect(accepted.task.TypeID).toBe('task-type-action-item');
         expect(accepted.proposal.status).toBe('Accepted');
@@ -232,8 +241,8 @@ describe('MeetingNotesService', () => {
         expect(world.savedAssignments).toHaveLength(1);
         expect(world.savedAssignments[0].AssigneeRecordID).toBe(PERSON_JUN);
 
-        // Dismiss prop-2 -> marks Dismissed and files no task
-        const dismissed = await service.dismissProposedTask(note.ID, 'prop-2', USER);
+        // Dismiss proposal-2 -> marks Dismissed and files no task
+        const dismissed = await service.dismissProposedTask(note.ID, 'proposal-2', USER);
         expect(dismissed.proposal.status).toBe('Dismissed');
         expect(dismissed.proposal.taskId).toBeNull();
         expect(world.savedTasks).toHaveLength(1);
@@ -389,10 +398,91 @@ describe('MeetingNotesService', () => {
         expect(proposals[0].title).toBe('Publish approved forecast');
 
         // Idempotent accept: calling acceptProposedTask twice returns the same task without creating a duplicate
-        const firstAccept = await service.acceptProposedTask(note.ID, 'ai-prop-1', USER);
-        const secondAccept = await service.acceptProposedTask(note.ID, 'ai-prop-1', USER);
+        const firstAccept = await service.acceptProposedTask(note.ID, 'proposal-1', USER);
+        const secondAccept = await service.acceptProposedTask(note.ID, 'proposal-1', USER);
         expect(secondAccept.task.ID).toBe(firstAccept.task.ID);
         expect(world.savedTasks).toHaveLength(1);
+    });
+
+    it('drops non-attendee assigneePersonId and non-meeting agendaItemId, overrides assigneeName from the attendee list, and recovers from partial link/assignment or final note save failure without duplicating the task', async () => {
+        const world = buildFakeWorld();
+        const service = new MeetingNotesService(world.provider);
+
+        const note = await service.draftFromTranscript(MEETING_ID, 'Transcript text', USER, {
+            promptRunner: async () => ({
+                summary: 'Summary',
+                proposedTasks: [
+                    {
+                        id: 'dup-id',
+                        title: 'Task with spoofed display name',
+                        assigneePersonId: PERSON_JUN,
+                        assigneeName: 'Spoofed Stranger Name',
+                        dueAt: '2026-11-20',
+                        agendaItemId: AGENDA_ITEM_ID,
+                    },
+                    {
+                        id: 'dup-id',
+                        title: 'Task with outsider person and foreign agenda item',
+                        assigneePersonId: '99999999-9999-4999-8999-999999999999',
+                        assigneeName: 'Outsider',
+                        agendaItemId: '88888888-8888-4888-8888-888888888888',
+                    },
+                ],
+            }),
+        });
+
+        const proposals = parseProposedTasks(note.ProposedTasks);
+        expect(proposals.map((p) => p.id)).toEqual(['proposal-1', 'proposal-2']);
+        expect(proposals[0].assigneePersonId).toBe(PERSON_JUN);
+        expect(proposals[0].assigneeName).toBe('Jun Park');
+        expect(proposals[0].agendaItemId).toBe(AGENDA_ITEM_ID);
+        expect(proposals[1].assigneePersonId).toBeNull();
+        expect(proposals[1].assigneeName).toBeNull();
+        expect(proposals[1].agendaItemId).toBeNull();
+
+        // Simulate a TaskAssignment save failure after Task and TaskLink have already been saved
+        let failNextAssignment = true;
+        const baseGetEntityObject = world.provider.GetEntityObject.bind(world.provider);
+        (world.provider as unknown as { GetEntityObject: typeof world.provider.GetEntityObject }).GetEntityObject = async (
+            entityName: string,
+            user?: UserInfo,
+        ) => {
+            const obj = await baseGetEntityObject(entityName, user);
+            if (entityName === 'MJ_BizApps_Tasks: Task Assignments' && failNextAssignment) {
+                failNextAssignment = false;
+                (obj as unknown as { Save: () => Promise<boolean> }).Save = async () => false;
+            }
+            return obj;
+        };
+
+        await expect(service.acceptProposedTask(note.ID, 'proposal-1', USER)).rejects.toThrow(
+            /The task assignment was not saved/,
+        );
+        expect(world.savedTasks).toHaveLength(1);
+        expect(world.savedLinks).toHaveLength(1);
+        expect(world.savedAssignments).toHaveLength(0);
+
+        // Immediate retry without waiting 60s: the catch block released the active lock window while keeping the pre-assigned task ID,
+        // so retrying immediately reuses the pre-assigned task ID, skips the already-saved link, creates the missing assignment, and finalizes!
+        const baseRunView = world.provider.RunView.bind(world.provider);
+        (world.provider as unknown as { RunView: typeof world.provider.RunView }).RunView = async (params) => {
+            if (params.EntityName === 'MJ_BizApps_Tasks: Task Links') {
+                return { Success: true, Results: world.savedLinks } as never;
+            }
+            if (params.EntityName === 'MJ_BizApps_Tasks: Task Assignments') {
+                return { Success: true, Results: world.savedAssignments } as never;
+            }
+            return baseRunView(params);
+        };
+
+        const retried = await service.acceptProposedTask(note.ID, 'proposal-1', USER);
+        expect(retried.proposal.status).toBe('Accepted');
+        expect(retried.proposal.taskId).toBe(world.savedTasks[0].ID);
+        expect(world.savedTasks).toHaveLength(1);
+        expect(world.savedLinks).toHaveLength(1);
+        expect(world.savedAssignments).toHaveLength(1);
+        // Date-only '2026-11-20' is parsed at 17:00 UTC so Americas time zones keep the same calendar day
+        expect((world.savedTasks[0].DueAt as Date).toISOString()).toBe('2026-11-20T17:00:00.000Z');
     });
 });
 

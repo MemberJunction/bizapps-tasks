@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, Directive, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, Directive, OnDestroy, OnInit, inject } from '@angular/core';
 import { RegisterClassEx } from '@memberjunction/global';
 import { LogError } from '@memberjunction/core';
 import { BaseFormPanel } from '@memberjunction/ng-base-forms';
@@ -36,16 +36,27 @@ import { SharedService } from '@memberjunction/ng-shared';
  * the widget's outputs, and reads again after.
  */
 @Directive()
-abstract class MeetingSectionPanel extends BaseFormPanel<mjBizAppsTasksMeetingEntity> implements OnInit {
+abstract class MeetingSectionPanel extends BaseFormPanel<mjBizAppsTasksMeetingEntity> implements OnInit, OnDestroy {
     protected readonly cdr = inject(ChangeDetectorRef);
     protected readonly data = new MeetingData();
     protected detail: MeetingDetail | null = null;
     protected people: PersonOption[] = [];
     protected busy = false;
     protected error = '';
+    private unsubscribeMeetingChanged: (() => void) | null = null;
 
     async ngOnInit(): Promise<void> {
+        this.unsubscribeMeetingChanged = MeetingData.OnMeetingChanged((id) => {
+            if (this.meetingId && id.toLowerCase() === this.meetingId.toLowerCase()) {
+                void this.reload();
+            }
+        });
         await this.reload();
+    }
+
+    ngOnDestroy(): void {
+        this.unsubscribeMeetingChanged?.();
+        this.unsubscribeMeetingChanged = null;
     }
 
     protected get meetingId(): string {

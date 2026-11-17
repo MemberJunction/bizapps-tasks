@@ -2,7 +2,12 @@ import { BaseEntity, ValidationErrorInfo, ValidationErrorType, type EntityDelete
 import { RegisterClass } from '@memberjunction/global';
 import { mjBizAppsTasksMeetingAttendeeEntity, mjBizAppsTasksMeetingEntity, mjBizAppsTasksMeetingSeriesAttendeeEntity, mjBizAppsTasksMeetingSeriesEntity } from '@mj-biz-apps/tasks-entities';
 import { MEETING_ATTENDEE_ENTITY, MEETING_ENTITY, MEETING_SERIES_ATTENDEE_ENTITY, MEETING_SERIES_ENTITY, userIdForPerson } from '@mj-biz-apps/tasks-core';
+import { runAfterCommit } from './after-commit.js';
+import { MeetingCalendarSyncService } from './calendar/MeetingCalendarSyncService.js';
 import { callerOwnsMeeting, meetingCaller, movedFromMeetingRefusal } from './meeting-caller.js';
+import { TasksSettings } from './TasksSettings.js';
+
+const CALENDAR_SYNC_ATTENDEE_FIELDS = new Set(['PersonID', 'Email', 'DisplayName', 'Role']);
 
 const fail = (result: ValidationResult, field: string, message: string): ValidationResult => {
     result.Success = false;
@@ -63,16 +68,31 @@ export class MeetingAttendeeEntityServer extends mjBizAppsTasksMeetingAttendeeEn
     }
 
     public override async Save(options?: EntitySaveOptions): Promise<boolean> {
+        const isNew = !this.IsSaved;
+        const invitationChanged =
+            isNew || this.Fields.some((f) => CALENDAR_SYNC_ATTENDEE_FIELDS.has(f.CodeName) && f.Dirty);
         if (this.Email) this.Email = this.Email.trim().toLowerCase();
         const personChanged = this.Fields.some((f) => f.CodeName === 'PersonID' && f.Dirty);
         if (this.PersonID && (!this.UserID || personChanged)) {
             this.UserID = await userIdForPerson(this.metadataProvider, this.PersonID, this.ContextCurrentUser);
         }
-        return super.Save(options);
+        if (!(await super.Save(options))) return false;
+        if (!this.MaintainedByMeetingServer && invitationChanged && this.MeetingID && this.metadataProvider.Applications?.length) {
+            const meetingId = this.MeetingID;
+            runAfterCommit(this.ProviderToUse, `sync calendar attendees for meeting ${meetingId}`, async () => {
+                await TasksSettings.Load(this.metadataProvider, this.ContextCurrentUser);
+                if (!TasksSettings.DefaultCalendarProviderName(this.metadataProvider)) return;
+                await MeetingCalendarSyncService.enqueueSync(meetingId, async () => {
+                    await new MeetingCalendarSyncService(this.metadataProvider).syncMeeting(meetingId, this.ContextCurrentUser);
+                });
+            });
+        }
+        return true;
     }
 
     /** Removing an attendee is the organizer's; an attendee who will not come answers Declined instead. */
     public override async Delete(options?: EntityDeleteOptions): Promise<boolean> {
+        const meetingId = this.MeetingID;
         if (!this.MaintainedByMeetingServer) {
             const meeting = await this.metadataProvider.GetEntityObject<mjBizAppsTasksMeetingEntity>(MEETING_ENTITY, this.ContextCurrentUser);
             const found = await meeting.Load(this.MeetingID);
@@ -81,7 +101,17 @@ export class MeetingAttendeeEntityServer extends mjBizAppsTasksMeetingAttendeeEn
                 throw new Error('Only the organizer removes an attendee. An attendee who will not come answers Declined.');
             }
         }
-        return super.Delete(options);
+        if (!(await super.Delete(options))) return false;
+        if (!this.MaintainedByMeetingServer && meetingId && this.metadataProvider.Applications?.length) {
+            runAfterCommit(this.ProviderToUse, `sync calendar attendee removal for meeting ${meetingId}`, async () => {
+                await TasksSettings.Load(this.metadataProvider, this.ContextCurrentUser);
+                if (!TasksSettings.DefaultCalendarProviderName(this.metadataProvider)) return;
+                await MeetingCalendarSyncService.enqueueSync(meetingId, async () => {
+                    await new MeetingCalendarSyncService(this.metadataProvider).syncMeeting(meetingId, this.ContextCurrentUser);
+                });
+            });
+        }
+        return true;
     }
 
     /** The row is the caller's when it names their Person or their user. */

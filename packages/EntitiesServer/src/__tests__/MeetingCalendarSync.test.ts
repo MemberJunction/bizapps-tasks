@@ -9,13 +9,22 @@ vi.mock('@memberjunction/global', () => ({
     OptionalKeyedSpecialization: () => () => {},
 }));
 
+const getSystemUserMock = vi.fn().mockResolvedValue({ ID: 'sys-user' });
+const logErrorMock = vi.fn();
+
 vi.mock('@memberjunction/core', () => ({
     CompositeKey: {
         FromID: (id: string) => ({
             ToCompactURLSegment: () => `ID|${id}`,
         }),
     },
+    LogError: (...args: unknown[]) => logErrorMock(...args),
     Metadata: { Provider: {} },
+    WellKnownUserSource: {
+        Instance: {
+            GetSystemUser: (...args: unknown[]) => getSystemUserMock(...args),
+        },
+    },
     RunView: {
         FromMetadataProvider: () => ({
             RunView: (...args: unknown[]) => runViewMock(...args),
@@ -234,5 +243,102 @@ describe('MeetingCalendarSyncService & MeetingCalendarEventLinkHandler (T2)', ()
         expect(cancelled).toBe(true);
         expect(meetingRow.Status).toBe('Cancelled');
         expect(meetingRow.CancelledAt).toBeInstanceOf(Date);
+    });
+
+    it('saves calendar links using the elevated system user, appends VideoJoinURL and DialInDetails to Body without overwriting Location, and serializes enqueueSync per meeting', async () => {
+        const systemUser = { ID: 'sys-user' } as unknown as UserInfo;
+        getSystemUserMock.mockResolvedValueOnce(systemUser);
+
+        const meetingRow = {
+            ID: 'M-300',
+            Name: 'Zoom Sync',
+            Description: 'Weekly review',
+            Status: 'Scheduled',
+            StartsAt: new Date('2026-11-12T15:00:00Z'),
+            EndsAt: new Date('2026-11-12T16:00:00Z'),
+            TimeZone: 'America/Chicago',
+            LocationType: 'Virtual',
+            Location: null,
+            OrganizerPersonID: 'P-ADA',
+            VideoProviderID: 'VP-ZOOM',
+            VideoJoinURL: 'https://zoom.us/j/999',
+            DialInDetails: 'US: +1 312 626 6799',
+            Load: vi.fn(async () => true),
+            Save: vi.fn(async () => true),
+        };
+
+        const provider = {
+            Applications: [{ ID: 'app-tasks', Name: 'Tasks' }],
+            GetEntityObject: vi.fn(async (entityName: string) => {
+                if (entityName === 'MJ_BizApps_Tasks: Video Providers') {
+                    return { ID: 'VP-ZOOM', Code: 'ZOOM', DriverClass: 'ZoomVideoProvider', Load: async () => true };
+                }
+                return meetingRow;
+            }),
+        } as unknown as IMetadataProvider;
+
+        settingGetMock.mockImplementation((key: string) =>
+            key === 'DefaultCalendarProviderName' ? 'Microsoft Graph' : undefined,
+        );
+        runViewMock.mockImplementation(async (params: { EntityName: string }) => {
+            if (params.EntityName === 'MJ_BizApps_Common: People') {
+                return { Success: true, Results: [{ ID: 'P-ADA', Email: 'ada@example.org', DisplayName: 'Ada' }] };
+            }
+            return { Success: true, Results: [] };
+        });
+
+        const createLinkedEventMock = vi.fn().mockResolvedValue({
+            Success: true,
+            Event: { ExternalEventID: 'evt-300', ICalUID: 'ical-300' },
+        });
+        const fakeLinks = {
+            CreateLinkedEvent: createLinkedEventMock,
+            UpdateLinkedEvent: vi.fn(),
+            CancelLinkedEvent: vi.fn(),
+            SyncCalendar: vi.fn(),
+        } as unknown as CalendarEventLinks;
+
+        const service = new MeetingCalendarSyncService(provider, fakeLinks);
+        await service.syncMeeting('M-300', USER);
+
+        expect(createLinkedEventMock).toHaveBeenCalledTimes(1);
+        // Link save used the elevated systemUser, not the UI caller
+        expect(createLinkedEventMock.mock.calls[0][1]).toBe(systemUser);
+        const eventArg = createLinkedEventMock.mock.calls[0][0].Event;
+        expect(eventArg.Location).toBeUndefined();
+        expect(eventArg.Body).toContain('Weekly review');
+        expect(eventArg.Body).toContain('Join online: https://zoom.us/j/999');
+        expect(eventArg.Body).toContain('Dial-in:\nUS: +1 312 626 6799');
+
+        // Verify per-meeting serialization order and that a rejected task does not leak an unhandled rejection or break subsequent tasks
+        const order: number[] = [];
+        const p1 = MeetingCalendarSyncService.enqueueSync('M-300', async () => {
+            await new Promise((r) => setTimeout(r, 20));
+            order.push(1);
+        });
+        const pFail = MeetingCalendarSyncService.enqueueSync('m-300', async () => {
+            order.push(2);
+            throw new Error('simulated queue failure');
+        });
+        const p3 = MeetingCalendarSyncService.enqueueSync('M-300', async () => {
+            order.push(3);
+        });
+        await expect(pFail).rejects.toThrow('simulated queue failure');
+        await Promise.all([p1, p3]);
+        expect(order).toEqual([1, 2, 3]);
+
+        // Verify Draft meetings skip calendar sync (e.g., when adding an attendee to a Draft meeting)
+        meetingRow.Status = 'Draft';
+        expect(await service.syncMeeting('M-300', USER)).toBeNull();
+        expect(createLinkedEventMock).toHaveBeenCalledTimes(1);
+
+        // Verify that if GetSystemUser returns null, sync logs an error and refuses rather than silently falling back to the caller
+        meetingRow.Status = 'Scheduled';
+        getSystemUserMock.mockResolvedValueOnce(null);
+        logErrorMock.mockClear();
+        const uiCaller = { ID: 'ui-user', UserRoles: [{ Role: 'UI' }] } as unknown as UserInfo;
+        expect(await service.syncMeeting('M-300', uiCaller)).toBeNull();
+        expect(logErrorMock).toHaveBeenCalledTimes(1);
+        expect(createLinkedEventMock).toHaveBeenCalledTimes(1);
     });
 });

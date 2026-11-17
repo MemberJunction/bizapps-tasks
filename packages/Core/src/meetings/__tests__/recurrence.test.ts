@@ -10,10 +10,17 @@ describe('a series\' rule', () => {
         expect(recurrenceRuleProblem('RRULE:FREQ=WEEKLY;BYDAY=TU')).toBeNull();
     });
 
-    it('must name a frequency and parse', () => {
+    it('must name a frequency and parse, and rejects sub-daily frequencies or BYHOUR/BYMINUTE/BYSECOND', () => {
         expect(recurrenceRuleProblem('')).toMatch(/needs a recurrence rule/);
         expect(recurrenceRuleProblem('BYDAY=TU')).toMatch(/names its frequency/);
-        expect(recurrenceRuleProblem('FREQ=SOMETIMES')).toMatch(/could not be read/);
+        expect(recurrenceRuleProblem('FREQ=SOMETIMES')).toMatch(/names its frequency/);
+        expect(recurrenceRuleProblem('FREQ=HOURLY')).toMatch(/names its frequency/);
+        expect(recurrenceRuleProblem('FREQ=MINUTELY')).toMatch(/names its frequency/);
+        expect(recurrenceRuleProblem('FREQ=SECONDLY')).toMatch(/names its frequency/);
+        expect(recurrenceRuleProblem('FREQ=DAILY;BYHOUR=9,10')).toMatch(/cannot repeat by hour, minute or second/);
+        expect(recurrenceRuleProblem('FREQ=DAILY;BYMINUTE=0,30')).toMatch(/cannot repeat by hour, minute or second/);
+        expect(recurrenceRuleProblem('FREQ=DAILY;BYSECOND=0')).toMatch(/cannot repeat by hour, minute or second/);
+        expect(recurrenceRuleProblem('FREQ=YEARLY')).toBeNull();
     });
 });
 

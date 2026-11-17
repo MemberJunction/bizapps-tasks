@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const runViewMock = vi.fn();
 const getEntityObjectMock = vi.fn();
+const runAfterCommitMock = vi.fn();
 
 vi.mock('@memberjunction/global', () => ({
     RegisterClass: () => () => {},
@@ -23,7 +24,7 @@ vi.mock('@memberjunction/core', () => {
         private readonly values: Record<string, unknown> = {};
         private readonly olds: Record<string, unknown> = {};
         private readonly dirty = new Set<string>();
-        public ProviderToUse = { Entities: [] as unknown[], Roles: [] as unknown[], GetEntityObject: (...args: unknown[]) => getEntityObjectMock(...args) };
+        public ProviderToUse = { RunAfterCommit: runAfterCommitMock, Applications: [{ ID: 'app-1' }], Entities: [] as unknown[], Roles: [] as unknown[], GetEntityObject: (...args: unknown[]) => getEntityObjectMock(...args) };
         public Get(name: string) {
             return this.values[name];
         }
@@ -100,6 +101,7 @@ let meeting: { OrganizerPersonID: string; found: boolean } = { OrganizerPersonID
 beforeEach(() => {
     runViewMock.mockReset();
     getEntityObjectMock.mockReset();
+    runAfterCommitMock.mockReset();
     callerPerson = 'P-ADA';
     meeting = { OrganizerPersonID: 'P-ADA', found: true };
     runViewMock.mockImplementation(async (params: { EntityName: string; ExtraFilter: string }) => {
@@ -253,6 +255,39 @@ describe('the attendee\'s user', () => {
         row.PersonID = '2F0D7D3C-1111-4A5B-9C3D-000000000001';
         await row.Save();
         expect(row.UserID).toBe('2F0D7D3C-1111-4A5B-9C3D-000000000002');
+    });
+
+    it('schedules after-commit calendar sync only on add, delete, or changes to PersonID/Email/DisplayName/Role — not on RSVP or AttendanceStatus changes', async () => {
+        // RSVP change -> no calendar sync
+        const rsvpRow = invited();
+        rsvpRow.ResponseStatus = 'Accepted';
+        await rsvpRow.Save();
+        expect(runAfterCommitMock).not.toHaveBeenCalled();
+
+        // AttendanceStatus change -> no calendar sync
+        const attRow = invited();
+        attRow.AttendanceStatus = 'Present';
+        await attRow.Save();
+        expect(runAfterCommitMock).not.toHaveBeenCalled();
+
+        // New attendee -> schedules calendar sync
+        const added = newRow();
+        await added.Save();
+        expect(runAfterCommitMock).toHaveBeenCalledTimes(1);
+        expect(runAfterCommitMock.mock.calls[0][1]).toBe('sync calendar attendees for meeting M1');
+
+        // Role change on existing attendee -> schedules calendar sync
+        runAfterCommitMock.mockReset();
+        const roleRow = invited();
+        roleRow.Role = 'Optional';
+        await roleRow.Save();
+        expect(runAfterCommitMock).toHaveBeenCalledTimes(1);
+
+        // Delete attendee -> schedules calendar sync
+        runAfterCommitMock.mockReset();
+        await invited().Delete();
+        expect(runAfterCommitMock).toHaveBeenCalledTimes(1);
+        expect(runAfterCommitMock.mock.calls[0][1]).toBe('sync calendar attendee removal for meeting M1');
     });
 });
 

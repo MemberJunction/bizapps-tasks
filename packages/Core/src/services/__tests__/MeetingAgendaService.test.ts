@@ -97,10 +97,11 @@ describe('reordering an agenda', () => {
 });
 
 describe('carrying an agenda forward', () => {
-    it('copies the unfinished items with their sub-items to the next meeting and marks the originals deferred', async () => {
+    it('copies the unfinished items with their unfinished sub-items (skipping Done sub-items) to the next meeting and marks the originals deferred', async () => {
         items.push(
             item('P', 'M1', { Status: 'Planned', Sequence: 100 }),
-            item('P-child', 'M1', { ParentID: 'P', Status: 'Done', Sequence: 100 }),
+            item('P-done-child', 'M1', { ParentID: 'P', Status: 'Done', Sequence: 50 }),
+            item('P-child', 'M1', { ParentID: 'P', Status: 'Planned', Sequence: 100 }),
             item('D', 'M1', { Status: 'Done', Sequence: 200 }),
             item('I', 'M1', { Status: 'InProgress', Sequence: 300 }),
             item('T', 'M2', { Status: 'Planned', Sequence: 100 }),
@@ -114,6 +115,7 @@ describe('carrying an agenda forward', () => {
         expect(childCopy?.ParentID).toBe(parentCopy?.ID);
         expect(items.find((r) => r.ID === 'P')?.Status).toBe('Deferred');
         expect(items.find((r) => r.ID === 'P')?.DeferredToMeetingID).toBe('M2');
+        expect(items.find((r) => r.ID === 'P-done-child')?.Status).toBe('Done');
         expect(items.find((r) => r.ID === 'D')?.Status).toBe('Done');
     });
 

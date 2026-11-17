@@ -95,8 +95,39 @@ export function isActiveProposedTaskClaim(taskId: string | null | undefined, now
     const trimmed = taskId.trim();
     if (trimmed === 'in-flight') return true;
     if (!trimmed.startsWith('in-flight:')) return false;
-    const claimedAtMs = Number(trimmed.slice('in-flight:'.length));
+    const rest = trimmed.slice('in-flight:'.length);
+    const colon = rest.indexOf(':');
+    const claimedAtMs = Number(colon >= 0 ? rest.slice(0, colon) : rest);
     return Number.isFinite(claimedAtMs) && nowMs - claimedAtMs < PROPOSED_TASK_CLAIM_TTL_MS;
+}
+
+export function extractClaimedProposedTaskId(taskId: string | null | undefined): string | null {
+    if (!taskId) return null;
+    const trimmed = taskId.trim();
+    if (!trimmed.startsWith('in-flight:')) return null;
+    const rest = trimmed.slice('in-flight:'.length);
+    const colon = rest.indexOf(':');
+    if (colon < 0) return null;
+    const candidate = rest.slice(colon + 1).trim();
+    return candidate.length > 0 ? candidate : null;
+}
+
+/**
+ * Parses a proposed or follow-up task due date.
+ * Date-only strings (`YYYY-MM-DD`) are interpreted as 17:00 UTC on that calendar date
+ * (matching `MeetingFollowUpsComponent`) so users in the Americas do not see the date shift a day early.
+ */
+export function parseDueDate(raw: Date | string | null | undefined): Date | null {
+    if (!raw) return null;
+    if (raw instanceof Date) return Number.isNaN(raw.getTime()) ? null : raw;
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+    const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+    if (dateOnly) {
+        return new Date(Date.UTC(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]), 17, 0, 0));
+    }
+    const parsed = new Date(trimmed);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 export function isFinalizedProposedTaskId(taskId: string | null | undefined): boolean {

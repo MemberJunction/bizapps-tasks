@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MJButtonDirective } from '@memberjunction/ng-ui-components';
 import { MEETING_TOKENS_CSS } from './tokens';
 import { formatDay, viewerTimeZone } from './format';
+import { settleSubmittedDraft } from './meeting-live.component';
 import type { AgendaItemModel, FollowUpDraft, FollowUpModel, PersonOption } from './types';
 
 /**
@@ -69,7 +70,7 @@ import type { AgendaItemModel, FollowUpDraft, FollowUpModel, PersonOption } from
         .task:focus-visible { outline: 2px solid var(--mjt-brand); outline-offset: 2px; }
     `],
 })
-export class MeetingFollowUpsComponent {
+export class MeetingFollowUpsComponent implements OnChanges {
     @Input() FollowUps: FollowUpModel[] = [];
     @Input() AgendaItems: AgendaItemModel[] = [];
     @Input() People: PersonOption[] = [];
@@ -83,8 +84,23 @@ export class MeetingFollowUpsComponent {
 
     protected draft: FollowUpDraft | null = null;
     protected dueValue = '';
+    private pendingAdd = false;
+
+    ngOnChanges(changes: SimpleChanges): void {
+        if (changes['Busy'] || changes['FollowUps'] || changes['ErrorMessage']) {
+            const action = settleSubmittedDraft(this.pendingAdd, this.Busy, this.ErrorMessage);
+            if (action === 'clear') {
+                this.draft = null;
+                this.dueValue = '';
+                this.pendingAdd = false;
+            } else if (action === 'reset-pending') {
+                this.pendingAdd = false;
+            }
+        }
+    }
 
     protected openDraft(agendaItemId: string | null = this.DefaultAgendaItemID): void {
+        this.pendingAdd = false;
         this.draft = { name: '', agendaItemId, assigneePersonId: null, dueAt: null };
         this.dueValue = '';
     }
@@ -98,8 +114,8 @@ export class MeetingFollowUpsComponent {
 
     protected submit(): void {
         if (!this.draft?.name.trim()) return;
+        this.pendingAdd = true;
         this.AddRequested.emit({ ...this.draft, name: this.draft.name.trim() });
-        this.draft = null;
     }
 
     protected statusClass(status: string): string {

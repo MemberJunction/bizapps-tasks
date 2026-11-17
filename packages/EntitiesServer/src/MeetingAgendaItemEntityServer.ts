@@ -30,6 +30,9 @@ export class MeetingAgendaItemEntityServer extends mjBizAppsTasksMeetingAgendaIt
         const access = await callerAndMeeting(this.ProviderToUse as unknown as IMetadataProvider, this.ContextCurrentUser, this.MeetingID);
         if (!access.found) return fail(result, 'MeetingID', 'The meeting was not found, or you may not see it.');
         if (!access.owns) return fail(result, 'MeetingID', 'Only the organizer changes the agenda.');
+        if (access.status === 'Cancelled' || access.status === 'Completed') {
+            return fail(result, 'MeetingID', 'The agenda of a completed or cancelled meeting does not change.');
+        }
         if (this.DeferredToMeetingID && this.DeferredToMeetingID.toLowerCase() === this.MeetingID.toLowerCase()) {
             return fail(result, 'DeferredToMeetingID', 'An item is deferred to a later meeting, not to its own.');
         }
@@ -51,6 +54,9 @@ export class MeetingAgendaItemEntityServer extends mjBizAppsTasksMeetingAgendaIt
     public override async Delete(options?: EntityDeleteOptions): Promise<boolean> {
         const access = await callerAndMeeting(this.ProviderToUse as unknown as IMetadataProvider, this.ContextCurrentUser, this.MeetingID);
         if (!access.found || !access.owns) throw new Error('Only the organizer changes the agenda.');
+        if (access.status === 'Cancelled' || access.status === 'Completed') {
+            throw new Error('The agenda of a completed or cancelled meeting does not change.');
+        }
         return super.Delete(options);
     }
 

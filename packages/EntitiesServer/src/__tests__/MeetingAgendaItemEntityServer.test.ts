@@ -109,10 +109,16 @@ beforeEach(() => {
         if (params.EntityName === 'MJ_BizApps_Tasks: Meeting Attendees') return { Success: true, Results: [] };
         return { Success: true, Results: agendaRows };
     });
-    getEntityObjectMock.mockImplementation(async () => ({ OrganizerPersonID: meeting.OrganizerPersonID, Load: async () => meeting.found }));
+    getEntityObjectMock.mockImplementation(async () => ({ OrganizerPersonID: meeting.OrganizerPersonID, Status: (meeting as { Status?: string }).Status ?? 'Scheduled', Load: async () => meeting.found }));
 });
 
 describe('an agenda item', () => {
+    it('refuses changes when the meeting is Completed or Cancelled', async () => {
+        (meeting as { Status?: string }).Status = 'Cancelled';
+        const res = await item({}).ValidateAsync();
+        expect(res.Success).toBe(false);
+        expect(res.Errors[0].Message).toBe('The agenda of a completed or cancelled meeting does not change.');
+    });
     it('takes 0 or more minutes', async () => {
         expect((await item({ DurationMinutes: -5 }).ValidateAsync()).Errors[0].Message).toBe('An agenda item takes 0 or more minutes.');
     });

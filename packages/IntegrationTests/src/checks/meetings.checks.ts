@@ -560,7 +560,7 @@ const checks: NamedCheck[] = [
 
                 // Non-organizer (Jun) is refused when attempting to trigger AI notes drafting
                 const junUser = await GetPersonaUser(ctx, world.jun.email);
-                let junRefused = false;
+                let junError = '';
                 try {
                     await notesService.draftFromTranscript(
                         meeting.ID,
@@ -568,10 +568,13 @@ const checks: NamedCheck[] = [
                         junUser,
                         { promptRunner: defaultMeetingNotesPromptRunner },
                     );
-                } catch {
-                    junRefused = true;
+                } catch (error) {
+                    junError = error instanceof Error ? error.message : String(error);
                 }
-                Assert(junRefused, 'non-organizer (Jun) is refused when attempting draftFromTranscript');
+                Assert(
+                    /Only the meeting organizer/.test(junError),
+                    `non-organizer (Jun) is refused when attempting draftFromTranscript (${junError})`,
+                );
 
                 const note = await notesService.draftFromTranscript(
                     meeting.ID,

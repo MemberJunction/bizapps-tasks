@@ -21,7 +21,7 @@ vi.mock('@memberjunction/credentials', () => ({
     },
 }));
 
-import { ZoomVideoProvider } from '../video/ZoomVideoProvider.js';
+import { ZoomVideoProvider, clearZoomTokenCache } from '../video/ZoomVideoProvider.js';
 import type { UserInfo } from '@memberjunction/core';
 
 const USER = { ID: 'user-1' } as unknown as UserInfo;
@@ -30,6 +30,7 @@ describe('ZoomVideoProvider', () => {
     const fetchMock = vi.fn();
 
     beforeEach(() => {
+        clearZoomTokenCache();
         configMock.mockReset();
         getCredentialMock.mockReset();
         fetchMock.mockReset();
@@ -116,18 +117,12 @@ describe('ZoomVideoProvider', () => {
             DialInDetails: 'US: +1 312 626 6799',
         });
 
-        // 2. UpdateMeeting: token + PATCH /meetings/987654321
-        fetchMock
-            .mockResolvedValueOnce({
-                ok: true,
-                status: 200,
-                json: async () => ({ access_token: 'tok-2', token_type: 'bearer', expires_in: 3600 }),
-            })
-            .mockResolvedValueOnce({
-                ok: true,
-                status: 204,
-                text: async () => '',
-            });
+        // 2. UpdateMeeting: reuses cached token + PATCH /meetings/987654321
+        fetchMock.mockResolvedValueOnce({
+            ok: true,
+            status: 204,
+            text: async () => '',
+        });
 
         await driver.UpdateMeeting(
             '987654321',
@@ -140,25 +135,21 @@ describe('ZoomVideoProvider', () => {
             USER,
         );
 
-        expect(fetchMock.mock.calls[3][0]).toBe('https://api.zoom.us/v2/meetings/987654321');
-        expect(fetchMock.mock.calls[3][1]).toMatchObject({ method: 'PATCH' });
+        expect(fetchMock.mock.calls[2][0]).toBe('https://api.zoom.us/v2/meetings/987654321');
+        expect(fetchMock.mock.calls[2][1]).toMatchObject({ method: 'PATCH' });
 
-        // 3. DeleteMeeting: token + DELETE /meetings/987654321
-        fetchMock
-            .mockResolvedValueOnce({
-                ok: true,
-                status: 200,
-                json: async () => ({ access_token: 'tok-3', token_type: 'bearer', expires_in: 3600 }),
-            })
-            .mockResolvedValueOnce({
-                ok: true,
-                status: 204,
-                text: async () => '',
-            });
+        // 3. DeleteMeeting: reuses cached token + DELETE /meetings/987654321
+        fetchMock.mockResolvedValueOnce({
+            ok: true,
+            status: 204,
+            text: async () => '',
+        });
 
         await driver.DeleteMeeting('987654321', USER);
-        expect(fetchMock.mock.calls[5][0]).toBe('https://api.zoom.us/v2/meetings/987654321');
-        expect(fetchMock.mock.calls[5][1]).toMatchObject({ method: 'DELETE' });
+        expect(fetchMock.mock.calls[3][0]).toBe('https://api.zoom.us/v2/meetings/987654321');
+        expect(fetchMock.mock.calls[3][1]).toMatchObject({ method: 'DELETE' });
+        // Only 1 token call + 3 API calls = 4 total calls
+        expect(fetchMock).toHaveBeenCalledTimes(4);
     });
 
     it('throws when Zoom returns a non-2xx status', async () => {

@@ -18,7 +18,9 @@ import {
 } from '@mj-biz-apps/tasks-core';
 import { BusinessTimeZoneEngine } from '@mj-biz-apps/common-entities';
 import { runAfterCommit } from './after-commit.js';
-import { callerOwnsMeeting, meetingCaller } from './meeting-caller.js';
+import { MeetingCalendarSyncService } from './calendar/MeetingCalendarSyncService.js';
+import { callerOwnsMeeting, meetingCaller, valueBefore } from './meeting-caller.js';
+import { TasksSettings } from './TasksSettings.js';
 import { resolveVideoProviderDriver, type VideoMeetingInput, type VideoProviderBase } from './video/VideoProviderBase.js';
 
 const fail = (result: ValidationResult, field: string, message: string): ValidationResult => {
@@ -46,6 +48,8 @@ export class MeetingEntityServer extends mjBizAppsTasksMeetingEntity {
         return typeof old === 'string' && isMeetingStatus(old) ? old : null;
     }
 
+    private isServerClearingVideo = false;
+
     private get isMaintainedBySync(): boolean {
         return Boolean(
             (this as { MaintainedByVideoSync?: boolean; MaintainedByCalendarSync?: boolean }).MaintainedByVideoSync ||
@@ -59,6 +63,22 @@ export class MeetingEntityServer extends mjBizAppsTasksMeetingEntity {
         if (timeProblem) return fail(result, timeProblem.includes('zone') ? 'TimeZone' : 'EndsAt', timeProblem);
         if ((this.SeriesID == null) !== (this.OccurrenceStartsAt == null)) {
             return fail(result, 'OccurrenceStartsAt', 'An occurrence of a series names its series and its slot together; a meeting of its own has neither.');
+        }
+        if (!this.isMaintainedBySync && !this.isServerClearingVideo) {
+            const videoMeetingField = this.Fields.find((f) => f.CodeName === 'VideoMeetingID');
+            if ((!this.IsSaved && this.VideoMeetingID != null && this.VideoMeetingID !== '') || (this.IsSaved && videoMeetingField?.Dirty)) {
+                return fail(result, 'VideoMeetingID', 'VideoMeetingID is maintained by the video provider integration and cannot be changed directly.');
+            }
+            const dialInField = this.Fields.find((f) => f.CodeName === 'DialInDetails');
+            if ((!this.IsSaved && this.DialInDetails != null && this.DialInDetails !== '') || (this.IsSaved && dialInField?.Dirty)) {
+                return fail(result, 'DialInDetails', 'DialInDetails is maintained by the video provider integration and cannot be changed directly.');
+            }
+            const joinUrlField = this.Fields.find((f) => f.CodeName === 'VideoJoinURL');
+            if (this.VideoProviderID != null && this.VideoProviderID !== '') {
+                if ((!this.IsSaved && this.VideoJoinURL != null && this.VideoJoinURL !== '') || (this.IsSaved && joinUrlField?.Dirty)) {
+                    return fail(result, 'VideoJoinURL', 'VideoJoinURL is maintained by the selected video provider; clear VideoProviderID to enter a custom join link.');
+                }
+            }
         }
         const before = this.statusBefore;
         if (before && before !== this.Status) {
@@ -102,37 +122,110 @@ export class MeetingEntityServer extends mjBizAppsTasksMeetingEntity {
         const before = this.statusBefore;
         const maintainedBySync = this.isMaintainedBySync;
         await this.stampDefaults(isNew);
-        // A refused save leaves no stamp behind: the base class validates again inside Save and reports the refusal
-        if ((await this.ValidateAsync()).Success) this.stampStatusTimes(before);
+
+        const videoProviderIdBefore = isNew ? null : valueBefore(this, 'VideoProviderID');
+        const videoMeetingIdBefore = isNew ? null : valueBefore(this, 'VideoMeetingID');
+        const providerChanged =
+            !isNew &&
+            (videoProviderIdBefore ?? '').toLowerCase() !== (this.VideoProviderID ?? '').toLowerCase();
+        const joinUrlField = this.Fields.find((f) => f.CodeName === 'VideoJoinURL');
+        const callerTypedCustomJoinUrl = Boolean(joinUrlField?.Dirty && !this.VideoProviderID && this.VideoJoinURL);
+        const videoDetailsChanged = !isNew && this.hasVideoDetailsDirty();
+
+        if (providerChanged && !maintainedBySync && (videoMeetingIdBefore || videoProviderIdBefore)) {
+            this.isServerClearingVideo = true;
+            this.VideoMeetingID = null;
+            this.DialInDetails = null;
+            if (!callerTypedCustomJoinUrl) {
+                this.VideoJoinURL = null;
+            }
+        }
+
+        let saved = false;
+        try {
+            // A refused save leaves no stamp behind: the base class validates again inside Save and reports the refusal
+            if ((await this.ValidateAsync()).Success) this.stampStatusTimes(before);
+            saved = await super.Save(options);
+        } finally {
+            this.isServerClearingVideo = false;
+        }
+        if (!saved) return false;
+
         const cancelling = this.Status === 'Cancelled' && before !== 'Cancelled';
         const videoMeetingId = this.VideoMeetingID;
         const videoProviderId = this.VideoProviderID;
-        const videoDetailsChanged = !isNew && this.hasVideoDetailsDirty();
-
-        if (!(await super.Save(options))) return false;
 
         try {
             await this.ensureOrganizerAttendee();
         } catch (error) {
             LogError(`MeetingEntityServer: the organizer's attendee row of meeting ${this.ID} was not kept in step: ${error instanceof Error ? error.message : String(error)}`);
         }
-        if (cancelling && videoProviderId && videoMeetingId) {
-            runAfterCommit(this.ProviderToUse, `cancel video meeting ${videoMeetingId}`, () => this.deleteVideoMeeting(videoProviderId, videoMeetingId));
+
+        const meetingId = this.ID;
+        const shouldSyncCalendar = !maintainedBySync && this.Status !== 'Draft' && Boolean(this.metadataProvider.Applications?.length);
+        const runCalendarSyncIfConfigured = async (): Promise<void> => {
+            if (!shouldSyncCalendar) return;
+            await TasksSettings.Load(this.metadataProvider, this.ContextCurrentUser);
+            if (!TasksSettings.DefaultCalendarProviderName(this.metadataProvider)) return;
+            await new MeetingCalendarSyncService(this.metadataProvider).syncMeeting(meetingId, this.ContextCurrentUser);
+        };
+        const runVideoStepSafely = async (label: string, step: () => Promise<void>): Promise<void> => {
+            try {
+                await step();
+            } catch (error) {
+                LogError(`MeetingEntityServer: ${label} failed: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        };
+
+        if (cancelling && (videoProviderIdBefore ?? videoProviderId) && (videoMeetingIdBefore ?? videoMeetingId)) {
+            const targetProviderId = (videoProviderIdBefore ?? videoProviderId)!;
+            const targetMeetingId = (videoMeetingIdBefore ?? videoMeetingId)!;
+            runAfterCommit(this.ProviderToUse, `cancel video meeting ${targetMeetingId}`, async () => {
+                await MeetingCalendarSyncService.enqueueSync(meetingId, async () => {
+                    await runVideoStepSafely(`cancel video meeting ${targetMeetingId}`, () =>
+                        this.deleteVideoMeeting(targetProviderId, targetMeetingId),
+                    );
+                    await runCalendarSyncIfConfigured();
+                });
+            });
+        } else if (providerChanged && !cancelling && !maintainedBySync) {
+            runAfterCommit(this.ProviderToUse, `replace video meeting for ${meetingId}`, async () => {
+                await MeetingCalendarSyncService.enqueueSync(meetingId, async () => {
+                    if (videoProviderIdBefore && videoMeetingIdBefore) {
+                        await runVideoStepSafely(`delete prior video meeting ${videoMeetingIdBefore}`, () =>
+                            this.deleteVideoMeeting(videoProviderIdBefore, videoMeetingIdBefore),
+                        );
+                    }
+                    if (videoProviderId && this.Status !== 'Draft') {
+                        await runVideoStepSafely(`provision video meeting for ${meetingId}`, () =>
+                            this.provisionVideoMeeting(meetingId, videoProviderId),
+                        );
+                    }
+                    await runCalendarSyncIfConfigured();
+                });
+            });
         } else if (!cancelling && this.Status !== 'Draft' && videoProviderId && !videoMeetingId && !maintainedBySync) {
-            const meetingId = this.ID;
-            runAfterCommit(this.ProviderToUse, `provision video meeting for ${meetingId}`, () => this.provisionVideoMeeting(meetingId, videoProviderId));
+            runAfterCommit(this.ProviderToUse, `provision video meeting for ${meetingId}`, async () => {
+                await MeetingCalendarSyncService.enqueueSync(meetingId, async () => {
+                    await runVideoStepSafely(`provision video meeting for ${meetingId}`, () =>
+                        this.provisionVideoMeeting(meetingId, videoProviderId),
+                    );
+                    await runCalendarSyncIfConfigured();
+                });
+            });
         } else if (!cancelling && !isNew && videoProviderId && videoMeetingId && videoDetailsChanged && !maintainedBySync) {
             const snapshot = this.videoInputSnapshot();
-            runAfterCommit(this.ProviderToUse, `update video meeting ${videoMeetingId}`, () => this.updateVideoMeeting(videoProviderId, videoMeetingId, snapshot));
-        }
-        if (!maintainedBySync && this.Status !== 'Draft' && this.metadataProvider.Applications?.length) {
-            const meetingId = this.ID;
+            runAfterCommit(this.ProviderToUse, `update video meeting ${videoMeetingId}`, async () => {
+                await MeetingCalendarSyncService.enqueueSync(meetingId, async () => {
+                    await runVideoStepSafely(`update video meeting ${videoMeetingId}`, () =>
+                        this.updateVideoMeeting(videoProviderId, videoMeetingId, snapshot),
+                    );
+                    await runCalendarSyncIfConfigured();
+                });
+            });
+        } else if (shouldSyncCalendar) {
             runAfterCommit(this.ProviderToUse, `sync calendar event for meeting ${meetingId}`, async () => {
-                const { TasksSettings } = await import('./TasksSettings.js');
-                await TasksSettings.Load(this.metadataProvider, this.ContextCurrentUser);
-                if (!TasksSettings.DefaultCalendarProviderName(this.metadataProvider)) return;
-                const { MeetingCalendarSyncService } = await import('./calendar/MeetingCalendarSyncService.js');
-                await new MeetingCalendarSyncService(this.metadataProvider).syncMeeting(meetingId, this.ContextCurrentUser);
+                await MeetingCalendarSyncService.enqueueSync(meetingId, () => runCalendarSyncIfConfigured());
             });
         }
         return true;
@@ -150,11 +243,11 @@ export class MeetingEntityServer extends mjBizAppsTasksMeetingEntity {
         }
         if (!wasCancelled && this.metadataProvider.Applications?.length) {
             runAfterCommit(this.ProviderToUse, `cancel calendar event for deleted meeting ${meetingId}`, async () => {
-                const { TasksSettings } = await import('./TasksSettings.js');
                 await TasksSettings.Load(this.metadataProvider, this.ContextCurrentUser);
                 if (!TasksSettings.DefaultCalendarProviderName(this.metadataProvider)) return;
-                const { MeetingCalendarSyncService } = await import('./calendar/MeetingCalendarSyncService.js');
-                await new MeetingCalendarSyncService(this.metadataProvider).cancelMeetingEvent(meetingId, this.ContextCurrentUser);
+                await MeetingCalendarSyncService.enqueueSync(meetingId, async () => {
+                    await new MeetingCalendarSyncService(this.metadataProvider).cancelMeetingEvent(meetingId, this.ContextCurrentUser);
+                });
             });
         }
         return true;

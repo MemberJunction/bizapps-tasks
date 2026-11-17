@@ -49,7 +49,7 @@ export function parseRecurrenceRuleDraft(rule: string | null | undefined): Serie
         const text = raw.trim();
         switch (name) {
             case 'FREQ':
-                if (text !== 'DAILY' && text !== 'WEEKLY' && text !== 'MONTHLY') return null;
+                if (text !== 'DAILY' && text !== 'WEEKLY' && text !== 'MONTHLY' && text !== 'YEARLY') return null;
                 draft.frequency = text;
                 break;
             case 'INTERVAL': {
@@ -91,7 +91,7 @@ export function parseRecurrenceRuleDraft(rule: string | null | undefined): Serie
 /** The rule in words: "Every 2 weeks on Tuesday and Thursday, 10 times". */
 export function describeRecurrenceRule(draft: SeriesRuleDraft): string {
     const interval = Math.max(1, Math.floor(draft.interval || 1));
-    const unit = { DAILY: 'day', WEEKLY: 'week', MONTHLY: 'month' }[draft.frequency];
+    const unit = { DAILY: 'day', WEEKLY: 'week', MONTHLY: 'month', YEARLY: 'year' }[draft.frequency];
     let text = interval === 1 ? `Every ${unit}` : `Every ${interval} ${unit}s`;
     if (draft.frequency === 'WEEKLY' && draft.byDay.length) {
         const names = WEEKDAYS.filter((day) => draft.byDay.includes(day.code)).map((day) => day.label);

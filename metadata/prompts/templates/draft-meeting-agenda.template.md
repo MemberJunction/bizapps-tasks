@@ -24,7 +24,7 @@ Return ONLY valid JSON matching this schema:
   "items": [
     {
       "title": "string",
-      "typeCode": "DISCUSSION | DECISION | UPDATE | PRESENTATION | null",
+      "typeCode": "INFORMATION | DISCUSSION | DECISION | REPORT | PRESENTATION | ACTION_REVIEW | BREAK | null",
       "durationMinutes": 10,
       "description": "string | null",
       "items": []

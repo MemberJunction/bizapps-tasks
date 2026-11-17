@@ -207,7 +207,7 @@ export interface NewMeetingDraft {
 }
 
 export interface SeriesRuleDraft {
-    frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY';
+    frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
     interval: number;
     /** Two-letter RFC 5545 days, for a weekly rule: MO, TU, … */
     byDay: string[];

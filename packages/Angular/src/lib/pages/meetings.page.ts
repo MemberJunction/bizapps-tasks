@@ -132,7 +132,13 @@ export class MeetingsPageComponent implements OnInit, OnDestroy {
             if (this.status === 'open') filters.push(`Status NOT IN ('Cancelled', 'Completed')`);
             else if (this.status !== 'all') filters.push(`Status = '${this.status}'`);
             const now = new Date();
-            this.meetings = await this.data.LoadMeetingRows({ mine: false, from: this.when === 'upcoming' ? now : null, through: this.when === 'past' ? now : null, extraFilter: filters.join(' AND ') || undefined });
+            this.meetings = await this.data.LoadMeetingRows({
+                mine: false,
+                from: this.when === 'upcoming' ? now : null,
+                through: this.when === 'past' ? now : null,
+                extraFilter: filters.join(' AND ') || undefined,
+                order: this.when === 'past' ? 'desc' : 'asc',
+            });
         } catch (e) {
             this.error = `The meetings could not be read: ${MeetingData.Message(e)}`;
             LogError(this.error);
