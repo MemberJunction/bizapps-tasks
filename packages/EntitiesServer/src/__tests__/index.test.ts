@@ -34,6 +34,7 @@ vi.mock('@memberjunction/actions', () => ({
 vi.mock('@mj-biz-apps/tasks-entities', () => ({
   TaskEntity: class {},
   mjBizAppsTasksTaskActivityEntity: class {},
+  mjBizAppsTasksTaskAssignmentEntity: class {},
   mjBizAppsTasksTaskCheckInEntity: class {},
   mjBizAppsTasksTaskDecisionEntity: class {},
   mjBizAppsTasksTaskEntity: class {},
@@ -72,6 +73,7 @@ describe('@mj-biz-apps/tasks-entities-server', () => {
     expect(mod.MeetingSeriesEntityServer).toBeDefined();
     expect(mod.TaskCheckInEntityServer).toBeDefined();
     expect(mod.TaskDecisionEntityServer).toBeDefined();
+    expect(mod.TaskAssignmentEntityServer).toBeDefined();
   });
 
   it('exports no way to override a Tasks setting in-process', async () => {

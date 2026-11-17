@@ -32,6 +32,21 @@ describe('TasksSettings', () => {
         expect(TasksSettings.PreventSelfApproval(provider)).toBe(false);
     });
 
+    it('reads ApprovalReassignRoles as a comma-separated list, empty by default', () => {
+        expect(TasksSettings.ApprovalReassignRoles(provider)).toEqual([]);
+        settings.set('ApprovalReassignRoles', ' Finance Admin , ,Integration ');
+        expect(TasksSettings.ApprovalReassignRoles(provider)).toEqual(['Finance Admin', 'Integration']);
+    });
+
+    it('reads DefaultCalendarProviderName and SharedCalendarMailbox, null when unset or blank', () => {
+        expect(TasksSettings.DefaultCalendarProviderName(provider)).toBeNull();
+        expect(TasksSettings.SharedCalendarMailbox(provider)).toBeNull();
+        settings.set('DefaultCalendarProviderName', ' Microsoft Graph ');
+        settings.set('SharedCalendarMailbox', ' calendar@example.com ');
+        expect(TasksSettings.DefaultCalendarProviderName(provider)).toBe('Microsoft Graph');
+        expect(TasksSettings.SharedCalendarMailbox(provider)).toBe('calendar@example.com');
+    });
+
     it('offers no in-process way to override a setting (the guard has no kill switch)', () => {
         const members = Object.getOwnPropertyNames(TasksSettings);
         expect(members).not.toContain('SetOverride');

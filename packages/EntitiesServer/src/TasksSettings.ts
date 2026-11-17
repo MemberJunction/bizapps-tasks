@@ -31,6 +31,13 @@ export const TASKS_SETTING = {
      */
     SelfApprovalExemptRole: 'SelfApprovalExemptRole',
     /**
+     * Comma-separated NAMES of the MJ roles whose holders may reassign or remove an assignment on an
+     * approval task (bc-aidp-next-golive#389). Empty or unset switches that rule off, so anyone who may
+     * edit an assignment may reassign or remove it. Reassigning an approval to yourself is refused
+     * either way.
+     */
+    ApprovalReassignRoles: 'ApprovalReassignRoles',
+    /**
      * The `MJ: Communication Providers` name used to sync meetings with an external calendar
      * (e.g. 'Microsoft Graph' or 'Gmail'). Empty leaves calendar sync off unless a caller passes a provider name.
      */
@@ -78,6 +85,12 @@ export class TasksSettings {
     public static SelfApprovalExemptRole(provider: IMetadataProvider): string | null {
         const value = this.raw(TASKS_SETTING.SelfApprovalExemptRole, provider)?.trim();
         return value ? value : null;
+    }
+
+    /** The roles that may reassign or remove an approval assignment; empty switches the rule off. */
+    public static ApprovalReassignRoles(provider: IMetadataProvider): string[] {
+        const raw = this.raw(TASKS_SETTING.ApprovalReassignRoles, provider) ?? '';
+        return raw.split(',').map((r) => r.trim()).filter((r) => r.length > 0);
     }
 
     /** The default `MJ: Communication Providers` name for meeting calendar sync, or null when unconfigured. */

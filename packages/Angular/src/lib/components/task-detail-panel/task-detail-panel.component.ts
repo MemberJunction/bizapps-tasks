@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { Metadata, RunView, CompositeKey } from '@memberjunction/core';
 import { OpenTaskRecord } from '../../open-task-record';
+import { RoleAssigneeName } from '../../role-assignees';
 import { TaskAssigneeInfo } from '../task-assignee-list/task-assignee-list.component';
 
 /**
@@ -613,7 +614,7 @@ export class TaskDetailPanelComponent implements OnChanges {
         if (!this.TaskID) return;
         const rv = new RunView();
         const [assignmentResult, peopleResult, rolesResult] = await Promise.all([
-            rv.RunView<{ AssigneeRecordID: string; RoleID: string; Status: 'Pending' | 'InProgress' | 'Completed' | null }>({
+            rv.RunView<{ AssigneeEntityID: string; AssigneeRecordID: string; RoleID: string; Status: 'Pending' | 'InProgress' | 'Completed' | null }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Assignments',
                 ExtraFilter: `TaskID = '${this.TaskID}'`,
                 ResultType: 'simple',
@@ -639,7 +640,7 @@ export class TaskDetailPanelComponent implements OnChanges {
 
         this.assignees = (assignmentResult?.Results ?? []).map((a) => ({
             AssigneeRecordID: a.AssigneeRecordID,
-            DisplayName: personMap.get(a.AssigneeRecordID) ?? a.AssigneeRecordID,
+            DisplayName: personMap.get(a.AssigneeRecordID) ?? RoleAssigneeName(a.AssigneeEntityID, a.AssigneeRecordID) ?? a.AssigneeRecordID,
             RoleName: roleMap.get(a.RoleID) ?? '',
             Status: a.Status ?? 'Pending',
         }));
@@ -724,7 +725,11 @@ export class TaskDetailPanelComponent implements OnChanges {
         this.AfterCommentPosted.emit();
     }
 
-    /** @internal Deletes child records then the task itself. */
+    /**
+     * @internal Deletes child records then the task itself. Assignments go first and the first refused
+     * child delete stops everything: the server refuses removing an approval's assignee (golive #389),
+     * and that must not cost the task its activities, comments and tags.
+     */
     async onDelete(): Promise<void> {
         this.confirmingDelete = false;
         if (!this.TaskID) return;
@@ -732,10 +737,10 @@ export class TaskDetailPanelComponent implements OnChanges {
             const rv = new RunView();
             // Delete child records in dependency order
             const childEntities = [
+                'MJ_BizApps_Tasks: Task Assignments',
                 'MJ_BizApps_Tasks: Task Activities',
                 'MJ_BizApps_Tasks: Task Comments',
                 'MJ_BizApps_Tasks: Task Tag Links',
-                'MJ_BizApps_Tasks: Task Assignments',
                 'MJ_BizApps_Tasks: Task Dependencies',
                 'MJ_BizApps_Tasks: Task Links',
                 'MJ_BizApps_Tasks: Task Notification Logs',
@@ -750,7 +755,10 @@ export class TaskDetailPanelComponent implements OnChanges {
                     const child = await Metadata.Provider.GetEntityObject(entityName);
                     const pk = new CompositeKey([{ FieldName: 'ID', Value: row.ID }]);
                     await child.InnerLoad(pk);
-                    await child.Delete();
+                    if (!(await child.Delete())) {
+                        console.error(`Delete failed: ${entityName} ${row.ID}: ${child.LatestResult?.CompleteMessage ?? 'unknown error'}`);
+                        return;
+                    }
                 }
             }
 
