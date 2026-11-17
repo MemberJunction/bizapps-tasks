@@ -37,6 +37,12 @@ describe('TasksSettings (@mj-biz-apps/tasks-core)', () => {
         expect(TasksSettings.PreventSelfApproval(provider)).toBe(false);
     });
 
+    it('reads ApprovalReassignRoles as a comma-separated list, empty by default', () => {
+        expect(TasksSettings.ApprovalReassignRoles(provider)).toEqual([]);
+        settings.set('ApprovalReassignRoles', ' Finance Admin , ,Integration ');
+        expect(TasksSettings.ApprovalReassignRoles(provider)).toEqual(['Finance Admin', 'Integration']);
+    });
+
     it('reads TimeTrackingEnabled and TimesheetsEnabled / TimesheetApprovalEnabled', () => {
         expect(TasksSettings.TimeTrackingEnabled(provider)).toBe(true);
         expect(TasksSettings.TimesheetsEnabled(provider)).toBe(true);

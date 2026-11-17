@@ -1,5 +1,48 @@
 # @mj-biz-apps/tasks-server
 
+## 1.13.0
+
+### Patch Changes
+
+- edb5663: Assignment, comment and overdue notifications find the user to notify for a Person through the user's own People link first: a user whose `LinkedEntityID` is People or an IS-A subtype of it and whose `LinkedEntityRecordID` is the Person. `People.LinkedUserID`, which bizapps-common deprecated and a platform that binds users through a People subtype leaves empty, is the fallback. Before, those Persons got no in-app notification. An assignee with no linked user, and a failed lookup, are now logged. Both use bizapps-common's shared resolver (`@mj-biz-apps/common-entities` 5.55.0+), which the tasks pages now use too to find the signed-in user's Person.
+  - @mj-biz-apps/tasks-actions@1.13.0
+  - @mj-biz-apps/tasks-core@1.13.0
+  - @mj-biz-apps/tasks-entities@1.13.0
+  - @mj-biz-apps/tasks-entities-server@1.13.0
+
+## 1.12.0
+
+### Patch Changes
+
+- Updated dependencies [7b3ea77]
+- Updated dependencies [86d0081]
+  - @mj-biz-apps/tasks-entities-server@1.12.0
+  - @mj-biz-apps/tasks-entities@1.12.0
+  - @mj-biz-apps/tasks-actions@1.12.0
+  - @mj-biz-apps/tasks-core@1.12.0
+
+## 1.11.1
+
+### Patch Changes
+
+- @mj-biz-apps/tasks-actions@1.11.1
+- @mj-biz-apps/tasks-core@1.11.1
+- @mj-biz-apps/tasks-entities@1.11.1
+- @mj-biz-apps/tasks-entities-server@1.11.1
+
+## 1.11.0
+
+### Patch Changes
+
+- Updated dependencies [bd16eee]
+- Updated dependencies [a2bab10]
+- Updated dependencies [f50bd0d]
+- Updated dependencies [55de4fa]
+  - @mj-biz-apps/tasks-entities@1.11.0
+  - @mj-biz-apps/tasks-actions@1.11.0
+  - @mj-biz-apps/tasks-core@1.11.0
+  - @mj-biz-apps/tasks-entities-server@1.11.0
+
 ## 1.10.0
 
 ### Minor Changes

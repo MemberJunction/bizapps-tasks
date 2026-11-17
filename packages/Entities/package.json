@@ -1,7 +1,7 @@
 {
   "name": "@mj-biz-apps/tasks-entities",
   "type": "module",
-  "version": "1.10.0",
+  "version": "1.13.0",
   "description": "BizApps Tasks Entity Subclasses",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -18,9 +18,9 @@
   "author": "MemberJunction.com",
   "license": "BUSL-1.1",
   "devDependencies": {
-    "@memberjunction/core": "6.1.6",
-    "@memberjunction/global": "6.1.6",
-    "@mj-biz-apps/common-entities": "5.43.0",
+    "@memberjunction/core": "6.2.1",
+    "@memberjunction/global": "6.2.1",
+    "@mj-biz-apps/common-entities": "5.63.0",
     "typescript": "^5.9.3",
     "vitest": "1.6.1"
   },
@@ -28,9 +28,9 @@
     "zod": "^3.25.28"
   },
   "peerDependencies": {
-    "@memberjunction/core": "^6.1.6",
-    "@memberjunction/global": "^6.1.6",
-    "@mj-biz-apps/common-entities": "^5.43.0"
+    "@memberjunction/core": "^6.2.1",
+    "@memberjunction/global": "^6.2.1",
+    "@mj-biz-apps/common-entities": "^5.55.0"
   },
   "repository": {
     "type": "git",

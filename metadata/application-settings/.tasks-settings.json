@@ -32,16 +32,23 @@
   {
     "fields": {
       "ApplicationID": "@lookup:MJ: Applications.Name=Tasks",
+      "Name": "ApprovalReassignRoles",
+      "Value": "",
+      "Comments": "Comma-separated NAMES of the MJ roles whose holders may change who an approval task (a task whose type has IsApproval set) is assigned to, or remove its assignee (bc-aidp-next-golive#389). Names match trimmed and case-insensitively; a name that is not a role matches nobody and is logged. Nobody may reassign an approval to themselves, whatever their role. Creating assignments is not checked, so workflow routing is unaffected. Empty, the default, switches the role rule off, so assignments move as before; the self-assignment refusal still applies."
+    },
+    "primaryKey": {
+      "ID": "CBF531C2-4DBE-4F63-9CFB-C3266835AD6E"
+    }
+  },
+  {
+    "fields": {
+      "ApplicationID": "@lookup:MJ: Applications.Name=Tasks",
       "Name": "TimeTrackingEnabled",
       "Value": "true",
       "Comments": "Show timer controls, Log Time buttons, and task effort sections across the Tasks application."
     },
     "primaryKey": {
-      "ID": "A1B2C3D4-1111-4A11-8111-111111111101"
-    },
-    "sync": {
-      "lastModified": "2026-11-08T21:46:55.116Z",
-      "checksum": "194603fe8bffbf4d885fe6acc7dfe3c317f131ddd3e2ea175b7e255163d82828"
+      "ID": "C0B1BDD6-77A1-436C-9BCF-577BFFEC741A"
     }
   },
   {
@@ -52,11 +59,7 @@
       "Comments": "Show the My Time nav item and enable timesheet submission and approval."
     },
     "primaryKey": {
-      "ID": "A1B2C3D4-1111-4A11-8111-111111111102"
-    },
-    "sync": {
-      "lastModified": "2026-11-08T21:46:55.128Z",
-      "checksum": "2e3d40a03d835354bdea8e0bdc4120738a4e591807ca95d14a2ebfe39588968b"
+      "ID": "0231A967-2BC6-49D7-B2EB-27A70F850F76"
     }
   },
   {
@@ -67,11 +70,7 @@
       "Comments": "Default timesheet period cadence when no TimesheetSchedule row applies: Weekly, BiWeekly, SemiMonthly, or Monthly."
     },
     "primaryKey": {
-      "ID": "A1B2C3D4-1111-4A11-8111-111111111103"
-    },
-    "sync": {
-      "lastModified": "2026-11-08T21:46:55.145Z",
-      "checksum": "57a9bac7a3a38de6c43a52c72348ce09b4c8b67bf1ca99770d612a0c930f6dbd"
+      "ID": "FD091417-4868-4916-B8DD-CF0B3A6B2274"
     }
   },
   {
@@ -82,11 +81,7 @@
       "Comments": "Default first day of the week for Weekly and BiWeekly timesheet periods and the My Time weekly grid: Monday, Sunday, or Saturday."
     },
     "primaryKey": {
-      "ID": "A1B2C3D4-1111-4A11-8111-111111111104"
-    },
-    "sync": {
-      "lastModified": "2026-11-08T21:46:55.157Z",
-      "checksum": "5c0e889cc523aea648eaec6879f718e0106d8d0a79a710baa6febce1530dcfc4"
+      "ID": "10BBD73C-8334-4E1B-80F4-0FCCEF996DAF"
     }
   },
   {
@@ -97,11 +92,7 @@
       "Comments": "Anchor date (which must fall on TimesheetWeekStartDay) defining the 14-day period boundary for BiWeekly timesheets."
     },
     "primaryKey": {
-      "ID": "A1B2C3D4-1111-4A11-8111-111111111105"
-    },
-    "sync": {
-      "lastModified": "2026-11-08T21:46:55.169Z",
-      "checksum": "3165d8dd16755309f83284384a88d73bf6adb168b4d29b2adcb986575457e270"
+      "ID": "654E1B0D-4178-4D26-B801-18A600E293A3"
     }
   },
   {
@@ -112,11 +103,7 @@
       "Comments": "Timesheet approval routing mode: ProjectApproval (one TimesheetApproval part per root project task), SingleApproval (one whole-timesheet approval task), or AutoApprove (immediately Approved on submit)."
     },
     "primaryKey": {
-      "ID": "A1B2C3D4-1111-4A11-8111-111111111106"
-    },
-    "sync": {
-      "lastModified": "2026-11-08T21:46:55.181Z",
-      "checksum": "409b0dcbc95256e83c4b6ff934f8d824e17b2755e11d8c9398d9971386fcb0dd"
+      "ID": "3AFCF173-1AF0-4AEF-8CE9-D9B274A9B48C"
     }
   },
   {
@@ -127,11 +114,7 @@
       "Comments": "When true, TaskTimeEntry rows cannot be created, modified, or deleted on Submitted or Approved timesheets, or on dates within a Submitted or Approved timesheet period."
     },
     "primaryKey": {
-      "ID": "A1B2C3D4-1111-4A11-8111-111111111107"
-    },
-    "sync": {
-      "lastModified": "2026-11-08T21:46:55.192Z",
-      "checksum": "b6dfd1b5eb5f870b01882c19aaafabbe8a735e2af837c594b1d84509f797fdc4"
+      "ID": "871D622F-24B2-4EEB-9A17-D231F2BC0BD5"
     }
   },
   {
@@ -142,11 +125,7 @@
       "Comments": "Soft warning threshold (in minutes) for a person's total logged time on a single WorkDate in the My Time UI (default 720 = 12 hours; hard DB cap is 1440 per entry)."
     },
     "primaryKey": {
-      "ID": "A1B2C3D4-1111-4A11-8111-111111111108"
-    },
-    "sync": {
-      "lastModified": "2026-11-08T21:46:55.222Z",
-      "checksum": "3ac5a6d6f1075fd813b91901f592298605eb1b2868aa8d5525aef37c508b7fd3"
+      "ID": "3A8D3074-59BF-461A-9C9F-B2383F5AE1D7"
     }
   },
   {
@@ -157,11 +136,7 @@
       "Comments": "Optional minute rounding increment applied when stopping a timer (0 = exact 1-minute rounding, 5, 6, or 15 = round up to nearest N minutes)."
     },
     "primaryKey": {
-      "ID": "A1B2C3D4-1111-4A11-8111-111111111109"
-    },
-    "sync": {
-      "lastModified": "2026-11-08T21:46:55.254Z",
-      "checksum": "eb7ff6921ec174881bc8e5e160f049e06001816938e764b821dff75cfec2e120"
+      "ID": "6DCD3F6B-F831-4E25-B134-7E7FA1F78F96"
     }
   }
 ]

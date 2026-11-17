@@ -14,6 +14,7 @@
 import { TaskEntityServer } from './TaskEntityServer.js';
 import { TaskCheckInEntityServer } from './TaskCheckInEntityServer.js';
 import { TaskDecisionEntityServer } from './TaskDecisionEntityServer.js';
+import { TaskAssignmentEntityServer } from './TaskAssignmentEntityServer.js';
 import { TaskTimeEntryEntityServer } from './TaskTimeEntryEntityServer.js';
 import { TaskTimerEntityServer } from './TaskTimerEntityServer.js';
 import { TaskAgentRunEntityServer } from './TaskAgentRunEntityServer.js';
@@ -28,6 +29,7 @@ import { TaskLinkScopeApproverResolver } from './BaseTimeApproverResolver.js';
 export { TaskEntityServer, type TaskActionHookType, type TaskLifecycleContext, type TaskActionHookResult } from './TaskEntityServer.js';
 export { TaskCheckInEntityServer } from './TaskCheckInEntityServer.js';
 export { TaskDecisionEntityServer, TASK_DECISION_ENTITY } from './TaskDecisionEntityServer.js';
+export { TaskAssignmentEntityServer, TASK_ASSIGNMENT_ENTITY } from './TaskAssignmentEntityServer.js';
 export { TaskDecisionRefusal, DeciderAssignments, type TaskDecisionFacts, type DecisionAssignmentFact } from './TaskDecisionAuthority.js';
 export { TaskTimeEntryEntityServer, TASK_TIME_ENTRY_ENTITY } from './TaskTimeEntryEntityServer.js';
 export { TaskTimerEntityServer, TASK_TIMER_ENTITY } from './TaskTimerEntityServer.js';
@@ -66,10 +68,12 @@ export {
  * subclasses are included in the bundle and registered.
  */
 export function LoadBizAppsTasksEntitiesServer(): void {
+    // Reference the classes so bundlers cannot tree-shake the registrations away.
     const anchor = [
         TaskEntityServer,
         TaskCheckInEntityServer,
         TaskDecisionEntityServer,
+        TaskAssignmentEntityServer,
         TaskTimeEntryEntityServer,
         TaskTimerEntityServer,
         TaskAgentRunEntityServer,

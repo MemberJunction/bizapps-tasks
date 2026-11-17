@@ -93,6 +93,7 @@ describe('@mj-biz-apps/tasks-entities-server', () => {
         expect(mod.TaskEntityServer).toBeDefined();
         expect(mod.TaskCheckInEntityServer).toBeDefined();
         expect(mod.TaskDecisionEntityServer).toBeDefined();
+        expect(mod.TaskAssignmentEntityServer).toBeDefined();
         expect(mod.TaskTimeEntryEntityServer).toBeDefined();
         expect(mod.TaskTimerEntityServer).toBeDefined();
         expect(mod.TaskAgentRunEntityServer).toBeDefined();

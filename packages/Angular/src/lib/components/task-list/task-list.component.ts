@@ -6,6 +6,7 @@ import { UUIDsEqual } from '@memberjunction/global';
 import { FormatDurationMinutes, TasksSettings } from '@mj-biz-apps/tasks-core';
 import type { mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
 import { ResolveCurrentPersonID } from '../../current-person';
+import { RoleAssigneeName } from '../../role-assignees';
 
 /**
  * Minimal shape of a Person row as queried by {@link TaskListComponent}
@@ -1070,7 +1071,7 @@ export class TaskListComponent implements OnInit, OnChanges {
         const taskIDs = this.tasks.map(t => `'${t.ID}'`).join(',');
 
         const [assignments, people] = await Promise.all([
-            rv.RunView<{ TaskID: string; AssigneeRecordID: string; RoleID: string | null; Status: string | null }>({
+            rv.RunView<{ TaskID: string; AssigneeEntityID: string; AssigneeRecordID: string; RoleID: string | null; Status: string | null }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Assignments',
                 ExtraFilter: `TaskID IN (${taskIDs})`,
                 ResultType: 'simple',
@@ -1102,7 +1103,7 @@ export class TaskListComponent implements OnInit, OnChanges {
             if (!task) continue;
             if (!task.Assignees) task.Assignees = [];
             task.Assignees.push({
-                Name: personMap.get(a.AssigneeRecordID) ?? 'Unknown',
+                Name: personMap.get(a.AssigneeRecordID) ?? RoleAssigneeName(a.AssigneeEntityID, a.AssigneeRecordID) ?? 'Unknown',
                 Role: (a.RoleID ? roleMap.get(a.RoleID) : undefined) ?? 'Primary',
                 Status: a.Status ?? 'Pending',
             });

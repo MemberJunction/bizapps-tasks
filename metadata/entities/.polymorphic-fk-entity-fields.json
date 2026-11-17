@@ -14,10 +14,6 @@
           },
           "primaryKey": {
             "ID": "@lookup:MJ: Entity Fields.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Assignments&Name=AssigneeRecordID"
-          },
-          "sync": {
-            "lastModified": "2026-11-08T21:46:50.097Z",
-            "checksum": "a9a02513e2bacc0c9eafb338dda079b67a2881d3905a2a2dda2e925028550647"
           }
         }
       ]
@@ -41,10 +37,6 @@
           },
           "primaryKey": {
             "ID": "@lookup:MJ: Entity Fields.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Links&Name=RecordID"
-          },
-          "sync": {
-            "lastModified": "2026-11-08T21:46:50.109Z",
-            "checksum": "8c1529516623f71e9a9a7d4b0c8c294e92f021530c2a466407618e135135f525"
           }
         }
       ]
@@ -68,10 +60,6 @@
           },
           "primaryKey": {
             "ID": "@lookup:MJ: Entity Fields.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Time Approvers&Name=ScopeRecordID"
-          },
-          "sync": {
-            "lastModified": "2026-11-08T21:46:50.129Z",
-            "checksum": "61ec2c3dfd44919591d372ff0c00c860e1b4da9bdc134a5778020da351c9da14"
           }
         }
       ]
@@ -95,10 +83,6 @@
           },
           "primaryKey": {
             "ID": "@lookup:MJ: Entity Fields.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Timesheet Schedules&Name=ScopeRecordID"
-          },
-          "sync": {
-            "lastModified": "2026-11-08T21:46:50.145Z",
-            "checksum": "61ec2c3dfd44919591d372ff0c00c860e1b4da9bdc134a5778020da351c9da14"
           }
         }
       ]
@@ -122,10 +106,6 @@
           },
           "primaryKey": {
             "ID": "@lookup:MJ: Entity Fields.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Timesheet Links&Name=RecordID"
-          },
-          "sync": {
-            "lastModified": "2026-11-08T21:46:50.155Z",
-            "checksum": "8c1529516623f71e9a9a7d4b0c8c294e92f021530c2a466407618e135135f525"
           }
         }
       ]
@@ -149,10 +129,6 @@
           },
           "primaryKey": {
             "ID": "@lookup:MJ: Entity Fields.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Time Entry Links&Name=RecordID"
-          },
-          "sync": {
-            "lastModified": "2026-11-08T21:46:50.166Z",
-            "checksum": "8c1529516623f71e9a9a7d4b0c8c294e92f021530c2a466407618e135135f525"
           }
         }
       ]
@@ -171,10 +147,6 @@
     },
     "primaryKey": {
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Timers"
-    },
-    "sync": {
-      "lastModified": "2026-11-08T21:46:50.053Z",
-      "checksum": "5fff1c212ade8e83b742d177865362c532a3fc10b779eff01f0845ea2214bb6d"
     }
   }
 ]
