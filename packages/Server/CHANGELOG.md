@@ -1,5 +1,108 @@
 # @mj-biz-apps/tasks-server
 
+## 1.13.0
+
+### Patch Changes
+
+- edb5663: Assignment, comment and overdue notifications find the user to notify for a Person through the user's own People link first: a user whose `LinkedEntityID` is People or an IS-A subtype of it and whose `LinkedEntityRecordID` is the Person. `People.LinkedUserID`, which bizapps-common deprecated and a platform that binds users through a People subtype leaves empty, is the fallback. Before, those Persons got no in-app notification. An assignee with no linked user, and a failed lookup, are now logged. Both use bizapps-common's shared resolver (`@mj-biz-apps/common-entities` 5.55.0+), which the tasks pages now use too to find the signed-in user's Person.
+  - @mj-biz-apps/tasks-actions@1.13.0
+  - @mj-biz-apps/tasks-core@1.13.0
+  - @mj-biz-apps/tasks-entities@1.13.0
+  - @mj-biz-apps/tasks-entities-server@1.13.0
+
+## 1.12.0
+
+### Patch Changes
+
+- Updated dependencies [7b3ea77]
+- Updated dependencies [86d0081]
+  - @mj-biz-apps/tasks-entities-server@1.12.0
+  - @mj-biz-apps/tasks-entities@1.12.0
+  - @mj-biz-apps/tasks-actions@1.12.0
+  - @mj-biz-apps/tasks-core@1.12.0
+
+## 1.11.1
+
+### Patch Changes
+
+- @mj-biz-apps/tasks-actions@1.11.1
+- @mj-biz-apps/tasks-core@1.11.1
+- @mj-biz-apps/tasks-entities@1.11.1
+- @mj-biz-apps/tasks-entities-server@1.11.1
+
+## 1.11.0
+
+### Patch Changes
+
+- Updated dependencies [bd16eee]
+- Updated dependencies [a2bab10]
+- Updated dependencies [f50bd0d]
+- Updated dependencies [55de4fa]
+  - @mj-biz-apps/tasks-entities@1.11.0
+  - @mj-biz-apps/tasks-actions@1.11.0
+  - @mj-biz-apps/tasks-core@1.11.0
+  - @mj-biz-apps/tasks-entities-server@1.11.0
+
+## 1.10.0
+
+### Minor Changes
+
+- 49b744f: Add Priority/OKR tracking columns on `Task` (`HealthStatus`, `ConfidenceScore`, `BaselineValue`, `TargetValue`, `CurrentValue`, `UnitOfMeasure`, `MetricDirection`, `RollupWeight`, `PlanningPeriod`, `CheckInCadence`, `LastCheckInAt`, `NextCheckInDueAt`), the `TaskCheckIn` entity, and weighted health/confidence rollup in `TaskCheckInEntityServer` and `TaskService`.
+
+### Patch Changes
+
+- Updated dependencies [20d8ecd]
+- Updated dependencies [3ab8698]
+- Updated dependencies [304ed58]
+- Updated dependencies [8f2cc7b]
+- Updated dependencies [86887d2]
+- Updated dependencies [49b744f]
+  - @mj-biz-apps/tasks-entities-server@1.10.0
+  - @mj-biz-apps/tasks-core@1.10.0
+  - @mj-biz-apps/tasks-entities@1.10.0
+  - @mj-biz-apps/tasks-actions@1.10.0
+
+## 1.9.0
+
+### Patch Changes
+
+- Updated dependencies [525d508]
+  - @mj-biz-apps/tasks-entities@1.9.0
+  - @mj-biz-apps/tasks-actions@1.9.0
+  - @mj-biz-apps/tasks-core@1.9.0
+  - @mj-biz-apps/tasks-entities-server@1.9.0
+
+## 1.8.0
+
+### Patch Changes
+
+- Updated dependencies [4fa9ceb]
+  - @mj-biz-apps/tasks-entities@1.8.0
+  - @mj-biz-apps/tasks-actions@1.8.0
+  - @mj-biz-apps/tasks-core@1.8.0
+  - @mj-biz-apps/tasks-entities-server@1.8.0
+
+## 1.7.2
+
+### Patch Changes
+
+- a4ad11a: The packages' dependencies on each other are caret ranges (`^1.7.1`) instead of exact versions. A host that pins or overrides one package of this app at a later compatible version no longer forces an exact-match copy of its siblings. Changesets keeps the caret and moves its floor on each release.
+- Updated dependencies [a4ad11a]
+  - @mj-biz-apps/tasks-core@1.7.2
+  - @mj-biz-apps/tasks-entities-server@1.7.2
+  - @mj-biz-apps/tasks-actions@1.7.2
+  - @mj-biz-apps/tasks-entities@1.7.2
+
+## 1.7.1
+
+### Patch Changes
+
+- Updated dependencies [cbdce43]
+  - @mj-biz-apps/tasks-entities@1.7.1
+  - @mj-biz-apps/tasks-core@1.7.1
+  - @mj-biz-apps/tasks-entities-server@1.7.1
+  - @mj-biz-apps/tasks-actions@1.7.1
+
 ## 1.7.0
 
 ### Minor Changes

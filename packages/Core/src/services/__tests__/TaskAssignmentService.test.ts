@@ -18,7 +18,7 @@ import { TaskAssignmentService } from '../TaskAssignmentService.js';
 
 function makeFakeEntity(initial: Record<string, any> = {}) {
   const data: Record<string, any> = { ...initial };
-  return {
+  const base = {
     data,
     NewRecord: vi.fn(),
     InnerLoad: vi.fn(async () => true),
@@ -27,6 +27,20 @@ function makeFakeEntity(initial: Record<string, any> = {}) {
     Set: vi.fn((f: string, v: any) => { data[f] = v; }),
     Get: vi.fn((f: string) => data[f]),
   };
+  return new Proxy(base, {
+    get(target, prop, receiver) {
+      if (typeof prop === 'string' && prop in target) return Reflect.get(target, prop, receiver);
+      if (typeof prop === 'string') return target.Get(prop);
+      return Reflect.get(target, prop, receiver);
+    },
+    set(target, prop, value, receiver) {
+      if (typeof prop === 'string' && !(prop in target)) {
+        target.Set(prop, value);
+        return true;
+      }
+      return Reflect.set(target, prop, value, receiver);
+    },
+  });
 }
 
 beforeEach(() => vi.clearAllMocks());
@@ -79,6 +93,23 @@ describe('TaskAssignmentService.assignToTask', () => {
     expect(fields).not.toContain('RoleID');
     expect(fields).not.toContain('RoleNotes');
     expect(fields).not.toContain('AssignedByPersonID');
+  });
+});
+
+describe('TaskAssignmentService.assignToTask — a refused save', () => {
+  it('throws with the save message and logs no activity', async () => {
+    const assignment = makeFakeEntity();
+    assignment.Save.mockResolvedValueOnce(false);
+    (assignment as Record<string, unknown>).LatestResult = { CompleteMessage: 'Permission denied' };
+    getEntityObjectMock.mockResolvedValueOnce(assignment);
+
+    const svc = new TaskAssignmentService();
+    await expect(svc.assignToTask({
+      taskID: 'task-6',
+      assigneeEntityID: 'entity-1',
+      assigneeRecordID: 'person-6',
+    })).rejects.toThrow('Failed to assign person-6 to task task-6: Permission denied');
+    expect(getEntityObjectMock).toHaveBeenCalledOnce();
   });
 });
 

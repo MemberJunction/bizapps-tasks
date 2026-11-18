@@ -52,7 +52,7 @@ async function expectError(name, sql, params, needle) {
 
 async function main() {
   console.log('\n[1] Seeded reference data (metadata-sync migrations)');
-  for (const [t, want] of [['TaskType', 5], ['TaskRole', 3], ['TaskNotificationConfig', 1], ['TaskDecisionOutcome', 3]]) {
+  for (const [t, want] of [['TaskType', 7], ['TaskRole', 3], ['TaskNotificationConfig', 1], ['TaskDecisionOutcome', 3]]) {
     const n = +(await q(`SELECT count(*) c FROM ${S}."${t}"`)).rows[0].c;
     check(`${t} seeded (=${want})`, n === want, `got ${n}`);
   }

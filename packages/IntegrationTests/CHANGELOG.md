@@ -1,5 +1,83 @@
 # @mj-biz-apps/tasks-integration-tests
 
+## 1.13.0
+
+### Patch Changes
+
+- @mj-biz-apps/tasks-entities@1.13.0
+- @mj-biz-apps/tasks-entities-server@1.13.0
+
+## 1.12.0
+
+### Patch Changes
+
+- Updated dependencies [7b3ea77]
+- Updated dependencies [86d0081]
+  - @mj-biz-apps/tasks-entities-server@1.12.0
+  - @mj-biz-apps/tasks-entities@1.12.0
+
+## 1.11.1
+
+### Patch Changes
+
+- @mj-biz-apps/tasks-entities@1.11.1
+- @mj-biz-apps/tasks-entities-server@1.11.1
+
+## 1.11.0
+
+### Patch Changes
+
+- Updated dependencies [bd16eee]
+- Updated dependencies [a2bab10]
+- Updated dependencies [f50bd0d]
+- Updated dependencies [55de4fa]
+  - @mj-biz-apps/tasks-entities@1.11.0
+  - @mj-biz-apps/tasks-entities-server@1.11.0
+
+## 1.10.0
+
+### Patch Changes
+
+- Updated dependencies [20d8ecd]
+- Updated dependencies [304ed58]
+- Updated dependencies [8f2cc7b]
+- Updated dependencies [86887d2]
+- Updated dependencies [49b744f]
+  - @mj-biz-apps/tasks-entities-server@1.10.0
+  - @mj-biz-apps/tasks-entities@1.10.0
+
+## 1.9.0
+
+### Patch Changes
+
+- Updated dependencies [525d508]
+  - @mj-biz-apps/tasks-entities@1.9.0
+  - @mj-biz-apps/tasks-entities-server@1.9.0
+
+## 1.8.0
+
+### Patch Changes
+
+- Updated dependencies [4fa9ceb]
+  - @mj-biz-apps/tasks-entities@1.8.0
+  - @mj-biz-apps/tasks-entities-server@1.8.0
+
+## 1.7.2
+
+### Patch Changes
+
+- Updated dependencies [a4ad11a]
+  - @mj-biz-apps/tasks-entities-server@1.7.2
+  - @mj-biz-apps/tasks-entities@1.7.2
+
+## 1.7.1
+
+### Patch Changes
+
+- Updated dependencies [cbdce43]
+  - @mj-biz-apps/tasks-entities@1.7.1
+  - @mj-biz-apps/tasks-entities-server@1.7.1
+
 ## 1.7.0
 
 ### Patch Changes

@@ -1,5 +1,5 @@
-import { Metadata, RunView, UserInfo } from '@memberjunction/core';
-import { IsValidUUID } from '@memberjunction/global';
+import { Metadata, UserInfo } from '@memberjunction/core';
+import { ResolvePersonIDForUser } from '@mj-biz-apps/common-entities';
 
 export const PEOPLE_ENTITY = 'MJ_BizApps_Common: People';
 
@@ -9,43 +9,30 @@ export const PEOPLE_ENTITY = 'MJ_BizApps_Common: People';
  * Task assignments, decisions and comments store a Person ID, so pages that show
  * "my" tasks must filter by this ID. The user's email or User ID never matches.
  *
- * The user's own link is read first: `LinkedEntityRecordID` when `LinkedEntityID` is People or
- * an IS-A subtype of it. A platform that binds users through a People subtype keeps that link
- * and leaves the deprecated `People.LinkedUserID` empty. Users without such a link fall back
- * to `LinkedUserID`.
+ * Uses bizapps-common's resolver: the user's own link to People or an IS-A subtype of it first,
+ * else the deprecated `People.LinkedUserID`.
  *
  * @returns the Person ID, or null when the user has no active linked Person record.
  * @throws when the lookup itself fails, so a caller can tell an error from a missing link.
  */
 export async function ResolveCurrentPersonID(user: UserInfo | undefined = new Metadata().CurrentUser): Promise<string | null> {
-    if (!user?.ID) return null;
-    const linkedPersonID = LinkedPersonRecordID(user);
-    const result = await new RunView().RunView<{ ID: string }>({
-        EntityName: PEOPLE_ENTITY,
-        ExtraFilter: `${linkedPersonID ? `ID = '${linkedPersonID}'` : `LinkedUserID = '${user.ID}'`} AND Status = 'Active'`,
-        Fields: ['ID'],
-        ResultType: 'simple',
-        MaxRows: 1,
-    });
-    if (!result?.Success) throw new Error(`Person lookup failed: ${result?.ErrorMessage ?? 'no result'}`);
-    return result.Results?.[0]?.ID ?? null;
-}
-
-/** The Person ID the user record links to, or null when it links to no People record. */
-export function LinkedPersonRecordID(user: UserInfo): string | null {
-    // Typed as numbers in UserInfo; both hold UUIDs.
-    const entityID = user.LinkedEntityID as unknown as string | null | undefined;
-    const recordID = user.LinkedEntityRecordID as unknown as string | null | undefined;
-    if (!entityID || !recordID || !IsValidUUID(recordID)) return null;
-    const entity = new Metadata().EntityByID(entityID);
-    if (!entity) return null;
-    const isPeople = entity.Name === PEOPLE_ENTITY || entity.ParentChain.some((parent) => parent.Name === PEOPLE_ENTITY);
-    return isPeople ? recordID : null;
+    try {
+        return await ResolvePersonIDForUser(user, Metadata.Provider, undefined, { ActiveOnly: true });
+    } catch (error) {
+        // The GraphQL provider sends the views asked in one tick as one batch and rejects them all when any one of them
+        // names an entity the host lacks (a shell component's, on a host behind its code). The People read was not the
+        // problem then: ask once more, in a batch of its own.
+        if (error instanceof Error && /not found in metadata/i.test(error.message) && !error.message.includes(PEOPLE_ENTITY)) {
+            await new Promise((resolve) => setTimeout(resolve, 150));
+            return await ResolvePersonIDForUser(user, Metadata.Provider, undefined, { ActiveOnly: true });
+        }
+        throw error;
+    }
 }
 
 /** Shown in place of a task list when the signed-in user has no active Person record. */
 export const NO_PERSON_MESSAGE =
-    'Your user account is not linked to an active Person record, so no assigned tasks can be shown. Ask an administrator to link one.';
+    'Your user account is not linked to an active Person record, so no assigned tasks can be shown. Please ask your administrator to link one.';
 
 /** Shown in place of a task list when looking up the signed-in user's Person record fails. */
 export const PERSON_LOOKUP_FAILED_MESSAGE =

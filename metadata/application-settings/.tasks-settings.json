@@ -1,0 +1,57 @@
+[
+  {
+    "fields": {
+      "ApplicationID": "@lookup:MJ: Applications.Name=Tasks",
+      "Name": "PreventSelfApproval",
+      "Value": "false",
+      "Comments": "When true, a decision on an approval task (a task whose type has IsApproval set) is accepted only from one of the task's assignees, recorded as that assignee's own decision, and never from the person who created the task (bc-aidp-next-golive#320). Checked on the server for every path that records a decision: the approval panel, the Tasks inbox and other apps' server code. False, the default, accepts every decision as before."
+    },
+    "primaryKey": {
+      "ID": "03CB418F-59E6-4838-9DA7-5646502D3D79"
+    }
+  },
+  {
+    "fields": {
+      "ApplicationID": "@lookup:MJ: Applications.Name=Tasks",
+      "Name": "SelfApprovalExemptRole",
+      "Value": "",
+      "Comments": "The NAME of the MJ role whose holders may decide an approval task they created themselves while PreventSelfApproval is true. They must still be one of its assignees. Empty exempts nobody. A name that is not a role exempts nobody and is logged."
+    },
+    "primaryKey": {
+      "ID": "17CC9998-9382-447B-A7DF-682A06837953"
+    }
+  },
+  {
+    "fields": {
+      "ApplicationID": "@lookup:MJ: Applications.Name=Tasks",
+      "Name": "DefaultCalendarProviderName",
+      "Value": "",
+      "Comments": "The MJ: Communication Providers name (for example 'Microsoft Graph' or 'Gmail') used to synchronize meetings with an external calendar via CalendarEventLinks (T2). Empty leaves automatic calendar sync off."
+    },
+    "primaryKey": {
+      "ID": "28DDAA01-0000-4000-8000-000000000001"
+    }
+  },
+  {
+    "fields": {
+      "ApplicationID": "@lookup:MJ: Applications.Name=Tasks",
+      "Name": "SharedCalendarMailbox",
+      "Value": "",
+      "Comments": "Optional shared scheduling mailbox address used as the CalendarTarget.Identifier fallback when a meeting's organizer has no email address."
+    },
+    "primaryKey": {
+      "ID": "28DDAA01-0000-4000-8000-000000000002"
+    }
+  },
+  {
+    "fields": {
+      "ApplicationID": "@lookup:MJ: Applications.Name=Tasks",
+      "Name": "ApprovalReassignRoles",
+      "Value": "",
+      "Comments": "Comma-separated NAMES of the MJ roles whose holders may change who an approval task (a task whose type has IsApproval set) is assigned to, or remove its assignee (bc-aidp-next-golive#389). Names match trimmed and case-insensitively; a name that is not a role matches nobody and is logged. Nobody may reassign an approval to themselves, whatever their role. Creating assignments is not checked, so workflow routing is unaffected. Empty, the default, switches the role rule off, so assignments move as before; the self-assignment refusal still applies."
+    },
+    "primaryKey": {
+      "ID": "CBF531C2-4DBE-4F63-9CFB-C3266835AD6E"
+    }
+  }
+]
