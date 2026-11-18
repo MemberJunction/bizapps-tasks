@@ -1,5 +1,53 @@
 # @mj-biz-apps/tasks-entities
 
+## 1.13.0
+
+## 1.12.0
+
+### Minor Changes
+
+- 86d0081: Release seed for the approval reassignment guard: `V…__v1.12.x__Metadata_Sync` creates the Tasks application setting `ApprovalReassignRoles`, empty by default, so a host that upgrades by migration gets it as one that ran `mj sync push` does. It is create-only: a host that already set its roles keeps them. It has a Postgres counterpart.
+
+## 1.11.1
+
+## 1.11.0
+
+### Minor Changes
+
+- bd16eee: Move to MemberJunction's 6.2 LTS line: every `@memberjunction/*` range and the core/global overrides are `^6.2.1` (exact `6.2.1` devDependency anchors), and `mjVersionRange` is `>=6.2.1 <7.0.0`. Hosts must run MJ 6.2.1 or later to install this release.
+- a2bab10: Populate `EntityField.EntityIDFieldName` metadata on polymorphic foreign-key record-ID fields so MemberJunction forms, grids, cards, and detail panels resolve target record names and render smart clickable record links.
+- f50bd0d: `metadata/entities/.polymorphic-fk-entity-fields.json` gives every `MJ: Entity Fields` entry a `primaryKey` lookup (`@lookup:MJ: Entity Fields.EntityID=@lookup:MJ: Entities.Name=<entity>&Name=<field>`). The entries had none, and `mj sync push` creates a new row for any record without a `primaryKey`, so on a fresh database it tried to insert a second field row with a NULL `EntityID` and the app's whole metadata push rolled back. With the lookup, push updates the field row CodeGen created and sets its `EntityIDFieldName`.
+- 55de4fa: Add the v1.11.x Metadata_Sync migration (with its PostgreSQL counterpart). It sets `EntityIDFieldName` on Task Assignments `AssigneeRecordID` and Task Links `RecordID`, so installs get the polymorphic record links that `metadata/entities/.polymorphic-fk-entity-fields.json` declares. The installer runs migrations and never reads `metadata/`, so without this migration the metadata change reached no one.
+
+## 1.10.0
+
+### Minor Changes
+
+- 304ed58: Move to MemberJunction 6.1.6: every `@memberjunction/*` caret floor and exact devDependency anchor goes from 6.1.0-edge.5 to 6.1.6, and `mj-app.json`'s `mjVersionRange` becomes `>=6.1.6 <7.0.0`.
+- 8f2cc7b: Ship the 1.10 metadata: a `Metadata_Sync` migration that seeds the PreventSelfApproval and SelfApprovalExemptRole application settings and the Priority Objective and Key Result task types, with its PostgreSQL counterpart, and the PostgreSQL counterpart of the Task priority / OKR and Task Check In migration (native PostgreSQL CodeGen from MJ 6.1.6), so a PostgreSQL install reaches the same schema and metadata as SQL Server. The credential type, action category and action the 1.8 seed created now carry their primary keys in `metadata/`, so a push against a database that ran that seed matches them instead of trying to create them again.
+- 86887d2: Remove hand-authored PostgreSQL migration file so the release toolchain generates the PostgreSQL counterpart.
+- 49b744f: Add Priority/OKR tracking columns on `Task` (`HealthStatus`, `ConfidenceScore`, `BaselineValue`, `TargetValue`, `CurrentValue`, `UnitOfMeasure`, `MetricDirection`, `RollupWeight`, `PlanningPeriod`, `CheckInCadence`, `LastCheckInAt`, `NextCheckInDueAt`), the `TaskCheckIn` entity, and weighted health/confidence rollup in `TaskCheckInEntityServer` and `TaskService`.
+
+## 1.9.0
+
+### Minor Changes
+
+- 525d508: PostgreSQL counterparts for the five migrations from v1.2.x to v1.7.x (TaskType codes, statuses and workflow hooks; the scoped CodeGen objects; the v1.2.x metadata sync; the predictive SLA fields and layered `vwTasks`; `TaskType.IsApproval`). A PostgreSQL install now reaches the v1.7 schema instead of stopping at v1.1, and a database already at v1.1 upgrades with the same five files.
+
+## 1.8.0
+
+### Minor Changes
+
+- 4fa9ceb: The 1.8 Metadata_Sync ships what metadata/ changed since the 1.2 seed, which no release carried until now: the Post Task Assignment to Teams action (with its Teams Channel Webhook credential type and Tasks action category), the UI role's create, update and delete grants on the records the task panels save, user search on the task entities, and Approval Request marked as an approval type. It has a Postgres counterpart. The ML bench under metadata/ is not included.
+
+## 1.7.2
+
+## 1.7.1
+
+### Patch Changes
+
+- cbdce43: `mj-app.json` now lists `@mj-biz-apps/tasks-actions` under `server` instead of `shared`. They use server-only code (Node built-ins, or MemberJunction's actions, AI engine, storage or server packages), and `shared` installs a package into MJExplorer too. The Open App client bootstrap imports every `shared` package, so Explorer's browser build failed on a host with this app installed (`Could not resolve "node:crypto"`, `"node:net"`, `"stream"`). The server still loads them exactly as before.
+
 ## 1.7.0
 
 ### Minor Changes

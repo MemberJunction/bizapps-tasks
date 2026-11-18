@@ -4,11 +4,13 @@
     "autoCreateMissingRecords": true
   },
   "directoryOrder": [
+    "row-level-security-filters",
     "entities",
     "credential-types",
     "action-categories",
     "actions",
     "applications",
+    "application-settings",
     "entity-relationships",
     "task-types",
     "task-roles",
@@ -17,14 +19,23 @@
     "record-processes",
     "ml-training-pipelines",
     "ml-models",
-    "ml-model-scoring-bindings"
+    "ml-model-scoring-bindings",
+    "prompts",
+    "meeting-agenda-item-types",
+    "meeting-types",
+    "video-providers",
+    "scheduled-job-types",
+    "scheduled-jobs"
   ],
   "emitSyncNotes": false,
   "sqlLogging": {
     "enabled": true,
     "outputDirectory": "./sql_logging",
     "formatAsMigration": true,
-    "filterPatterns": ["*spCreateAIPromptRun*", "*spUpdateAIPromptRun*"],
+    "filterPatterns": [
+      "*spCreateAIPromptRun*",
+      "*spUpdateAIPromptRun*"
+    ],
     "filterType": "exclude"
   }
 }

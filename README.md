@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  <img alt="MJ Version" src="https://img.shields.io/badge/MemberJunction-6.1.0--edge.1-blue?style=flat-square" />
+  <img alt="MJ Version" src="https://img.shields.io/badge/MemberJunction-6.1.6%2B-blue?style=flat-square" />
   <img alt="Angular" src="https://img.shields.io/badge/Angular-21-DD0031?style=flat-square&logo=angular&logoColor=white" />
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript&logoColor=white" />
   <a href="./LICENSE"><img alt="License: BUSL-1.1" src="https://img.shields.io/badge/License-BUSL--1.1-green?style=flat-square" /></a>
@@ -46,7 +46,7 @@ mj app install https://github.com/MemberJunction/bizapps-tasks
 This single command:
 
 1. Fetches the `mj-app.json` manifest from this repository
-2. Validates MJ version compatibility (`>=6.1.0-edge.1 <7.0.0`)
+2. Validates MJ version compatibility (`>=6.1.6 <7.0.0`)
 3. Installs the dependency [BizApps Common](https://github.com/MemberJunction/bizapps-common) if not already present
 4. Creates the `__mj_BizAppsTasks` database schema
 5. Runs Skyway migrations to create all 15 tables with seed data
@@ -77,7 +77,7 @@ For detailed deep-dives on **Task Types**, **Dynamic Task Type Statuses (`TaskTy
 
 ## What You Get
 
-### 16 Database Tables
+### 26 Database Tables
 
 All tables live in the `__mj_BizAppsTasks` SQL schema, deployed via migrations.
 
@@ -89,16 +89,17 @@ All tables live in the `__mj_BizAppsTasks` SQL schema, deployed via migrations.
 | **Collaboration** | TaskComment, TaskActivity | Threaded discussion and automatic server-authoritative audit log |
 | **Structure** | TaskDependency, TaskTag, TaskTagLink | Dependency graphs, critical paths, and cross-cutting labels |
 | **Templates** | TaskTemplate, TaskTemplateItem, TaskTemplateItemDependency, TaskTemplateItemRole | Reusable task structures for recurring workflows |
+| **Meetings** | Meeting, MeetingSeries, MeetingSeriesAttendee, MeetingAttendee, MeetingAgendaItem, MeetingAgendaItemType, MeetingNote, MeetingLink, MeetingType, VideoProvider | Meetings and agendas as a first-class app: one-off and recurring meetings, who is invited and whether they came, nested agendas with typed items, notes, what a meeting belongs to, and the video providers that host it. Follow-ups are tasks of the `ACTION_ITEM` type linked through `TaskLink`; a transcript is an MJ file; calendar events are MemberJunction's |
 
 ### 6 TypeScript Packages
 
 | Package | NPM Name | Role |
 |---------|----------|------|
 | **Entities** | `@mj-biz-apps/tasks-entities` | Strongly-typed entity classes with Zod validation, custom subclasses for status transitions and cycle detection |
-| **Entities Server** | `@mj-biz-apps/tasks-entities-server` | Authoritative server subclasses (`TaskEntityServer`), dynamic status sync, terminal completion, and action hook dispatching |
+| **Entities Server** | `@mj-biz-apps/tasks-entities-server` | Authoritative server subclasses (`TaskEntityServer`, the `Meeting*EntityServer`s), dynamic status sync, terminal completion, action hook dispatching, and the meetings' rules: times and zone, the status moving forward, the organizer's attendee row, a series' occurrences, the video driver after the commit |
 | **Actions** | `@mj-biz-apps/tasks-actions` | Server-side action handlers and subclasses |
-| **Core** | `@mj-biz-apps/tasks-core` | TaskService, TaskAssignmentService, TaskTemplateService, TaskOrchestrationService |
-| **Server** | `@mj-biz-apps/tasks-server` | GraphQL resolvers, notification handlers, scheduled jobs, and server bootstrap |
+| **Core** | `@mj-biz-apps/tasks-core` | TaskService, TaskAssignmentService, TaskTemplateService, TaskOrchestrationService; MeetingService, MeetingSeriesService, MeetingAgendaService, MeetingCalendarFile, and the pure meetings rules (status moves, recurrence in a zone, agenda trees, the `.ics` file) |
+| **Server** | `@mj-biz-apps/tasks-server` | GraphQL resolvers, notification handlers, scheduled jobs (overdue tasks, meeting series materialization), and server bootstrap |
 | **Angular** | `@mj-biz-apps/tasks-ng` | UI components, generated forms, Kanban, Gantt, and Dashboard |
 
 ### 10 Reusable Angular Components + Full Dashboard App
@@ -160,6 +161,8 @@ All components are standalone with `@if`/`@for` block syntax. No routing -- even
 ### Key Design Patterns
 
 **Polymorphic Assignment** -- TaskAssignment uses `AssigneeEntityID + AssigneeRecordID` to assign tasks to any entity type -- BizAppsCommon People, MJ AI Agents, or future entity types -- without schema changes.
+
+**Role Assignment** -- An assignment whose `AssigneeEntityID` is `MJ: Roles` and `AssigneeRecordID` a Role ID gives the task to everyone who holds that role: it lists in each holder's My Tasks and approval inbox, each active holder is notified on assignment, completion, block, comment and overdue, and any holder may decide an approval assigned to the role. Membership is read when it is needed, so someone who joins the role later sees the open tasks.
 
 **Polymorphic Linking** -- TaskLink replaces dedicated bridge tables. Consuming apps link tasks to their own entities (committees, meetings, agenda items) via `EntityID + RecordID`. A single task can link to multiple records across multiple entity types.
 
@@ -262,6 +265,9 @@ Deployed via migrations. Fully customizable per deployment.
 |------------|-----------------|
 | **TaskType** | General, Action Item, Follow-up, Deliverable |
 | **TaskRole** | Primary, Reviewer, Observer |
+| **MeetingType** | General, One-on-one, Team, Client, Review, each with a default length and an agenda template (metadata, `metadata/meeting-types`) |
+| **MeetingAgendaItemType** | Information, Discussion, Decision, Report, Presentation, Action review, Break (metadata) |
+| **VideoProvider** | Zoom, Microsoft Teams, Google Meet, shipped inactive until a host gives each a credential of the *Video Provider OAuth* type and turns it on (metadata) |
 
 ---
 
@@ -365,7 +371,7 @@ Entities ──► Core ──► Server
 
 | Layer | Technology | Version |
 |-------|-----------|---------|
-| **Platform** | [MemberJunction](https://github.com/MemberJunction/MJ) | 6.1.0-edge.1 |
+| **Platform** | [MemberJunction](https://github.com/MemberJunction/MJ) | 6.1.6 |
 | **Runtime** | Node.js | 18+ |
 | **Language** | TypeScript | 5.9 |
 | **Database** | SQL Server / Azure SQL | 2019+ |

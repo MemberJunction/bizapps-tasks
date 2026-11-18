@@ -1,5 +1,97 @@
 # @mj-biz-apps/tasks-ng
 
+## 1.13.0
+
+### Minor Changes
+
+- 8f15adc: A task can be assigned to an MJ role: a Task Assignment with `AssigneeEntityID` = `MJ: Roles` lists the task in every holder's My Tasks and approval inbox, notifies each active holder, and lets any holder decide an approval. The approval inbox also names and links the records each task is linked to, and takes `Title`, `EmptyText`, `ApproverRoleIDs` and `ShowLinkedRecords` inputs.
+
+### Patch Changes
+
+- edb5663: Assignment, comment and overdue notifications find the user to notify for a Person through the user's own People link first: a user whose `LinkedEntityID` is People or an IS-A subtype of it and whose `LinkedEntityRecordID` is the Person. `People.LinkedUserID`, which bizapps-common deprecated and a platform that binds users through a People subtype leaves empty, is the fallback. Before, those Persons got no in-app notification. An assignee with no linked user, and a failed lookup, are now logged. Both use bizapps-common's shared resolver (`@mj-biz-apps/common-entities` 5.55.0+), which the tasks pages now use too to find the signed-in user's Person.
+  - @mj-biz-apps/tasks-core@1.13.0
+  - @mj-biz-apps/tasks-entities@1.13.0
+
+## 1.12.0
+
+### Minor Changes
+
+- 7b3ea77: Guard approval-task assignments on the server (bc-aidp-next-golive#389). When the new Tasks setting `ApprovalReassignRoles` names roles (comma-separated role names matched case-insensitively; a name that is not a role is logged), changing who an approval is assigned to, or removing its assignee, is refused unless the user holds one of them. Empty, the default, switches that rule off, so installing this release changes nothing until a host sets a value. Nobody may reassign an approval to themselves, whatever the setting. Creating an assignment is not checked, so workflow routing is unaffected, as are ordinary tasks. Deleting a task from the detail panel now removes its assignments first and stops at the first refused child delete, so a refused approval delete no longer destroys the task's activities, comments and tags.
+
+### Patch Changes
+
+- Updated dependencies [86d0081]
+  - @mj-biz-apps/tasks-entities@1.12.0
+  - @mj-biz-apps/tasks-core@1.12.0
+
+## 1.11.1
+
+### Patch Changes
+
+- 9c81fd3: The Task form shows Sub-tasks as its own side-rail item after Details again. MJ 6.2 files every panel mounted at a field slot inside the Details item, so the Sub-tasks panel now mounts after related.
+  - @mj-biz-apps/tasks-core@1.11.1
+  - @mj-biz-apps/tasks-entities@1.11.1
+
+## 1.11.0
+
+### Patch Changes
+
+- Updated dependencies [bd16eee]
+- Updated dependencies [a2bab10]
+- Updated dependencies [f50bd0d]
+- Updated dependencies [55de4fa]
+  - @mj-biz-apps/tasks-entities@1.11.0
+  - @mj-biz-apps/tasks-core@1.11.0
+
+## 1.10.0
+
+### Minor Changes
+
+- 49b744f: Add Priority/OKR tracking columns on `Task` (`HealthStatus`, `ConfidenceScore`, `BaselineValue`, `TargetValue`, `CurrentValue`, `UnitOfMeasure`, `MetricDirection`, `RollupWeight`, `PlanningPeriod`, `CheckInCadence`, `LastCheckInAt`, `NextCheckInDueAt`), the `TaskCheckIn` entity, and weighted health/confidence rollup in `TaskCheckInEntityServer` and `TaskService`.
+
+### Patch Changes
+
+- Updated dependencies [3ab8698]
+- Updated dependencies [304ed58]
+- Updated dependencies [8f2cc7b]
+- Updated dependencies [86887d2]
+- Updated dependencies [49b744f]
+  - @mj-biz-apps/tasks-core@1.10.0
+  - @mj-biz-apps/tasks-entities@1.10.0
+
+## 1.9.0
+
+### Patch Changes
+
+- Updated dependencies [525d508]
+  - @mj-biz-apps/tasks-entities@1.9.0
+  - @mj-biz-apps/tasks-core@1.9.0
+
+## 1.8.0
+
+### Patch Changes
+
+- Updated dependencies [4fa9ceb]
+  - @mj-biz-apps/tasks-entities@1.8.0
+  - @mj-biz-apps/tasks-core@1.8.0
+
+## 1.7.2
+
+### Patch Changes
+
+- a4ad11a: The packages' dependencies on each other are caret ranges (`^1.7.1`) instead of exact versions. A host that pins or overrides one package of this app at a later compatible version no longer forces an exact-match copy of its siblings. Changesets keeps the caret and moves its floor on each release.
+- Updated dependencies [a4ad11a]
+  - @mj-biz-apps/tasks-core@1.7.2
+  - @mj-biz-apps/tasks-entities@1.7.2
+
+## 1.7.1
+
+### Patch Changes
+
+- Updated dependencies [cbdce43]
+  - @mj-biz-apps/tasks-entities@1.7.1
+  - @mj-biz-apps/tasks-core@1.7.1
+
 ## 1.7.0
 
 ### Minor Changes

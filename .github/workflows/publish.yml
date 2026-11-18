@@ -11,12 +11,35 @@
 # `commitpush`, which pushed straight to `main`. The main -> next back-merge is kept, but as a
 # PR opened and merged with the App token (see the last step) rather than a direct push, so it
 # goes through the same rulesets as every other change to `next`.
+#
+# One more path, which releases nothing: a dispatch with `seed_package` set runs ONLY the
+# `seed-package` job at the bottom. It publishes a placeholder prerelease of one NEW package over
+# OIDC, so the package carries a public provenance attestation naming this repository and this
+# file — the proof the `new package seeded` PR check (new-package-gate.yml) reads. It lives here
+# and not in a workflow of its own because npm trusted publishing matches the exact workflow
+# filename: a seed from any other file is refused at the token exchange, and would prove nothing
+# about whether THIS file can publish the package.
 name: Build and Publish
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      # Double entry, on its own pair of fields: a seed needs the package name typed twice, and a
+      # release needs both left empty. Neither can be mistaken for the other.
+      seed_package:
+        description: 'SEED ONLY — leave empty for a release. The NEW package to seed over OIDC, e.g. @scope/new-thing. Publishes a placeholder prerelease; builds and releases nothing.'
+        required: false
+        default: ''
+      confirm_seed_package:
+        description: 'SEED ONLY — type the same package name again to confirm. Must match seed_package exactly.'
+        required: false
+        default: ''
+      seed_version:
+        description: 'SEED ONLY — prerelease version for the seed. Must contain a hyphen so it can never win the latest tag.'
+        required: false
+        default: '0.0.1-seed.1'
 
 permissions:
   contents: write
@@ -45,7 +68,14 @@ jobs:
     # from publish removed that accident, so the guard has to be explicit.
     #
     # The template repo carries this pipeline for the apps made from it, but never publishes itself.
-    if: github.ref == 'refs/heads/main' && github.repository != 'MemberJunction/open-app-template'
+    #
+    # A dispatch that fills in EITHER seed field is not a release, so it never reaches this job —
+    # including a half-filled one (confirm without a package), which then runs nothing at all
+    # rather than quietly releasing. On `push` there are no inputs and the last clause is skipped.
+    if: >-
+      github.ref == 'refs/heads/main' && github.repository != 'MemberJunction/open-app-template'
+      && (github.event_name != 'workflow_dispatch'
+      || (github.event.inputs.seed_package == '' && github.event.inputs.confirm_seed_package == ''))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -229,3 +259,157 @@ jobs:
             exit 1
           fi
           echo "Back-merge: $PR_URL" >> "$GITHUB_STEP_SUMMARY"
+
+  # Seed path. Publishes a two-file placeholder prerelease of ONE new package through the trusted
+  # publisher. Nothing is checked out, built or released, and no changeset is consumed; the
+  # release job above refuses any dispatch that fills in a seed field.
+  #
+  # Its own permissions: `id-token: write` to mint the OIDC token npm exchanges for publish
+  # rights, and read-only contents — a seed has no reason to write to the repository.
+  seed-package:
+    name: Seed ${{ github.event.inputs.seed_package }} over OIDC
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.seed_package != '' && github.repository != 'MemberJunction/open-app-template'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    # Inputs reach the shell as environment variables only, never interpolated into a script.
+    env:
+      PACKAGE: ${{ github.event.inputs.seed_package }}
+      CONFIRM: ${{ github.event.inputs.confirm_seed_package }}
+      VERSION: ${{ github.event.inputs.seed_version }}
+      REPO: ${{ github.repository }}
+    steps:
+      # Fails loudly instead of skipping: a seed that silently did nothing would leave the
+      # operator waiting on an attestation that is never coming.
+      - name: Refuse anything but a confirmed seed from a protected branch
+        run: |
+          set -euo pipefail
+          # The attestation proves "this file, as it stood on that ref, published the package".
+          # Only `next` and `main` hold a reviewed copy of this file.
+          case "$GITHUB_REF" in
+            refs/heads/next|refs/heads/main) ;;
+            *) echo "::error::A seed must be dispatched from next or main (got $GITHUB_REF). Nothing was published."; exit 1 ;;
+          esac
+          if [ "$PACKAGE" != "$CONFIRM" ]; then
+            echo "::error::To seed '$PACKAGE', type the same package name into confirm_seed_package (got '$CONFIRM'). Nothing was published."
+            exit 1
+          fi
+          if ! [[ "$PACKAGE" =~ ^(@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$ ]]; then
+            echo "::error::'$PACKAGE' is not a valid npm package name. Nothing was published."
+            exit 1
+          fi
+          # A seed must be a prerelease. A plain x.y.z could win the `latest` tag and point
+          # consumers at an empty placeholder.
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-[0-9A-Za-z.-]+$ ]]; then
+            echo "::error::'$VERSION' is not a prerelease version. Use something like 0.0.1-seed.1. Nothing was published."
+            exit 1
+          fi
+          echo "::notice::Confirmed seed of $PACKAGE@$VERSION from $GITHUB_REF — the release job is skipped."
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          registry-url: 'https://registry.npmjs.org'
+
+      # Trusted publishing needs npm >= 11.5.1; pinned well above it so the runner's bundled npm
+      # can drift without silently changing behaviour here.
+      - name: Pin npm
+        run: |
+          npm install -g npm@^11.15.0
+          npm --version
+
+      # If the package does not exist, `npm trust github` cannot have been run against it either:
+      # npm refuses to configure trust for a nonexistent package. Say so plainly rather than
+      # letting the publish fail with a less obvious error.
+      - name: Require the package to already exist
+        run: |
+          set -euo pipefail
+          encoded="${PACKAGE/\//%2f}"
+          code=$(curl -s -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/$encoded")
+          echo "registry returned HTTP $code for $PACKAGE"
+          if [ "$code" = "404" ]; then
+            echo "::error::$PACKAGE does not exist on npm yet. Run 'npx -y setup-npm-trusted-publish $PACKAGE' first, then 'npm trust github $PACKAGE --file publish.yml --repo $REPO --allow-publish -y', then re-run this dispatch."
+            exit 1
+          fi
+          if [ "$code" != "200" ]; then
+            echo "::error::Unexpected HTTP $code from the registry. Check https://status.npmjs.org/ and re-run."
+            exit 1
+          fi
+
+      # Published from a scratch directory, not the repo: the seed is a marker, not code.
+      # `repository` must name this repo or npm refuses to attach provenance. The manifest is
+      # written by JSON.stringify so the inputs cannot break out of it.
+      - name: Build the seed package
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/seed && cd /tmp/seed
+          node -e '
+            const { PACKAGE, VERSION, REPO } = process.env;
+            const manifest = {
+              name: PACKAGE,
+              version: VERSION,
+              description: "Trusted-publishing seed. Proves OIDC is configured; contains no code.",
+              license: "ISC",
+              repository: { type: "git", url: `git+https://github.com/${REPO}.git` },
+            };
+            require("node:fs").writeFileSync("package.json", JSON.stringify(manifest, null, 2) + "\n");
+          '
+          printf '# %s\n\nSeed release published over OIDC to prove trusted publishing is configured for this\npackage. It contains no code and is tagged `seed`, never `latest`. Real releases are\npublished by .github/workflows/publish.yml in %s.\n' "$PACKAGE" "$REPO" > README.md
+          cat package.json
+
+      # The load-bearing step. Succeeds only if a trusted publisher naming this repository and
+      # publish.yml is already attached to the package. No token is set, on purpose.
+      - name: Publish seed over OIDC
+        working-directory: /tmp/seed
+        env:
+          NPM_TOKEN: ''
+        run: |
+          set -euo pipefail
+          npm publish --provenance --access public --tag seed
+
+      # Read back what the publish deposited, so the operator sees the same evidence the PR
+      # check will, without waiting for a PR run.
+      - name: Verify the attestation is public and names this workflow
+        run: |
+          set -euo pipefail
+          encoded="${PACKAGE/\//%2f}"
+          url="https://registry.npmjs.org/-/npm/v1/attestations/$encoded@$VERSION"
+          # npm takes a few minutes to expose a fresh attestation, so a 404 straight after the
+          # publish is normal. Poll before failing.
+          code=000
+          for attempt in $(seq 1 24); do
+            code=$(curl -s -o /tmp/att.json -w '%{http_code}' "$url")
+            echo "attempt $attempt: attestation endpoint returned HTTP $code"
+            [ "$code" = "200" ] && break
+            sleep 15
+          done
+          if [ "$code" != "200" ]; then
+            echo "::error::Published, but no public attestation at $url after 6 minutes. The PR check will still block. Confirm 'npm trust list $PACKAGE' names publish.yml."
+            exit 1
+          fi
+          node -e '
+            const doc = require("/tmp/att.json");
+            const wantRepo = `https://github.com/${process.env.REPO}`.toLowerCase();
+            let ok = false;
+            for (const attestation of doc.attestations ?? []) {
+              const payload = attestation?.bundle?.dsseEnvelope?.payload;
+              if (!payload) continue;
+              const statement = JSON.parse(Buffer.from(payload, "base64").toString());
+              const workflow = statement?.predicate?.buildDefinition?.externalParameters?.workflow;
+              if (!workflow) continue;
+              console.log("workflow path :", workflow.path);
+              console.log("workflow repo :", workflow.repository);
+              ok ||= workflow.path === ".github/workflows/publish.yml" && String(workflow.repository).toLowerCase() === wantRepo;
+            }
+            if (!ok) {
+              console.error("::error::No attestation names this repository and .github/workflows/publish.yml — the PR check would reject this seed.");
+              process.exit(1);
+            }
+          '
+          {
+            echo "## Seeded ${PACKAGE}@${VERSION}"
+            echo ''
+            echo "Published over OIDC with provenance naming ${REPO} / publish.yml. The \`new package seeded\` check will now pass for this package."
+          } >> "$GITHUB_STEP_SUMMARY"

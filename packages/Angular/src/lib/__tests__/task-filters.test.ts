@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { EntityInfo, IMetadataProvider } from '@memberjunction/core';
 import {
     ApprovalTypePredicate,
-    AssignedToPersonFilter,
+    AssignedToFilter,
     EntityViewRef,
     IsTrue,
     PendingApprovalFilter,
 } from '../task-filters';
+
+const ROLES_ENTITY_ID = 'A0000000-0000-0000-0000-000000000003';
+const FINANCE = 'D0000000-0000-0000-0000-00000000000A';
 
 /** A provider whose metadata names the Tasks views as the given database stores them. */
 function providerFor(schemaName: string): IMetadataProvider {
@@ -18,6 +21,7 @@ function providerFor(schemaName: string): IMetadataProvider {
     };
     const provider: Pick<IMetadataProvider, 'EntityByName'> = {
         EntityByName: (name: string) => {
+            if (name === 'MJ: Roles') return { ID: ROLES_ENTITY_ID } as EntityInfo;
             const view = views[name.toLowerCase()];
             if (!view) return undefined;
             const entity: Pick<EntityInfo, 'SchemaName' | 'BaseView'> = { SchemaName: schemaName, BaseView: view };
@@ -57,20 +61,39 @@ describe('ApprovalTypePredicate', () => {
     });
 });
 
-describe('AssignedToPersonFilter', () => {
+describe('AssignedToFilter', () => {
     it('filters tasks through the assignments view', () => {
-        expect(AssignedToPersonFilter('person-1', postgres)).toBe(
+        expect(AssignedToFilter('person-1', [], postgres)).toBe(
             "[ID] IN (SELECT [TaskID] FROM [__mj_bizappstasks].[vwTaskAssignments] WHERE [AssigneeRecordID] = 'person-1')",
         );
     });
 
     it('escapes quotes in the person ID', () => {
-        expect(AssignedToPersonFilter("x' OR '1'='1", sqlServer)).toContain("[AssigneeRecordID] = 'x'' OR ''1''=''1'");
+        expect(AssignedToFilter("x' OR '1'='1", [], sqlServer)).toContain("[AssigneeRecordID] = 'x'' OR ''1''=''1'");
+    });
+
+    it('adds the roles, in both cases, scoped to the MJ: Roles entity', () => {
+        expect(AssignedToFilter('person-1', [FINANCE], postgres)).toBe(
+            "[ID] IN (SELECT [TaskID] FROM [__mj_bizappstasks].[vwTaskAssignments] WHERE [AssigneeRecordID] = 'person-1' OR " +
+                `([AssigneeEntityID] = '${ROLES_ENTITY_ID}' AND [AssigneeRecordID] IN ('${FINANCE}','${FINANCE.toLowerCase()}')))`,
+        );
+    });
+
+    it('drops role IDs that are not UUIDs', () => {
+        const filter = AssignedToFilter("o'brien", ["x') OR 1=1 --"], sqlServer);
+        expect(filter).toContain("[AssigneeRecordID] = 'o''brien'");
+        expect(filter).not.toContain('OR 1=1');
+        expect(filter).not.toContain('AssigneeEntityID');
+    });
+
+    it('matches only the person when MJ: Roles is not in metadata', () => {
+        const noRoles = { EntityByName: (name: string) => (name === 'MJ: Roles' ? undefined : sqlServer.EntityByName(name)) } as IMetadataProvider;
+        expect(AssignedToFilter('person-1', [FINANCE], noRoles)).not.toContain('AssigneeEntityID');
     });
 });
 
 describe('PendingApprovalFilter', () => {
-    const filter = PendingApprovalFilter('person-1', null, postgres);
+    const filter = PendingApprovalFilter('person-1', null, [], postgres);
 
     it('reads every view from metadata', () => {
         expect(filter).toContain('FROM [__mj_bizappstasks].[vwTaskTypes]');
@@ -93,8 +116,12 @@ describe('PendingApprovalFilter', () => {
     });
 
     it('limits to the named approval type when given', () => {
-        const named = PendingApprovalFilter('person-1', 'Concession Approval', sqlServer);
+        const named = PendingApprovalFilter('person-1', 'Concession Approval', [], sqlServer);
         expect(named).toContain("[__mj_BizAppsTasks].[vwTaskTypes] WHERE [Name] = 'Concession Approval'");
         expect(named).not.toContain('IsApproval');
+    });
+
+    it("matches the approver's roles too", () => {
+        expect(PendingApprovalFilter('person-1', null, [FINANCE], postgres)).toContain(`[AssigneeRecordID] IN ('${FINANCE}'`);
     });
 });

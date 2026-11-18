@@ -1,13 +1,14 @@
 import { Component, EventEmitter, Input, Output, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { AssignedToPersonFilter } from '../../task-filters';
+import { AssignedToFilter } from '../../task-filters';
 import { TaskListComponent, TaskRow, BeforeTaskSelectedEvent, BeforeStatusChangeEvent } from '../task-list/task-list.component';
+import { CurrentUserRoleIDs } from '../../role-assignees';
 
 /**
  * "My Tasks" convenience wrapper around {@link TaskListComponent}.
  *
- * Automatically filters tasks to those assigned to the provided {@link PersonID}
- * via the TaskAssignment join table. This is the #1 daily use case — "what do
+ * Automatically filters tasks to those assigned to the provided {@link PersonID},
+ * or to an MJ role the user holds, via the TaskAssignment join table. This is the #1 daily use case — "what do
  * I need to do?" — and can be embedded by any consuming app.
  *
  * All {@link TaskListComponent} events are re-emitted so consuming apps can
@@ -58,6 +59,12 @@ export class MyTasksComponent {
      * TaskAssignment. Required — if empty, no tasks will be shown.
      */
     @Input() PersonID: string = '';
+
+    /**
+     * MJ role IDs whose assignments count as this person's (bc-aidp-next-golive#442). When null (the
+     * default), the signed-in user's roles are used; pass `[]` to list only the person's own assignments.
+     */
+    @Input() RoleIDs: string[] | null = null;
 
     /**
      * Whether to show the "+ New Task" button in the embedded list toolbar.
@@ -116,9 +123,9 @@ export class MyTasksComponent {
 
     // ── Internal ────────────────────────────────────────────
 
-    /** @internal Builds the ExtraFilter to scope tasks by assignee PersonID. */
+    /** @internal Builds the ExtraFilter to scope tasks by assignee PersonID and the user's roles. */
     get assigneeFilter(): string {
         if (!this.PersonID) return '';
-        return AssignedToPersonFilter(this.PersonID);
+        return AssignedToFilter(this.PersonID, this.RoleIDs ?? CurrentUserRoleIDs());
     }
 }
