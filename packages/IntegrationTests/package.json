@@ -8,7 +8,8 @@
   "types": "dist/index.d.ts",
   "exports": {
     ".": "./dist/index.js",
-    "./checks/*": "./dist/checks/*.js"
+    "./checks/*": "./dist/checks/*.js",
+    "./video-stub": "./dist/video-stub.js"
   },
   "scripts": {
     "build": "tsc && tsc-alias -f",
@@ -24,9 +25,11 @@
     "vitest": "^4.0.18"
   },
   "dependencies": {
+    "@memberjunction/api-keys": "^6.2.1",
     "@memberjunction/core": "^6.2.1",
     "@memberjunction/core-entities": "^6.2.1",
     "@memberjunction/global": "^6.2.1",
+    "@memberjunction/graphql-dataprovider": "^6.2.1",
     "@memberjunction/testing-integration": "^6.2.1",
     "@mj-biz-apps/common-entities": ">=5.55.0",
     "@mj-biz-apps/tasks-actions": "^1.13.0",

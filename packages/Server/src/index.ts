@@ -22,6 +22,7 @@ import { InitTaskNotificationHandler } from './event-handlers/TaskNotificationHa
 
 // Import scheduled job drivers (registers via @RegisterClass for scheduling engine discovery)
 import { OverdueTaskNotificationJob } from './scheduled-jobs/OverdueTaskNotificationJob.js';
+import { MeetingSeriesMaterializationJob } from './scheduled-jobs/MeetingSeriesMaterializationJob.js';
 import {
     ReconcileStaleTimesheetApprovals,
     TimesheetApprovalReconcileJob,
@@ -44,6 +45,7 @@ import {
 
 export {
     OverdueTaskNotificationJob,
+    MeetingSeriesMaterializationJob,
     TimesheetApprovalReconcileJob,
     ReconcileStaleTimesheetApprovals,
     type TimesheetApprovalReconcileSummary,
@@ -70,6 +72,7 @@ export const RESOLVER_PATHS: string[] = [
 
 const SERVER_REGISTERED_CLASSES = [
     OverdueTaskNotificationJob,
+    MeetingSeriesMaterializationJob,
     TimesheetApprovalReconcileJob,
     StartTimerOperationServer,
     StopTimerOperationServer,

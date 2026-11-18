@@ -43,6 +43,15 @@ describe('TasksSettings (@mj-biz-apps/tasks-core)', () => {
         expect(TasksSettings.ApprovalReassignRoles(provider)).toEqual(['Finance Admin', 'Integration']);
     });
 
+    it('reads DefaultCalendarProviderName and SharedCalendarMailbox, null when unset or blank', () => {
+        expect(TasksSettings.DefaultCalendarProviderName(provider)).toBeNull();
+        expect(TasksSettings.SharedCalendarMailbox(provider)).toBeNull();
+        settings.set('DefaultCalendarProviderName', ' Microsoft Graph ');
+        settings.set('SharedCalendarMailbox', ' calendar@example.com ');
+        expect(TasksSettings.DefaultCalendarProviderName(provider)).toBe('Microsoft Graph');
+        expect(TasksSettings.SharedCalendarMailbox(provider)).toBe('calendar@example.com');
+    });
+
     it('reads TimeTrackingEnabled and TimesheetsEnabled / TimesheetApprovalEnabled', () => {
         expect(TasksSettings.TimeTrackingEnabled(provider)).toBe(true);
         expect(TasksSettings.TimesheetsEnabled(provider)).toBe(true);

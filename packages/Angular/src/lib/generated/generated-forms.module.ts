@@ -15,6 +15,15 @@ import { EntityViewerModule } from '@memberjunction/ng-entity-viewer';
 import { LinkDirectivesModule } from '@memberjunction/ng-link-directives';
 
 // Import Generated Components
+import { mjBizAppsTasksMeetingAgendaItemFormComponent } from "./Entities/mjBizAppsTasksMeetingAgendaItem/mjbizappstasksmeetingagendaitem.form.component";
+import { mjBizAppsTasksMeetingAgendaItemTypeFormComponent } from "./Entities/mjBizAppsTasksMeetingAgendaItemType/mjbizappstasksmeetingagendaitemtype.form.component";
+import { mjBizAppsTasksMeetingAttendeeFormComponent } from "./Entities/mjBizAppsTasksMeetingAttendee/mjbizappstasksmeetingattendee.form.component";
+import { mjBizAppsTasksMeetingFormComponent } from "./Entities/mjBizAppsTasksMeeting/mjbizappstasksmeeting.form.component";
+import { mjBizAppsTasksMeetingLinkFormComponent } from "./Entities/mjBizAppsTasksMeetingLink/mjbizappstasksmeetinglink.form.component";
+import { mjBizAppsTasksMeetingNoteFormComponent } from "./Entities/mjBizAppsTasksMeetingNote/mjbizappstasksmeetingnote.form.component";
+import { mjBizAppsTasksMeetingSeriesAttendeeFormComponent } from "./Entities/mjBizAppsTasksMeetingSeriesAttendee/mjbizappstasksmeetingseriesattendee.form.component";
+import { mjBizAppsTasksMeetingSeriesFormComponent } from "./Entities/mjBizAppsTasksMeetingSeries/mjbizappstasksmeetingseries.form.component";
+import { mjBizAppsTasksMeetingTypeFormComponent } from "./Entities/mjBizAppsTasksMeetingType/mjbizappstasksmeetingtype.form.component";
 import { mjBizAppsTasksTaskActivityFormComponent } from "./Entities/mjBizAppsTasksTaskActivity/mjbizappstaskstaskactivity.form.component";
 import { mjBizAppsTasksTaskAgentRunFormComponent } from "./Entities/mjBizAppsTasksTaskAgentRun/mjbizappstaskstaskagentrun.form.component";
 import { mjBizAppsTasksTaskAssignmentFormComponent } from "./Entities/mjBizAppsTasksTaskAssignment/mjbizappstaskstaskassignment.form.component";
@@ -45,6 +54,7 @@ import { mjBizAppsTasksTimesheetApprovalFormComponent } from "./Entities/mjBizAp
 import { mjBizAppsTasksTimesheetFormComponent } from "./Entities/mjBizAppsTasksTimesheet/mjbizappstaskstimesheet.form.component";
 import { mjBizAppsTasksTimesheetLinkFormComponent } from "./Entities/mjBizAppsTasksTimesheetLink/mjbizappstaskstimesheetlink.form.component";
 import { mjBizAppsTasksTimesheetScheduleFormComponent } from "./Entities/mjBizAppsTasksTimesheetSchedule/mjbizappstaskstimesheetschedule.form.component";
+import { mjBizAppsTasksVideoProviderFormComponent } from "./Entities/mjBizAppsTasksVideoProvider/mjbizappstasksvideoprovider.form.component";
    
 
 @NgModule({
@@ -419,6 +429,33 @@ export class GeneratedForms_SubModule_29 { }
 
 @NgModule({
 declarations: [
+    mjBizAppsTasksMeetingAgendaItemFormComponent,
+    mjBizAppsTasksMeetingAgendaItemTypeFormComponent,
+    mjBizAppsTasksMeetingAttendeeFormComponent,
+    mjBizAppsTasksMeetingFormComponent,
+    mjBizAppsTasksMeetingLinkFormComponent,
+    mjBizAppsTasksMeetingNoteFormComponent,
+    mjBizAppsTasksMeetingSeriesAttendeeFormComponent,
+    mjBizAppsTasksMeetingSeriesFormComponent,
+    mjBizAppsTasksMeetingTypeFormComponent,
+    mjBizAppsTasksVideoProviderFormComponent
+],
+imports: [
+    CommonModule,
+    FormsModule,
+    BaseFormsModule,
+    EntityViewerModule,
+    LinkDirectivesModule
+],
+exports: [
+]
+})
+export class GeneratedForms_SubModule_30 { }
+    
+
+
+@NgModule({
+declarations: [
 ],
 imports: [
     GeneratedForms_SubModule_0,
@@ -440,7 +477,8 @@ imports: [
     GeneratedForms_SubModule_25,
     GeneratedForms_SubModule_26,
     GeneratedForms_SubModule_28,
-    GeneratedForms_SubModule_29
+    GeneratedForms_SubModule_29,
+    GeneratedForms_SubModule_30
 ]
 })
 export class GeneratedFormsModule { }

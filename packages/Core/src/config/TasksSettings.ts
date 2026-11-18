@@ -40,6 +40,16 @@ export const TASKS_SETTING = {
      */
     ApprovalReassignRoles: 'ApprovalReassignRoles',
     /**
+     * The `MJ: Communication Providers` name used to sync meetings with an external calendar
+     * (e.g. 'Microsoft Graph' or 'Gmail'). Empty leaves calendar sync off unless a caller passes a provider name.
+     */
+    DefaultCalendarProviderName: 'DefaultCalendarProviderName',
+    /**
+     * Optional shared scheduling mailbox (`CalendarTarget.Identifier`) used when an organizer has no email
+     * or when an organization routes meeting invitations through a shared calendar mailbox.
+     */
+    SharedCalendarMailbox: 'SharedCalendarMailbox',
+    /**
      * Turns on the time tracking UI and the timer operations (`Tasks.StartTimer`, `Tasks.StopTimer`).
      */
     TimeTrackingEnabled: 'TimeTrackingEnabled',
@@ -178,6 +188,18 @@ export class TasksSettings {
     public static ApprovalReassignRoles(provider: IMetadataProvider): string[] {
         const raw = this.raw(TASKS_SETTING.ApprovalReassignRoles, provider) ?? '';
         return raw.split(',').map((r) => r.trim()).filter((r) => r.length > 0);
+    }
+
+    /** The default `MJ: Communication Providers` name for meeting calendar sync, or `null` when unconfigured. */
+    public static DefaultCalendarProviderName(provider: IMetadataProvider): string | null {
+        const value = this.raw(TASKS_SETTING.DefaultCalendarProviderName, provider)?.trim();
+        return value ? value : null;
+    }
+
+    /** Fallback shared scheduling mailbox (`CalendarTarget.Identifier`), or `null` when unconfigured. */
+    public static SharedCalendarMailbox(provider: IMetadataProvider): string | null {
+        const value = this.raw(TASKS_SETTING.SharedCalendarMailbox, provider)?.trim();
+        return value ? value : null;
     }
 
     /** Whether time tracking UI and timer operations are enabled. Default `true`. */

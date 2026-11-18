@@ -2,16 +2,21 @@ import { LoadGeneratedEntities as LoadTaskEntities } from '@mj-biz-apps/tasks-en
 import { LoadGeneratedEntities as LoadCommonEntities } from '@mj-biz-apps/common-entities';
 import { LoadBizAppsTasksEntitiesServer } from '@mj-biz-apps/tasks-entities-server';
 import { LoadBizAppsTasksServer } from '@mj-biz-apps/tasks-server';
+import { LoadFakeVideoProvider } from './video-stub.js';
 
 LoadCommonEntities();
 LoadTaskEntities();
 LoadBizAppsTasksEntitiesServer();
 LoadBizAppsTasksServer();
+LoadFakeVideoProvider();
 
+export * from './video-stub.js';
 export * from './entity-names.js';
 export * from './wire.js';
 export * from './world/world.js';
 export * from './world/load-world.js';
+export * from './world/meeting-world.js';
+export * from './persona-provider.js';
 export * from './checks/task-world.checks.js';
 export * from './checks/task-hierarchy.checks.js';
 export * from './checks/task-dependencies.checks.js';
@@ -25,5 +30,6 @@ export * from './checks/timers.checks.js';
 export * from './checks/agent-effort.checks.js';
 export * from './checks/time-reporting.checks.js';
 export * from './checks/timesheets.checks.js';
+export * from './checks/meetings.checks.js';
 
 export function LoadTasksIntegrationTests(): void {}

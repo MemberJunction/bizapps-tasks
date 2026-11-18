@@ -33,6 +33,7 @@ const ALL_BUNDLES = [
     'agent-effort',
     'time-reporting',
     'timesheets',
+    'meetings',
 ];
 
 const args = process.argv.slice(2);

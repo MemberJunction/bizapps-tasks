@@ -7,6 +7,7 @@ Server runtime bootstrap, Remote Operations (`BaseRemoteOperation`), GraphQL res
 ### Bootstrap & Background Jobs
 - `LoadBizAppsTasksServer()`: Server bootstrap loader registering entity server subclasses, actions, Remote Operations, notification handlers, and scheduled jobs.
 - `OverdueTaskNotificationJob`: Scheduled job detecting overdue tasks, raising notification events, and sweeping stale `Pending` timesheet approval parts (`ReconcileStaleTimesheetApprovals`).
+- `MeetingSeriesMaterializationJob` (`ScheduledJobMeetingSeriesMaterialization`): extends each active meeting series' occurrences up to the horizon (90 days unless its Configuration says `HorizonDays`). Shipped as the daily job *Tasks — Meeting Series* in `metadata/scheduled-jobs`.
 - `TaskNotificationHandler`: Event listener reacting to task assignment and state changes.
 
 ### Remote Operations (`BaseRemoteOperation` Subclasses)

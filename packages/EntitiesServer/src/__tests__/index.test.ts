@@ -64,22 +64,37 @@ vi.mock('@mj-biz-apps/tasks-entities', () => ({
     mjBizAppsTasksTimesheetEntity: class {},
     mjBizAppsTasksTimesheetLinkEntity: class {},
     mjBizAppsTasksTimesheetScheduleEntity: class {},
+    mjBizAppsTasksMeetingEntity: class {},
+    mjBizAppsTasksMeetingSeriesEntity: class {},
+    mjBizAppsTasksMeetingAttendeeEntity: class {},
+    mjBizAppsTasksMeetingSeriesAttendeeEntity: class {},
+    mjBizAppsTasksMeetingAgendaItemEntity: class {},
+    mjBizAppsTasksMeetingLinkEntity: class {},
+    mjBizAppsTasksMeetingNoteEntity: class {},
+    mjBizAppsTasksVideoProviderEntity: class {},
 }));
-vi.mock('@mj-biz-apps/tasks-core', () => ({
+// The real tasks-core: the Meetings subclasses read its constants and pure rules at import time.
+// Only the pieces that reach for the runtime are replaced.
+vi.mock('@mj-biz-apps/tasks-core', async () => ({
+    ...(await vi.importActual<typeof import('@mj-biz-apps/tasks-core')>('@mj-biz-apps/tasks-core')),
     TaskService: class {},
-    TasksSettings: class {},
     UserCanManageTimeEntries: vi.fn().mockResolvedValue(false),
     UserCanManageTimesheets: vi.fn().mockResolvedValue(false),
-    DeriveIntervalMinutes: vi.fn(),
-    TimeEntryRefusal: vi.fn().mockReturnValue(null),
-    AncestorRunIDsFor: vi.fn().mockReturnValue([]),
-    TimesheetStatusFromParts: vi.fn().mockReturnValue('Submitted'),
 }));
 vi.mock('@mj-biz-apps/common-entities', () => ({
-    BusinessTimeZoneEngine: { Instance: { Config: vi.fn(), GetBusinessTimeZone: () => 'UTC' } },
+    BusinessTimeZoneEngine: { Instance: { Config: vi.fn(), GetBusinessTimeZone: () => 'UTC', Zone: 'UTC' } },
     TodayIn: () => '2026-04-15',
     ToCalendarDay: () => '2026-04-15',
     UTC_ZONE: 'UTC',
+    ResolvePersonIDForUser: vi.fn().mockResolvedValue(null),
+    ResolveUserIDForPerson: vi.fn().mockResolvedValue(null),
+}));
+vi.mock('@memberjunction/credentials', () => ({
+    CredentialEngine: { Instance: { Config: vi.fn(), GetCredential: vi.fn() } },
+}));
+vi.mock('@memberjunction/communication-engine', () => ({
+    BaseCalendarEventLinkHandler: class {},
+    CalendarEventLinks: class {},
 }));
 vi.mock('@memberjunction/core-entities', () => ({
     ApplicationSettingEngine: { Instance: {} },
@@ -106,6 +121,8 @@ describe('@mj-biz-apps/tasks-entities-server', () => {
         expect(mod.BaseTimeApproverResolver).toBeDefined();
         expect(mod.TaskLinkScopeApproverResolver).toBeDefined();
         expect(mod.ApplyTimesheetApprovalOutcomeForTask).toBeTypeOf('function');
+        expect(mod.MeetingEntityServer).toBeDefined();
+        expect(mod.MeetingSeriesEntityServer).toBeDefined();
     });
 
     it('does not re-export TasksSettings from @mj-biz-apps/tasks-core (Rule 5)', async () => {
