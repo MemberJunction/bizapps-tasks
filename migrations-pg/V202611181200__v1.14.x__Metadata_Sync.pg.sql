@@ -1,5 +1,5 @@
 -- =============================================================================================
--- PostgreSQL counterpart of V202611161230__v1.14.x__Metadata_Sync.sql -- BizApps Tasks v1.14.x Metadata_Sync
+-- PostgreSQL counterpart of V202611181200__v1.14.x__Metadata_Sync.sql -- BizApps Tasks v1.14.x Metadata_Sync
 -- =============================================================================================
 -- Same record, same value as the T-SQL file; see its header for what ships and why.
 -- Written by hand.

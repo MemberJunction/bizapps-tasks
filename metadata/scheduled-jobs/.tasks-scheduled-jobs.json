@@ -1,0 +1,36 @@
+[
+  {
+    "_comments": [
+      "THE DAILY SERIES EXTENSION. MJ's SchedulingEngine is the mechanism; no external cron.",
+      "CronExpression `0 0 3 * * *`: six fields, seconds first, so 03:00 UTC every day. ConcurrencyMode Skip: a run that overlaps the last one is skipped. MissedRunPolicy RunOnce: catching up needs one run, not one per missed day.",
+      "OwnerUserID and NotifyUserID are left NULL: naming a person here would seed one deployment's staff into another's database.",
+      "Configuration is a native JSON object (MJ/metadata/CLAUDE.md § 1c). No sync block."
+    ],
+    "fields": {
+      "Name": "Tasks — Meeting Series (daily)",
+      "Description": "Extends every active meeting series' occurrences up to 90 days ahead, through the Meeting Series Materialization job type.",
+      "JobTypeID": "@lookup:MJ: Scheduled Job Types.DriverClass=ScheduledJobMeetingSeriesMaterialization",
+      "CronExpression": "0 0 3 * * *",
+      "Timezone": "UTC",
+      "Status": "Active",
+      "ConcurrencyMode": "Skip",
+      "MissedRunPolicy": "RunOnce",
+      "RunImmediatelyIfNeverRun": false,
+      "MaxRuntimeMinutes": 30,
+      "NotifyOnSuccess": false,
+      "NotifyOnFailure": false,
+      "NotifyViaEmail": false,
+      "NotifyViaInApp": false,
+      "Configuration": {
+        "HorizonDays": 90
+      }
+    },
+    "primaryKey": {
+      "ID": "61EC03B3-7F04-486B-9646-1DD9583DE8AC"
+    },
+    "sync": {
+      "lastModified": "2026-10-19T21:11:22.608Z",
+      "checksum": "fdebace5649eb2571b7177a32a6afca7cad1c4275b0037e43e83779b6406588e"
+    }
+  }
+]

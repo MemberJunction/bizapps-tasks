@@ -1,4 +1,4 @@
-import { BaseEntity, CompositeKey, Metadata, RunView, UserInfo } from "@memberjunction/core";
+import { BaseEntity, CompositeKey, Metadata, RunView, UserInfo, type IMetadataProvider } from "@memberjunction/core";
 import { TaskService } from "./TaskService.js";
 
 /**
@@ -8,6 +8,8 @@ import { TaskService } from "./TaskService.js";
  */
 export class TaskAssignmentService {
     private taskService = new TaskService();
+
+    constructor(private readonly provider: IMetadataProvider = Metadata.Provider) {}
 
     /**
      * Assigns an entity record (Person or Agent) to a task with an optional role.
@@ -25,7 +27,7 @@ export class TaskAssignmentService {
         roleNotes?: string;
         assignedByPersonID?: string;
     }, contextUser?: UserInfo): Promise<BaseEntity> {
-        const assignment = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Assignments', contextUser);
+        const assignment = await this.provider.GetEntityObject('MJ_BizApps_Tasks: Task Assignments', contextUser);
         assignment.NewRecord();
         assignment.Set('TaskID', params.taskID);
         assignment.Set('AssigneeEntityID', params.assigneeEntityID);
