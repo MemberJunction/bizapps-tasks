@@ -1,5 +1,21 @@
 # @mj-biz-apps/tasks-core
 
+## 1.14.0
+
+### Minor Changes
+
+- 934d7bb: Meetings, a first-class app in Tasks (T1 of the meetings plan): ten tables for meetings, series, attendees, agendas and their item types, notes, links, meeting types and video providers, with CodeGen's output; the rules on the server (times and zone, the status moving forward with starting, ending and cancelling the organizer's, the organizer's attendee row, a series' rule parsed and its occurrences made after the commit, an agenda's tree, an attendee's MJ user filled from the person); the services (a meeting from a type with its agenda template, start/end/cancel, series materialization, agenda carry-forward, the `.ics` file); the daily series job; and the metadata: meeting and agenda item types, the three video providers (inactive) and their credential type, the Meetings application, the UI role's grants and Tasks' first row-level security filters (a Private meeting is read by its attendees only).
+
+  Needs MemberJunction 6.2.1, the repository's floor: the after-commit work (a series' occurrences, the video provider's delete) runs through the database provider's `RunAfterCommit`. While the PostgreSQL migration counterpart (`migrations-pg/`) and `PlatformVariants` on the row-level security filters are shipped for schema parity, runtime RLS evaluation for UI-role users requires SQL Server until MemberJunction Core wires `GetPlatformFilterText` into `MarkupFilterText`.
+
+- 6e78703: Meetings T2, T3, and Video Conferencing: adds `MeetingNotesService` (`draftFromTranscript`, `acceptProposedTask`, `dismissProposedTask`) and `MeetingAgendaService.draftAgenda` backed by seeded `Tasks: Meeting Notes from Transcript` and `Tasks: Draft Meeting Agenda` AI prompts, `ZoomVideoProvider` (`VideoProviderBase` Server-to-Server OAuth via `CredentialEngine`), and `MeetingCalendarSyncService` / `MeetingCalendarEventLinkHandler` for `MJ: Calendar Event Links` synchronization.
+- b816574: The Meetings app's screens (T4 of the meetings plan). A new widgets package, `@mj-biz-apps/tasks-ng-widgets`, holds the presentational pieces any host can place: the meeting list grouped by day, the meeting card and header, status and response chips, the attendee response control, the people, agenda, notes, follow-ups and links sections, the live meeting view with the item clock, the series editor with its rule in words, and the new meeting form. `@mj-biz-apps/tasks-ng` adds the three resources the Meetings application's navigation names (My meetings, Meetings, Series), the meeting page's hero panel with the organizer's actions and the live meeting, the section panels that stand in for the generated related-entity grids on the Meetings and Meeting Series forms, and the data layer that reads and changes meetings over the MJ provider. `tasks-core` reads rrule in a way that works both in Node and in a browser bundle.
+
+### Patch Changes
+
+- Updated dependencies [934d7bb]
+  - @mj-biz-apps/tasks-entities@1.14.0
+
 ## 1.13.0
 
 ### Patch Changes
