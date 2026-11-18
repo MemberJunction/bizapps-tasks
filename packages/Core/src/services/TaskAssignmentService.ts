@@ -9,6 +9,8 @@ import { TaskService } from "./TaskService.js";
 export class TaskAssignmentService {
     private taskService = new TaskService();
 
+    constructor(private readonly provider: IMetadataProvider = Metadata.Provider) {}
+
     /**
      * Assigns an entity record (Person or Agent) to a task with an optional role.
      * Logs an activity entry after successful assignment.
@@ -28,7 +30,7 @@ export class TaskAssignmentService {
         roleNotes?: string;
         assignedByPersonID?: string;
     }, contextUser?: UserInfo, provider?: IMetadataProvider): Promise<BaseEntity> {
-        const assignment = await (provider ?? Metadata.Provider).GetEntityObject('MJ_BizApps_Tasks: Task Assignments', contextUser);
+        const assignment = await (provider ?? this.provider).GetEntityObject('MJ_BizApps_Tasks: Task Assignments', contextUser);
         assignment.NewRecord();
         assignment.Set('TaskID', params.taskID);
         assignment.Set('AssigneeEntityID', params.assigneeEntityID);

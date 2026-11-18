@@ -220,5 +220,115 @@
       "lastModified": "2026-08-24T20:07:32.976Z",
       "checksum": "e92068d50ce08823da0460a638b4aa719ed60ea6ae3c70390cf2fa8c6b9d7dcb"
     }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Meetings"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Meetings"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Meeting Series"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Meeting Series"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Meeting Series Attendees"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Meeting Series Attendees"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Meeting Attendees"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Meeting Attendees"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Meeting Agenda Items"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Meeting Agenda Items"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Meeting Agenda Item Types"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Meeting Agenda Item Types"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Meeting Notes"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Meeting Notes"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Meeting Links"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Meeting Links"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Meeting Types"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Meeting Types"
+    }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Video Providers"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Video Providers"
+    }
   }
 ]

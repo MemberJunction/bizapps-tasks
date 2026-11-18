@@ -19,6 +19,7 @@ export async function FindRows<T extends object>(
     entityName: string,
     extraFilter: string,
     fields: string[],
+    options: { BypassCache?: boolean } = {},
 ): Promise<T[]> {
     const res = await View(ctx).RunView<T>(
         {
@@ -26,6 +27,7 @@ export async function FindRows<T extends object>(
             ExtraFilter: extraFilter,
             Fields: fields,
             ResultType: 'simple',
+            ...(options.BypassCache ? { BypassCache: true } : {}),
         },
         ctx.User,
     );

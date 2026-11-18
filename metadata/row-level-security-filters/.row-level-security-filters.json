@@ -1,0 +1,62 @@
+[
+  {
+    "_comments": [
+      "bizapps-tasks' first row-level security filters (the meetings plan, § 4): a Standard meeting is readable by anyone who reads meetings; a Private one only by its attendees, the organizer included, found by the attendee's UserID. Parenthesised so each ANDs onto any other filter the caller holds; TRY_CAST so a missing user id matches nothing.",
+      "Pushed before the entities folder, which references them: MemberJunction refuses a change to a filter with a subquery once a permission names it.",
+      "PostgreSQL PlatformVariants are included on each filter for schema parity; runtime RLS evaluation for UI-role users requires SQL Server until MemberJunction Core wires GetPlatformFilterText into MarkupFilterText."
+    ],
+    "fields": {
+      "Name": "Tasks: Visible Meetings",
+      "Description": "A Standard meeting, or a Private meeting the caller is an attendee of.",
+      "FilterText": "(Visibility = N'Standard' OR ID IN (SELECT MeetingID FROM [__mj_BizAppsTasks].[vwMeetingAttendees] WHERE UserID = TRY_CAST('{{UserID}}' AS UNIQUEIDENTIFIER)))",
+      "PlatformVariants": "{\"FilterText\":{\"postgresql\":\"(\\\"Visibility\\\" = 'Standard' OR \\\"ID\\\" IN (SELECT \\\"MeetingID\\\" FROM __mj_BizAppsTasks.\\\"vwMeetingAttendees\\\" WHERE \\\"UserID\\\" = NULLIF('{{UserID}}', '')::uuid))\"}}"
+    },
+    "primaryKey": {
+      "ID": "1E5E2158-D462-43B7-98F4-83DDA7645082"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Tasks: Rows Of Visible Meetings",
+      "Description": "A row (an attendee, an agenda item, a note) of a meeting the caller may see: Standard, or Private with the caller among its attendees.",
+      "FilterText": "(MeetingID IN (SELECT ID FROM [__mj_BizAppsTasks].[vwMeetings] WHERE Visibility = N'Standard' OR ID IN (SELECT MeetingID FROM [__mj_BizAppsTasks].[vwMeetingAttendees] WHERE UserID = TRY_CAST('{{UserID}}' AS UNIQUEIDENTIFIER))))",
+      "PlatformVariants": "{\"FilterText\":{\"postgresql\":\"(\\\"MeetingID\\\" IN (SELECT \\\"ID\\\" FROM __mj_BizAppsTasks.\\\"vwMeetings\\\" WHERE \\\"Visibility\\\" = 'Standard' OR \\\"ID\\\" IN (SELECT \\\"MeetingID\\\" FROM __mj_BizAppsTasks.\\\"vwMeetingAttendees\\\" WHERE \\\"UserID\\\" = NULLIF('{{UserID}}', '')::uuid)))\"}}"
+    },
+    "primaryKey": {
+      "ID": "5F74277C-EE11-4B3F-8323-0B1BDB459428"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Tasks: Visible Meeting Links",
+      "Description": "A link of a series the caller may see, or of a meeting the caller may see.",
+      "FilterText": "((SeriesID IS NOT NULL AND SeriesID IN (SELECT ID FROM [__mj_BizAppsTasks].[vwMeetingSeries] WHERE Visibility = N'Standard' OR OrganizerPersonID IN (SELECT TRY_CAST(LinkedEntityRecordID AS UNIQUEIDENTIFIER) FROM [__mj].[vwUsers] WHERE ID = TRY_CAST('{{UserID}}' AS UNIQUEIDENTIFIER)) OR OrganizerPersonID IN (SELECT ID FROM [__mj_BizAppsCommon].[vwPeople] WHERE LinkedUserID = TRY_CAST('{{UserID}}' AS UNIQUEIDENTIFIER)) OR ID IN (SELECT SeriesID FROM [__mj_BizAppsTasks].[vwMeetingSeriesAttendees] WHERE UserID = TRY_CAST('{{UserID}}' AS UNIQUEIDENTIFIER)))) OR (MeetingID IS NOT NULL AND MeetingID IN (SELECT ID FROM [__mj_BizAppsTasks].[vwMeetings] WHERE Visibility = N'Standard' OR ID IN (SELECT MeetingID FROM [__mj_BizAppsTasks].[vwMeetingAttendees] WHERE UserID = TRY_CAST('{{UserID}}' AS UNIQUEIDENTIFIER)))))",
+      "PlatformVariants": "{\"FilterText\":{\"postgresql\":\"((\\\"SeriesID\\\" IS NOT NULL AND \\\"SeriesID\\\" IN (SELECT \\\"ID\\\" FROM __mj_BizAppsTasks.\\\"vwMeetingSeries\\\" WHERE \\\"Visibility\\\" = 'Standard' OR \\\"OrganizerPersonID\\\"::text IN (SELECT \\\"LinkedEntityRecordID\\\" FROM __mj.\\\"vwUsers\\\" WHERE \\\"ID\\\" = NULLIF('{{UserID}}', '')::uuid) OR \\\"OrganizerPersonID\\\" IN (SELECT \\\"ID\\\" FROM __mj_BizAppsCommon.\\\"vwPeople\\\" WHERE \\\"LinkedUserID\\\" = NULLIF('{{UserID}}', '')::uuid) OR \\\"ID\\\" IN (SELECT \\\"SeriesID\\\" FROM __mj_BizAppsTasks.\\\"vwMeetingSeriesAttendees\\\" WHERE \\\"UserID\\\" = NULLIF('{{UserID}}', '')::uuid))) OR (\\\"MeetingID\\\" IS NOT NULL AND \\\"MeetingID\\\" IN (SELECT \\\"ID\\\" FROM __mj_BizAppsTasks.\\\"vwMeetings\\\" WHERE \\\"Visibility\\\" = 'Standard' OR \\\"ID\\\" IN (SELECT \\\"MeetingID\\\" FROM __mj_BizAppsTasks.\\\"vwMeetingAttendees\\\" WHERE \\\"UserID\\\" = NULLIF('{{UserID}}', '')::uuid))))\"}}"
+    },
+    "primaryKey": {
+      "ID": "AB856DE4-9F70-4A17-8E6D-1C1C24142E9C"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Tasks: Visible Meeting Series",
+      "Description": "A Standard series, or a Private series the caller organizes (through their user's link to a Person, or the Person's deprecated LinkedUserID) or is invited to.",
+      "FilterText": "(Visibility = N'Standard' OR OrganizerPersonID IN (SELECT TRY_CAST(LinkedEntityRecordID AS UNIQUEIDENTIFIER) FROM [__mj].[vwUsers] WHERE ID = TRY_CAST('{{UserID}}' AS UNIQUEIDENTIFIER)) OR OrganizerPersonID IN (SELECT ID FROM [__mj_BizAppsCommon].[vwPeople] WHERE LinkedUserID = TRY_CAST('{{UserID}}' AS UNIQUEIDENTIFIER)) OR ID IN (SELECT SeriesID FROM [__mj_BizAppsTasks].[vwMeetingSeriesAttendees] WHERE UserID = TRY_CAST('{{UserID}}' AS UNIQUEIDENTIFIER)))",
+      "PlatformVariants": "{\"FilterText\":{\"postgresql\":\"(\\\"Visibility\\\" = 'Standard' OR \\\"OrganizerPersonID\\\"::text IN (SELECT \\\"LinkedEntityRecordID\\\" FROM __mj.\\\"vwUsers\\\" WHERE \\\"ID\\\" = NULLIF('{{UserID}}', '')::uuid) OR \\\"OrganizerPersonID\\\" IN (SELECT \\\"ID\\\" FROM __mj_BizAppsCommon.\\\"vwPeople\\\" WHERE \\\"LinkedUserID\\\" = NULLIF('{{UserID}}', '')::uuid) OR \\\"ID\\\" IN (SELECT \\\"SeriesID\\\" FROM __mj_BizAppsTasks.\\\"vwMeetingSeriesAttendees\\\" WHERE \\\"UserID\\\" = NULLIF('{{UserID}}', '')::uuid))\"}}"
+    },
+    "primaryKey": {
+      "ID": "3C7D9A1E-5B2F-4E8A-9D6C-1F0E2A3B4C5D"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Tasks: Visible Meeting Series Attendees",
+      "Description": "Who a series invites, for a series the caller may see.",
+      "FilterText": "(SeriesID IN (SELECT ID FROM [__mj_BizAppsTasks].[vwMeetingSeries] WHERE Visibility = N'Standard' OR OrganizerPersonID IN (SELECT TRY_CAST(LinkedEntityRecordID AS UNIQUEIDENTIFIER) FROM [__mj].[vwUsers] WHERE ID = TRY_CAST('{{UserID}}' AS UNIQUEIDENTIFIER)) OR OrganizerPersonID IN (SELECT ID FROM [__mj_BizAppsCommon].[vwPeople] WHERE LinkedUserID = TRY_CAST('{{UserID}}' AS UNIQUEIDENTIFIER)) OR ID IN (SELECT SeriesID FROM [__mj_BizAppsTasks].[vwMeetingSeriesAttendees] WHERE UserID = TRY_CAST('{{UserID}}' AS UNIQUEIDENTIFIER))))",
+      "PlatformVariants": "{\"FilterText\":{\"postgresql\":\"(\\\"SeriesID\\\" IN (SELECT \\\"ID\\\" FROM __mj_BizAppsTasks.\\\"vwMeetingSeries\\\" WHERE \\\"Visibility\\\" = 'Standard' OR \\\"OrganizerPersonID\\\"::text IN (SELECT \\\"LinkedEntityRecordID\\\" FROM __mj.\\\"vwUsers\\\" WHERE \\\"ID\\\" = NULLIF('{{UserID}}', '')::uuid) OR \\\"OrganizerPersonID\\\" IN (SELECT \\\"ID\\\" FROM __mj_BizAppsCommon.\\\"vwPeople\\\" WHERE \\\"LinkedUserID\\\" = NULLIF('{{UserID}}', '')::uuid) OR \\\"ID\\\" IN (SELECT \\\"SeriesID\\\" FROM __mj_BizAppsTasks.\\\"vwMeetingSeriesAttendees\\\" WHERE \\\"UserID\\\" = NULLIF('{{UserID}}', '')::uuid)))\"}}"
+    },
+    "primaryKey": {
+      "ID": "8E2F4B6D-0A1C-4D3E-B5F7-2C9A8B7D6E5F"
+    }
+  }
+]

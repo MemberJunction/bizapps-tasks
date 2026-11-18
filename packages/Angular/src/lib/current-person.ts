@@ -1,6 +1,8 @@
 import { Metadata, UserInfo } from '@memberjunction/core';
 import { ResolvePersonIDForUser } from '@mj-biz-apps/common-entities';
 
+export const PEOPLE_ENTITY = 'MJ_BizApps_Common: People';
+
 /**
  * Finds the active People record linked to a user (the signed-in user by default).
  *
@@ -14,12 +16,23 @@ import { ResolvePersonIDForUser } from '@mj-biz-apps/common-entities';
  * @throws when the lookup itself fails, so a caller can tell an error from a missing link.
  */
 export async function ResolveCurrentPersonID(user: UserInfo | undefined = new Metadata().CurrentUser): Promise<string | null> {
-    return ResolvePersonIDForUser(user, Metadata.Provider, undefined, { ActiveOnly: true });
+    try {
+        return await ResolvePersonIDForUser(user, Metadata.Provider, undefined, { ActiveOnly: true });
+    } catch (error) {
+        // The GraphQL provider sends the views asked in one tick as one batch and rejects them all when any one of them
+        // names an entity the host lacks (a shell component's, on a host behind its code). The People read was not the
+        // problem then: ask once more, in a batch of its own.
+        if (error instanceof Error && /not found in metadata/i.test(error.message) && !error.message.includes(PEOPLE_ENTITY)) {
+            await new Promise((resolve) => setTimeout(resolve, 150));
+            return await ResolvePersonIDForUser(user, Metadata.Provider, undefined, { ActiveOnly: true });
+        }
+        throw error;
+    }
 }
 
 /** Shown in place of a task list when the signed-in user has no active Person record. */
 export const NO_PERSON_MESSAGE =
-    'Your user account is not linked to an active Person record, so no assigned tasks can be shown. Ask an administrator to link one.';
+    'Your user account is not linked to an active Person record, so no assigned tasks can be shown. Please ask your administrator to link one.';
 
 /** Shown in place of a task list when looking up the signed-in user's Person record fails. */
 export const PERSON_LOOKUP_FAILED_MESSAGE =
