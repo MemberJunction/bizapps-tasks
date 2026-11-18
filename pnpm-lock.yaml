@@ -324,8 +324,8 @@ importers:
         specifier: ^6.2.1
         version: 6.2.1(@aws-sdk/credential-provider-node@3.972.95)(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))(@smithy/signature-v4@5.7.5)(@types/node@22.20.1)(axios@1.19.0)(chokidar@3.6.0)(encoding@0.1.13)(typescript@5.9.3)(vitest@4.1.10(@types/node@22.20.1)(@vitest/coverage-v8@1.6.1(vitest@1.6.1(@types/node@26.2.0)(jsdom@26.1.0)))(jsdom@26.1.0)(vite@7.3.6(@types/node@22.20.1)))(ws@8.22.2)(zod@3.25.76)
       '@mj-biz-apps/common-entities':
-        specifier: '>=5.37.0'
-        version: 5.37.0(@memberjunction/core@6.2.1)(@memberjunction/global@6.2.1)
+        specifier: ^5.37.0
+        version: 5.63.0(@memberjunction/core@6.2.1)(@memberjunction/global@6.2.1)
       '@mj-biz-apps/tasks-core':
         specifier: ^1.13.0
         version: link:../Core
@@ -3248,12 +3248,6 @@ packages:
 
   '@mixmark-io/domino@2.2.0':
     resolution: {integrity: sha512-Y28PR25bHXUg88kCV7nivXrP2Nj2RueZ3/l/jdx6J9f8J4nsEGcgX0Qe6lt7Pa+J79+kPiJU3LguR6O/6zrLOw==}
-
-  '@mj-biz-apps/common-entities@5.37.0':
-    resolution: {integrity: sha512-BlwCC1qhihLg/IiERe+4U2HfoD6bneaP6AkpYceSzMIPHTJpBdgVrQUfOQM73OoCZRGG6sRAvww4Tph/f4wNmA==}
-    peerDependencies:
-      '@memberjunction/core': ^6.1.0-edge.3
-      '@memberjunction/global': ^6.1.0-edge.3
 
   '@mj-biz-apps/common-entities@5.63.0':
     resolution: {integrity: sha512-O+f1gTOvcfVIhVjVXCYAGMZVIXD8HOnMhDW9sAZCmVvgVip4HkAHkA+bLNgGPkLIjkjBr2PeLguptR9ji5JD2w==}
@@ -23335,12 +23329,6 @@ snapshots:
       - utf-8-validate
 
   '@mixmark-io/domino@2.2.0': {}
-
-  '@mj-biz-apps/common-entities@5.37.0(@memberjunction/core@6.2.1)(@memberjunction/global@6.2.1)':
-    dependencies:
-      '@memberjunction/core': 6.2.1
-      '@memberjunction/global': 6.2.1
-      zod: 3.25.76
 
   '@mj-biz-apps/common-entities@5.63.0(@memberjunction/core@6.2.1)(@memberjunction/global@6.2.1)':
     dependencies:
