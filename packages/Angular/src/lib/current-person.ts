@@ -19,7 +19,7 @@ export async function ResolveCurrentPersonID(user: UserInfo | undefined = new Me
 
 /** Shown in place of a task list when the signed-in user has no active Person record. */
 export const NO_PERSON_MESSAGE =
-    'Your user account is not linked to an active Person record, so no assigned tasks can be shown. Ask an administrator to link one.';
+    'Your user account is not linked to an active Person record, so no assigned tasks can be shown. Please ask your administrator to link one.';
 
 /** Shown in place of a task list when looking up the signed-in user's Person record fails. */
 export const PERSON_LOOKUP_FAILED_MESSAGE =
