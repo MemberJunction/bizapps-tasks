@@ -1,0 +1,5 @@
+# The line status record decides which lines take migrations, which are frozen as LTS, and where
+# each line publishes. Freezing a production line is a support commitment, so a change to the
+# record needs one of these reviewers (protect-next requires code-owner review).
+/release-lines.json @bg-BC @izygmunt-BC
+/.github/CODEOWNERS @bg-BC @izygmunt-BC
