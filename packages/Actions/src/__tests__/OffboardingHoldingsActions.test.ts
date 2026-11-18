@@ -125,3 +125,12 @@ describe('Tasks: Reassign Offboarding Holdings', () => {
         expect(service.Reassign).not.toHaveBeenCalled();
     });
 });
+
+describe('AuthorizesCaller', () => {
+    it.each([
+        ['List', ListOffboardingHoldingsAction],
+        ['Reassign', ReassignOffboardingHoldingsAction],
+    ])('is declared on the %s action class itself, where MJ reads it', (_label, actionClass) => {
+        expect(Object.getOwnPropertyDescriptor(actionClass, 'AuthorizesCaller')?.value).toBe(true);
+    });
+});

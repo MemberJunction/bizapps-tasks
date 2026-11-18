@@ -14,6 +14,13 @@ import { Fail, IsFailure, OffboardingActionBase, ParamValue, SetOutput } from '.
  */
 @RegisterClass(BaseAction, 'Tasks.ReassignOffboardingHoldings')
 export class ReassignOffboardingHoldingsAction extends OffboardingActionBase {
+    /**
+     * Any signed-in user may run this action: it checks the caller itself (as ContextUser, per item),
+     * so MJ's action authorization does not also require a linked authorization. Declared on this
+     * class because MJ reads the marker as the registered class's own static field.
+     */
+    public static readonly AuthorizesCaller = true;
+
     protected async InternalRunAction(params: RunActionParams): Promise<ActionResultSimple> {
         return this.guarded(async () => {
             const successorUserID = ParamValue(params, 'SuccessorUserID');
