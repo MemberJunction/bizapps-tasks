@@ -7,6 +7,7 @@ vi.mock('@memberjunction/actions', () => ({ BaseAction: class {}, ActionEngineSe
 vi.mock('@memberjunction/global', () => ({ RegisterClass: () => () => {}, MJGlobal: {} }));
 vi.mock('@memberjunction/core', () => ({ Metadata: class {}, RunView: class {}, RunQuery: class {} }));
 vi.mock('@memberjunction/credentials', () => ({ CredentialEngine: class {} }));
+vi.mock('@mj-biz-apps/tasks-entities-server', () => ({ OffboardingHoldingsService: class {}, ParseStringArray: () => null }));
 
 describe('@mj-biz-apps/tasks-actions', () => {
   it('imports the package entry point without error', async () => {

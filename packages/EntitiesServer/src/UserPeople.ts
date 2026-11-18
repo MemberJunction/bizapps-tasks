@@ -15,6 +15,16 @@ import { IsValidUUID } from '@memberjunction/global';
 
 export const PEOPLE_ENTITY = 'MJ_BizApps_Common: People';
 
+/**
+ * The fields of a user that bind it to People. A signed-in `UserInfo` has them, and so does an
+ * `MJ: Users` row read for a user who is not signed in (offboarding looks up a departed user's People).
+ */
+export interface UserPeopleLink {
+    ID: string;
+    LinkedEntityID?: string | number | null;
+    LinkedEntityRecordID?: string | number | null;
+}
+
 /** A UUID literal for a filter, or an error: every id here reaches SQL text. */
 export function GuidLiteral(id: string, label: string): string {
     if (!IsValidUUID(id)) throw new Error(`${label} '${id}' is not a valid ID.`);
@@ -29,7 +39,7 @@ export function IsPeopleEntity(provider: IMetadataProvider, entityID: string): b
 }
 
 /** The user's own People link, when it is a valid People record; otherwise null. */
-function linkedPersonID(provider: IMetadataProvider, user: UserInfo): string | null {
+function linkedPersonID(provider: IMetadataProvider, user: UserPeopleLink): string | null {
     // UserInfo types these as numbers; they carry GUID strings at runtime.
     const linkedEntityID = user.LinkedEntityID != null ? String(user.LinkedEntityID) : '';
     const linkedRecordID = user.LinkedEntityRecordID != null ? String(user.LinkedEntityRecordID) : '';
@@ -37,7 +47,7 @@ function linkedPersonID(provider: IMetadataProvider, user: UserInfo): string | n
 }
 
 /** A People filter matching every Person bound to the user. */
-export function PeopleFilterForUser(provider: IMetadataProvider, user: UserInfo): string {
+export function PeopleFilterForUser(provider: IMetadataProvider, user: UserPeopleLink): string {
     const clauses = [`LinkedUserID = ${GuidLiteral(user.ID, 'UserID')}`];
     const linked = linkedPersonID(provider, user);
     if (linked) clauses.push(`ID = '${linked}'`);
@@ -55,12 +65,28 @@ export async function PrimaryPersonIDForUser(
     runViewProvider: IRunViewProvider | undefined,
     user: UserInfo,
 ): Promise<string | null> {
+    return (await PersonIDsForUser(provider, runViewProvider, user, user))[0] ?? null;
+}
+
+/**
+ * Every Person bound to `user`, read as `contextUser`, with the primary one (as
+ * {@link PrimaryPersonIDForUser} picks it) first. Empty when the user has no Person.
+ *
+ * @throws when the People lookup fails.
+ */
+export async function PersonIDsForUser(
+    provider: IMetadataProvider,
+    runViewProvider: IRunViewProvider | undefined,
+    user: UserPeopleLink,
+    contextUser: UserInfo,
+): Promise<string[]> {
     const res = await new RunView(runViewProvider).RunView<{ ID: string }>(
         { EntityName: PEOPLE_ENTITY, ExtraFilter: PeopleFilterForUser(provider, user), Fields: ['ID'], OrderBy: 'ID', ResultType: 'simple', BypassCache: true },
-        user,
+        contextUser,
     );
     if (!res?.Success) throw new Error(res?.ErrorMessage ?? 'the People lookup returned no result');
     const ids = (res.Results ?? []).map((p) => p.ID);
     const linked = linkedPersonID(provider, user);
-    return ids.find((id) => !!linked && id.toLowerCase() === linked.toLowerCase()) ?? ids[0] ?? null;
+    const primary = ids.find((id) => !!linked && id.toLowerCase() === linked.toLowerCase()) ?? ids[0];
+    return primary ? [primary, ...ids.filter((id) => id !== primary)] : [];
 }

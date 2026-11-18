@@ -38,6 +38,15 @@ export { MeetingCalendarSyncService, type MeetingCalendarSyncOptions } from './c
 export { MeetingCalendarEventLinkHandler, extractMeetingRecordId } from './calendar/MeetingCalendarEventLinkHandler.js';
 export { registerMeetingServerAIRuntime, executeServerMeetingAIPrompt, readServerMeetingTranscriptFile } from './ai/meeting-ai-runtime.js';
 export { runAfterCommit } from './after-commit.js';
+export * from './offboarding/OffboardingRules.js';
+export {
+    OffboardingHoldingsService,
+    ACCOUNTING_COMPANY_PROFILES_ENTITY,
+    type LeaverIdentity,
+    type HoldingsListing,
+    type ReassignOutcome,
+    type ReassignResultCode,
+} from './offboarding/OffboardingHoldingsService.js';
 
 /**
  * Bootstrap / anti-tree-shaking anchor. Call once from MJAPI bootstrap.

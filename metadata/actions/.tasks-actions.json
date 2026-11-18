@@ -195,5 +195,266 @@
         }
       ]
     }
+  },
+  {
+    "fields": {
+      "Name": "Tasks: List Offboarding Holdings",
+      "CategoryID": "@lookup:MJ: Action Categories.Name=Offboarding Holdings",
+      "Description": "Lists the open task assignments (Pending or In Progress, on tasks that are not Completed or Cancelled) held by a departed user, as their user, any Person bound to that user, or their employee record. Approval tasks are reported as APPROVAL_ASSIGNMENT, others as TASK_ASSIGNMENT. CanReassign on each item says whether the calling user may move it: the leaver's supervisor, a Sales Admin or a company's CFO approver may, and on approval tasks the Tasks ApprovalReassignRoles setting also applies. Run by the Offboarding screen.",
+      "Type": "Custom",
+      "DriverClass": "Tasks.ListOffboardingHoldings",
+      "IconClass": "fa-solid fa-user-minus",
+      "UserPrompt": "List the open task assignments a departed user still holds.",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "C7C348EF-7379-4D92-8290-ED801F80E1BC"
+    },
+    "relatedEntities": {
+      "MJ: Action Params": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "LeaverUserID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "MJ: Users ID of the person leaving. Give this, LeaverEmployeeID, or both; the other is found through the user's EmployeeID."
+          },
+          "primaryKey": {
+            "ID": "44EADBA4-1278-4DD0-BE7A-635D6F4FD91E"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "LeaverEmployeeID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "MJ: Employees ID of the person leaving. Give this, LeaverUserID, or both."
+          },
+          "primaryKey": {
+            "ID": "11F07E1C-052D-4E03-BCC0-28322FEF5828"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Holdings",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "JSON array of holdings: App, Domain, Kind, KindLabel, EntityName, RecordID, Label (the task name), CanReassign, Note."
+          },
+          "primaryKey": {
+            "ID": "65367E64-44E4-4C33-A252-732B4199D14B"
+          }
+        }
+      ],
+      "MJ: Action Result Codes": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "SUCCESS",
+            "IsSuccess": true,
+            "Description": "The holdings were listed (the list may be empty)."
+          },
+          "primaryKey": {
+            "ID": "B411F38F-3E5B-4EBB-9DC6-2A91C45E9500"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "INVALID_INPUT",
+            "IsSuccess": false,
+            "Description": "Neither LeaverUserID nor LeaverEmployeeID was given, valid, or matched a record."
+          },
+          "primaryKey": {
+            "ID": "D479BD59-B352-493C-8AB9-8D402563A078"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "ERROR",
+            "IsSuccess": false,
+            "Description": "No context user, or a lookup failed."
+          },
+          "primaryKey": {
+            "ID": "BFFF0EDC-AC93-4E7A-B098-8E31ECA1B23C"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "fields": {
+      "Name": "Tasks: Reassign Offboarding Holdings",
+      "CategoryID": "@lookup:MJ: Action Categories.Name=Offboarding Holdings",
+      "Description": "Moves a departed user's open task assignments to a successor, in the same kind of record (user, Person or employee) the leaver was assigned through. Permission is checked again for every item. Each move saves the assignment as the calling user, so the approval reassignment guard runs: nobody may move an approval to themselves, and while ApprovalReassignRoles names roles only their holders may move approvals. A refused or impossible move is reported in Skipped. Who requested the task (AssignedByPersonID) and every completed or cancelled item are left as they are.",
+      "Type": "Custom",
+      "DriverClass": "Tasks.ReassignOffboardingHoldings",
+      "IconClass": "fa-solid fa-people-arrows",
+      "UserPrompt": "Move a departed user's open task assignments to a successor.",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "7CA10E03-CFD5-4F87-9615-CF510245713E"
+    },
+    "relatedEntities": {
+      "MJ: Action Params": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "LeaverUserID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "MJ: Users ID of the person leaving. Give this, LeaverEmployeeID, or both; the other is found through the user's EmployeeID."
+          },
+          "primaryKey": {
+            "ID": "0987E9F5-84DC-42A1-8E4A-B676DA290C23"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "LeaverEmployeeID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "MJ: Employees ID of the person leaving. Give this, LeaverUserID, or both."
+          },
+          "primaryKey": {
+            "ID": "6DB75241-A332-48C3-8FD2-A833E794917F"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "SuccessorUserID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": true,
+            "Description": "MJ: Users ID of the active user who takes over the assignments."
+          },
+          "primaryKey": {
+            "ID": "F067036C-E842-4EC5-B5D6-D5D136078788"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Kinds",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional JSON array of Kind codes (TASK_ASSIGNMENT, APPROVAL_ASSIGNMENT) to move; all kinds when omitted."
+          },
+          "primaryKey": {
+            "ID": "D199AFE3-695D-449B-8D11-A353C059D84D"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "RecordIDs",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional JSON array of Task Assignment IDs to move; all of the leaver's open assignments when omitted."
+          },
+          "primaryKey": {
+            "ID": "925F53F0-AA2B-4D81-B30C-00C7BE0CF6CC"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Moved",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Number of assignments moved."
+          },
+          "primaryKey": {
+            "ID": "5650B2E6-4EED-487B-90AE-47E91CD0D416"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Skipped",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "JSON array of items not moved: Kind, EntityName, RecordID, Reason."
+          },
+          "primaryKey": {
+            "ID": "0723BCC7-2DEC-4EC2-AEA2-B2AD69BF755C"
+          }
+        }
+      ],
+      "MJ: Action Result Codes": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "SUCCESS",
+            "IsSuccess": true,
+            "Description": "The permitted items were moved; any others are listed in Skipped."
+          },
+          "primaryKey": {
+            "ID": "B5A9961E-24EC-4AEA-94E1-73B43AB0D4D1"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "NOT_AUTHORIZED",
+            "IsSuccess": false,
+            "Description": "The calling user may move none of the requested items."
+          },
+          "primaryKey": {
+            "ID": "5F2EB1A5-8E5B-49B4-B106-45CB67D9A4B8"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "INVALID_INPUT",
+            "IsSuccess": false,
+            "Description": "The leaver did not resolve, Kinds or RecordIDs is not a JSON array of strings, or the successor is missing, inactive or the leaver."
+          },
+          "primaryKey": {
+            "ID": "79C45C5D-2F7C-4D0F-9762-652139A976AE"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "ERROR",
+            "IsSuccess": false,
+            "Description": "No context user, or a lookup failed."
+          },
+          "primaryKey": {
+            "ID": "A5865DC5-B143-46EE-900E-8A834E48AE67"
+          }
+        }
+      ]
+    }
   }
 ]
