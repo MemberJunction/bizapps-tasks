@@ -25,12 +25,12 @@
     "vitest": "^4.0.18"
   },
   "dependencies": {
-    "@memberjunction/api-keys": "^6.2.1",
-    "@memberjunction/core": "^6.2.1",
-    "@memberjunction/core-entities": "^6.2.1",
-    "@memberjunction/global": "^6.2.1",
-    "@memberjunction/graphql-dataprovider": "^6.2.1",
-    "@memberjunction/testing-integration": "^6.2.1",
+    "@memberjunction/api-keys": ">=6.2.1 <6.3.0",
+    "@memberjunction/core": ">=6.2.1 <6.3.0",
+    "@memberjunction/core-entities": ">=6.2.1 <6.3.0",
+    "@memberjunction/global": ">=6.2.1 <6.3.0",
+    "@memberjunction/graphql-dataprovider": ">=6.2.1 <6.3.0",
+    "@memberjunction/testing-integration": ">=6.2.1 <6.3.0",
     "@mj-biz-apps/common-entities": "^5.37.0",
     "@mj-biz-apps/tasks-core": "^1.13.0",
     "@mj-biz-apps/tasks-entities": "^1.13.0",
