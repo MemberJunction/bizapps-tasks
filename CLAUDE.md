@@ -30,12 +30,10 @@ Sub-directory CLAUDE.md files extend this root guide with topic-specific rules. 
 
 ## 🚨 CRITICAL RULES - VIOLATIONS ARE UNACCEPTABLE 🚨
 
-### 1. NO COMMITS WITHOUT EXPLICIT APPROVAL
-- **NEVER run `git commit` without the user explicitly asking you to**
-- **Each commit requires ONE-TIME explicit approval** - don't assume ongoing permission
-- **NEVER ask to commit** - wait for the user to request it
-- **ONLY commit what is staged** - never modify or add to staged changes
-- **NEVER commit work-in-progress** that isn't staged by the user
+### 1. AGENTS MAY COMMIT AND OPEN PULL REQUESTS — NEVER MERGE
+- An agent may commit on its own feature branch, push it, and open or update a pull request into `next`. Stage files explicitly (`git add <file>`) and commit only the task's own work.
+- **Never merge, approve or enable auto-merge on a pull request, and never push to `next` or `main`.** A person merges.
+- In a checkout that holds someone else's uncommitted work, ask before committing.
  
 ### 2. NO `any` TYPES - EVER
 - **NEVER use `any` types in TypeScript code**
