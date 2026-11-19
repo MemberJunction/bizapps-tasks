@@ -17,7 +17,7 @@ vi.mock('@memberjunction/core', () => ({
 }));
 vi.mock('@mj-biz-apps/common-entities', () => ({ ResolvePersonIDForUser: resolvePerson }));
 
-import { ResolveCurrentPersonID } from '../current-person';
+import { ResolveCurrentPersonID, PEOPLE_ENTITY } from '../current-person';
 
 const user = (id: string): UserInfo => ({ ID: id, Email: `${id}@example.com` }) as unknown as UserInfo;
 
@@ -54,5 +54,21 @@ describe('ResolveCurrentPersonID', () => {
         resolvePerson.mockRejectedValue(new Error('Person lookup failed: boom'));
 
         await expect(ResolveCurrentPersonID(user('user-1'))).rejects.toThrow('boom');
+    });
+
+    it('retries once when a batched sibling view fails with "not found in metadata" for another entity', async () => {
+        resolvePerson
+            .mockRejectedValueOnce(new Error('Entity OtherApp: Widget not found in metadata'))
+            .mockResolvedValueOnce('person-retry');
+
+        await expect(ResolveCurrentPersonID(user('user-1'))).resolves.toBe('person-retry');
+        expect(resolvePerson).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not retry when the missing-entity error names People itself', async () => {
+        resolvePerson.mockRejectedValueOnce(new Error(`Entity ${PEOPLE_ENTITY} not found in metadata`));
+
+        await expect(ResolveCurrentPersonID(user('user-1'))).rejects.toThrow(`${PEOPLE_ENTITY} not found in metadata`);
+        expect(resolvePerson).toHaveBeenCalledTimes(1);
     });
 });

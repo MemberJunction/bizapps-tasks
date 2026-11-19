@@ -1,5 +1,14 @@
 # @mj-biz-apps/tasks-entities
 
+## 1.14.0
+
+### Minor Changes
+
+- 2c415bc: Ships the Meetings metadata to installs and upgrades in the v1.14.x Metadata_Sync migration (SQL Server and PostgreSQL): the Meetings application, row-level security filters and the UI role's grants on the meeting entities, meeting types, agenda item types, video providers (inactive), the Video Provider OAuth credential type, the meeting notes and agenda prompts, the calendar settings (empty), and the daily meeting series job. Every record is create-only, so a host's own edits are kept.
+- 934d7bb: Meetings, a first-class app in Tasks (T1 of the meetings plan): ten tables for meetings, series, attendees, agendas and their item types, notes, links, meeting types and video providers, with CodeGen's output; the rules on the server (times and zone, the status moving forward with starting, ending and cancelling the organizer's, the organizer's attendee row, a series' rule parsed and its occurrences made after the commit, an agenda's tree, an attendee's MJ user filled from the person); the services (a meeting from a type with its agenda template, start/end/cancel, series materialization, agenda carry-forward, the `.ics` file); the daily series job; and the metadata: meeting and agenda item types, the three video providers (inactive) and their credential type, the Meetings application, the UI role's grants and Tasks' first row-level security filters (a Private meeting is read by its attendees only).
+
+  Needs MemberJunction 6.2.1, the repository's floor: the after-commit work (a series' occurrences, the video provider's delete) runs through the database provider's `RunAfterCommit`. While the PostgreSQL migration counterpart (`migrations-pg/`) and `PlatformVariants` on the row-level security filters are shipped for schema parity, runtime RLS evaluation for UI-role users requires SQL Server until MemberJunction Core wires `GetPlatformFilterText` into `MarkupFilterText`.
+
 ## 1.13.0
 
 ## 1.12.0
