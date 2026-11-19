@@ -23,6 +23,8 @@ import { MJEventType, MJGlobal, MJEvent, UUIDsEqual } from '@memberjunction/glob
 import { Subscription } from 'rxjs';
 import { ResolveUserIDForPerson, ResolveUserIDsForPeople } from '@mj-biz-apps/common-entities';
 import { IsRoleEntityID, ResolveUserIDsForRoles, RoleName } from '../role-assignees.js';
+import { mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
+import { CompleteWorkflowStepsForTask } from '../workflow/workflow-step-completion.js';
 
 /** Entity names we listen for */
 const TASKS_ENTITY = 'MJ_BizApps_Tasks: Tasks';
@@ -96,6 +98,7 @@ function handleEntityEvent(event: BaseEntityEvent): void {
     switch (entityName) {
         case TASKS_ENTITY:
             handleTaskSave(event).catch(logHandlerError('TaskSave'));
+            completeLinkedWorkflowSteps(event).catch(logHandlerError('WorkflowStepCompletion'));
             break;
         case TASK_ASSIGNMENTS_ENTITY:
             handleAssignmentSave(event).catch(logHandlerError('AssignmentSave'));
@@ -111,6 +114,25 @@ function logHandlerError(handler: string): (err: unknown) => void {
         const msg = err instanceof Error ? err.message : String(err);
         LogError(`[BizAppsTasks] ${handler} notification error: ${msg}`);
     };
+}
+
+// ---------------------------------------------------------------------------
+// Workflow steps (tasks raised by the BizAppsTasks human-task provider)
+// ---------------------------------------------------------------------------
+
+/**
+ * A task that reaches Completed or Cancelled settles the workflow step it was raised for, if any.
+ * Runs on every save of a settled task; completing an already-finished step is refused, so a later
+ * edit to the task changes nothing.
+ */
+async function completeLinkedWorkflowSteps(event: BaseEntityEvent): Promise<void> {
+    if (event.saveSubType === 'create') return;
+    const task = event.baseEntity;
+    if (!(task instanceof mjBizAppsTasksTaskEntity)) return;
+    const contextUser = task.ContextCurrentUser;
+    if (!contextUser || (task.Status !== 'Completed' && task.Status !== 'Cancelled')) return;
+    // The server's provider: this handler only runs inside MJAPI, which has one.
+    await CompleteWorkflowStepsForTask(task.ID, task.Status, contextUser, Metadata.Provider);
 }
 
 // ---------------------------------------------------------------------------

@@ -19,6 +19,7 @@ import { LoadBizAppsTasksEntitiesServer } from '@mj-biz-apps/tasks-entities-serv
 
 // Import notification handler
 import { InitTaskNotificationHandler } from './event-handlers/TaskNotificationHandler.js';
+import { LoadBizAppsTasksHumanTaskProvider } from './workflow/BizAppsTasksHumanTaskProvider.js';
 
 // Import scheduled job drivers (registers via @RegisterClass for scheduling engine discovery)
 import './scheduled-jobs/OverdueTaskNotificationJob.js';
@@ -47,5 +48,9 @@ export const RESOLVER_PATHS: string[] = [
 export function LoadBizAppsTasksServer(): void {
     LoadBizAppsTasksEntitiesServer();
     InitTaskNotificationHandler();
+    LoadBizAppsTasksHumanTaskProvider();
     console.log('[BizAppsTasks] Server loaded');
 }
+export * from './workflow/workflow-task-request.js';
+export * from './workflow/workflow-step-completion.js';
+export { BizAppsTasksHumanTaskProvider, RaisedTaskIDsForStep, LoadBizAppsTasksHumanTaskProvider } from './workflow/BizAppsTasksHumanTaskProvider.js';

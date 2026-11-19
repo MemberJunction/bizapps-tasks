@@ -38,6 +38,7 @@ vi.mock('@mj-biz-apps/tasks-entities', () => ({
   mjBizAppsTasksTaskCheckInEntity: class {},
   mjBizAppsTasksTaskDecisionEntity: class {},
   mjBizAppsTasksTaskEntity: class {},
+  mjBizAppsTasksTaskLinkEntity: class {},
   mjBizAppsTasksTaskTypeEntity: class {},
   mjBizAppsTasksTaskTypeStatusEntity: class {},
   mjBizAppsTasksMeetingEntity: class {},
