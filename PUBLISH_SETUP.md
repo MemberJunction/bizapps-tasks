@@ -83,9 +83,8 @@ still only ask whether every package exists; they are the backstop, not the proo
 
 - The `blue-cypress-ci-bot` App is installed on this repo, and the org `APP_CLIENT_ID` variable
   and `APP_PRIVATE_KEY` secret reach it.
-- Rulesets: `protect-next` (PR required, code-owner review for `release-lines.json`, the four
-  door checks, strict; App bypass for pull requests only), `protect-main` (the seven `rr:` checks
-  plus `build`, one approval) and `protect-lts` on `lts/*` (PR required, one approval, the
+- Rulesets: `protect-next` (PR required, one approval, the four door checks, strict; App bypass for pull requests only), `protect-main` (the seven `rr:` checks
+  plus `build`, one approval) and `protect-lts` on `lts/*` (PR required, one approval, code-owner review, the
   `lines:` checks, the door checks and `build`; App bypass for pull requests only, for the
   back-merge and an older line's release PR).
 
