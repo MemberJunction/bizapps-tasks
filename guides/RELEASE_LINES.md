@@ -15,8 +15,9 @@ bizapps-tasks follows MJ's branch model, as agreed in the "OpenApp Release Lines
 [`release-lines.json`](../release-lines.json) lists each line: its branch, the MJ version it was
 cut for (`mjVersion`, never raised), the app major it publishes, whether it is `open` or `lts`,
 and whether it releases through `main` or from its own branch. It also lists `next`'s edge-only
-migrations. CI always reads the copy on `next`. Changing it needs a CODEOWNERS review, because
-freezing a line or marking a migration edge-only is a support decision.
+migrations. CI always reads the copy on `next`. Freezing a line or marking a migration edge-only is a
+support decision: have one of the owners in `.github/CODEOWNERS` review the change (protect-next
+does not enforce it).
 
 A line is `open` (features, fixes and migrations, all backported from `next`) or `lts` (code
 fixes only). An LTS line never reopens.
@@ -68,12 +69,13 @@ than the line's newest. `lines: migrations` checks order there instead.
 The line cut is coordinated across apps: bizapps-common first, then the apps that depend on it.
 
 1. On `next`, add the line to `release-lines.json` (`status: open`, `releasesThrough: main`) and
-   move the previous newest line to `releasesThrough: branch`. Merge after CODEOWNERS review.
+   move the previous newest line to `releasesThrough: branch`. Merge after a review by one of its owners.
 2. Create `lts/X.Y` from `next` and give it the `protect-lts` ruleset (it covers `lts/*`).
 3. On a branch off the new line, run
    `node .github/scripts/check-mj-line.mjs --line X.Y --file release-lines.json --fix`, then
    `pnpm install --lockfile-only`. This caps the MJ peers at the line, pins `mj-app.json`, and
-   adds `"line"`. From the 6.3 line on, also add a `major` changeset (each line has its own app
+   adds `"line"`. Set the line's `.github/CODEOWNERS` to `* <the line's reviewers>`; protect-lts
+   requires code-owner review, so every change to the line needs one of them. From the 6.3 line on, also add a `major` changeset (each line has its own app
    major) and re-stamp edge-only migrations to the cut date on SQL Server and PostgreSQL together.
    Open it into `lts/X.Y` with the `line-cut` label (a maintainer or admin adds it).
 4. The first release of a new newest line has to replace `main`'s history with the line's. That
