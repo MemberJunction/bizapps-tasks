@@ -53,4 +53,4 @@ export function LoadBizAppsTasksServer(): void {
 }
 export * from './workflow/workflow-task-request.js';
 export * from './workflow/workflow-step-completion.js';
-export { BizAppsTasksHumanTaskProvider, RaisedTaskIDsForStep, LoadBizAppsTasksHumanTaskProvider } from './workflow/BizAppsTasksHumanTaskProvider.js';
+export { BizAppsTasksHumanTaskProvider, RaisedTaskIDsFor, LoadBizAppsTasksHumanTaskProvider } from './workflow/BizAppsTasksHumanTaskProvider.js';

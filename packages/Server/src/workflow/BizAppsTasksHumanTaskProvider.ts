@@ -1,30 +1,35 @@
 /**
- * Puts a workflow's Human step in front of people as a bizapps-tasks task.
+ * Puts a human ask in front of people as a bizapps-tasks task: a workflow's Human step, or an agent's
+ * question.
  *
- * A Human step names it with `provider: 'BizAppsTasks'`. When the dispatcher reaches the step, this
- * raises one task — assignees, the record the decision is about, a due date — and links it to the
- * step's `MJ: Tasks` row. Deciding the task completes the step ({@link CompleteWorkflowStepsForTask}),
+ * A Human step names it with `provider: 'BizAppsTasks'`. It also declares `CanBeDefault`, so an install
+ * that sets `humanTasks.defaultProvider: 'BizAppsTasks'` sends it every Human step that names no
+ * provider and every agent's question (Chat step). Each ask becomes one task (assignees, the record
+ * the decision is about, a due date) linked to the ask: the step's `MJ: Tasks` row, or the
+ * `MJ: AI Agent Requests` row. Deciding the task answers the ask ({@link SettleHumanAsksForTask}),
  * through bizapps-tasks' own rules for who may decide.
  *
- * Raising is idempotent: a step already linked to a task is not raised again, so a dispatcher that
+ * Raising is idempotent: an ask already linked to a task is not raised again, so a caller that
  * retries after a dropped connection does not put the same question to people twice.
  *
  * @module @mj-biz-apps/tasks-server
  */
 import { LogError, RunView, type IMetadataProvider, type UserInfo } from '@memberjunction/core';
-import { EscapeSQLString, RegisterClass } from '@memberjunction/global';
+import { EscapeSQLString, RegisterClassEx } from '@memberjunction/global';
 import {
     BaseHumanTaskProvider,
+    HUMAN_TASK_PROVIDER_CAN_BE_DEFAULT,
     type HumanTaskRaiseContext,
     type HumanTaskRaiseResult,
+    type HumanTaskSubject,
     type HumanTaskWithdrawContext,
-} from '@memberjunction/task-graph';
+} from '@memberjunction/ai-core-plus';
 import type {
     mjBizAppsTasksTaskAssignmentEntity,
     mjBizAppsTasksTaskEntity,
     mjBizAppsTasksTaskLinkEntity,
 } from '@mj-biz-apps/tasks-entities';
-import { TASK_LINK_ENTITY, TaskLinkEntityServer, WORKFLOW_STEP_ENTITY, PEOPLE_ENTITY } from '@mj-biz-apps/tasks-entities-server';
+import { AGENT_REQUEST_ENTITY, TASK_LINK_ENTITY, TaskLinkEntityServer, WORKFLOW_STEP_ENTITY, PEOPLE_ENTITY } from '@mj-biz-apps/tasks-entities-server';
 import {
     BIZAPPS_TASKS_PROVIDER_KEY,
     ResolveWorkflowTaskRequest,
@@ -44,56 +49,76 @@ type ResolvedRef = { EntityID: string; RecordID: string };
 type RaisePlan = {
     Request: WorkflowTaskRequest;
     TaskTypeID: string;
-    StepEntityID: string;
+    /** The ask the task answers: the step's row, or the agent request's. */
+    Ask: ResolvedRef;
     Assignees: ResolvedRef[];
     LinkedRecord: ResolvedRef | null;
     CreatorPersonID: string | null;
 };
 
-@RegisterClass(BaseHumanTaskProvider, BIZAPPS_TASKS_PROVIDER_KEY)
+/** The record an ask lives in: a workflow step's `MJ: Tasks` row, or an `MJ: AI Agent Requests` row. */
+export function HumanAskRecord(subject: HumanTaskSubject): WorkflowRecordRef {
+    return subject.Kind === 'WorkflowStep'
+        ? { EntityName: WORKFLOW_STEP_ENTITY, RecordID: subject.TaskID }
+        : { EntityName: AGENT_REQUEST_ENTITY, RecordID: subject.AgentRequestID };
+}
+
+/** A short description of the ask, for log lines. */
+function describeAsk(subject: HumanTaskSubject): string {
+    return subject.Kind === 'WorkflowStep' ? `workflow step ${subject.TaskID}` : `agent request ${subject.AgentRequestID}`;
+}
+
+@RegisterClassEx(BaseHumanTaskProvider, {
+    key: BIZAPPS_TASKS_PROVIDER_KEY,
+    // It handles any ask: an agent's question carries no provider configuration and still gets someone to ask.
+    metadata: { [HUMAN_TASK_PROVIDER_CAN_BE_DEFAULT]: true },
+})
 export class BizAppsTasksHumanTaskProvider extends BaseHumanTaskProvider {
     public async RaiseTask(ctx: HumanTaskRaiseContext): Promise<HumanTaskRaiseResult> {
+        const ask = HumanAskRecord(ctx.Subject);
         const resolved = ResolveWorkflowTaskRequest({
             Name: ctx.Name,
             Instructions: ctx.Instructions,
             DueAt: ctx.DueAt,
-            AssignedUserID: ctx.AssignedUserID,
+            // An agent's question with no one named (a shared inbox) goes to the user who ran the agent.
+            // A workflow step never falls back to its owner: that is often who is asking for the approval.
+            AssignedUserID: ctx.AssignedUserID ?? (ctx.Subject.Kind === 'AgentRequest' ? ctx.OwnerUserID : null),
             ProviderConfiguration: ctx.ProviderConfiguration,
             Payload: ctx.Payload,
         });
         if ('Error' in resolved) return { Outcome: 'permanent-failure', Message: resolved.Error };
         try {
-            const existing = await RaisedTaskIDsForStep(ctx.TaskID, ctx.Provider, ctx.ContextUser);
+            const existing = await RaisedTaskIDsFor(ask, ctx.Provider, ctx.ContextUser);
             if (existing.length > 0) return { Outcome: 'raised', ExternalReference: existing[0] };
-            const plan = await this.plan(resolved.Request, ctx);
+            const plan = await this.plan(resolved.Request, ask, ctx);
             if ('Error' in plan) return { Outcome: 'permanent-failure', Message: plan.Error };
             const taskID = await this.raise(plan, ctx);
             return { Outcome: 'raised', ExternalReference: taskID };
         } catch (e) {
             const message = e instanceof Error ? e.message : String(e);
-            LogError(`[BizAppsTasks] Raising a task for workflow step ${ctx.TaskID} failed: ${message}`);
+            LogError(`[BizAppsTasks] Raising a task for ${describeAsk(ctx.Subject)} failed: ${message}`);
             return { Outcome: 'transient-failure', Message: message };
         }
     }
 
-    /** Cancels the task the step raised, if it is still open. Its people no longer need to answer it. */
+    /** Cancels the task the ask raised, if it is still open. Its people no longer need to answer it. */
     public override async WithdrawTask(ctx: HumanTaskWithdrawContext): Promise<void> {
-        const taskIDs = await RaisedTaskIDsForStep(ctx.TaskID, ctx.Provider, ctx.ContextUser);
+        const taskIDs = await RaisedTaskIDsFor(HumanAskRecord(ctx.Subject), ctx.Provider, ctx.ContextUser);
         for (const taskID of taskIDs) {
             const task = await ctx.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>(TASKS_ENTITY, ctx.ContextUser);
             if (!(await task.Load(taskID)) || !OPEN_STATUSES.has(task.Status)) continue;
             task.Status = 'Cancelled';
-            task.CompletionNotes = `Withdrawn by the workflow (${ctx.Reason}).`;
+            task.CompletionNotes = withdrawalNote(ctx);
             if (!(await task.Save())) {
-                LogError(`[BizAppsTasks] Withdrawing task ${taskID} for workflow step ${ctx.TaskID} failed: ${task.LatestResult?.CompleteMessage ?? 'unknown error'}`);
+                LogError(`[BizAppsTasks] Withdrawing task ${taskID} for ${describeAsk(ctx.Subject)} failed: ${task.LatestResult?.CompleteMessage ?? 'unknown error'}`);
             }
         }
     }
 
     /** Resolves every name in the request to an ID, or says which one does not exist. */
-    private async plan(request: WorkflowTaskRequest, ctx: HumanTaskRaiseContext): Promise<RaisePlan | { Error: string }> {
-        const stepEntityID = ctx.Provider.EntityByName(WORKFLOW_STEP_ENTITY)?.ID;
-        if (!stepEntityID) return { Error: `The ${WORKFLOW_STEP_ENTITY} entity is not in this host's metadata.` };
+    private async plan(request: WorkflowTaskRequest, askRef: WorkflowRecordRef, ctx: HumanTaskRaiseContext): Promise<RaisePlan | { Error: string }> {
+        const ask = resolveRefs(ctx.Provider, [askRef]);
+        if ('Error' in ask) return ask;
         const assignees = resolveRefs(ctx.Provider, request.Assignees);
         if ('Error' in assignees) return assignees;
         const linked = request.LinkedRecord ? resolveRefs(ctx.Provider, [request.LinkedRecord]) : { Value: [] };
@@ -104,7 +129,7 @@ export class BizAppsTasksHumanTaskProvider extends BaseHumanTaskProvider {
         return {
             Request: request,
             TaskTypeID: lookups.TaskTypeID,
-            StepEntityID: stepEntityID,
+            Ask: ask.Value[0],
             Assignees: assignees.Value,
             LinkedRecord: linked.Value[0] ?? null,
             CreatorPersonID: lookups.CreatorPersonID,
@@ -129,17 +154,17 @@ export class BizAppsTasksHumanTaskProvider extends BaseHumanTaskProvider {
         return { TaskTypeID: type.ID, CreatorPersonID: people.Results?.[0]?.ID ?? null };
     }
 
-    /** Writes the task, its link to the step, its record link and its assignees. Undoes them on failure. */
+    /** Writes the task, its link to the ask, its record link and its assignees. Undoes them on failure. */
     private async raise(plan: RaisePlan, ctx: HumanTaskRaiseContext): Promise<string> {
         const task = await this.createTask(plan, ctx);
-        let stepLink: mjBizAppsTasksTaskLinkEntity | null = null;
+        let askLink: mjBizAppsTasksTaskLinkEntity | null = null;
         try {
-            stepLink = await this.createLink(task.ID, { EntityID: plan.StepEntityID, RecordID: ctx.TaskID }, ctx, true);
+            askLink = await this.createLink(task.ID, plan.Ask, ctx, true);
             if (plan.LinkedRecord) await this.createLink(task.ID, plan.LinkedRecord, ctx, false);
             for (const assignee of plan.Assignees) await this.assign(task.ID, assignee, plan.CreatorPersonID, ctx);
             return task.ID;
         } catch (e) {
-            await discardPartialTask(task, stepLink);
+            await discardPartialTask(task, askLink);
             throw e;
         }
     }
@@ -158,15 +183,15 @@ export class BizAppsTasksHumanTaskProvider extends BaseHumanTaskProvider {
         return task;
     }
 
-    private async createLink(taskID: string, ref: ResolvedRef, ctx: HumanTaskRaiseContext, isStep: boolean): Promise<mjBizAppsTasksTaskLinkEntity> {
+    private async createLink(taskID: string, ref: ResolvedRef, ctx: HumanTaskRaiseContext, isAsk: boolean): Promise<mjBizAppsTasksTaskLinkEntity> {
         const link = await ctx.Provider.GetEntityObject<mjBizAppsTasksTaskLinkEntity>(TASK_LINK_ENTITY, ctx.ContextUser);
         link.NewRecord();
         link.TaskID = taskID;
         link.EntityID = ref.EntityID;
         link.RecordID = ref.RecordID;
-        if (isStep) {
+        if (isAsk) {
             if (!(link instanceof TaskLinkEntityServer)) throw new Error('the Task Links server subclass is not registered on this host.');
-            link.AuthorizeWorkflowStepLink();
+            link.AuthorizeHumanAskLink();
         }
         if (!(await link.Save())) throw new Error(`linking the task failed: ${link.LatestResult?.CompleteMessage ?? 'unknown error'}`);
         return link;
@@ -185,20 +210,26 @@ export class BizAppsTasksHumanTaskProvider extends BaseHumanTaskProvider {
     }
 }
 
-/** The bizapps-tasks tasks linked to one workflow step, oldest first. */
-export async function RaisedTaskIDsForStep(stepTaskID: string, provider: IMetadataProvider, user: UserInfo): Promise<string[]> {
-    const stepEntityID = provider.EntityByName(WORKFLOW_STEP_ENTITY)?.ID;
-    if (!stepEntityID) return [];
+/** The bizapps-tasks tasks linked to one ask (a workflow step or an agent request), oldest first. */
+export async function RaisedTaskIDsFor(ask: WorkflowRecordRef, provider: IMetadataProvider, user: UserInfo): Promise<string[]> {
+    const askEntityID = provider.EntityByName(ask.EntityName)?.ID;
+    if (!askEntityID) return [];
     const res = await RunView.FromMetadataProvider(provider).RunView<{ TaskID: string }>({
         EntityName: TASK_LINK_ENTITY,
-        ExtraFilter: `EntityID='${stepEntityID}' AND RecordID='${EscapeSQLString(stepTaskID)}'`,
+        ExtraFilter: `EntityID='${EscapeSQLString(askEntityID)}' AND RecordID='${EscapeSQLString(ask.RecordID)}'`,
         Fields: ['ID', 'TaskID'],
         OrderBy: '__mj_CreatedAt ASC',
         ResultType: 'simple',
         BypassCache: true,
     }, user);
-    if (!res?.Success) throw new Error(`looking up the task raised for step ${stepTaskID} failed: ${res?.ErrorMessage}`);
+    if (!res?.Success) throw new Error(`looking up the task raised for ${ask.EntityName} ${ask.RecordID} failed: ${res?.ErrorMessage}`);
     return (res.Results ?? []).map((r) => r.TaskID);
+}
+
+/** What a withdrawn task says about why. */
+function withdrawalNote(ctx: HumanTaskWithdrawContext): string {
+    if (ctx.Reason === 'completed-elsewhere') return 'Withdrawn: the request was answered somewhere else.';
+    return ctx.Subject.Kind === 'WorkflowStep' ? `Withdrawn by the workflow (${ctx.Reason}).` : `Withdrawn by the agent (${ctx.Reason}).`;
 }
 
 function resolveRefs(provider: IMetadataProvider, refs: WorkflowRecordRef[]): { Value: ResolvedRef[] } | { Error: string } {
@@ -212,17 +243,17 @@ function resolveRefs(provider: IMetadataProvider, refs: WorkflowRecordRef[]): { 
 }
 
 /**
- * Undoes a half-raised task so a retry starts clean. The step link goes first: cancelling the task
- * while it is still linked would complete the step as cancelled.
+ * Undoes a half-raised task so a retry starts clean. The ask link goes first: cancelling the task
+ * while it is still linked would settle the ask as cancelled.
  */
-async function discardPartialTask(task: mjBizAppsTasksTaskEntity, stepLink: mjBizAppsTasksTaskLinkEntity | null): Promise<void> {
+async function discardPartialTask(task: mjBizAppsTasksTaskEntity, askLink: mjBizAppsTasksTaskLinkEntity | null): Promise<void> {
     try {
-        if (stepLink && !(await stepLink.Delete())) {
-            LogError(`[BizAppsTasks] Could not remove the step link of half-raised task ${task.ID}: ${stepLink.LatestResult?.CompleteMessage ?? 'unknown error'}`);
+        if (askLink && !(await askLink.Delete())) {
+            LogError(`[BizAppsTasks] Could not remove the ask link of half-raised task ${task.ID}: ${askLink.LatestResult?.CompleteMessage ?? 'unknown error'}`);
             return;
         }
         task.Status = 'Cancelled';
-        task.CompletionNotes = 'Raising this workflow task failed part-way; it was withdrawn.';
+        task.CompletionNotes = 'Raising this task failed part-way; it was withdrawn.';
         if (!(await task.Save())) {
             LogError(`[BizAppsTasks] Could not withdraw half-raised task ${task.ID}: ${task.LatestResult?.CompleteMessage ?? 'unknown error'}`);
         }
@@ -233,6 +264,6 @@ async function discardPartialTask(task: mjBizAppsTasksTaskEntity, stepLink: mjBi
 
 /** Anti-tree-shaking anchor, called from the server bootstrap. */
 export function LoadBizAppsTasksHumanTaskProvider(): void {
-    // Referencing the class keeps its @RegisterClass registration in the bundle.
+    // Referencing the class keeps its @RegisterClassEx registration in the bundle.
     if (!BizAppsTasksHumanTaskProvider) throw new Error('BizAppsTasksHumanTaskProvider missing');
 }

@@ -14,7 +14,7 @@ const ROLES_ENTITY = 'roles-entity';
 
 // The workflow-step completion is covered by its own tests; here it must not pull in the engine.
 vi.mock('@mj-biz-apps/tasks-entities', () => ({ mjBizAppsTasksTaskEntity: class {} }));
-vi.mock('../../workflow/workflow-step-completion.js', () => ({ CompleteWorkflowStepsForTask: vi.fn() }));
+vi.mock('../../workflow/workflow-step-completion.js', () => ({ SettleHumanAsksForTask: vi.fn() }));
 
 vi.mock('@memberjunction/core', () => ({
   BaseEntity: class { static BaseEventCode = 'BaseEntity'; },

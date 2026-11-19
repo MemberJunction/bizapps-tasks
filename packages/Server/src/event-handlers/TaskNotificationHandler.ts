@@ -24,7 +24,7 @@ import { Subscription } from 'rxjs';
 import { ResolveUserIDForPerson, ResolveUserIDsForPeople } from '@mj-biz-apps/common-entities';
 import { IsRoleEntityID, ResolveUserIDsForRoles, RoleName } from '../role-assignees.js';
 import { mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
-import { CompleteWorkflowStepsForTask } from '../workflow/workflow-step-completion.js';
+import { SettleHumanAsksForTask } from '../workflow/workflow-step-completion.js';
 
 /** Entity names we listen for */
 const TASKS_ENTITY = 'MJ_BizApps_Tasks: Tasks';
@@ -132,7 +132,7 @@ async function completeLinkedWorkflowSteps(event: BaseEntityEvent): Promise<void
     const contextUser = task.ContextCurrentUser;
     if (!contextUser || (task.Status !== 'Completed' && task.Status !== 'Cancelled')) return;
     // The server's provider: this handler only runs inside MJAPI, which has one.
-    await CompleteWorkflowStepsForTask(task.ID, task.Status, contextUser, Metadata.Provider);
+    await SettleHumanAsksForTask(task.ID, task.Status, contextUser, Metadata.Provider);
 }
 
 // ---------------------------------------------------------------------------

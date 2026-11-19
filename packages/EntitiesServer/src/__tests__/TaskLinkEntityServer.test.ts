@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const STEP_ENTITY_ID = 'A0000000-0000-0000-0000-000000000001';
 const FORM_VERSION_ENTITY_ID = 'A0000000-0000-0000-0000-000000000002';
 const STEP_ID = 'C0000000-0000-0000-0000-000000000001';
+const AGENT_REQUEST_ENTITY_ID = 'A0000000-0000-0000-0000-000000000003';
 
 vi.mock('@memberjunction/global', () => ({
     RegisterClass: () => () => {},
@@ -17,7 +18,12 @@ vi.mock('@memberjunction/core', () => {
         ValidationResult,
         ValidationErrorInfo,
         ValidationErrorType: { Failure: 'Failure' },
-        Metadata: { Provider: { EntityByName: (n: string) => (n === 'MJ: Tasks' ? { ID: STEP_ENTITY_ID } : undefined) } },
+        Metadata: {
+            Provider: {
+                EntityByName: (n: string) =>
+                    n === 'MJ: Tasks' ? { ID: STEP_ENTITY_ID } : n === 'MJ: AI Agent Requests' ? { ID: AGENT_REQUEST_ENTITY_ID } : undefined,
+            },
+        },
     };
 });
 
@@ -69,11 +75,11 @@ describe('TaskLinkEntityServer', () => {
     it('refuses creating a link to a workflow step without the provider authorizing it', () => {
         const result = link.Validate();
         expect(result.Success).toBe(false);
-        expect(result.Errors[0].Message).toMatch(/only by the workflow itself/);
+        expect(result.Errors[0].Message).toMatch(/only by the workflow or agent that raised it/);
     });
 
     it('accepts the link the provider authorized, for one save only', async () => {
-        link.AuthorizeWorkflowStepLink();
+        link.AuthorizeHumanAskLink();
         expect(await link.Save()).toBe(true);
         expect(link.Validate().Success).toBe(false);
     });
@@ -95,6 +101,17 @@ describe('TaskLinkEntityServer', () => {
         const movedOff = savedLink(STEP_ENTITY_ID, STEP_ID);
         movedOff.EntityID = FORM_VERSION_ENTITY_ID;
         expect(movedOff.Validate().Success).toBe(false);
+    });
+
+    it('guards links to an agent request the same way', async () => {
+        const toRequest = newLink(AGENT_REQUEST_ENTITY_ID, STEP_ID);
+        expect(toRequest.Validate().Success).toBe(false);
+        toRequest.AuthorizeHumanAskLink();
+        expect(await toRequest.Save()).toBe(true);
+
+        const movedOnto = savedLink(FORM_VERSION_ENTITY_ID, STEP_ID);
+        movedOnto.EntityID = AGENT_REQUEST_ENTITY_ID;
+        expect(movedOnto.Validate().Success).toBe(false);
     });
 
     it('lets an existing workflow link be saved when neither end changes', () => {

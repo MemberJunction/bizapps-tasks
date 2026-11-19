@@ -19,6 +19,7 @@
   "license": "BUSL-1.1",
   "devDependencies": {
     "@memberjunction/actions": "6.2.1",
+    "@memberjunction/ai-agents": "6.2.1",
     "@memberjunction/ai-core-plus": "6.2.1",
     "@memberjunction/core": "6.2.1",
     "@memberjunction/core-entities": "6.2.1",
@@ -48,6 +49,7 @@
     "@memberjunction/scheduling-engine": "^6.2.1",
     "@memberjunction/scheduling-base-types": "^6.2.1",
     "@memberjunction/actions": "^6.2.1",
+    "@memberjunction/ai-agents": "^6.2.1",
     "@memberjunction/ai-core-plus": "^6.2.1",
     "@memberjunction/task-graph": "^6.2.1",
     "@mj-biz-apps/common-entities": "^5.55.0",

@@ -1,7 +1,13 @@
 /**
- * Completes the workflow step a bizapps-tasks task was raised for, once the task is decided.
+ * Answers the ask a bizapps-tasks task was raised for, once the task is decided: a workflow step, or
+ * an agent's question.
  *
- * The step is completed — never failed — with the decision written into the workflow payload under
+ * Agent requests are answered through `AnswerAgentRequestFromProvider` (`@memberjunction/ai-agents`),
+ * which saves the answer as the request's owner and resumes the agent; see {@link AgentRequestAnswerFor}
+ * for how a decision maps to an answer. A task cancelled without a decision leaves the agent's
+ * question open in MJ's inbox: cancelling a task is not an answer.
+ *
+ * A workflow step is completed — never failed — with the decision written into the workflow payload under
  * the step's `outputKey` (default `approval`), so the workflow branches on it:
  * `payload.approval.Approved == true`. A task closed without a recorded decision is not an approval:
  * only a decision, which bizapps-tasks checks against who may decide, can set `Approved`.
@@ -16,12 +22,14 @@
 import { LogError, LogStatus, RunView, WellKnownUserSource, type IMetadataProvider, type UserInfo } from '@memberjunction/core';
 import { EscapeSQLString, UUIDsEqual } from '@memberjunction/global';
 import { ParseStepConfiguration, TaskGraphWaitingSteps } from '@memberjunction/task-graph';
+import { AnswerAgentRequestFromProvider, type AgentRequestAnswerStatus } from '@memberjunction/ai-agents';
 import { IsApprovalOutcome, IsTaskDecisionOutcomeCode } from '@mj-biz-apps/tasks-core';
-import { TASK_LINK_ENTITY, WORKFLOW_STEP_ENTITY } from '@mj-biz-apps/tasks-entities-server';
+import { AGENT_REQUEST_ENTITY, TASK_LINK_ENTITY, WORKFLOW_STEP_ENTITY } from '@mj-biz-apps/tasks-entities-server';
 import { BIZAPPS_TASKS_PROVIDER_KEY, WorkflowOutputKey } from './workflow-task-request.js';
 
 const TASK_DECISIONS_ENTITY = 'MJ_BizApps_Tasks: Task Decisions';
 const TASK_DECISION_OUTCOMES_ENTITY = 'MJ_BizApps_Tasks: Task Decision Outcomes';
+const TASKS_ENTITY = 'MJ_BizApps_Tasks: Tasks';
 
 /** The terminal statuses that settle a workflow step. */
 export type SettledTaskStatus = 'Completed' | 'Cancelled';
@@ -60,35 +68,90 @@ export function IsBizAppsTasksStep(configuration: string | null | undefined): bo
     return typeof provider === 'string' && provider.trim().toLowerCase() === BIZAPPS_TASKS_PROVIDER_KEY.toLowerCase();
 }
 
+/** How an agent request is answered from a settled task, or null to leave it open. */
+export type AgentRequestAnswer = { Status: AgentRequestAnswerStatus; Response: string | null };
+
 /**
- * Completes every workflow step linked to a settled task. Fail-soft: the task's own save has already
- * committed, so a problem here is logged, never thrown into the caller.
+ * Pure: the answer a settled task gives an agent's question. An approving decision approves, a
+ * rejecting one rejects; a task completed without a decision responds with its completion notes. A task
+ * cancelled without a decision is not an answer, so the question stays open in MJ's inbox.
  */
-export async function CompleteWorkflowStepsForTask(
+export function AgentRequestAnswerFor(summary: WorkflowDecisionSummary, status: SettledTaskStatus, completionNotes: string | null): AgentRequestAnswer | null {
+    const response = summary.Notes ?? completionNotes;
+    const code = summary.Outcome;
+    if (!IsTaskDecisionOutcomeCode(code)) {
+        return status === 'Cancelled' ? null : { Status: 'Responded', Response: response };
+    }
+    return { Status: IsApprovalOutcome(code) ? 'Approved' : 'Rejected', Response: response };
+}
+
+/**
+ * Answers every ask linked to a settled task: completes its workflow steps and answers its agent
+ * requests. Fail-soft: the task's own save has already committed, so a problem here is logged, never
+ * thrown into the caller.
+ */
+export async function SettleHumanAsksForTask(
     taskID: string,
     status: SettledTaskStatus,
     decider: UserInfo,
     provider: IMetadataProvider,
 ): Promise<void> {
-    const stepEntityID = provider.EntityByName(WORKFLOW_STEP_ENTITY)?.ID;
-    if (!stepEntityID) return;
+    const stepEntityID = provider.EntityByName(WORKFLOW_STEP_ENTITY)?.ID ?? null;
+    const requestEntityID = provider.EntityByName(AGENT_REQUEST_ENTITY)?.ID ?? null;
+    if (!stepEntityID && !requestEntityID) return;
     const systemUser = await WellKnownUserSource.Instance.GetSystemUser(provider);
     if (!systemUser) {
-        LogError(`[BizAppsTasks] Task ${taskID} was decided, but its workflow step cannot be completed: no system user.`);
+        LogError(`[BizAppsTasks] Task ${taskID} was decided, but what it was raised for cannot be answered: no system user.`);
         return;
     }
-    const facts = await loadFacts(taskID, stepEntityID, provider, systemUser);
-    if (!facts || facts.StepIDs.length === 0) return;
+    const facts = await loadFacts(taskID, { Step: stepEntityID, Request: requestEntityID }, provider, systemUser);
+    if (!facts) return;
 
     const summary = SummarizeWorkflowDecision(taskID, status, facts.Decision);
-    const steps = await loadSteps(facts.StepIDs, provider, systemUser);
+    if (facts.StepIDs.length > 0) await completeSteps(facts.StepIDs, summary, decider, provider, systemUser);
+    const answer = AgentRequestAnswerFor(summary, status, facts.CompletionNotes);
+    for (const requestID of facts.AgentRequestIDs) {
+        await answerAgentRequest(requestID, answer, summary, decider, provider);
+    }
+}
+
+async function completeSteps(stepIDs: string[], summary: WorkflowDecisionSummary, decider: UserInfo, provider: IMetadataProvider, systemUser: UserInfo): Promise<void> {
+    const steps = await loadSteps(stepIDs, provider, systemUser);
     for (const step of steps) {
         if (!IsBizAppsTasksStep(step.Configuration)) {
-            LogError(`[BizAppsTasks] Task ${taskID} is linked to workflow step ${step.ID}, which does not name the ${BIZAPPS_TASKS_PROVIDER_KEY} provider; left alone.`);
+            LogError(`[BizAppsTasks] Task ${summary.TaskID} is linked to workflow step ${step.ID}, which does not name the ${BIZAPPS_TASKS_PROVIDER_KEY} provider; left alone.`);
             continue;
         }
         await completeStep(step, summary, decider, provider, systemUser);
     }
+}
+
+async function answerAgentRequest(
+    requestID: string,
+    answer: AgentRequestAnswer | null,
+    summary: WorkflowDecisionSummary,
+    decider: UserInfo,
+    provider: IMetadataProvider,
+): Promise<void> {
+    if (!answer) {
+        LogStatus(`[BizAppsTasks] Task ${summary.TaskID} was cancelled without a decision; agent request ${requestID} stays open in the inbox.`);
+        return;
+    }
+    const result = await AnswerAgentRequestFromProvider({
+        AgentRequestID: requestID,
+        ProviderKey: BIZAPPS_TASKS_PROVIDER_KEY,
+        Status: answer.Status,
+        Response: answer.Response,
+        ResponseData: { outcome: summary.Outcome, taskID: summary.TaskID },
+        RespondingUserID: decider.ID,
+        Provider: provider,
+    });
+    if (!('Refusal' in result)) {
+        LogStatus(`[BizAppsTasks] Agent request ${requestID} answered by task ${summary.TaskID} (${answer.Status}).`);
+    } else if (result.Refusal !== 'already-answered') {
+        LogError(`[BizAppsTasks] Answering agent request ${requestID} from task ${summary.TaskID} failed: ${result.Message}`);
+    }
+    // Already answered: someone answered in MJ first, and that answer stands.
 }
 
 type StepRow = { ID: string; Configuration: string | null };
@@ -108,33 +171,41 @@ async function completeStep(step: StepRow, summary: WorkflowDecisionSummary, dec
     // A refusal means the step already finished (a re-save of a settled task, or a step that expired): nothing to do.
 }
 
-/** The steps the task is linked to, and its latest decision, in one round trip. */
+/** The facts settling reads about a task. */
+type TaskFacts = { StepIDs: string[]; AgentRequestIDs: string[]; Decision: LatestDecision | null; CompletionNotes: string | null };
+
+/** The asks the task is linked to, its latest decision and its completion notes, in one round trip. */
 async function loadFacts(
     taskID: string,
-    stepEntityID: string,
+    askEntityIDs: { Step: string | null; Request: string | null },
     provider: IMetadataProvider,
     user: UserInfo,
-): Promise<{ StepIDs: string[]; Decision: LatestDecision | null } | null> {
+): Promise<TaskFacts | null> {
     const id = EscapeSQLString(taskID);
-    const [links, decisions, outcomes] = await RunView.FromMetadataProvider(provider).RunViews<Record<string, string | null>>([
-        { EntityName: TASK_LINK_ENTITY, ExtraFilter: `TaskID='${id}' AND EntityID='${stepEntityID}'`, Fields: ['ID', 'RecordID'], ResultType: 'simple', BypassCache: true },
+    const entityList = [askEntityIDs.Step, askEntityIDs.Request].filter((e): e is string => !!e).map((e) => `'${EscapeSQLString(e)}'`).join(',');
+    const [links, decisions, outcomes, tasks] = await RunView.FromMetadataProvider(provider).RunViews<Record<string, string | null>>([
+        { EntityName: TASK_LINK_ENTITY, ExtraFilter: `TaskID='${id}' AND EntityID IN (${entityList})`, Fields: ['ID', 'EntityID', 'RecordID'], ResultType: 'simple', BypassCache: true },
         { EntityName: TASK_DECISIONS_ENTITY, ExtraFilter: `TaskID='${id}'`, Fields: ['ID', 'OutcomeID', 'DecisionNotes', 'DecidedByPersonID'], OrderBy: 'DecidedAt DESC, __mj_CreatedAt DESC', MaxRows: 1, ResultType: 'simple', BypassCache: true },
         { EntityName: TASK_DECISION_OUTCOMES_ENTITY, Fields: ['ID', 'Code'], ResultType: 'simple' },
+        { EntityName: TASKS_ENTITY, ExtraFilter: `ID='${id}'`, Fields: ['ID', 'CompletionNotes'], MaxRows: 1, ResultType: 'simple', BypassCache: true },
     ], user);
-    for (const [label, res] of [['links', links], ['decisions', decisions], ['outcomes', outcomes]] as const) {
+    for (const [label, res] of [['links', links], ['decisions', decisions], ['outcomes', outcomes], ['notes', tasks]] as const) {
         if (!res?.Success) {
             LogError(`[BizAppsTasks] Reading the ${label} of decided task ${taskID} failed: ${res?.ErrorMessage}`);
             return null;
         }
     }
-    const stepIDs = (links.Results ?? []).map((l) => l['RecordID']).filter((r): r is string => !!r);
+    const linked = (entityID: string | null) =>
+        (links.Results ?? []).filter((l) => !!entityID && UUIDsEqual(l['EntityID'] ?? '', entityID)).map((l) => l['RecordID']).filter((r): r is string => !!r);
     const latest = decisions.Results?.[0];
     const outcome = latest ? (outcomes.Results ?? []).find((o) => UUIDsEqual(o['ID'] ?? '', latest['OutcomeID'] ?? '')) : undefined;
     return {
-        StepIDs: stepIDs,
+        StepIDs: linked(askEntityIDs.Step),
+        AgentRequestIDs: linked(askEntityIDs.Request),
         Decision: latest
             ? { OutcomeCode: outcome?.['Code'] ?? null, Notes: latest['DecisionNotes'] ?? null, DecidedByPersonID: latest['DecidedByPersonID'] ?? null }
             : null,
+        CompletionNotes: tasks.Results?.[0]?.['CompletionNotes'] ?? null,
     };
 }
 
