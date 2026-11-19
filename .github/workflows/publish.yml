@@ -275,7 +275,9 @@ jobs:
           echo "$PUBLISHED package(s) published." >> "$GITHUB_STEP_SUMMARY"
 
       # The dist-tag is what a consumer's install resolves, so read it back rather than trusting
-      # the publish log. npm can take a short while to show a new tag; poll before failing.
+      # the publish log. npm can take several minutes to show a new version on every package (the
+      # v1.14.0 release saw 4 of 7 still on the old tag after 2 minutes), so poll up to 10 minutes
+      # in all, bypassing npm's local cache, before failing.
       - name: Verify the dist-tag
         if: steps.tag.outputs.released == 'true'
         env:
@@ -284,11 +286,13 @@ jobs:
         run: |
           set -euo pipefail
           WANT="${VERSION#v}"
+          DEADLINE=$((SECONDS + 600))
           for pkg in $(jq -r 'select(.private != true) | .name' packages/*/package.json); do
             GOT=""
-            for attempt in $(seq 1 12); do
-              GOT=$(npm view "$pkg" "dist-tags.$DIST_TAG" 2>/dev/null || true)
+            while :; do
+              GOT=$(npm view --prefer-online "$pkg" "dist-tags.$DIST_TAG" 2>/dev/null || true)
               [ "$GOT" = "$WANT" ] && break
+              [ "$SECONDS" -ge "$DEADLINE" ] && break
               sleep 10
             done
             if [ "$GOT" != "$WANT" ]; then
@@ -374,7 +378,9 @@ jobs:
             case "$f" in *.md) ;; *) continue ;; esac
             [ "$(basename "$f")" = "README.md" ] && continue
             [ -e "$f" ] && continue
-            [ -n "$(git log -1 --format=%H --diff-filter=A HEAD -- "$f")" ] && CONSUMED+=("$f")
+            # --full-history: the file is gone at HEAD and on main's first parent, so default history
+            # simplification follows that parent and never sees the line's side where it was added.
+            [ -n "$(git log -1 --full-history --format=%H --diff-filter=A HEAD -- "$f")" ] && CONSUMED+=("$f")
           done < <(git ls-tree -r --name-only origin/next -- .changeset/)
 
           if [ "${#CONSUMED[@]}" -eq 0 ]; then
