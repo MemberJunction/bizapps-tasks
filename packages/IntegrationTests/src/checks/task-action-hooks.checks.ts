@@ -1,6 +1,14 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { performance } from 'node:perf_hooks';
+import { fileURLToPath } from 'node:url';
 import { Assert, IntegrationCheckRegistry, type NamedCheck } from '@memberjunction/testing-integration/registry';
 import { TaskEntity } from '@mj-biz-apps/tasks-entities';
-import { TASK_ENTITY } from '../entity-names.js';
+import {
+    TASK_ACTIVITY_ENTITY,
+    TASK_ENTITY,
+    TASK_NOTIFICATION_LOG_ENTITY,
+} from '../entity-names.js';
 import { DeleteTask, RequireSave } from '../wire.js';
 import { GetOrLoadWorld } from '../world/load-world.js';
 
@@ -74,6 +82,50 @@ const checks: NamedCheck[] = [
             if (colorAction) {
                 Assert(!!colorAction.ID, 'Color Converter action ID resolved');
             }
+        },
+    },
+    {
+        Id: 'task-action-hooks.AH4',
+        Name: 'AH4 — TaskActivities and TaskNotificationLogs SaveReturnMode datestamps_only verification and benchmark log',
+        RequiresMutation: true,
+        Fn: async (ctx) => {
+            const expectedEntities = [
+                TASK_ACTIVITY_ENTITY,
+                TASK_NOTIFICATION_LOG_ENTITY,
+            ];
+            for (const name of expectedEntities) {
+                const info = ctx.Provider.EntityByName(name);
+                Assert(!!info, `${name} entity metadata present`);
+                const mode = info!.SaveReturnMode;
+                Assert(mode === 'datestamps_only', `${name} SaveReturnMode is datestamps_only (got ${mode})`);
+            }
+
+            const world = await GetOrLoadWorld(ctx);
+            const constrType = world.TaskTypes['CONSTRUCTION_MILESTONE'];
+            const catID = world.Categories['Corporate Real Estate & Facilities']?.ID ?? Object.values(world.Categories)[0].ID;
+
+            const t0 = performance.now();
+            const task = await ctx.Provider.GetEntityObject<TaskEntity>(TASK_ENTITY, ctx.User);
+            task.NewRecord();
+            task.Name = `AH4 Perf Benchmark Task ${Date.now()}`;
+            task.TypeID = constrType.ID;
+            task.CategoryID = catID;
+            task.Priority = 'Medium';
+            await RequireSave(task, 'AH4 benchmark task creation');
+            const elapsedMs = Number((performance.now() - t0).toFixed(2));
+            await DeleteTask(ctx, task);
+
+            const logDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../benchmark-logs');
+            fs.mkdirSync(logDir, { recursive: true });
+            const entry = {
+                Timestamp: new Date().toISOString(),
+                Package: '@mj-biz-apps/tasks-integration-tests',
+                Check: 'task-action-hooks.AH4',
+                DatestampsOnlyEntities: expectedEntities,
+                TaskCreateWithActivityAndHookMs: elapsedMs,
+            };
+            fs.writeFileSync(path.join(logDir, 'latest.json'), JSON.stringify(entry, null, 2) + '\n', 'utf8');
+            fs.appendFileSync(path.join(logDir, 'history.jsonl'), JSON.stringify(entry) + '\n', 'utf8');
         },
     },
 ];
