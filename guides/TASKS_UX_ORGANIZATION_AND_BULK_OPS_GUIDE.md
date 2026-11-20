@@ -1,5 +1,7 @@
 # Tasks UX Redesign, Organization Scoping & Server-Side Bulk Operations Guide
 
+> **Shareable Offline Version:** Open [`TASKS_UX_ORGANIZATION_AND_BULK_OPS_GUIDE.html`](./TASKS_UX_ORGANIZATION_AND_BULK_OPS_GUIDE.html) in any browser for the full interactive, self-contained HTML edition with all 21 embedded base64 2× Retina screenshots, zoomable lightbox, SVG architecture diagram, and Light/Dark toggle.
+
 This guide covers the **Golden Hybrid Tasks UX** architecture, **canonical Organization / Company scoping** across multi-entity and client workflows (such as Close Automation and client engagements), **unified Assignee / Due Date / Organization filtering** across Tree List, Smart Board, and Gantt Timeline, and **server-side Remotable Operations** for Asana-grade bulk editing and playbook instantiation.
 
 ---
