@@ -1,7 +1,8 @@
 import { Component, EventEmitter, Input, Output, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { AssignedToFilter } from '../../task-filters';
 import { TaskListComponent, TaskRow, BeforeTaskSelectedEvent, BeforeStatusChangeEvent } from '../task-list/task-list.component';
-import { AssignedToFilter, CurrentUserRoleIDs } from '../../role-assignees';
+import { CurrentUserRoleIDs } from '../../role-assignees';
 
 /**
  * "My Tasks" convenience wrapper around {@link TaskListComponent}.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { IMetadataProvider, UserInfo } from '@memberjunction/core';
-import { AssignedToFilter, CurrentUserRoleIDs, RoleAssigneeName } from '../role-assignees';
+import { CurrentUserRoleIDs, RoleAssigneeName } from '../role-assignees';
 
 const ROLES_ENTITY_ID = 'A0000000-0000-0000-0000-000000000003';
 const PEOPLE_ENTITY_ID = 'A0000000-0000-0000-0000-000000000001';
@@ -11,31 +11,7 @@ const provider = {
     Roles: [{ ID: FINANCE, Name: 'Finance' }],
 } as unknown as IMetadataProvider;
 
-describe('AssignedToFilter', () => {
-    it('matches only the person when there are no roles', () => {
-        expect(AssignedToFilter('person-1', [], provider)).toBe(
-            `ID IN (SELECT TaskID FROM __mj_BizAppsTasks.vwTaskAssignments WHERE AssigneeRecordID = 'person-1')`,
-        );
-    });
-
-    it('adds the roles, in both cases, scoped to the MJ: Roles entity', () => {
-        expect(AssignedToFilter('person-1', [FINANCE], provider)).toBe(
-            `ID IN (SELECT TaskID FROM __mj_BizAppsTasks.vwTaskAssignments WHERE AssigneeRecordID = 'person-1' OR ` +
-                `(AssigneeEntityID = '${ROLES_ENTITY_ID}' AND AssigneeRecordID IN ('${FINANCE}','${FINANCE.toLowerCase()}')))`,
-        );
-    });
-
-    it('escapes the person ID and drops role IDs that are not UUIDs', () => {
-        const filter = AssignedToFilter("o'brien", ["x') OR 1=1 --"], provider);
-        expect(filter).toContain(`AssigneeRecordID = 'o''brien'`);
-        expect(filter).not.toContain('OR 1=1');
-        expect(filter).not.toContain('AssigneeEntityID');
-    });
-
-    it('matches only the person when no provider is loaded', () => {
-        expect(AssignedToFilter('person-1', [FINANCE], undefined as unknown as IMetadataProvider)).not.toContain('AssigneeEntityID');
-    });
-});
+// AssignedToFilter is tested in task-filters.test.ts, where it is defined.
 
 describe('CurrentUserRoleIDs', () => {
     it("returns the user's role IDs", () => {
