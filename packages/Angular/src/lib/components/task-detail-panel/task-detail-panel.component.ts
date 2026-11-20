@@ -1,256 +1,398 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, inject, Input, Output, OnChanges, SimpleChanges } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import {
+    ChangeDetectionStrategy,
+    ChangeDetectorRef,
+    Component,
+    EventEmitter,
+    Input,
+    OnChanges,
+    Output,
+    SimpleChanges,
+    inject,
+} from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { CompositeKey, Metadata, RunView } from '@memberjunction/core';
+import { EscapeSQLString } from '@memberjunction/global';
 import { BaseFormsModule } from '@memberjunction/ng-base-forms';
-import { Metadata, RunView, CompositeKey } from '@memberjunction/core';
+import { SharedService } from '@memberjunction/ng-shared';
+import {
+    MJButtonDirective,
+    MJProgressBarComponent,
+    MJTabNavComponent,
+    type TabConfig,
+} from '@memberjunction/ng-ui-components';
+import {
+    ResolveTaskUiArchetype,
+    TaskOrchestrationService,
+    TaskService,
+} from '@mj-biz-apps/tasks-core';
+import type {
+    mjBizAppsTasksTaskAssignmentEntity,
+    mjBizAppsTasksTaskCheckInEntity,
+    mjBizAppsTasksTaskCommentEntity,
+    mjBizAppsTasksTaskEntity,
+    mjBizAppsTasksTaskLinkEntity,
+} from '@mj-biz-apps/tasks-entities';
+import {
+    TaskAdaptiveSpotlightComponent,
+    TaskCompletionRingComponent,
+    TaskWorkflowStepperComponent,
+    type TaskAdaptiveSpotlightInput,
+    type TaskApprovalActionEvent,
+    type TaskAssignmentStatusValue,
+    type TaskOkrCheckInSubmitEvent,
+    type TaskPriorityValue,
+    type TaskStatusValue,
+    type TaskWidgetLinkedRecord,
+    type TaskWidgetTypeStatus,
+} from '@mj-biz-apps/tasks-ng-widgets';
 import { OpenTaskRecord } from '../../open-task-record';
 import { RoleAssigneeName } from '../../role-assignees';
-import { TaskAssigneeInfo } from '../task-assignee-list/task-assignee-list.component';
+import { LoadTaskRecordLinks } from '../../task-record-links';
+import { RecordLinkPickerDialogComponent } from '../record-link-picker/record-link-picker-dialog.component';
+import type { TaskAssigneeInfo } from '../task-assignee-list/task-assignee-list.component';
 
-/**
- * A single entry in the activity/comment timeline displayed by
- * {@link TaskDetailPanelComponent}.
- */
 export interface ActivityEntry {
-    /** Whether this is an automatic activity log or a user-authored comment. */
     Type: 'activity' | 'comment';
-    /** When the entry was created. */
     Timestamp: Date;
-    /** Resolved person name, if applicable (null for system-generated activities). */
     PersonName?: string;
-    /** Human-readable content text. */
     Content: string;
-    /** Activity type code (e.g. 'StatusChange', 'Created'). Only set for activity entries. */
     ActivityType?: string;
 }
 
-/** @internal Narrow shape for People rows read by the detail panel. */
 interface PersonRow {
     ID: string;
     FirstName: string;
     LastName: string;
 }
 
-/** @internal Narrow shape for the Task fields read by the detail panel template + logic. */
-interface TaskRow {
-    Name: string;
-    Status: string;
-    Priority: string;
-    ParentID: string | null;
-    PercentComplete: number;
-    DueAt: Date | null;
-    StartedAt: Date | null;
-    HoursEstimated: number | null;
-    HoursActual: number | null;
-    Description: string | null;
-    BlockedReason: string | null;
+interface InspectorAssigneeRow extends TaskAssigneeInfo {
+    AssignmentID: string;
+    AssigneeEntityName: string;
 }
 
-/**
- * Cancellable event emitted before a comment is posted on a task.
- * Set `Cancel = true` to prevent the comment from being saved.
- */
+interface ChildSubtaskRow {
+    ID: string;
+    Name: string;
+    Status: TaskStatusValue;
+    Priority: TaskPriorityValue;
+    PercentComplete: number;
+}
+
 export class BeforeCommentPostedEvent {
-    /** Set to `true` to prevent the comment from being posted. */
     Cancel = false;
     constructor(
-        /** The task ID the comment is being posted on. */
         public TaskID: string,
-        /** The comment content about to be posted. */
-        public Content: string
+        public Content: string,
     ) {}
 }
 
+/**
+ * Zero-Bounce Inline Task Inspector (L3 Explorer component).
+ *
+ * Single-click any task anywhere to inspect AND edit in place without a
+ * View → Edit detour: 1-click completion ring, inline editable title, clickable
+ * `TaskTypeStatus` stepper, Adaptive Spotlight (Approval gate / OKR Check-In /
+ * Blocker & Effort / SLA Risk), Connected Business Records, per-assignee status
+ * cycling, inline sub-tasks, tabbed Comments | Activity, and non-shifting delete confirm.
+ */
 @Component({
     selector: 'bizapps-task-detail-panel',
     standalone: true,
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [CommonModule, FormsModule, BaseFormsModule],
+    imports: [
+        DatePipe,
+        FormsModule,
+        BaseFormsModule,
+        MJButtonDirective,
+        MJProgressBarComponent,
+        MJTabNavComponent,
+        TaskCompletionRingComponent,
+        TaskWorkflowStepperComponent,
+        TaskAdaptiveSpotlightComponent,
+        RecordLinkPickerDialogComponent,
+    ],
     template: `
         @if (TaskID) {
-            <div class="detail-panel">
+            <div class="mjt-insp">
                 @if (loading) {
-                    <div class="panel-loading">Loading...</div>
-                } @else if (task) {
-                    <!-- Header -->
-                    <div class="panel-header">
-                        <h2 class="task-title">{{ task.Name }}</h2>
-                        <div class="header-actions">
-                            <button class="btn-open-record" (click)="onOpenFullRecord()" title="Open Full Record in Explorer">
-                                <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Record
+                    <div class="mjt-insp-loading">Loading task...</div>
+                } @else if (taskEntity) {
+                    <!-- Top Action Bar -->
+                    <div class="mjt-insp-topbar">
+                        <div class="mjt-insp-crumbs">
+                            @if (parentTaskName && taskEntity.ParentID) {
+                                <span
+                                    class="mjt-crumb-link"
+                                    mjRecordLink
+                                    [EntityName]="'MJ_BizApps_Tasks: Tasks'"
+                                    [RecordID]="taskEntity.ParentID"
+                                    [DisplayName]="parentTaskName">
+                                    <i class="fa-solid fa-folder-open" aria-hidden="true"></i>
+                                    {{ parentTaskName }}
+                                </span>
+                                <i class="fa-solid fa-chevron-right mjt-crumb-sep" aria-hidden="true"></i>
+                            }
+                            <span class="mjt-type-tag">{{ taskEntity.Type || 'Task' }}</span>
+                        </div>
+
+                        <div class="mjt-insp-actions">
+                            <button type="button" mjButton variant="outline" size="sm" (click)="onOpenFullRecord()" title="Open full Task record">
+                                <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
+                                <span>Open Form</span>
                             </button>
                             @if (!ReadOnly) {
-                                <button class="btn-edit" (click)="EditRequested.emit(TaskID!)">
-                                    <i class="fa-solid fa-pen"></i> Edit
+                                <button type="button" mjButton variant="flat" size="sm" (click)="EditRequested.emit(TaskID!)" title="Open full edit drawer">
+                                    <i class="fa-solid fa-pen" aria-hidden="true"></i>
                                 </button>
                             }
                             @if (ShowDelete && !ReadOnly) {
                                 @if (!confirmingDelete) {
-                                    <button class="btn-delete" (click)="confirmingDelete = true">
-                                        <i class="fa-solid fa-trash"></i>
+                                    <button type="button" mjButton variant="flat" size="sm" aria-label="Delete task" (click)="confirmingDelete = true">
+                                        <i class="fa-solid fa-trash" aria-hidden="true"></i>
                                     </button>
                                 } @else {
-                                    <span class="delete-confirm">
-                                        Delete?
-                                        <button class="btn-confirm-yes" (click)="onDelete()">Yes</button>
-                                        <button class="btn-confirm-no" (click)="confirmingDelete = false">No</button>
+                                    <span class="mjt-del-inline">
+                                        <button type="button" mjButton variant="danger" size="sm" (click)="onDelete()">Delete</button>
+                                        <button type="button" mjButton variant="flat" size="sm" (click)="confirmingDelete = false">Cancel</button>
                                     </span>
                                 }
                             }
-                            <button class="btn-close" (click)="Close.emit()">
-                                <i class="fa-solid fa-xmark"></i>
-                            </button>
                         </div>
                     </div>
 
-                    <!-- Status + Priority -->
-                    <div class="field-row">
-                        <div class="field-block">
-                            <label>Status</label>
-                            <span [class]="'status-badge status-' + task.Status.toLowerCase()">
-                                {{ formatStatus(task.Status) }}
-                            </span>
-                        </div>
-                        <div class="field-block">
-                            <label>Priority</label>
-                            <div class="priority-display">
-                                <span [class]="'priority-dot priority-' + task.Priority.toLowerCase()"></span>
-                                {{ task.Priority }}
-                            </div>
-                        </div>
+                    <!-- Tactile Ring + Inline Editable Title -->
+                    <div class="mjt-insp-hero">
+                        <mjt-completion-ring
+                            [Status]="taskEntity.Status"
+                            [TaskName]="taskEntity.Name"
+                            Size="lg"
+                            [Disabled]="ReadOnly || busy"
+                            (Toggled)="onToggleComplete($event)">
+                        </mjt-completion-ring>
+                        <input
+                            type="text"
+                            class="mjt-insp-title-input"
+                            [(ngModel)]="draftTitle"
+                            [disabled]="ReadOnly"
+                            aria-label="Task title"
+                            (blur)="saveInlineTitle()"
+                            (keydown.enter)="saveInlineTitle()" />
                     </div>
 
-                    <!-- Parent Task -->
-                    @if (parentTaskName) {
-                        <div class="field-block">
-                            <label>Parent Task</label>
-                            <span
-                                class="parent-link"
-                                mjRecordLink
-                                [EntityName]="'MJ_BizApps_Tasks: Tasks'"
-                                [RecordID]="task.ParentID"
-                                [DisplayName]="parentTaskName">
-                                <i class="fa-solid fa-folder-open"></i>
-                                {{ parentTaskName }}
-                            </span>
-                        </div>
+                    <!-- Clickable TaskTypeStatus Stepper -->
+                    @if (typeStatuses.length > 0) {
+                        <mjt-workflow-stepper
+                            [Statuses]="typeStatuses"
+                            [ActiveStatusID]="taskEntity.TaskTypeStatusID"
+                            [ReadOnly]="ReadOnly || busy"
+                            (StageSelected)="onStageSelected($event)">
+                        </mjt-workflow-stepper>
                     }
 
-                    <!-- Progress -->
-                    @if (task.PercentComplete > 0 || task.Status === 'InProgress') {
-                        <div class="field-block">
-                            <label>Progress</label>
-                            <div class="progress-row">
-                                <div class="progress-bar">
-                                    <div class="progress-fill" [style.width.%]="task.PercentComplete"
-                                         [class.complete]="task.PercentComplete === 100"></div>
-                                </div>
-                                <span class="progress-pct">{{ task.PercentComplete }}%</span>
-                            </div>
-                        </div>
-                    }
+                    <!-- Inline Editable Meta Strip (Status / Priority / Due) -->
+                    <div class="mjt-meta-bar">
+                        <select
+                            class="mjt-meta-sel"
+                            [ngModel]="taskEntity.Status"
+                            [disabled]="ReadOnly || busy"
+                            aria-label="Status"
+                            (ngModelChange)="updateScalarField('Status', $event)">
+                            <option value="Open">Open</option>
+                            <option value="InProgress">In Progress</option>
+                            <option value="Blocked">Blocked</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Cancelled">Cancelled</option>
+                        </select>
 
-                    <!-- Dates + Hours -->
-                    <div class="field-row">
-                        @if (task.DueAt) {
-                            <div class="field-block">
-                                <label>Due</label>
-                                <span>{{ task.DueAt | date:'MMM d, y' }}</span>
-                            </div>
-                        }
-                        @if (task.StartedAt) {
-                            <div class="field-block">
-                                <label>Started</label>
-                                <span>{{ task.StartedAt | date:'MMM d, y' }}</span>
-                            </div>
-                        }
+                        <select
+                            class="mjt-meta-sel"
+                            [ngModel]="taskEntity.Priority"
+                            [disabled]="ReadOnly || busy"
+                            aria-label="Priority"
+                            (ngModelChange)="updateScalarField('Priority', $event)">
+                            <option value="Low">Low Priority</option>
+                            <option value="Medium">Medium Priority</option>
+                            <option value="High">High Priority</option>
+                            <option value="Critical">Critical Priority</option>
+                        </select>
+
+                        <input
+                            type="date"
+                            class="mjt-meta-sel"
+                            [ngModel]="dueDateInput"
+                            [disabled]="ReadOnly || busy"
+                            aria-label="Due date"
+                            (ngModelChange)="updateDueDate($event)" />
                     </div>
-                    <div class="field-row">
-                        @if (task.HoursEstimated) {
-                            <div class="field-block">
-                                <label>Est. Hours</label>
-                                <span>{{ task.HoursEstimated }}</span>
-                            </div>
-                        }
-                        @if (task.HoursActual) {
-                            <div class="field-block">
-                                <label>Actual Hours</label>
-                                <span>{{ task.HoursActual }}</span>
-                            </div>
-                        }
-                    </div>
+
+                    <!-- Adaptive Spotlight (0px on simple General tasks!) -->
+                    <mjt-adaptive-spotlight
+                        [Data]="spotlightData"
+                        [Busy]="busy"
+                        [ReadOnly]="ReadOnly"
+                        (ApprovalSubmitted)="onApprovalSubmitted($event)"
+                        (CheckInSubmitted)="onCheckInSubmitted($event)"
+                        (LinkedRecordClicked)="openLinkedRecord($event)">
+                    </mjt-adaptive-spotlight>
 
                     <!-- Description -->
-                    @if (task.Description) {
-                        <div class="field-block">
-                            <label>Description</label>
-                            <p class="desc-text">{{ task.Description }}</p>
+                    @if (taskEntity.Description) {
+                        <div class="mjt-block">
+                            <span class="mjt-block-label">Description</span>
+                            <p class="mjt-desc">{{ taskEntity.Description }}</p>
                         </div>
                     }
 
-                    <!-- Blocked Reason -->
-                    @if (task.BlockedReason) {
-                        <div class="blocked-banner">
-                            <i class="fa-solid fa-circle-exclamation"></i>
-                            <div>
-                                <strong>Blocked</strong>
-                                <p>{{ task.BlockedReason }}</p>
-                            </div>
+                    <!-- Connected Business Records -->
+                    <div class="mjt-block">
+                        <div class="mjt-block-head">
+                            <span class="mjt-block-label">Connected Business Records</span>
+                            @if (!ReadOnly) {
+                                <button type="button" mjButton variant="flat" size="sm" (click)="showLinkPicker = true">
+                                    <i class="fa-solid fa-link" aria-hidden="true"></i> Link
+                                </button>
+                            }
                         </div>
-                    }
-
-                    <!-- Assignees -->
-                    <div class="field-block">
-                        <label>Assignees</label>
-                        @if (assignees.length === 0) {
-                            <span class="empty-text">No assignees</span>
-                        }
-                        @for (a of assignees; track a.AssigneeRecordID) {
-                            <div class="assignee-row">
-                                <span class="assignee-dot" [ngClass]="'dot-' + a.Status.toLowerCase()"></span>
-                                <span
-                                    class="assignee-name"
-                                    mjRecordLink
-                                    [EntityName]="'MJ_BizApps_Common: People'"
-                                    [RecordID]="a.AssigneeRecordID"
-                                    [DisplayName]="a.DisplayName">{{ a.DisplayName }}</span>
-                                @if (a.RoleName) {
-                                    <span class="assignee-role">{{ a.RoleName }}</span>
+                        @if (linkedRecords.length === 0) {
+                            <span class="mjt-muted">No connected records yet.</span>
+                        } @else {
+                            <div class="mjt-links-wrap">
+                                @for (rec of linkedRecords; track rec.EntityName + ':' + rec.RecordID) {
+                                    <button type="button" class="mjt-rec-chip" (click)="openLinkedRecord(rec)">
+                                        <i [class]="rec.IconClass || 'fa-solid fa-arrow-up-right-from-square'" aria-hidden="true"></i>
+                                        <span>{{ rec.DisplayName }}</span>
+                                    </button>
                                 }
                             </div>
                         }
                     </div>
 
-                    <!-- Activity + Comments -->
-                    <div class="field-block">
-                        <label>Activity</label>
+                    <!-- Assignees with 1-Click Status Dot Cycling -->
+                    <div class="mjt-block">
+                        <span class="mjt-block-label">Assignees <span class="mjt-hint">(click status dot to cycle)</span></span>
+                        @if (assignees.length === 0) {
+                            <span class="mjt-muted">Unassigned</span>
+                        } @else {
+                            <div class="mjt-assignee-list">
+                                @for (a of assignees; track a.AssignmentID) {
+                                    <div class="mjt-assignee-row">
+                                        <button
+                                            type="button"
+                                            class="mjt-dot-btn"
+                                            [class]="'mjt-dot--' + a.Status.toLowerCase()"
+                                            [disabled]="ReadOnly || busy"
+                                            [title]="'Status: ' + a.Status + ' — click to cycle'"
+                                            (click)="cycleAssigneeStatus(a)">
+                                        </button>
+                                        <span
+                                            class="mjt-assignee-name"
+                                            mjRecordLink
+                                            [EntityName]="a.AssigneeEntityName"
+                                            [RecordID]="a.AssigneeRecordID"
+                                            [DisplayName]="a.DisplayName">
+                                            {{ a.DisplayName }}
+                                        </span>
+                                        @if (a.RoleName) {
+                                            <span class="mjt-role-tag">{{ a.RoleName }}</span>
+                                        }
+                                        <span class="mjt-assignee-status">{{ formatStatus(a.Status) }}</span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Work Breakdown (Sub-tasks) -->
+                    <div class="mjt-block">
+                        <div class="mjt-block-head">
+                            <span class="mjt-block-label">Sub-tasks ({{ completedSubtasksCount }}/{{ subtasks.length }})</span>
+                        </div>
+                        @if (subtasks.length > 0) {
+                            <mj-progress-bar [Value]="subtasksPercent"></mj-progress-bar>
+                            <div class="mjt-sub-list">
+                                @for (child of subtasks; track child.ID) {
+                                    <div class="mjt-sub-row">
+                                        <mjt-completion-ring
+                                            [Status]="child.Status"
+                                            [TaskName]="child.Name"
+                                            [Disabled]="ReadOnly || busy"
+                                            (Toggled)="toggleSubtaskComplete(child, $event)">
+                                        </mjt-completion-ring>
+                                        <span
+                                            class="mjt-sub-name"
+                                            [class.is-done]="child.Status === 'Completed'"
+                                            (click)="openSubtask(child.ID)">
+                                            {{ child.Name }}
+                                        </span>
+                                    </div>
+                                }
+                            </div>
+                        }
                         @if (!ReadOnly) {
-                            <div class="comment-input-row">
-                                <input type="text" [(ngModel)]="newComment"
-                                       placeholder="Add a comment..." class="comment-input"
-                                       (keydown.enter)="PostComment()" />
-                                <button class="btn-post" (click)="PostComment()" [disabled]="!newComment.trim()">Post</button>
+                            <div class="mjt-inline-add">
+                                <input
+                                    type="text"
+                                    class="mjt-inline-inp"
+                                    [(ngModel)]="newSubtaskTitle"
+                                    placeholder="+ Break down into a sub-task..."
+                                    (keydown.enter)="addSubtask()" />
+                                <button type="button" mjButton variant="outline" size="sm" [disabled]="!newSubtaskTitle.trim() || busy" (click)="addSubtask()">
+                                    Add
+                                </button>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Tabbed Comments | Activity Stream -->
+                    <div class="mjt-block">
+                        <mj-tab-nav
+                            [Tabs]="streamTabs"
+                            [ActiveKey]="activeStreamTab"
+                            (TabChange)="activeStreamTab = $event">
+                        </mj-tab-nav>
+
+                        @if (activeStreamTab === 'comments' && !ReadOnly) {
+                            <div class="mjt-inline-add">
+                                <input
+                                    type="text"
+                                    class="mjt-inline-inp"
+                                    [(ngModel)]="newComment"
+                                    placeholder="Write a comment..."
+                                    (keydown.enter)="PostComment()" />
+                                <button type="button" mjButton variant="primary" size="sm" [disabled]="!newComment.trim()" (click)="PostComment()">
+                                    Post
+                                </button>
                             </div>
                             @if (commentError) {
-                                <div class="comment-error" role="alert">{{ commentError }}</div>
+                                <div class="mjt-err" role="alert">{{ commentError }}</div>
                             }
                         }
-                        <div class="timeline">
-                            @for (entry of timeline; track entry.Timestamp) {
-                                <div class="timeline-entry" [class.is-comment]="entry.Type === 'comment'">
-                                    <span class="entry-time">{{ entry.Timestamp | date:'M/d/yy, h:mm a' }}</span>
-                                    @if (entry.PersonName) {
-                                        <span class="entry-person">{{ entry.PersonName }}</span>
-                                    }
-                                    <span class="entry-content">{{ entry.Content }}</span>
+
+                        <div class="mjt-stream">
+                            @for (entry of filteredTimeline; track entry.Timestamp.getTime() + entry.Content) {
+                                <div class="mjt-stream-item" [class.is-comment]="entry.Type === 'comment'">
+                                    <div class="mjt-stream-meta">
+                                        <span class="mjt-stream-who">{{ entry.PersonName || 'System' }}</span>
+                                        <span class="mjt-stream-when">{{ entry.Timestamp | date:'MMM d, h:mm a' }}</span>
+                                    </div>
+                                    <div class="mjt-stream-text">{{ entry.Content }}</div>
                                 </div>
                             }
-                            @if (timeline.length === 0) {
-                                <span class="empty-text">No activity yet</span>
+                            @if (filteredTimeline.length === 0) {
+                                <span class="mjt-muted">
+                                    {{ activeStreamTab === 'comments' ? 'No comments yet.' : 'No activity logged yet.' }}
+                                </span>
                             }
                         </div>
                     </div>
                 }
+
+                <bizapps-record-link-picker-dialog
+                    [Visible]="showLinkPicker"
+                    (RecordSelected)="onLinkRecordSelected($event)"
+                    (Cancelled)="showLinkPicker = false">
+                </bizapps-record-link-picker-dialog>
             </div>
         }
     `,
@@ -258,365 +400,515 @@ export class BeforeCommentPostedEvent {
         :host {
             display: block;
             font-family: var(--mj-font-family);
-            -webkit-font-smoothing: antialiased;
+            color: var(--mj-text-primary);
         }
-        .detail-panel { padding: 28px 24px; }
-        .panel-loading { padding: 64px; text-align: center; color: var(--mj-text-disabled); font-size: 15px; }
-
-        /* ─── Header ─── */
-        .panel-header {
-            display: flex; justify-content: space-between; align-items: flex-start;
-            gap: 12px; margin-bottom: 24px;
+        .mjt-insp {
+            padding: 16px 20px 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
         }
-        .task-title {
-            font-size: 22px; font-weight: var(--mj-font-bold); color: var(--mj-text-primary); margin: 0;
-            letter-spacing: -0.5px; line-height: 1.3;
+        .mjt-insp-loading {
+            padding: 48px 16px;
+            text-align: center;
+            color: var(--mj-text-muted);
         }
-        .header-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
-        .btn-open-record {
-            padding: 6px 12px; border: 1px solid var(--mj-border-default); border-radius: var(--mj-radius-md);
-            background: var(--mj-bg-surface); color: var(--mj-text-secondary); font-size: 12px; font-weight: var(--mj-font-semibold);
-            cursor: pointer; font-family: inherit;
-            display: inline-flex; align-items: center; gap: 5px;
-            transition: all 0.15s;
+        .mjt-insp-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            flex-wrap: wrap;
         }
-        .btn-open-record:hover {
-            background: var(--mj-bg-surface-hover); color: var(--mj-brand-primary); border-color: var(--mj-brand-primary);
+        .mjt-insp-crumbs {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 0;
+            flex-wrap: wrap;
         }
-        .btn-edit {
-            padding: 7px 14px; border: none; border-radius: var(--mj-radius-md);
-            background: var(--mj-brand-primary); color: var(--mj-text-inverse); font-size: 13px; font-weight: var(--mj-font-semibold);
-            cursor: pointer; font-family: inherit;
-            display: inline-flex; align-items: center; gap: 5px;
-            transition: all 0.15s;
+        .mjt-crumb-link {
+            font-size: var(--mj-text-xs, 12px);
+            font-weight: var(--mj-font-medium, 500);
+            color: var(--mj-text-link);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
         }
-        .btn-edit:hover { background: var(--mj-brand-primary-hover); }
-        .btn-close {
-            padding: 7px 10px; border: 1px solid var(--mj-border-default); border-radius: var(--mj-radius-md);
-            background: var(--mj-bg-surface); color: var(--mj-text-disabled); font-size: 14px; cursor: pointer;
-            transition: all 0.15s;
+        .mjt-crumb-sep {
+            font-size: 9px;
+            color: var(--mj-text-disabled);
         }
-        .btn-close:hover { background: var(--mj-bg-page); color: var(--mj-text-muted); }
-        .btn-delete {
-            padding: 7px 10px; border: 1px solid var(--mj-border-default); border-radius: var(--mj-radius-md);
-            background: var(--mj-bg-surface); color: var(--mj-text-disabled); font-size: 14px; cursor: pointer;
-            transition: all 0.15s;
+        .mjt-type-tag {
+            font-size: 11px;
+            font-weight: var(--mj-font-semibold, 600);
+            padding: 2px 8px;
+            border-radius: var(--mj-radius-full, 9999px);
+            background: var(--mj-bg-surface-sunken);
+            color: var(--mj-text-secondary);
+            border: 1px solid var(--mj-border-default);
         }
-        .btn-delete:hover { background: var(--mj-status-error-bg); color: var(--mj-status-error); border-color: var(--mj-status-error-border); }
-        .delete-confirm {
-            display: inline-flex; align-items: center; gap: 6px;
-            font-size: 13px; font-weight: var(--mj-font-semibold); color: var(--mj-status-error);
+        .mjt-insp-actions,
+        .mjt-del-inline {
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
-        .btn-confirm-yes {
-            padding: 4px 10px; border: none; border-radius: var(--mj-radius-md);
-            background: var(--mj-status-error); color: var(--mj-text-inverse); font-size: 12px; font-weight: var(--mj-font-semibold);
-            cursor: pointer; font-family: inherit;
+        .mjt-insp-hero {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+            width: 100%;
         }
-        .btn-confirm-yes:hover { background: var(--mj-status-error-text); }
-        .btn-confirm-no {
-            padding: 4px 10px; border: 1px solid var(--mj-border-default); border-radius: var(--mj-radius-md);
-            background: var(--mj-bg-surface); color: var(--mj-text-muted); font-size: 12px; font-weight: var(--mj-font-semibold);
-            cursor: pointer; font-family: inherit;
+        .mjt-insp-title-input {
+            flex: 1 1 0%;
+            min-width: 0;
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid transparent;
+            border-radius: var(--mj-radius-md, 8px);
+            background: transparent;
+            color: var(--mj-text-primary);
+            font-family: inherit;
+            font-size: clamp(15px, 4vw, 18px);
+            font-weight: var(--mj-font-bold, 700);
+            padding: 4px 6px;
+            margin-left: -6px;
+            text-overflow: ellipsis;
+            transition: border-color 140ms ease, background 140ms ease;
         }
-        .btn-confirm-no:hover { background: var(--mj-bg-page); }
-
-        /* ─── Fields ─── */
-        .field-row { display: flex; gap: 24px; margin-bottom: 16px; }
-        .field-block { margin-bottom: 16px; }
-        .field-block label {
-            display: block; font-size: 11px; font-weight: var(--mj-font-bold); color: var(--mj-text-disabled);
-            text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;
+        .mjt-insp-title-input:hover:not(:disabled) {
+            background: var(--mj-bg-surface-sunken);
         }
-        .field-block span, .field-block p { font-size: 14px; color: var(--mj-text-primary); }
-        .desc-text { margin: 0; line-height: 1.6; white-space: pre-wrap; }
-        .empty-text { font-size: 13px; color: var(--mj-border-strong); font-style: italic; }
-        .parent-link {
-            display: inline-flex; align-items: center; gap: 6px;
-            font-size: 14px; color: var(--mj-brand-primary); font-weight: var(--mj-font-medium);
+        .mjt-insp-title-input:focus {
+            outline: none;
+            background: var(--mj-bg-surface);
+            border-color: var(--mj-brand-primary);
         }
-        .parent-link i { font-size: 12px; }
-        .link-row {
-            display: flex; align-items: center; gap: 8px; padding: 5px 0;
-            font-size: 13px; color: var(--mj-text-secondary);
+        .mjt-meta-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
         }
-        .link-icon { font-size: 11px; color: var(--mj-text-disabled); }
-        .link-entity { font-weight: var(--mj-font-semibold); color: var(--mj-text-primary); }
-        .link-desc { color: var(--mj-text-disabled); }
-
-        /* ─── Status Badge ─── */
-        .status-badge {
-            display: inline-block; font-size: 12px; font-weight: var(--mj-font-semibold); padding: 3px 10px;
-            border-radius: var(--mj-radius-md); white-space: nowrap;
+        .mjt-meta-sel {
+            padding: 5px 10px;
+            min-height: 32px;
+            border-radius: var(--mj-radius-md, 8px);
+            border: 1px solid var(--mj-border-default);
+            background: var(--mj-bg-surface-sunken);
+            color: var(--mj-text-primary);
+            font-family: inherit;
+            font-size: var(--mj-text-xs, 12px);
+            font-weight: var(--mj-font-semibold, 600);
         }
-        .status-open { background: var(--mj-status-warning-bg); color: var(--mj-status-warning-text); }
-        .status-inprogress { background: color-mix(in srgb, var(--mj-brand-primary) 8%, var(--mj-bg-surface)); color: var(--mj-brand-primary); }
-        .status-completed { background: var(--mj-status-success-bg); color: var(--mj-status-success-text); }
-        .status-blocked { background: var(--mj-status-error-bg); color: var(--mj-status-error-text); }
-        .status-cancelled { background: var(--mj-bg-surface-sunken); color: var(--mj-text-muted); }
-
-        /* ─── Priority ─── */
-        .priority-display {
-            display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--mj-text-primary);
+        .mjt-block {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding-top: 10px;
+            border-top: 1px solid var(--mj-border-subtle);
         }
-        .priority-dot { width: 8px; height: 8px; border-radius: 50%; }
-        .priority-critical, .priority-high { background: var(--mj-status-error); }
-        .priority-medium { background: var(--mj-status-warning); }
-        .priority-low { background: var(--mj-status-success); }
-
-        /* ─── Progress ─── */
-        .progress-row { display: flex; align-items: center; gap: 10px; }
-        .progress-bar {
-            flex: 1; max-width: 200px; height: 6px; background: var(--mj-bg-surface-active);
-            border-radius: var(--mj-radius-sm); overflow: hidden;
+        .mjt-block-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
         }
-        .progress-fill {
-            height: 100%; background: var(--mj-brand-primary); border-radius: var(--mj-radius-sm); transition: width 0.3s;
+        .mjt-block-label {
+            font-size: 11px;
+            font-weight: var(--mj-font-bold, 700);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--mj-text-muted);
         }
-        .progress-fill.complete { background: var(--mj-status-success); }
-        .progress-pct { font-size: 13px; font-weight: var(--mj-font-semibold); color: var(--mj-text-muted); }
-
-        /* ─── Blocked Banner ─── */
-        .blocked-banner {
-            display: flex; gap: 10px; padding: 12px 16px; margin-bottom: 16px;
-            background: var(--mj-status-error-bg); border-radius: var(--mj-radius-md); border: 1px solid var(--mj-status-error-border);
+        .mjt-hint {
+            font-weight: var(--mj-font-normal, 400);
+            text-transform: none;
+            letter-spacing: 0;
         }
-        .blocked-banner i { color: var(--mj-status-error); font-size: 16px; margin-top: 2px; }
-        .blocked-banner strong { font-size: 13px; color: var(--mj-status-error-text); }
-        .blocked-banner p { font-size: 13px; color: var(--mj-status-error-text); margin: 2px 0 0; line-height: 1.4; }
-
-        /* ─── Assignees ─── */
-        .assignee-row {
-            display: flex; align-items: center; gap: 8px; padding: 6px 0;
+        .mjt-desc {
+            margin: 0;
+            font-size: var(--mj-text-sm, 14px);
+            color: var(--mj-text-secondary);
+            line-height: 1.5;
+            white-space: pre-wrap;
         }
-        .assignee-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-        .dot-pending { background: var(--mj-text-disabled); }
-        .dot-inprogress { background: var(--mj-brand-primary); }
-        .dot-completed { background: var(--mj-status-success); }
-        .assignee-name { font-size: 14px; color: var(--mj-text-primary); font-weight: var(--mj-font-medium); }
-        .assignee-role {
-            font-size: 11px; color: var(--mj-text-disabled); background: var(--mj-bg-surface-sunken);
-            padding: 1px 8px; border-radius: var(--mj-radius-md);
+        .mjt-muted {
+            font-size: var(--mj-text-xs, 12px);
+            color: var(--mj-text-muted);
+            font-style: italic;
         }
-
-        /* ─── Comment Input ─── */
-        .comment-input-row { display: flex; gap: 8px; margin-bottom: 8px; }
-        .comment-error { color: var(--mj-status-error); font-size: 12px; margin-bottom: 12px; }
-        .comment-input {
-            flex: 1; padding: 8px 12px; border: 1px solid var(--mj-border-default); border-radius: var(--mj-radius-md);
-            font-size: 13px; font-family: inherit;
+        .mjt-links-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
         }
-        .comment-input:focus {
-            outline: none; border-color: var(--mj-brand-primary);
-            box-shadow: 0 0 0 3px color-mix(in srgb, var(--mj-brand-primary) 15%, transparent);
+        .mjt-rec-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: var(--mj-radius-sm, 4px);
+            border: 1px solid var(--mj-border-default);
+            background: var(--mj-bg-surface-sunken);
+            color: var(--mj-text-link);
+            font-family: inherit;
+            font-size: var(--mj-text-xs, 12px);
+            font-weight: var(--mj-font-medium, 500);
+            cursor: pointer;
         }
-        .btn-post {
-            padding: 8px 16px; border: none; border-radius: var(--mj-radius-md);
-            background: var(--mj-brand-primary); color: var(--mj-text-inverse); font-size: 13px; font-weight: var(--mj-font-semibold);
-            cursor: pointer; font-family: inherit;
+        .mjt-rec-chip:hover {
+            border-color: var(--mj-brand-primary);
+            background: var(--mj-bg-surface-hover);
         }
-        .btn-post:disabled { opacity: 0.4; cursor: not-allowed; }
-
-        /* ─── Timeline ─── */
-        .timeline { display: flex; flex-direction: column; }
-        .timeline-entry {
-            display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 0;
-            border-bottom: 1px solid var(--mj-border-subtle); font-size: 13px; align-items: baseline;
+        .mjt-assignee-list,
+        .mjt-sub-list,
+        .mjt-stream {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
         }
-        .entry-time { color: var(--mj-text-disabled); font-size: 11px; white-space: nowrap; }
-        .entry-person { font-weight: var(--mj-font-semibold); color: var(--mj-text-primary); white-space: nowrap; }
-        .entry-content { color: var(--mj-text-secondary); line-height: 1.4; }
-        .is-comment .entry-content { font-style: italic; color: var(--mj-text-primary); }
-    `]
+        .mjt-assignee-row,
+        .mjt-sub-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            border-radius: var(--mj-radius-sm, 6px);
+            background: var(--mj-bg-surface-sunken);
+            border: 1px solid var(--mj-border-subtle);
+        }
+        .mjt-dot-btn {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            flex-shrink: 0;
+        }
+        .mjt-dot--pending { background: var(--mj-border-strong); }
+        .mjt-dot--inprogress { background: var(--mj-brand-primary); }
+        .mjt-dot--completed { background: var(--mj-status-success); }
+        .mjt-assignee-name,
+        .mjt-sub-name {
+            flex: 1;
+            min-width: 0;
+            font-size: var(--mj-text-sm, 14px);
+            font-weight: var(--mj-font-medium, 500);
+            color: var(--mj-text-primary);
+            cursor: pointer;
+        }
+        .mjt-sub-name.is-done {
+            text-decoration: line-through;
+            color: var(--mj-text-muted);
+        }
+        .mjt-role-tag {
+            font-size: 11px;
+            padding: 1px 7px;
+            border-radius: var(--mj-radius-full, 9999px);
+            background: var(--mj-bg-surface);
+            border: 1px solid var(--mj-border-default);
+            color: var(--mj-text-secondary);
+        }
+        .mjt-assignee-status {
+            font-size: 11px;
+            color: var(--mj-text-muted);
+        }
+        .mjt-inline-add {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .mjt-inline-inp {
+            flex: 1;
+            min-width: 0;
+            padding: 7px 10px;
+            border: 1px solid var(--mj-border-strong);
+            border-radius: var(--mj-radius-md, 8px);
+            background: var(--mj-bg-surface);
+            color: var(--mj-text-primary);
+            font-family: inherit;
+            font-size: var(--mj-text-sm, 14px);
+        }
+        .mjt-stream-item {
+            padding: 8px 10px;
+            border-radius: var(--mj-radius-md, 8px);
+            background: var(--mj-bg-surface-sunken);
+            border: 1px solid var(--mj-border-subtle);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .mjt-stream-item.is-comment {
+            background: var(--mj-bg-surface);
+            border-color: var(--mj-border-default);
+        }
+        .mjt-stream-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 11px;
+            color: var(--mj-text-muted);
+        }
+        .mjt-stream-who {
+            font-weight: var(--mj-font-semibold, 600);
+            color: var(--mj-text-secondary);
+        }
+        .mjt-stream-text {
+            font-size: var(--mj-text-xs, 12px);
+            color: var(--mj-text-primary);
+            line-height: 1.45;
+        }
+        .mjt-err {
+            padding: 8px 10px;
+            border-radius: var(--mj-radius-sm, 4px);
+            background: var(--mj-status-error-bg);
+            color: var(--mj-status-error-text);
+            font-size: var(--mj-text-xs, 12px);
+        }
+    `],
 })
-/**
- * Read-only slide-in detail view for a single task.
- *
- * Displays all task fields, a progress bar, resolved assignee names with roles
- * and per-person status dots, parent task reference, blocked reason banner,
- * and a chronological activity + comment timeline with inline comment creation.
- *
- * Has an "Edit" button that emits {@link EditRequested} — consuming apps
- * respond by opening a {@link TaskEditPanelComponent}.
- *
- * **No routing** — raises events only. Consuming apps wire events to their
- * own panel/navigation logic.
- *
- * @example
- * ```html
- * <bizapps-task-detail-panel
- *     [TaskID]="selectedTaskID"
- *     [PersonID]="currentUserPersonID"
- *     (EditRequested)="openEditPanel($event)"
- *     (BeforeCommentPosted)="onBeforeComment($event)"
- *     (AfterCommentPosted)="onCommentPosted()"
- *     (Close)="closePanel()">
- * </bizapps-task-detail-panel>
- * ```
- */
 export class TaskDetailPanelComponent implements OnChanges {
-    // ── Inputs ──────────────────────────────────────────────
-
-    /**
-     * ID of the task to display. When changed, the panel reloads all data
-     * (task fields, assignees, timeline, parent). Pass `null` to hide the panel.
-     */
     @Input() TaskID: string | null = null;
-
-    /**
-     * PersonID of the currently logged-in user. Used to attribute comments
-     * posted via the inline comment input. Pass `null` if unknown.
-     */
     @Input() PersonID: string | null = null;
-
-    /** Whether to show the delete button. @default false */
     @Input() ShowDelete = false;
-
-    /** Hides Edit, delete, and the comment box. @default false */
     @Input() ReadOnly = false;
 
-    // ── Outputs ─────────────────────────────────────────────
-
-    /**
-     * Emitted when the user clicks the "Open Record" button to view the full entity form.
-     */
     @Output() OpenRecordRequested = new EventEmitter<string>();
-
-    /**
-     * Emitted when the user clicks the "Edit" button. Payload is the TaskID.
-     * Consuming apps should open a {@link TaskEditPanelComponent} in response.
-     */
     @Output() EditRequested = new EventEmitter<string>();
-
-    /**
-     * Emitted **before** a comment is posted. Cancellable — set
-     * `event.Cancel = true` to prevent the comment from being saved.
-     */
     @Output() BeforeCommentPosted = new EventEmitter<BeforeCommentPostedEvent>();
-
-    /**
-     * Emitted **after** a comment has been successfully saved and the
-     * timeline has been reloaded.
-     */
     @Output() AfterCommentPosted = new EventEmitter<void>();
-
-    /**
-     * Emitted when the user clicks the close (×) button.
-     * Consuming apps should hide or dismiss the panel in response.
-     */
+    @Output() TaskMutated = new EventEmitter<string>();
     @Output() Close = new EventEmitter<void>();
-
-    /**
-     * Emitted when the user confirms task deletion. Payload is the TaskID.
-     * The consuming app should delete the entity and refresh the list.
-     */
     @Output() DeleteRequested = new EventEmitter<string>();
 
-    // ── Internal State ──────────────────────────────────────
+    public taskEntity: mjBizAppsTasksTaskEntity | null = null;
+    public draftTitle = '';
+    public confirmingDelete = false;
+    public parentTaskName: string | null = null;
+    public assignees: InspectorAssigneeRow[] = [];
+    public linkedRecords: TaskWidgetLinkedRecord[] = [];
+    public subtasks: ChildSubtaskRow[] = [];
+    public typeStatuses: TaskWidgetTypeStatus[] = [];
+    public spotlightData: TaskAdaptiveSpotlightInput | null = null;
+    public timeline: ActivityEntry[] = [];
+    public loading = false;
+    public busy = false;
+    public showLinkPicker = false;
+    public newSubtaskTitle = '';
+    public newComment = '';
+    public commentError = '';
+    public activeStreamTab = 'comments';
 
-    /** @internal Loaded task record. */
-    task: TaskRow | null = null;
-    /** @internal Whether the delete confirmation is showing. */
-    confirmingDelete = false;
-    /** @internal Resolved parent task name, or null if top-level. */
-    parentTaskName: string | null = null;
-    /** @internal Resolved assignee list with display names and roles. */
-    assignees: TaskAssigneeInfo[] = [];
-    /** @internal Loaded TaskLink records (kept for API consumers, not displayed). */
-    taskLinks: { ID: string; EntityName: string; Description: string | null }[] = [];
-    /** @internal Merged activity + comment timeline, sorted newest-first. */
-    timeline: ActivityEntry[] = [];
-    /** @internal */
-    loading = false;
-    /** @internal */
-    newComment = '';
-    /** @internal Shown when a comment save is refused. The box keeps the text. */
-    commentError = '';
-    /** @internal */
+    public readonly streamTabs: TabConfig[] = [
+        { key: 'comments', label: 'Comments', icon: 'fa-regular fa-comments' },
+        { key: 'activity', label: 'Activity', icon: 'fa-solid fa-clock-rotate-left' },
+    ];
+
+    private orchestration = new TaskOrchestrationService();
     private cdr = inject(ChangeDetectorRef);
 
-    // ── Lifecycle ───────────────────────────────────────────
+    public get dueDateInput(): string {
+        if (!this.taskEntity?.DueAt) return '';
+        return new Date(this.taskEntity.DueAt).toISOString().split('T')[0];
+    }
 
-    ngOnChanges(changes: SimpleChanges): void {
+    public get completedSubtasksCount(): number {
+        return this.subtasks.filter((s) => s.Status === 'Completed').length;
+    }
+
+    public get subtasksPercent(): number {
+        if (this.subtasks.length === 0) return 0;
+        return Math.round((this.completedSubtasksCount / this.subtasks.length) * 100);
+    }
+
+    public get filteredTimeline(): ActivityEntry[] {
+        if (this.activeStreamTab === 'comments') {
+            return this.timeline.filter((e) => e.Type === 'comment');
+        }
+        return this.timeline.filter((e) => e.Type === 'activity');
+    }
+
+    public ngOnChanges(changes: SimpleChanges): void {
         if (changes['TaskID'] && this.TaskID) {
-            this.LoadTask();
+            void this.LoadTask();
         }
     }
 
-    // ── Public Methods ──────────────────────────────────────
-
-    /** @internal Formats camelCase status values for display (e.g. "InProgress" → "In Progress"). */
-    formatStatus(status: string): string {
+    public formatStatus(status: string): string {
         return status?.replace(/([a-z])([A-Z])/g, '$1 $2') ?? '';
     }
 
-    /**
-     * Reloads all task data from the server: task fields, assignees,
-     * timeline, and parent task name. Call this after external mutations.
-     */
-    async LoadTask(): Promise<void> {
+    public async LoadTask(): Promise<void> {
         if (!this.TaskID) return;
         this.loading = true;
+        this.confirmingDelete = false;
         this.cdr.markForCheck();
+        try {
+            const entity = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
+            await entity.InnerLoad(CompositeKey.FromID(this.TaskID));
+            this.taskEntity = entity;
+            this.draftTitle = entity.Name ?? '';
 
-        const rv = new RunView();
-        const result = await rv.RunView<TaskRow>({
-            EntityName: 'MJ_BizApps_Tasks: Tasks',
-            ExtraFilter: `ID = '${this.TaskID}'`,
-            ResultType: 'simple',
-        });
-        this.task = result?.Results?.[0] ?? null;
-
-        await Promise.all([this.loadAssignees(), this.loadTimeline(), this.loadParentTask(), this.loadTaskLinks()]);
-        this.loading = false;
-        this.cdr.markForCheck();
+            await Promise.all([
+                this.loadAssignees().catch(() => { this.assignees = []; }),
+                this.loadTimeline().catch(() => { this.timeline = []; }),
+                this.loadParentTask().catch(() => { this.parentTaskName = null; }),
+                this.loadLinkedRecords().catch(() => { this.linkedRecords = []; }),
+                this.loadSubtasks().catch(() => { this.subtasks = []; }),
+                this.loadTypeAndSpotlight().catch(() => { this.typeStatuses = []; }),
+            ]);
+        } finally {
+            this.loading = false;
+            this.cdr.markForCheck();
+        }
     }
 
-    private async loadParentTask(): Promise<void> {
-        this.parentTaskName = null;
-        if (!this.task?.ParentID) return;
+    private async loadTypeAndSpotlight(): Promise<void> {
+        if (!this.taskEntity) return;
         const rv = new RunView();
-        const result = await rv.RunView<{ Name: string }>({
-            EntityName: 'MJ_BizApps_Tasks: Tasks',
-            ExtraFilter: `ID = '${this.task.ParentID}'`,
-            ResultType: 'simple',
-            MaxRows: 1,
-        });
-        this.parentTaskName = result?.Results?.[0]?.Name ?? null;
-    }
-
-    private async loadTaskLinks(): Promise<void> {
-        this.taskLinks = [];
-        if (!this.TaskID) return;
-        const rv = new RunView();
-        const [linksResult, entitiesResult] = await Promise.all([
-            rv.RunView<{ ID: string; EntityID: string; Description: string | null }>({
-                EntityName: 'MJ_BizApps_Tasks: Task Links',
-                ExtraFilter: `TaskID = '${this.TaskID}'`,
+        const [typeRes, statusesRes, depsRes] = await Promise.all([
+            rv.RunView<{
+                ID: string;
+                Name: string;
+                Code: string;
+                IsApproval: boolean;
+                OnCompleteAction: string | null;
+                OnRejectAction: string | null;
+                OnCancelAction: string | null;
+            }>({
+                EntityName: 'MJ_BizApps_Tasks: Task Types',
+                ExtraFilter: `ID = '${EscapeSQLString(this.taskEntity.TypeID)}'`,
+                MaxRows: 1,
                 ResultType: 'simple',
             }),
-            new RunView().RunView<{ ID: string; Name: string }>({
-                EntityName: 'MJ: Entities',
+            new RunView().RunView<TaskWidgetTypeStatus>({
+                EntityName: 'MJ_BizApps_Tasks: Task Type Status',
+                ExtraFilter: `TaskTypeID = '${EscapeSQLString(this.taskEntity.TypeID)}' AND IsActive = 1`,
+                OrderBy: 'Sequence ASC',
+                ResultType: 'simple',
+            }),
+            new RunView().RunView<{ DependsOnTask: string }>({
+                EntityName: 'MJ_BizApps_Tasks: Task Dependencies',
+                ExtraFilter: `TaskID = '${EscapeSQLString(this.taskEntity.ID)}'`,
+                Fields: ['DependsOnTask'],
                 ResultType: 'simple',
             }),
         ]);
-        const entityMap = new Map<string, string>();
-        for (const e of entitiesResult?.Results ?? []) {
-            entityMap.set(e.ID, e.Name);
+
+        this.typeStatuses = statusesRes?.Results ?? [];
+        const tt = typeRes?.Results?.[0];
+        const archetype = ResolveTaskUiArchetype(
+            tt ? { Code: tt.Code, Name: tt.Name, IsApproval: tt.IsApproval } : null,
+            { TargetValue: this.taskEntity.TargetValue, HealthStatus: this.taskEntity.HealthStatus },
+        );
+
+        this.spotlightData = {
+            TaskID: this.taskEntity.ID,
+            TaskName: this.taskEntity.Name,
+            Archetype: archetype,
+            Status: this.taskEntity.Status,
+            DueAt: this.taskEntity.DueAt,
+            PercentComplete: this.taskEntity.PercentComplete ?? 0,
+            HoursEstimated: this.taskEntity.HoursEstimated,
+            HoursActual: this.taskEntity.HoursActual,
+            BlockedReason: this.taskEntity.BlockedReason,
+            BlockingDependencyNames: (depsRes?.Results ?? []).map((d) => d.DependsOnTask),
+            PredictedSLARiskBand: this.taskEntity.PredictedSLARiskBand,
+            PredictedSLABreachProbability: this.taskEntity.PredictedSLABreachProbability,
+            OkrSnapshot:
+                archetype === 'key-result'
+                    ? {
+                          TaskID: this.taskEntity.ID,
+                          BaselineValue: this.taskEntity.BaselineValue,
+                          TargetValue: this.taskEntity.TargetValue,
+                          CurrentValue: this.taskEntity.CurrentValue,
+                          UnitOfMeasure: this.taskEntity.UnitOfMeasure,
+                          MetricDirection: this.taskEntity.MetricDirection,
+                          PercentComplete: this.taskEntity.PercentComplete ?? 0,
+                          HealthStatus: this.taskEntity.HealthStatus,
+                          ConfidenceScore: this.taskEntity.ConfidenceScore,
+                          PlanningPeriod: this.taskEntity.PlanningPeriod,
+                          CheckInCadence: this.taskEntity.CheckInCadence,
+                          LastCheckInAt: this.taskEntity.LastCheckInAt,
+                          NextCheckInDueAt: this.taskEntity.NextCheckInDueAt,
+                      }
+                    : null,
+            ApprovalTask:
+                archetype === 'approval'
+                    ? {
+                          ID: this.taskEntity.ID,
+                          Name: this.taskEntity.Name,
+                          Description: this.taskEntity.Description,
+                          ParentID: this.taskEntity.ParentID,
+                          Status: this.taskEntity.Status,
+                          Priority: this.taskEntity.Priority,
+                          DueAt: this.taskEntity.DueAt,
+                          PercentComplete: this.taskEntity.PercentComplete ?? 0,
+                          IsApproval: true,
+                          LinkedRecords: this.linkedRecords,
+                          OnCompleteActionName: tt?.OnCompleteAction ?? null,
+                          OnRejectActionName: tt?.OnRejectAction ?? null,
+                          OnCancelActionName: tt?.OnCancelAction ?? null,
+                      }
+                    : null,
+        };
+    }
+
+    private async loadParentTask(): Promise<void> {
+        this.parentTaskName = this.taskEntity?.Parent ?? null;
+    }
+
+    private async loadLinkedRecords(): Promise<void> {
+        if (!this.TaskID) {
+            this.linkedRecords = [];
+            return;
         }
-        this.taskLinks = (linksResult?.Results ?? []).map((l) => ({
-            ID: l.ID,
-            EntityName: entityMap.get(l.EntityID) ?? l.EntityID,
-            Description: l.Description,
-        }));
+        try {
+            const byTask = await LoadTaskRecordLinks([this.TaskID]);
+            const links = byTask.get(this.TaskID.toLowerCase()) ?? [];
+            this.linkedRecords = links.map((l) => ({
+                EntityName: l.EntityName,
+                RecordID: l.RecordID,
+                DisplayName: l.Name,
+                IconClass: Metadata.Provider.EntityByName(l.EntityName)?.Icon || 'fa-solid fa-link',
+            }));
+        } catch {
+            this.linkedRecords = [];
+        }
+    }
+
+    private async loadSubtasks(): Promise<void> {
+        if (!this.TaskID) return;
+        const res = await new RunView().RunView<ChildSubtaskRow>({
+            EntityName: 'MJ_BizApps_Tasks: Tasks',
+            ExtraFilter: `ParentID = '${EscapeSQLString(this.TaskID)}' AND Status <> 'Cancelled'`,
+            Fields: ['ID', 'Name', 'Status', 'Priority', 'PercentComplete'],
+            OrderBy: 'Sequence ASC',
+            ResultType: 'simple',
+        });
+        this.subtasks = res?.Results ?? [];
     }
 
     private async loadAssignees(): Promise<void> {
         if (!this.TaskID) return;
         const rv = new RunView();
         const [assignmentResult, peopleResult, rolesResult] = await Promise.all([
-            rv.RunView<{ AssigneeEntityID: string; AssigneeRecordID: string; RoleID: string; Status: 'Pending' | 'InProgress' | 'Completed' | null }>({
+            rv.RunView<{
+                ID: string;
+                AssigneeEntityID: string;
+                AssigneeRecordID: string;
+                RoleID: string | null;
+                Status: TaskAssignmentStatusValue;
+            }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Assignments',
-                ExtraFilter: `TaskID = '${this.TaskID}'`,
+                ExtraFilter: `TaskID = '${EscapeSQLString(this.TaskID)}'`,
                 ResultType: 'simple',
             }),
             new RunView().RunView<PersonRow>({
@@ -631,35 +923,42 @@ export class TaskDetailPanelComponent implements OnChanges {
 
         const personMap = new Map<string, string>();
         for (const p of peopleResult?.Results ?? []) {
-            personMap.set(p.ID, `${p.FirstName} ${p.LastName}`);
+            personMap.set(p.ID.toLowerCase(), `${p.FirstName} ${p.LastName}`.trim());
         }
         const roleMap = new Map<string, string>();
         for (const r of rolesResult?.Results ?? []) {
-            roleMap.set(r.ID, r.Name);
+            roleMap.set(r.ID.toLowerCase(), r.Name);
         }
 
-        this.assignees = (assignmentResult?.Results ?? []).map((a) => ({
-            AssigneeRecordID: a.AssigneeRecordID,
-            DisplayName: personMap.get(a.AssigneeRecordID) ?? RoleAssigneeName(a.AssigneeEntityID, a.AssigneeRecordID) ?? a.AssigneeRecordID,
-            RoleName: roleMap.get(a.RoleID) ?? '',
-            Status: a.Status ?? 'Pending',
-        }));
+        this.assignees = (assignmentResult?.Results ?? []).map((a) => {
+            const entity = Metadata.Provider.EntityByID(a.AssigneeEntityID);
+            return {
+                AssignmentID: a.ID,
+                AssigneeEntityName: entity?.Name || 'MJ_BizApps_Common: People',
+                AssigneeRecordID: a.AssigneeRecordID,
+                DisplayName:
+                    personMap.get(a.AssigneeRecordID.toLowerCase()) ??
+                    RoleAssigneeName(a.AssigneeEntityID, a.AssigneeRecordID) ??
+                    a.AssigneeRecordID,
+                RoleName: a.RoleID ? (roleMap.get(a.RoleID.toLowerCase()) ?? '') : '',
+                Status: a.Status ?? 'Pending',
+            };
+        });
     }
 
     private async loadTimeline(): Promise<void> {
         if (!this.TaskID) return;
         const rv = new RunView();
-
         const [activities, comments, people] = await Promise.all([
             rv.RunView<{ __mj_CreatedAt: Date; PersonID: string | null; ActivityType: string; Description: string | null }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Activities',
-                ExtraFilter: `TaskID = '${this.TaskID}'`,
+                ExtraFilter: `TaskID = '${EscapeSQLString(this.TaskID)}'`,
                 OrderBy: '__mj_CreatedAt DESC',
                 ResultType: 'simple',
             }),
             new RunView().RunView<{ __mj_CreatedAt: Date; PersonID: string; Content: string }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Comments',
-                ExtraFilter: `TaskID = '${this.TaskID}'`,
+                ExtraFilter: `TaskID = '${EscapeSQLString(this.TaskID)}'`,
                 OrderBy: '__mj_CreatedAt DESC',
                 ResultType: 'simple',
             }),
@@ -671,7 +970,7 @@ export class TaskDetailPanelComponent implements OnChanges {
 
         const personMap = new Map<string, string>();
         for (const p of people?.Results ?? []) {
-            personMap.set(p.ID, `${p.FirstName} ${p.LastName}`);
+            personMap.set(p.ID.toLowerCase(), `${p.FirstName} ${p.LastName}`.trim());
         }
 
         const entries: ActivityEntry[] = [];
@@ -679,39 +978,274 @@ export class TaskDetailPanelComponent implements OnChanges {
             entries.push({
                 Type: 'activity',
                 Timestamp: new Date(a.__mj_CreatedAt),
-                PersonName: a.PersonID ? personMap.get(a.PersonID) : undefined,
+                PersonName: a.PersonID ? personMap.get(a.PersonID.toLowerCase()) : undefined,
                 ActivityType: a.ActivityType,
-                Content: a.Description ?? `${a.ActivityType}`,
+                Content: a.Description ?? a.ActivityType,
             });
         }
         for (const c of comments?.Results ?? []) {
             entries.push({
                 Type: 'comment',
                 Timestamp: new Date(c.__mj_CreatedAt),
-                PersonName: personMap.get(c.PersonID) ?? c.PersonID,
+                PersonName: personMap.get(c.PersonID.toLowerCase()) ?? c.PersonID,
                 Content: c.Content,
             });
         }
         this.timeline = entries.sort((a, b) => b.Timestamp.getTime() - a.Timestamp.getTime());
     }
 
-    /**
-     * Posts a new comment on the current task. Emits {@link BeforeCommentPosted}
-     * (cancellable) before saving and {@link AfterCommentPosted} after success.
-     * Called internally by the comment input, but can also be called programmatically.
-     */
-    async PostComment(): Promise<void> {
-        if (this.ReadOnly || !this.newComment.trim() || !this.TaskID) return;
+    public async onToggleComplete(nextStatus: TaskStatusValue): Promise<void> {
+        if (!this.taskEntity || this.ReadOnly) return;
+        this.busy = true;
+        this.cdr.markForCheck();
+        try {
+            this.taskEntity.Status = nextStatus;
+            this.taskEntity.PercentComplete = nextStatus === 'Completed' ? 100 : 0;
+            if (await this.taskEntity.Save()) {
+                this.TaskMutated.emit(this.taskEntity.ID);
+                await this.LoadTask();
+            }
+        } finally {
+            this.busy = false;
+            this.cdr.markForCheck();
+        }
+    }
 
+    public async saveInlineTitle(): Promise<void> {
+        if (!this.taskEntity || this.ReadOnly) return;
+        const clean = this.draftTitle.trim();
+        if (!clean || clean === this.taskEntity.Name) {
+            this.draftTitle = this.taskEntity.Name;
+            return;
+        }
+        this.busy = true;
+        this.cdr.markForCheck();
+        try {
+            this.taskEntity.Name = clean;
+            if (await this.taskEntity.Save()) {
+                this.TaskMutated.emit(this.taskEntity.ID);
+            }
+        } finally {
+            this.busy = false;
+            this.cdr.markForCheck();
+        }
+    }
+
+    public async onStageSelected(stage: TaskWidgetTypeStatus): Promise<void> {
+        if (!this.taskEntity || this.ReadOnly) return;
+        this.busy = true;
+        this.cdr.markForCheck();
+        try {
+            this.taskEntity.TaskTypeStatusID = stage.ID;
+            this.taskEntity.Status = stage.MacroStatus;
+            if (stage.MacroStatus === 'Completed') {
+                this.taskEntity.PercentComplete = 100;
+            }
+            if (await this.taskEntity.Save()) {
+                this.TaskMutated.emit(this.taskEntity.ID);
+                await this.LoadTask();
+            }
+        } finally {
+            this.busy = false;
+            this.cdr.markForCheck();
+        }
+    }
+
+    public async updateScalarField(field: 'Status' | 'Priority', value: string): Promise<void> {
+        if (!this.taskEntity || this.ReadOnly) return;
+        this.busy = true;
+        this.cdr.markForCheck();
+        try {
+            if (field === 'Status') {
+                this.taskEntity.Status = value as TaskStatusValue;
+                if (value === 'Completed') this.taskEntity.PercentComplete = 100;
+            } else {
+                this.taskEntity.Priority = value as TaskPriorityValue;
+            }
+            if (await this.taskEntity.Save()) {
+                this.TaskMutated.emit(this.taskEntity.ID);
+                await this.LoadTask();
+            }
+        } finally {
+            this.busy = false;
+            this.cdr.markForCheck();
+        }
+    }
+
+    public async updateDueDate(dateStr: string): Promise<void> {
+        if (!this.taskEntity || this.ReadOnly) return;
+        this.busy = true;
+        this.cdr.markForCheck();
+        try {
+            this.taskEntity.DueAt = dateStr ? new Date(`${dateStr}T17:00:00`) : null;
+            if (await this.taskEntity.Save()) {
+                this.TaskMutated.emit(this.taskEntity.ID);
+            }
+        } finally {
+            this.busy = false;
+            this.cdr.markForCheck();
+        }
+    }
+
+    public async cycleAssigneeStatus(row: InspectorAssigneeRow): Promise<void> {
+        if (this.ReadOnly || this.busy) return;
+        const next: TaskAssignmentStatusValue =
+            row.Status === 'Pending' ? 'InProgress' : row.Status === 'InProgress' ? 'Completed' : 'Pending';
+        this.busy = true;
+        this.cdr.markForCheck();
+        try {
+            const entity = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskAssignmentEntity>('MJ_BizApps_Tasks: Task Assignments');
+            await entity.InnerLoad(CompositeKey.FromID(row.AssignmentID));
+            entity.Status = next;
+            if (await entity.Save()) {
+                row.Status = next;
+                this.TaskMutated.emit(this.TaskID!);
+            }
+        } finally {
+            this.busy = false;
+            this.cdr.markForCheck();
+        }
+    }
+
+    public async onLinkRecordSelected(rec: TaskWidgetLinkedRecord): Promise<void> {
+        this.showLinkPicker = false;
+        if (!this.TaskID) return;
+        const entity = Metadata.Provider.EntityByName(rec.EntityName);
+        if (!entity) return;
+
+        const link = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskLinkEntity>('MJ_BizApps_Tasks: Task Links');
+        link.NewRecord();
+        link.TaskID = this.TaskID;
+        link.EntityID = entity.ID;
+        link.RecordID = rec.RecordID;
+        link.Description = rec.DisplayName;
+        if (await link.Save()) {
+            await this.loadLinkedRecords();
+            this.cdr.markForCheck();
+        }
+    }
+
+    public openLinkedRecord(rec: TaskWidgetLinkedRecord): void {
+        SharedService.Instance.OpenEntityRecord(rec.EntityName, CompositeKey.FromID(rec.RecordID));
+    }
+
+    public async toggleSubtaskComplete(child: ChildSubtaskRow, nextStatus: TaskStatusValue): Promise<void> {
+        this.busy = true;
+        this.cdr.markForCheck();
+        try {
+            const entity = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
+            await entity.InnerLoad(CompositeKey.FromID(child.ID));
+            entity.Status = nextStatus;
+            entity.PercentComplete = nextStatus === 'Completed' ? 100 : 0;
+            if (await entity.Save()) {
+                child.Status = nextStatus;
+                child.PercentComplete = entity.PercentComplete;
+                this.TaskMutated.emit(this.TaskID!);
+            }
+        } finally {
+            this.busy = false;
+            this.cdr.markForCheck();
+        }
+    }
+
+    public async addSubtask(): Promise<void> {
+        const title = this.newSubtaskTitle.trim();
+        if (!title || !this.taskEntity) return;
+        this.busy = true;
+        this.cdr.markForCheck();
+        try {
+            const child = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
+            child.NewRecord();
+            child.Name = title;
+            child.ParentID = this.taskEntity.ID;
+            child.TypeID = this.taskEntity.TypeID;
+            child.CategoryID = this.taskEntity.CategoryID;
+            child.Status = 'Open';
+            child.Priority = this.taskEntity.Priority;
+            child.Sequence = (this.subtasks.length + 1) * 10;
+            if (await child.Save()) {
+                this.newSubtaskTitle = '';
+                await this.loadSubtasks();
+                this.TaskMutated.emit(this.taskEntity.ID);
+            }
+        } finally {
+            this.busy = false;
+            this.cdr.markForCheck();
+        }
+    }
+
+    public openSubtask(childID: string): void {
+        this.TaskID = childID;
+        void this.LoadTask();
+    }
+
+    public async onApprovalSubmitted(event: TaskApprovalActionEvent): Promise<void> {
+        this.busy = true;
+        this.cdr.markForCheck();
+        try {
+            await this.orchestration.RecordDecision({
+                TaskID: event.TaskID,
+                OutcomeCode: event.OutcomeCode,
+                DecidedByPersonID: this.PersonID ?? undefined,
+                Notes: event.Notes ?? undefined,
+            });
+            this.TaskMutated.emit(event.TaskID);
+            await this.LoadTask();
+        } finally {
+            this.busy = false;
+            this.cdr.markForCheck();
+        }
+    }
+
+    public async onCheckInSubmitted(event: TaskOkrCheckInSubmitEvent): Promise<void> {
+        if (!this.taskEntity) return;
+        this.busy = true;
+        this.cdr.markForCheck();
+        try {
+            const ci = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskCheckInEntity>('MJ_BizApps_Tasks: Task Check Ins');
+            ci.NewRecord();
+            ci.TaskID = event.TaskID;
+            ci.AuthorPersonID = this.PersonID;
+            ci.AuthorUserID = Metadata.Provider.CurrentUser?.ID ?? null;
+            ci.CheckInAt = new Date();
+            ci.HealthStatus = event.HealthStatus;
+            ci.ConfidenceScore = event.ConfidenceScore;
+            ci.PreviousValue = this.taskEntity.CurrentValue;
+            ci.NewValue = event.NewValue;
+            const computedPct = TaskService.computeQuantitativePercentComplete(
+                this.taskEntity.BaselineValue,
+                this.taskEntity.TargetValue,
+                event.NewValue,
+                this.taskEntity.MetricDirection,
+            );
+            ci.PercentComplete = computedPct ?? this.taskEntity.PercentComplete;
+            ci.Summary = event.Summary;
+            ci.Blockers = event.Blockers;
+            ci.NextSteps = event.NextSteps;
+            const saved = await ci.Save();
+            if (saved) {
+                // Server-side TaskCheckIn save updates the parent Task metrics & check-in timestamps.
+                // Reload fresh state rather than double-saving a stale entity instance.
+                this.TaskMutated.emit(event.TaskID);
+                await this.LoadTask();
+            }
+        } finally {
+            this.busy = false;
+            this.cdr.markForCheck();
+        }
+    }
+
+    public async PostComment(): Promise<void> {
+        if (this.ReadOnly || !this.newComment.trim() || !this.TaskID) return;
         const before = new BeforeCommentPostedEvent(this.TaskID, this.newComment.trim());
         this.BeforeCommentPosted.emit(before);
         if (before.Cancel) return;
 
-        const comment = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Comments');
+        const comment = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskCommentEntity>('MJ_BizApps_Tasks: Task Comments');
         comment.NewRecord();
-        comment.Set('TaskID', this.TaskID);
-        if (this.PersonID) comment.Set('PersonID', this.PersonID);
-        comment.Set('Content', this.newComment.trim());
+        comment.TaskID = this.TaskID;
+        if (this.PersonID) comment.PersonID = this.PersonID;
+        comment.Content = this.newComment.trim();
         const saved = await comment.Save();
         if (!saved) {
             this.commentError = comment.LatestResult?.CompleteMessage || 'The comment was refused.';
@@ -725,55 +1259,36 @@ export class TaskDetailPanelComponent implements OnChanges {
         this.AfterCommentPosted.emit();
     }
 
-    /**
-     * @internal Deletes child records then the task itself. Assignments go first and the first refused
-     * child delete stops everything: the server refuses removing an approval's assignee (golive #389),
-     * and that must not cost the task its activities, comments and tags.
-     */
-    async onDelete(): Promise<void> {
+    public async onDelete(): Promise<void> {
         this.confirmingDelete = false;
         if (!this.TaskID) return;
-        try {
-            const rv = new RunView();
-            // Delete child records in dependency order
-            const childEntities = [
-                'MJ_BizApps_Tasks: Task Assignments',
-                'MJ_BizApps_Tasks: Task Activities',
-                'MJ_BizApps_Tasks: Task Comments',
-                'MJ_BizApps_Tasks: Task Tag Links',
-                'MJ_BizApps_Tasks: Task Dependencies',
-                'MJ_BizApps_Tasks: Task Links',
-                'MJ_BizApps_Tasks: Task Notification Logs',
-            ];
-            for (const entityName of childEntities) {
-                const result = await rv.RunView<{ ID: string }>({
-                    EntityName: entityName,
-                    ExtraFilter: `TaskID = '${this.TaskID}'`,
-                    ResultType: 'simple',
-                });
-                for (const row of result?.Results ?? []) {
-                    const child = await Metadata.Provider.GetEntityObject(entityName);
-                    const pk = new CompositeKey([{ FieldName: 'ID', Value: row.ID }]);
-                    await child.InnerLoad(pk);
-                    if (!(await child.Delete())) {
-                        console.error(`Delete failed: ${entityName} ${row.ID}: ${child.LatestResult?.CompleteMessage ?? 'unknown error'}`);
-                        return;
-                    }
-                }
+        const rv = new RunView();
+        const childEntities = [
+            'MJ_BizApps_Tasks: Task Assignments',
+            'MJ_BizApps_Tasks: Task Activities',
+            'MJ_BizApps_Tasks: Task Comments',
+            'MJ_BizApps_Tasks: Task Tag Links',
+            'MJ_BizApps_Tasks: Task Dependencies',
+            'MJ_BizApps_Tasks: Task Links',
+            'MJ_BizApps_Tasks: Task Notification Logs',
+            'MJ_BizApps_Tasks: Task Check Ins',
+        ];
+        for (const entityName of childEntities) {
+            const result = await rv.RunView<{ ID: string }>({
+                EntityName: entityName,
+                ExtraFilter: `TaskID = '${EscapeSQLString(this.TaskID)}'`,
+                ResultType: 'simple',
+            });
+            for (const row of result?.Results ?? []) {
+                const child = await Metadata.Provider.GetEntityObject(entityName);
+                await child.InnerLoad(CompositeKey.FromID(row.ID));
+                if (!(await child.Delete())) return;
             }
-
-            // Now delete the task
-            const entity = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Tasks');
-            const pk = new CompositeKey([{ FieldName: 'ID', Value: this.TaskID }]);
-            await entity.InnerLoad(pk);
-            const deleted = await entity.Delete();
-            if (deleted) {
-                this.DeleteRequested.emit(this.TaskID);
-            } else {
-                console.error('Delete failed:', entity.LatestResult);
-            }
-        } catch (e) {
-            console.error('Delete failed:', e);
+        }
+        const entity = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
+        await entity.InnerLoad(CompositeKey.FromID(this.TaskID));
+        if (await entity.Delete()) {
+            this.DeleteRequested.emit(this.TaskID);
         }
     }
 

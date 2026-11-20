@@ -124,6 +124,9 @@ export class TaskEntityServer extends TaskEntity {
         // 0. Record the creator when the caller did not (fails closed: throws if it cannot be looked up)
         await this.stampCreatorPreSave();
 
+        // 0b. Inherit parent task's OrganizationID for new child sub-tasks when left unset
+        await this.inheritParentOrganizationPreSave();
+
         // 1. Pre-Save Sync: Synchronize TaskTypeStatusID <-> Status and defaults
         await this.syncTaskTypeStatusPreSave();
 
@@ -190,6 +193,40 @@ export class TaskEntityServer extends TaskEntity {
             const msg = e instanceof Error ? e.message : String(e);
             LogError(`TaskEntityServer: could not record the creator of task "${this.Name}": ${msg}`);
             throw new Error(`The task was not created: its creator could not be recorded (${msg}).`);
+        }
+    }
+
+    /**
+     * On create, defaults a child sub-task's OrganizationID from its parent task
+     * when the caller did not specify one explicitly.
+     */
+    private async inheritParentOrganizationPreSave(): Promise<void> {
+        if (this.IsSaved || this.OrganizationID || !this.ParentID) {
+            return;
+        }
+        const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidPattern.test(this.ParentID)) {
+            return;
+        }
+        try {
+            const rv = new RunView(this.RunViewProviderToUse);
+            const res = await rv.RunView<{ OrganizationID: string | null }>(
+                {
+                    EntityName: 'MJ_BizApps_Tasks: Tasks',
+                    ExtraFilter: `ID = '${this.ParentID}'`,
+                    Fields: ['OrganizationID'],
+                    MaxRows: 1,
+                    ResultType: 'simple',
+                },
+                this.ContextCurrentUser,
+            );
+            const parentOrgID = res.Success ? res.Results?.[0]?.OrganizationID ?? null : null;
+            if (parentOrgID) {
+                this.OrganizationID = parentOrgID;
+            }
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : String(e);
+            LogError(`TaskEntityServer: could not inherit OrganizationID from parent ${this.ParentID}: ${msg}`);
         }
     }
 

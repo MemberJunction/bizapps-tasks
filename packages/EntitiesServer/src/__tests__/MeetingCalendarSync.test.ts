@@ -13,6 +13,7 @@ const getSystemUserMock = vi.fn().mockResolvedValue({ ID: 'sys-user' });
 const logErrorMock = vi.fn();
 
 vi.mock('@memberjunction/core', () => ({
+    BaseRemotableOperation: class {},
     CompositeKey: {
         FromID: (id: string) => ({
             ToCompactURLSegment: () => `ID|${id}`,

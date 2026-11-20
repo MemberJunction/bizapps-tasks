@@ -24,6 +24,7 @@ vi.mock('@memberjunction/global', () => ({
 
 vi.mock('@memberjunction/core', () => ({
   BaseEntity: class {},
+  BaseRemotableOperation: class {},
   LogError: vi.fn(),
   Metadata: class {
     async GetEntityObject() {

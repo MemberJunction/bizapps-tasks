@@ -1,12 +1,41 @@
 <div class="mjt-hero" [class.mjt-hero--collapsed]="IsCollapsed">
+    @if (Record.ParentID) {
+        <div class="mjt-hero__crumb">
+            <span
+                class="mjt-crumb-link"
+                [mjRecordLink]="Record"
+                FieldName="ParentID"
+                [EntityName]="'MJ_BizApps_Tasks: Tasks'"
+                [RecordID]="Record.ParentID"
+                [DisplayName]="Record.Parent || 'Parent Task'"
+                (Navigate)="FormComponent.OnFormNavigate($event)">
+                <i class="fa-solid fa-folder-open" aria-hidden="true"></i>
+                {{ Record.Parent || 'Parent Task' }}
+            </span>
+            <i class="fa-solid fa-chevron-right mjt-crumb-sep" aria-hidden="true"></i>
+            <span class="mjt-crumb-cur">{{ Title }}</span>
+        </div>
+    }
+
     <div class="mjt-hero__main-row">
         <div class="mjt-hero__identity">
-            <div class="mjt-hero__avatar">
-                <i class="fa-solid fa-list-check" aria-hidden="true"></i>
-            </div>
+            @if (Record.IsSaved) {
+                <mjt-completion-ring
+                    [Status]="Record.Status || 'Open'"
+                    [TaskName]="Title"
+                    Size="lg"
+                    [Disabled]="Busy"
+                    (Toggled)="OnCompletionToggled($event)">
+                </mjt-completion-ring>
+            } @else {
+                <div class="mjt-hero__avatar">
+                    <i class="fa-solid fa-list-check" aria-hidden="true"></i>
+                </div>
+            }
+
             <div class="mjt-hero__copy">
                 <div class="mjt-hero__title-row">
-                    <h1 class="mjt-hero__title">{{ Title }}</h1>
+                    <h1 class="mjt-hero__title" [class.is-done]="Record.Status === 'Completed'">{{ Title }}</h1>
                     <span [class]="StatusClass">{{ Record.Status || 'Open' }}</span>
                     <span [class]="PriorityClass">{{ Record.Priority || 'Medium' }}</span>
                     @if (Record.Type) {
@@ -36,10 +65,37 @@
             </div>
         </div>
 
-        <button class="mjt-hero__collapse-btn" (click)="ToggleCollapse()" [title]="IsCollapsed ? 'Expand details' : 'Collapse details'" type="button">
-            <i class="fa-solid" [class.fa-chevron-up]="!IsCollapsed" [class.fa-chevron-down]="IsCollapsed"></i>
+        <button
+            class="mjt-hero__collapse-btn"
+            (click)="ToggleCollapse()"
+            [title]="IsCollapsed ? 'Expand details' : 'Collapse details'"
+            type="button">
+            <i class="fa-solid" [class.fa-chevron-up]="!IsCollapsed" [class.fa-chevron-down]="IsCollapsed" aria-hidden="true"></i>
         </button>
     </div>
+
+    @if (TypeStatuses.length > 0 && Record.IsSaved) {
+        <div class="mjt-hero__stepper">
+            <mjt-workflow-stepper
+                [Statuses]="TypeStatuses"
+                [ActiveStatusID]="Record.TaskTypeStatusID"
+                [ReadOnly]="Busy"
+                (StageSelected)="OnStageSelected($event)">
+            </mjt-workflow-stepper>
+        </div>
+    }
+
+    @if (LinkedRecords.length > 0) {
+        <div class="mjt-hero__links">
+            <span class="mjt-hero__links-label">Connected:</span>
+            @for (rec of LinkedRecords; track rec.EntityName + ':' + rec.RecordID) {
+                <button type="button" class="mjt-hero__link-chip" (click)="OpenLinkedRecord(rec)">
+                    <i [class]="rec.IconClass || 'fa-solid fa-link'" aria-hidden="true"></i>
+                    <span>{{ rec.DisplayName }}</span>
+                </button>
+            }
+        </div>
+    }
 
     @if (!IsCollapsed) {
         <div class="mjt-hero__expanded">

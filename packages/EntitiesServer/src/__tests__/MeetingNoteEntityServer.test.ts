@@ -54,6 +54,7 @@ vi.mock('@memberjunction/core', () => {
     }
     return {
         BaseEntity,
+        BaseRemotableOperation: class {},
         ValidationErrorInfo,
         ValidationErrorType: { Failure: 'Failure', Warning: 'Warning' },
         LogError: vi.fn(),

@@ -18,6 +18,10 @@ import { MeetingNoteEntityServer } from './MeetingNoteEntityServer.js';
 import { ZoomVideoProvider } from './video/ZoomVideoProvider.js';
 import { MeetingCalendarEventLinkHandler } from './calendar/MeetingCalendarEventLinkHandler.js';
 import { registerMeetingServerAIRuntime } from './ai/meeting-ai-runtime.js';
+import {
+    TasksBulkUpdateServerOperation,
+    TasksInstantiateTemplateServerOperation,
+} from './TasksRemoteOperationsServer.js';
 
 registerMeetingServerAIRuntime();
 
@@ -25,6 +29,10 @@ export { TaskEntityServer } from './TaskEntityServer.js';
 export { TaskCheckInEntityServer } from './TaskCheckInEntityServer.js';
 export { TaskDecisionEntityServer, TASK_DECISION_ENTITY } from './TaskDecisionEntityServer.js';
 export { TaskAssignmentEntityServer, TASK_ASSIGNMENT_ENTITY } from './TaskAssignmentEntityServer.js';
+export {
+    TasksBulkUpdateServerOperation,
+    TasksInstantiateTemplateServerOperation,
+} from './TasksRemoteOperationsServer.js';
 export { TaskDecisionRefusal, DeciderAssignments, type TaskDecisionFacts, type DecisionAssignmentFact } from './TaskDecisionAuthority.js';
 export { TasksSettings, TASKS_SETTING, TASKS_APPLICATION_NAME, type TasksSettingKey } from './TasksSettings.js';
 export { MeetingEntityServer } from './MeetingEntityServer.js';
@@ -61,6 +69,8 @@ export function LoadBizAppsTasksEntitiesServer(): void {
         MeetingNoteEntityServer,
         ZoomVideoProvider,
         MeetingCalendarEventLinkHandler,
+        TasksBulkUpdateServerOperation,
+        TasksInstantiateTemplateServerOperation,
     ];
     if (!anchor.length) {
         throw new Error('TaskEntityServer anchor missing');

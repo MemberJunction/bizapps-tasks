@@ -63,6 +63,8 @@ vi.mock('@memberjunction/core', () => {
     }
     return {
         BaseEntity,
+        BaseEngine: class { public static getInstance() { return {}; } },
+        BaseRemotableOperation: class {},
         ValidationErrorInfo,
         ValidationErrorType: { Failure: 'Failure', Warning: 'Warning' },
         LogError: vi.fn(),

@@ -15,7 +15,8 @@ export class mjBizAppsTasksTaskTemplateItemDependencyFormComponent extends BaseF
     override async ngOnInit() {
         await super.ngOnInit();
         this.initSections([
-            { sectionKey: 'details', sectionName: 'Details', isExpanded: true }
+            { sectionKey: 'dependencyDetails', sectionName: 'Dependency Details', isExpanded: true },
+            { sectionKey: 'systemMetadata', sectionName: 'System Metadata', isExpanded: false }
         ]);
     }
 }

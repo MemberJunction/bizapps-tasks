@@ -1,355 +1,521 @@
-import { ChangeDetectorRef, Component, EventEmitter, inject, Input, Output, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import {
+    ChangeDetectionStrategy,
+    ChangeDetectorRef,
+    Component,
+    EventEmitter,
+    Input,
+    OnChanges,
+    OnInit,
+    Output,
+    SimpleChanges,
+    inject,
+} from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { BaseEntity, RunView } from '@memberjunction/core';
+import { BaseEntity, Metadata, RunView } from '@memberjunction/core';
+import { EscapeSQLString } from '@memberjunction/global';
+import { MJButtonDirective, MJEmptyStateComponent } from '@memberjunction/ng-ui-components';
 import { TaskTemplateService } from '@mj-biz-apps/tasks-core';
 import { TaskPriorityBadgeComponent } from '../task-priority-badge/task-priority-badge.component';
+import { ROLES_ENTITY } from '../../role-assignees';
 
-/** @internal Represents a selectable template in step 1. */
 interface TemplateOption {
     ID: string;
     Name: string;
     Description: string | null;
+    CategoryID: string | null;
 }
 
-/** @internal Represents a preview row showing what will be created. */
 interface PreviewItem {
     Name: string;
     Priority: string;
     DueAt: Date | null;
     DaysFromStart: number | null;
-    ParentItemID: string | null;
+    HoursEstimated: number | null;
     Depth: number;
 }
 
-/** @internal Narrow shape of a Task Template Item row loaded via RunView. */
 interface TaskTemplateItemRow {
     ID: string;
     Name: string;
     ParentItemID: string | null;
     DaysFromStart: number | null;
+    HoursEstimated: number | null;
     Priority: string;
 }
 
-/** @internal Represents a role placeholder to be filled with a real assignee. */
 interface RolePlaceholder {
     RoleID: string;
     RoleName: string;
-    AssigneeEntityID: string;
-    AssigneeRecordID: string;
+    AssigneeChoice: string; // "person:<id>" | "role:<id>" | ""
+}
+
+interface PersonOption {
+    ID: string;
+    FirstName: string | null;
+    LastName: string | null;
 }
 
 /**
- * Multi-step wizard for instantiating tasks from a {@link TaskTemplate}.
+ * 1-Screen Playbook & Template Launcher (L3 Explorer component).
  *
- * Guides the user through 4 steps:
- * 1. **Pick template** — select from active TaskTemplates
- * 2. **Configure** — set start date and optional category
- * 3. **Preview** — see the generated task hierarchy with calculated due dates
- * 4. **Assign** — fill in role placeholders with real people
- *
- * On completion, calls {@link TaskTemplateService.instantiateTemplate} to
- * hydrate real Task records with hierarchy, dependencies, and assignments.
- *
- * @example
- * ```html
- * <bizapps-task-template-wizard
- *     [DefaultCategoryID]="committeeCategoryId"
- *     [PersonEntityID]="peopleEntityID"
- *     (Created)="onTasksCreated($event)"
- *     (Cancelled)="closeWizard()">
- * </bizapps-task-template-wizard>
- * ```
+ * Replaces the old 4-step wizard (which asked business users to paste raw Person GUIDs)
+ * with a single live screen: pick template, set Start Date & Category, map role
+ * placeholders using real People & MJ Role dropdowns, see calculated relative-offset
+ * schedule preview live, and launch with MJ-ordered actions (`[Launch Playbook]` LEFT · `[Cancel]` RIGHT).
  */
 @Component({
     selector: 'bizapps-task-template-wizard',
     standalone: true,
-    imports: [CommonModule, FormsModule, TaskPriorityBadgeComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [DatePipe, FormsModule, MJButtonDirective, MJEmptyStateComponent, TaskPriorityBadgeComponent],
     template: `
-        <div class="wizard">
-            <!-- Step indicator -->
-            <div class="steps-bar">
-                @for (s of steps; track s; let i = $index) {
-                    <div class="step-dot" [class.active]="step === i" [class.done]="step > i">
-                        {{ i + 1 }}
+        <div class="mjt-tpl-launcher">
+            <div class="mjt-tpl-scroll">
+                <div class="mjt-tpl-field">
+                    <label>Playbook Template *</label>
+                    @if (templates.length === 0 && !loadingTemplates) {
+                        <mj-empty-state
+                            Icon="fa-solid fa-copy"
+                            Title="No active templates"
+                            Message="Create a Task Template first to launch reusable workflows."
+                            Size="compact">
+                        </mj-empty-state>
+                    } @else {
+                        <select class="mjt-tpl-input" [(ngModel)]="selectedTemplateID" (ngModelChange)="onTemplateChanged()">
+                            <option [ngValue]="null">Choose a template...</option>
+                            @for (t of templates; track t.ID) {
+                                <option [value]="t.ID">{{ t.Name }}</option>
+                            }
+                        </select>
+                        @if (activeTemplate?.Description) {
+                            <p class="mjt-tpl-desc">{{ activeTemplate?.Description }}</p>
+                        }
+                    }
+                </div>
+
+                @if (selectedTemplateID) {
+                    <div class="mjt-tpl-grid">
+                        <div class="mjt-tpl-field">
+                            <label>Kickoff Start Date</label>
+                            <input
+                                type="date"
+                                class="mjt-tpl-input"
+                                [(ngModel)]="startDateStr"
+                                (ngModelChange)="recomputePreviewDates()" />
+                        </div>
+                        <div class="mjt-tpl-field">
+                            <label>Category</label>
+                            <select class="mjt-tpl-input" [(ngModel)]="categoryID">
+                                <option [ngValue]="null">None</option>
+                                @for (cat of categories; track cat.ID) {
+                                    <option [value]="cat.ID">{{ cat.Name }}</option>
+                                }
+                            </select>
+                        </div>
                     </div>
+
+                    @if (rolePlaceholders.length > 0) {
+                        <div class="mjt-tpl-section">
+                            <span class="mjt-tpl-section-label">Role Assignments</span>
+                            @for (rp of rolePlaceholders; track rp.RoleID) {
+                                <div class="mjt-role-row">
+                                    <span class="mjt-role-name">{{ rp.RoleName }}</span>
+                                    <select class="mjt-tpl-input" [(ngModel)]="rp.AssigneeChoice">
+                                        <option value="">Unassigned (assign later)</option>
+                                        <optgroup label="People">
+                                            @for (p of people; track p.ID) {
+                                                <option [value]="'person:' + p.ID">{{ p.FirstName }} {{ p.LastName }}</option>
+                                            }
+                                        </optgroup>
+                                        @if (mjRoles.length > 0) {
+                                            <optgroup label="MJ Roles">
+                                                @for (r of mjRoles; track r.ID) {
+                                                    <option [value]="'role:' + r.ID">{{ r.Name }} (Role)</option>
+                                                }
+                                            </optgroup>
+                                        }
+                                    </select>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <div class="mjt-tpl-section">
+                        <div class="mjt-tpl-section-head">
+                            <span class="mjt-tpl-section-label">Live Schedule Preview ({{ previewItems.length }} tasks)</span>
+                            @if (totalHours > 0) {
+                                <span class="mjt-tpl-hours">{{ totalHours }}h total</span>
+                            }
+                        </div>
+
+                        @if (loadingPreview) {
+                            <div class="mjt-tpl-muted">Loading schedule...</div>
+                        } @else if (previewItems.length === 0) {
+                            <div class="mjt-tpl-muted">This template has no task items yet.</div>
+                        } @else {
+                            <div class="mjt-preview-list">
+                                @for (item of previewItems; track item.Name + $index) {
+                                    <div class="mjt-preview-row" [style.paddingLeft.px]="10 + item.Depth * 18">
+                                        <span class="mjt-offset-badge">
+                                            {{ item.DaysFromStart != null ? '+' + item.DaysFromStart + 'd' : 'Day 0' }}
+                                        </span>
+                                        <span class="mjt-preview-name">{{ item.Name }}</span>
+                                        <bizapps-task-priority-badge [Priority]="item.Priority"></bizapps-task-priority-badge>
+                                        @if (item.DueAt) {
+                                            <span class="mjt-preview-due">{{ item.DueAt | date:'MMM d' }}</span>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+
+                @if (errorMessage) {
+                    <div class="mjt-tpl-error" role="alert">{{ errorMessage }}</div>
                 }
             </div>
 
-            <!-- Step 1: Pick template -->
-            @if (step === 0) {
-                <div class="step-content">
-                    <h3>Select a Template</h3>
-                    @if (templates.length === 0) {
-                        <p class="empty">No templates available.</p>
+            <!-- Sticky MJ-Ordered Footer (Confirm LEFT · Cancel RIGHT) -->
+            <div class="mjt-tpl-footer">
+                <button
+                    type="button"
+                    mjButton
+                    variant="primary"
+                    size="sm"
+                    [disabled]="!selectedTemplateID || creating || previewItems.length === 0"
+                    (click)="onCreate()">
+                    @if (creating) {
+                        <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+                    } @else {
+                        <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
                     }
-                    @for (t of templates; track t.ID) {
-                        <div class="template-card" [class.selected]="selectedTemplateID === t.ID"
-                             (click)="selectedTemplateID = t.ID">
-                            <div class="template-name">{{ t.Name }}</div>
-                            @if (t.Description) {
-                                <div class="template-desc">{{ t.Description }}</div>
-                            }
-                        </div>
-                    }
-                </div>
-            }
-
-            <!-- Step 2: Start date + category -->
-            @if (step === 1) {
-                <div class="step-content">
-                    <h3>Configure</h3>
-                    <div class="form-group">
-                        <label>Start Date</label>
-                        <input type="date" [(ngModel)]="startDateStr" class="form-input" />
-                    </div>
-                    <div class="form-group">
-                        <label>Category (optional)</label>
-                        <select [(ngModel)]="categoryID" class="form-input">
-                            <option [ngValue]="null">None</option>
-                            @for (cat of categories; track cat.ID) {
-                                <option [value]="cat.ID">{{ cat.Name }}</option>
-                            }
-                        </select>
-                    </div>
-                </div>
-            }
-
-            <!-- Step 3: Preview -->
-            @if (step === 2) {
-                <div class="step-content">
-                    <h3>Preview Timeline</h3>
-                    @for (item of previewItems; track item.Name) {
-                        <div class="preview-item" [style.padding-left.px]="12 + item.Depth * 20">
-                            <span class="preview-name">{{ item.Name }}</span>
-                            <bizapps-task-priority-badge [Priority]="item.Priority"></bizapps-task-priority-badge>
-                            @if (item.DueAt) {
-                                <span class="preview-due">{{ item.DueAt | date:'MMM d, y' }}</span>
-                            }
-                        </div>
-                    }
-                    @if (previewItems.length === 0) {
-                        <p class="empty">No items in this template.</p>
-                    }
-                </div>
-            }
-
-            <!-- Step 4: Assign roles -->
-            @if (step === 3) {
-                <div class="step-content">
-                    <h3>Assign Roles</h3>
-                    @if (rolePlaceholders.length === 0) {
-                        <p class="empty">No role placeholders in this template. You can assign people after creation.</p>
-                    }
-                    @for (rp of rolePlaceholders; track rp.RoleID) {
-                        <div class="role-row">
-                            <label>{{ rp.RoleName }}</label>
-                            <input type="text" [(ngModel)]="rp.AssigneeRecordID"
-                                   placeholder="Person ID" class="form-input" />
-                        </div>
-                    }
-                </div>
-            }
-
-            <!-- Navigation -->
-            <div class="wizard-nav">
-                <button class="btn-secondary" (click)="onBack()" [disabled]="step === 0">Back</button>
-                @if (step < steps.length - 1) {
-                    <button class="btn-primary" (click)="onNext()" [disabled]="!canAdvance">Next</button>
-                } @else {
-                    <button class="btn-primary" (click)="onCreate()" [disabled]="creating">
-                        {{ creating ? 'Creating...' : 'Create Tasks' }}
-                    </button>
-                }
-                <button class="btn-cancel" (click)="Cancelled.emit()">Cancel</button>
+                    <span>{{ creating ? 'Launching...' : ('Create ' + previewItems.length + ' Tasks') }}</span>
+                </button>
+                <button type="button" mjButton variant="outline" size="sm" [disabled]="creating" (click)="Cancelled.emit()">
+                    Cancel
+                </button>
             </div>
         </div>
     `,
     styles: [`
-        .wizard { max-width: 560px; }
-        .steps-bar { display: flex; gap: 8px; margin-bottom: 20px; justify-content: center; }
-        .step-dot {
-            width: 28px; height: 28px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 0.8rem; font-weight: var(--mj-font-semibold);
-            background: var(--mj-border-default); color: var(--mj-text-muted);
+        :host {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            min-height: 0;
+            font-family: var(--mj-font-family);
+            color: var(--mj-text-primary);
         }
-        .step-dot.active { background: var(--mj-brand-primary); color: var(--mj-text-inverse); }
-        .step-dot.done { background: var(--mj-status-success); color: var(--mj-text-inverse); }
-        .step-content { margin-bottom: 20px; }
-        .step-content h3 { margin: 0 0 12px; font-size: 1rem; }
-        .template-card {
-            padding: 10px 12px; border: 1px solid var(--mj-border-default); border-radius: var(--mj-radius-md);
-            margin-bottom: 6px; cursor: pointer; transition: border-color 0.15s;
+        .mjt-tpl-launcher {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            min-height: 0;
         }
-        .template-card:hover { border-color: color-mix(in srgb, var(--mj-brand-primary) 30%, var(--mj-border-default)); }
-        .template-card.selected { border-color: var(--mj-brand-primary); background: color-mix(in srgb, var(--mj-brand-primary) 8%, var(--mj-bg-surface)); }
-        .template-name { font-weight: var(--mj-font-medium); font-size: 0.9rem; }
-        .template-desc { font-size: 0.8rem; color: var(--mj-text-muted); margin-top: 2px; }
-        .form-group { margin-bottom: 12px; }
-        .form-group label { display: block; font-size: 0.8rem; color: var(--mj-text-secondary); margin-bottom: 3px; font-weight: var(--mj-font-medium); }
-        .form-input {
-            width: 100%; padding: 6px 10px; border: 1px solid var(--mj-border-strong); border-radius: var(--mj-radius-md);
-            font-size: 0.875rem; box-sizing: border-box;
+        .mjt-tpl-scroll {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding: 16px 20px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
         }
-        .preview-item {
-            display: flex; align-items: center; gap: 8px; padding: 6px 0;
-            border-bottom: 1px solid var(--mj-border-default); font-size: 0.85rem;
+        .mjt-tpl-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
         }
-        .preview-name { flex: 1; }
-        .preview-due { color: var(--mj-text-muted); font-size: 0.8rem; }
-        .role-row { margin-bottom: 10px; }
-        .role-row label { display: block; font-size: 0.8rem; font-weight: var(--mj-font-medium); margin-bottom: 3px; }
-        .empty { color: var(--mj-text-disabled); font-style: italic; }
-        .wizard-nav { display: flex; gap: 8px; }
-        .btn-primary {
-            padding: 8px 20px; border: none; border-radius: var(--mj-radius-md);
-            background: var(--mj-brand-primary); color: var(--mj-text-inverse); font-size: 0.875rem; cursor: pointer; font-weight: var(--mj-font-medium);
+        .mjt-tpl-field {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
         }
-        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn-secondary {
-            padding: 8px 20px; border: 1px solid var(--mj-border-strong); border-radius: var(--mj-radius-md);
-            background: var(--mj-bg-surface); font-size: 0.875rem; cursor: pointer;
+        .mjt-tpl-field label,
+        .mjt-tpl-section-label {
+            font-size: 11.5px;
+            font-weight: var(--mj-font-bold, 700);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--mj-text-secondary);
         }
-        .btn-secondary:disabled { opacity: 0.4; }
-        .btn-cancel { padding: 8px 20px; border: none; background: none; color: var(--mj-text-muted); cursor: pointer; font-size: 0.875rem; margin-left: auto; }
-    `]
+        .mjt-tpl-input {
+            width: 100%;
+            padding: 7px 10px;
+            min-height: 36px;
+            border: 1px solid var(--mj-border-strong);
+            border-radius: var(--mj-radius-md, 8px);
+            background: var(--mj-bg-surface);
+            color: var(--mj-text-primary);
+            font-family: inherit;
+            font-size: var(--mj-text-sm, 14px);
+            box-sizing: border-box;
+        }
+        .mjt-tpl-desc {
+            margin: 2px 0 0;
+            font-size: var(--mj-text-xs, 12px);
+            color: var(--mj-text-muted);
+            line-height: 1.45;
+        }
+        .mjt-tpl-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding-top: 10px;
+            border-top: 1px solid var(--mj-border-subtle);
+        }
+        .mjt-tpl-section-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .mjt-tpl-hours {
+            font-family: var(--mj-font-family-mono, monospace);
+            font-size: var(--mj-text-xs, 12px);
+            font-weight: var(--mj-font-semibold, 600);
+            color: var(--mj-brand-primary);
+        }
+        .mjt-role-row {
+            display: grid;
+            grid-template-columns: 130px minmax(0, 1fr);
+            align-items: center;
+            gap: 10px;
+        }
+        .mjt-role-name {
+            font-size: var(--mj-text-xs, 12px);
+            font-weight: var(--mj-font-semibold, 600);
+            color: var(--mj-text-primary);
+        }
+        .mjt-preview-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            background: var(--mj-bg-surface-sunken);
+            border: 1px solid var(--mj-border-default);
+            border-radius: var(--mj-radius-md, 8px);
+            padding: 8px;
+        }
+        .mjt-preview-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            border-radius: var(--mj-radius-sm, 4px);
+            background: var(--mj-bg-surface);
+            border: 1px solid var(--mj-border-subtle);
+            font-size: var(--mj-text-xs, 12px);
+        }
+        .mjt-offset-badge {
+            font-family: var(--mj-font-family-mono, monospace);
+            font-size: 11px;
+            font-weight: var(--mj-font-semibold, 600);
+            padding: 1px 6px;
+            border-radius: var(--mj-radius-sm, 4px);
+            background: color-mix(in srgb, var(--mj-brand-primary) 12%, var(--mj-bg-surface));
+            color: var(--mj-brand-primary);
+            flex-shrink: 0;
+        }
+        .mjt-preview-name {
+            flex: 1;
+            min-width: 0;
+            font-weight: var(--mj-font-medium, 500);
+            color: var(--mj-text-primary);
+        }
+        .mjt-preview-due {
+            font-family: var(--mj-font-family-mono, monospace);
+            font-size: 11px;
+            color: var(--mj-text-muted);
+            flex-shrink: 0;
+        }
+        .mjt-tpl-muted {
+            font-size: var(--mj-text-xs, 12px);
+            color: var(--mj-text-muted);
+            font-style: italic;
+        }
+        .mjt-tpl-error {
+            padding: 10px 12px;
+            border-radius: var(--mj-radius-md, 8px);
+            background: var(--mj-status-error-bg);
+            color: var(--mj-status-error-text);
+            font-size: var(--mj-text-xs, 12px);
+        }
+        .mjt-tpl-footer {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px max(12px, env(safe-area-inset-bottom, 0px));
+            border-top: 1px solid var(--mj-border-default);
+            background: var(--mj-bg-surface);
+            flex-shrink: 0;
+        }
+        @media (max-width: 540px) {
+            .mjt-tpl-grid,
+            .mjt-role-row {
+                grid-template-columns: minmax(0, 1fr);
+            }
+        }
+    `],
 })
-export class TaskTemplateWizardComponent implements OnInit {
-    // ── Inputs ──────────────────────────────────────────────
-
-    /**
-     * Default category to pre-select in step 2 (Configure).
-     * The user can override this in the wizard.
-     */
+export class TaskTemplateWizardComponent implements OnInit, OnChanges {
     @Input() DefaultCategoryID: string | null = null;
-
-    /**
-     * Entity ID for the "MJ_BizApps_Common: People" entity.
-     * Used as the `AssigneeEntityID` when creating TaskAssignment records
-     * from role placeholders. If not provided, the wizard will still work
-     * but role assignment will not populate the entity ID.
-     */
     @Input() PersonEntityID: string | null = null;
+    @Input() SelectedTemplateID: string | null = null;
 
-    // ── Outputs ─────────────────────────────────────────────
-
-    /**
-     * Emitted after all tasks have been successfully created from the template.
-     * Payload is the array of created Task entity objects.
-     */
     @Output() Created = new EventEmitter<BaseEntity[]>();
-
-    /**
-     * Emitted when the user clicks "Cancel" at any step.
-     */
     @Output() Cancelled = new EventEmitter<void>();
 
-    // ── Internal State ──────────────────────────────────────
+    public templates: TemplateOption[] = [];
+    public categories: { ID: string; Name: string }[] = [];
+    public people: PersonOption[] = [];
+    public mjRoles: { ID: string; Name: string }[] = [];
+    public selectedTemplateID: string | null = null;
+    public startDateStr = new Date().toISOString().split('T')[0];
+    public categoryID: string | null = null;
+    public previewItems: PreviewItem[] = [];
+    public rolePlaceholders: RolePlaceholder[] = [];
+    public loadingTemplates = false;
+    public loadingPreview = false;
+    public creating = false;
+    public errorMessage = '';
 
-    /** @internal */
-    steps = ['Template', 'Configure', 'Preview', 'Assign'];
-    /** @internal Current wizard step index (0-based). */
-    step = 0;
-    /** @internal */
-    templates: TemplateOption[] = [];
-    /** @internal */
-    categories: { ID: string; Name: string }[] = [];
-    /** @internal */
-    selectedTemplateID: string | null = null;
-    /** @internal */
-    startDateStr = new Date().toISOString().split('T')[0];
-    /** @internal */
-    categoryID: string | null = null;
-    /** @internal */
-    previewItems: PreviewItem[] = [];
-    /** @internal */
-    rolePlaceholders: RolePlaceholder[] = [];
-    /** @internal */
-    creating = false;
-    /** @internal */
+    private rawItems: TaskTemplateItemRow[] = [];
     private templateService = new TaskTemplateService();
     private cdr = inject(ChangeDetectorRef);
 
-    /** @internal Whether the "Next" button should be enabled for the current step. */
-    get canAdvance(): boolean {
-        if (this.step === 0) return !!this.selectedTemplateID;
-        if (this.step === 1) return !!this.startDateStr;
-        return true;
+    public get activeTemplate(): TemplateOption | undefined {
+        return this.templates.find((t) => t.ID === this.selectedTemplateID);
     }
 
-    ngOnInit(): void {
+    public get totalHours(): number {
+        return this.previewItems.reduce((sum, item) => sum + (item.HoursEstimated ?? 0), 0);
+    }
+
+    public ngOnInit(): void {
         this.categoryID = this.DefaultCategoryID;
-        this.loadTemplates();
-        this.loadCategories();
+        this.selectedTemplateID = this.SelectedTemplateID;
+        void this.loadInitialData();
     }
 
-    private async loadTemplates(): Promise<void> {
-        const rv = new RunView();
-        const result = await rv.RunView<{ ID: string; Name: string; Description: string | null }>({
-            EntityName: 'MJ_BizApps_Tasks: Task Templates',
-            ExtraFilter: 'IsActive = 1',
-            ResultType: 'simple',
-        });
-        this.templates = (result?.Results ?? []).map((t) => ({
-            ID: t.ID, Name: t.Name, Description: t.Description,
-        }));
-        this.cdr.markForCheck();
-    }
-
-    private async loadCategories(): Promise<void> {
-        const rv = new RunView();
-        const result = await rv.RunView<{ ID: string; Name: string }>({
-            EntityName: 'MJ_BizApps_Tasks: Task Categories',
-            ExtraFilter: 'IsActive = 1',
-            OrderBy: 'Sequence ASC',
-            ResultType: 'simple',
-        });
-        this.categories = result?.Results ?? [];
-        this.cdr.markForCheck();
-    }
-
-    async onNext(): Promise<void> {
-        if (!this.canAdvance) return;
-
-        if (this.step === 1) {
-            await this.buildPreview();
+    public ngOnChanges(changes: SimpleChanges): void {
+        if (changes['SelectedTemplateID'] && this.SelectedTemplateID && this.SelectedTemplateID !== this.selectedTemplateID) {
+            this.selectedTemplateID = this.SelectedTemplateID;
+            void this.onTemplateChanged();
         }
-        if (this.step === 2) {
-            await this.loadRolePlaceholders();
+    }
+
+    private async loadInitialData(): Promise<void> {
+        this.loadingTemplates = true;
+        this.cdr.markForCheck();
+        try {
+            const [tpls, cats, ppl] = await Promise.all([
+                new RunView().RunView<TemplateOption>({
+                    EntityName: 'MJ_BizApps_Tasks: Task Templates',
+                    ExtraFilter: 'IsActive = 1',
+                    OrderBy: 'Name ASC',
+                    ResultType: 'simple',
+                }),
+                new RunView().RunView<{ ID: string; Name: string }>({
+                    EntityName: 'MJ_BizApps_Tasks: Task Categories',
+                    ExtraFilter: 'IsActive = 1',
+                    OrderBy: 'Sequence ASC',
+                    ResultType: 'simple',
+                }),
+                new RunView().RunView<PersonOption>({
+                    EntityName: 'MJ_BizApps_Common: People',
+                    OrderBy: 'FirstName ASC, LastName ASC',
+                    ResultType: 'simple',
+                }),
+            ]);
+            this.templates = tpls?.Results ?? [];
+            this.categories = cats?.Results ?? [];
+            this.people = ppl?.Results ?? [];
+            this.mjRoles = (Metadata.Provider.Roles ?? []).map((r) => ({ ID: r.ID, Name: r.Name }));
+
+            if (!this.selectedTemplateID && this.templates.length > 0) {
+                this.selectedTemplateID = this.templates[0].ID;
+            }
+            if (this.selectedTemplateID) {
+                await this.onTemplateChanged();
+            }
+        } finally {
+            this.loadingTemplates = false;
+            this.cdr.markForCheck();
         }
-        this.step++;
-        this.cdr.markForCheck();
     }
 
-    onBack(): void {
-        if (this.step > 0) this.step--;
+    public async onTemplateChanged(): Promise<void> {
+        if (!this.selectedTemplateID) {
+            this.previewItems = [];
+            this.rolePlaceholders = [];
+            this.cdr.markForCheck();
+            return;
+        }
+        const tpl = this.activeTemplate;
+        if (tpl?.CategoryID && !this.DefaultCategoryID) {
+            this.categoryID = tpl.CategoryID;
+        }
+
+        this.loadingPreview = true;
+        this.errorMessage = '';
         this.cdr.markForCheck();
+        try {
+            const itemsRes = await new RunView().RunView<TaskTemplateItemRow>({
+                EntityName: 'MJ_BizApps_Tasks: Task Template Items',
+                ExtraFilter: `TemplateID = '${EscapeSQLString(this.selectedTemplateID)}'`,
+                OrderBy: 'Sequence ASC',
+                ResultType: 'simple',
+            });
+            this.rawItems = itemsRes?.Results ?? [];
+            this.recomputePreviewDates();
+
+            const itemIDs = this.rawItems.map((i) => `'${EscapeSQLString(i.ID)}'`).join(',');
+            if (!itemIDs) {
+                this.rolePlaceholders = [];
+                return;
+            }
+            const itemRolesRes = await new RunView().RunView<{ RoleID: string }>({
+                EntityName: 'MJ_BizApps_Tasks: Task Template Item Roles',
+                ExtraFilter: `ItemID IN (${itemIDs})`,
+                ResultType: 'simple',
+            });
+            const uniqueRoleIDs = [...new Set((itemRolesRes?.Results ?? []).map((r) => r.RoleID))];
+            if (uniqueRoleIDs.length === 0) {
+                this.rolePlaceholders = [];
+                return;
+            }
+            const rolesRes = await new RunView().RunView<{ ID: string; Name: string }>({
+                EntityName: 'MJ_BizApps_Tasks: Task Roles',
+                ExtraFilter: `ID IN (${uniqueRoleIDs.map((id) => `'${EscapeSQLString(id)}'`).join(',')})`,
+                ResultType: 'simple',
+            });
+            const nameMap = new Map<string, string>();
+            for (const r of rolesRes?.Results ?? []) {
+                nameMap.set(r.ID.toLowerCase(), r.Name);
+            }
+            this.rolePlaceholders = uniqueRoleIDs.map((roleID) => ({
+                RoleID: roleID,
+                RoleName: nameMap.get(roleID.toLowerCase()) ?? roleID,
+                AssigneeChoice: '',
+            }));
+        } finally {
+            this.loadingPreview = false;
+            this.cdr.markForCheck();
+        }
     }
 
-    private async buildPreview(): Promise<void> {
-        if (!this.selectedTemplateID) return;
-        const rv = new RunView();
-        const result = await rv.RunView<TaskTemplateItemRow>({
-            EntityName: 'MJ_BizApps_Tasks: Task Template Items',
-            ExtraFilter: `TemplateID = '${this.selectedTemplateID}'`,
-            OrderBy: 'Sequence ASC',
-            ResultType: 'simple',
-        });
-        const items = result?.Results ?? [];
-        const startDate = new Date(this.startDateStr);
-
-        // Calculate depth for indentation
+    public recomputePreviewDates(): void {
+        const base = new Date(`${this.startDateStr}T17:00:00`);
         const depthMap = new Map<string, number>();
-        for (const item of items) {
+        for (const item of this.rawItems) {
             const parentDepth = item.ParentItemID ? (depthMap.get(item.ParentItemID) ?? 0) : -1;
             depthMap.set(item.ID, parentDepth + 1);
         }
-
-        this.previewItems = items.map((item) => {
+        this.previewItems = this.rawItems.map((item) => {
             let dueAt: Date | null = null;
-            if (item.DaysFromStart != null) {
-                dueAt = new Date(startDate);
+            if (!Number.isNaN(base.getTime()) && item.DaysFromStart != null) {
+                dueAt = new Date(base.getTime());
                 dueAt.setDate(dueAt.getDate() + item.DaysFromStart);
             }
             return {
@@ -357,79 +523,44 @@ export class TaskTemplateWizardComponent implements OnInit {
                 Priority: item.Priority ?? 'Medium',
                 DueAt: dueAt,
                 DaysFromStart: item.DaysFromStart,
-                ParentItemID: item.ParentItemID,
+                HoursEstimated: item.HoursEstimated,
                 Depth: depthMap.get(item.ID) ?? 0,
             };
         });
         this.cdr.markForCheck();
     }
 
-    private async loadRolePlaceholders(): Promise<void> {
-        if (!this.selectedTemplateID) return;
-        const rv = new RunView();
-
-        // Get all template items
-        const itemsResult = await rv.RunView<TaskTemplateItemRow>({
-            EntityName: 'MJ_BizApps_Tasks: Task Template Items',
-            ExtraFilter: `TemplateID = '${this.selectedTemplateID}'`,
-            ResultType: 'simple',
-        });
-        const itemIDs = (itemsResult?.Results ?? []).map((i) => `'${i.ID}'`).join(',');
-        if (!itemIDs) { this.rolePlaceholders = []; this.cdr.markForCheck(); return; }
-
-        // Get unique roles across all template items
-        const rolesResult = await new RunView().RunView<{ RoleID: string }>({
-            EntityName: 'MJ_BizApps_Tasks: Task Template Item Roles',
-            ExtraFilter: `ItemID IN (${itemIDs})`,
-            ResultType: 'simple',
-        });
-
-        // Load role names
-        const roleIDs = new Set<string>();
-        for (const r of rolesResult?.Results ?? []) roleIDs.add(r.RoleID);
-
-        const roleNames = new Map<string, string>();
-        if (roleIDs.size > 0) {
-            const rolesLookup = await new RunView().RunView<{ ID: string; Name: string }>({
-                EntityName: 'MJ_BizApps_Tasks: Task Roles',
-                ExtraFilter: `ID IN (${[...roleIDs].map(id => `'${id}'`).join(',')})`,
-                ResultType: 'simple',
-            });
-            for (const r of rolesLookup?.Results ?? []) roleNames.set(r.ID, r.Name);
-        }
-
-        this.rolePlaceholders = [...roleIDs].map(roleID => ({
-            RoleID: roleID,
-            RoleName: roleNames.get(roleID) ?? roleID,
-            AssigneeEntityID: this.PersonEntityID ?? '',
-            AssigneeRecordID: '',
-        }));
-        this.cdr.markForCheck();
-    }
-
-    async onCreate(): Promise<void> {
+    public async onCreate(): Promise<void> {
         if (!this.selectedTemplateID || this.creating) return;
         this.creating = true;
-
-        const assigneeMap = new Map<string, { entityID: string; recordID: string }>();
-        for (const rp of this.rolePlaceholders) {
-            if (rp.AssigneeRecordID?.trim()) {
-                assigneeMap.set(rp.RoleID, {
-                    entityID: rp.AssigneeEntityID,
-                    recordID: rp.AssigneeRecordID.trim(),
-                });
-            }
-        }
-
-        const tasks = await this.templateService.instantiateTemplate({
-            templateID: this.selectedTemplateID,
-            startDate: new Date(this.startDateStr),
-            categoryID: this.categoryID ?? undefined,
-            assigneeMap: assigneeMap.size > 0 ? assigneeMap : undefined,
-        });
-
-        this.creating = false;
+        this.errorMessage = '';
         this.cdr.markForCheck();
-        this.Created.emit(tasks);
+        try {
+            const personEntityID = this.PersonEntityID || Metadata.Provider.EntityByName('MJ_BizApps_Common: People')?.ID || '';
+            const roleEntityID = Metadata.Provider.EntityByName(ROLES_ENTITY)?.ID || '';
+            const assigneeMap = new Map<string, { entityID: string; recordID: string }>();
+
+            for (const rp of this.rolePlaceholders) {
+                if (!rp.AssigneeChoice) continue;
+                if (rp.AssigneeChoice.startsWith('person:') && personEntityID) {
+                    assigneeMap.set(rp.RoleID, { entityID: personEntityID, recordID: rp.AssigneeChoice.slice(7) });
+                } else if (rp.AssigneeChoice.startsWith('role:') && roleEntityID) {
+                    assigneeMap.set(rp.RoleID, { entityID: roleEntityID, recordID: rp.AssigneeChoice.slice(5) });
+                }
+            }
+
+            const tasks = await this.templateService.instantiateTemplate({
+                templateID: this.selectedTemplateID,
+                startDate: new Date(`${this.startDateStr}T09:00:00`),
+                categoryID: this.categoryID ?? undefined,
+                assigneeMap: assigneeMap.size > 0 ? assigneeMap : undefined,
+            });
+            this.Created.emit(tasks);
+        } catch (err) {
+            this.errorMessage = err instanceof Error ? err.message : 'Failed to instantiate template.';
+        } finally {
+            this.creating = false;
+            this.cdr.markForCheck();
+        }
     }
 }

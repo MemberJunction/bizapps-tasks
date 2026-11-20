@@ -63,6 +63,15 @@
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
+            FieldName="OrganizationID"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+            LinkType="Record"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
             FieldName="RootParentID"
             Type="textbox"
             [EditMode]="EditMode"
@@ -423,7 +432,7 @@
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksTaskDependenciesDependsOnTaskID"
         SectionName="Task Dependencies (Depends On Task ID)"
-        Icon="fa fa-table"
+        Icon="fa fa-project-diagram"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"
@@ -448,7 +457,7 @@
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksTaskDependenciesTaskID"
         SectionName="Task Dependencies (Task ID)"
-        Icon="fa fa-table"
+        Icon="fa fa-project-diagram"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"
@@ -498,7 +507,7 @@
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksTaskAssignments"
         SectionName="Task Assignments"
-        Icon="fa fa-table"
+        Icon="fa fa-tasks"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"
@@ -573,7 +582,7 @@
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksTaskActivities"
         SectionName="Task Activities"
-        Icon="fa fa-table"
+        Icon="fa fa-tasks"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"
@@ -623,7 +632,7 @@
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksTaskNotificationLogs"
         SectionName="Task Notification Logs"
-        Icon="fa fa-table"
+        Icon="fa fa-bell"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"

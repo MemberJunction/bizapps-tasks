@@ -12,6 +12,7 @@ vi.mock('@memberjunction/global', () => ({
 }));
 vi.mock('@memberjunction/core', () => ({
   BaseEntity: class {},
+  BaseRemotableOperation: class {},
   BaseEngine: class {
     public static getInstance() {
       return {};

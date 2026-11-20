@@ -1,17 +1,46 @@
-import { Component, EventEmitter, Input, Output, OnInit, ViewChild, ChangeDetectionStrategy, ChangeDetectorRef, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import {
+    ChangeDetectionStrategy,
+    ChangeDetectorRef,
+    Component,
+    HostListener,
+    OnInit,
+    ViewChild,
+    inject,
+} from '@angular/core';
 import { LogError, RunView } from '@memberjunction/core';
+import { UserInfoEngine } from '@memberjunction/core-entities';
+import {
+    MJButtonDirective,
+    MJFilterPanelComponent,
+    MJFilterPopoverComponent,
+    MJLeftNavComponent,
+    MJLeftNavContentComponent,
+    MJPageBodyComponent,
+    MJPageHeaderComponent,
+    MJPageLayoutComponent,
+    MJPageSearchComponent,
+    MJRefreshButtonComponent,
+    MJStatBadgeComponent,
+    MJViewToggleComponent,
+    type FilterFieldConfig,
+    type MJLeftNavItem,
+    type MJLeftNavSection,
+    type ViewToggleOption,
+} from '@memberjunction/ng-ui-components';
+import {
+    TaskCommandPaletteComponent,
+    type TaskCommandPaletteItem,
+} from '@mj-biz-apps/tasks-ng-widgets';
 import { ResolveCurrentPersonID } from '../current-person';
 import { OpenTaskRecord } from '../open-task-record';
-import { TaskListComponent } from '../components/task-list/task-list.component';
-import { TaskKanbanComponent } from '../components/task-kanban/task-kanban.component';
-import { TaskGanttComponent } from '../components/task-gantt/task-gantt.component';
 import { TaskDetailPanelComponent } from '../components/task-detail-panel/task-detail-panel.component';
+import { TaskDrawerShellComponent } from '../components/task-drawer-shell/task-drawer-shell.component';
 import { TaskEditPanelComponent } from '../components/task-edit-panel/task-edit-panel.component';
+import { TaskGanttComponent } from '../components/task-gantt/task-gantt.component';
+import { TaskKanbanComponent } from '../components/task-kanban/task-kanban.component';
+import { TaskListComponent } from '../components/task-list/task-list.component';
+import type { TaskViewMode } from '../components/task-panel/task-panel.component';
 import { TaskTemplateWizardComponent } from '../components/task-template-wizard/task-template-wizard.component';
-import { TaskViewMode } from '../components/task-panel/task-panel.component';
-import { MJViewToggleComponent, ViewToggleOption } from '@memberjunction/ng-ui-components';
 
 export type { TaskViewMode };
 export type TasksDashboardPanelMode = 'none' | 'detail' | 'edit' | 'template';
@@ -19,6 +48,7 @@ export type TasksDashboardPanelMode = 'none' | 'detail' | 'edit' | 'template';
 export interface TaskCategoryOption {
     ID: string;
     Name: string;
+    ParentID: string | null;
 }
 
 export interface TaskKPIs {
@@ -29,335 +59,249 @@ export interface TaskKPIs {
     AvgPercentComplete: number;
 }
 
+const VIEW_MODE_SETTING = 'mj.tasks.dashboardViewMode.v1';
+const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
+
 /**
- * Tasks Dashboard Page — central task management workspace combining
- * interactive Gantt timeline scheduling, Kanban workflow boards, and structured list grids.
+ * Projects & All Work Dashboard Page — official MJ Chrome Trio
+ * (`<mj-page-layout>` + `<mj-page-header>` + `<mj-page-body>`) + collapsible
+ * `<mj-left-nav>` Category rail (auto mobile drawer on <=700px) + unified
+ * filtered List / 4-Mode Smart Board / Critical-Path Split Gantt + Mobile Milestone Stack.
  */
 @Component({
     selector: 'bizapps-tasks-dashboard-page',
     standalone: true,
     imports: [
-        CommonModule,
-        FormsModule,
+        MJPageLayoutComponent,
+        MJPageHeaderComponent,
+        MJPageBodyComponent,
+        MJPageSearchComponent,
+        MJFilterPopoverComponent,
+        MJFilterPanelComponent,
+        MJRefreshButtonComponent,
+        MJStatBadgeComponent,
+        MJViewToggleComponent,
+        MJLeftNavComponent,
+        MJLeftNavContentComponent,
+        MJButtonDirective,
         TaskListComponent,
         TaskKanbanComponent,
         TaskGanttComponent,
         TaskDetailPanelComponent,
         TaskEditPanelComponent,
         TaskTemplateWizardComponent,
-        MJViewToggleComponent,
+        TaskDrawerShellComponent,
+        TaskCommandPaletteComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-        <div class="mjt-dashboard">
-            <!-- 1. Header Toolbar & Quick Stats -->
-            <div class="mjt-header-card">
-                <div class="mjt-header-top">
-                    <div class="mjt-identity">
-                        <div class="mjt-avatar">
-                            <i class="fa-solid fa-list-check" aria-hidden="true"></i>
-                        </div>
-                        <div class="mjt-title-area">
-                            <h1 class="mjt-title">Task Management &amp; Scheduling</h1>
-                            <p class="mjt-subtitle">Deliverable tracking, Kanban board workflows, and Gantt timeline scheduling.</p>
-                        </div>
-                    </div>
-
-                    <div class="mjt-actions-strip">
-                        <!-- View Toggle -->
-                        <mj-view-toggle
-                            [Options]="ViewToggleOptions"
-                            [ActiveKey]="ViewMode"
-                            (KeyChange)="onViewToggleChange($event)">
-                        </mj-view-toggle>
-
-                        <button type="button" class="mjt-btn-secondary" (click)="OpenPanel('template')">
-                            <i class="fa-solid fa-copy"></i> From Template
-                        </button>
-                        <button type="button" class="mjt-btn-primary" (click)="OpenPanel('edit', null)">
-                            <i class="fa-solid fa-plus"></i> New Task
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Live KPI Stat Strip -->
-                <div class="mjt-kpi-bar">
-                    <div class="mjt-kpi-tile">
-                        <span class="mjt-kpi-label">Active Tasks</span>
-                        <span class="mjt-kpi-val">{{ KPIs.TotalActive }}</span>
-                    </div>
-                    <div class="mjt-kpi-tile">
-                        <span class="mjt-kpi-label">In Progress</span>
-                        <span class="mjt-kpi-val mjt-val--blue">{{ KPIs.InProgress }}</span>
-                    </div>
-                    <div class="mjt-kpi-tile">
-                        <span class="mjt-kpi-label">Blocked</span>
-                        <span class="mjt-kpi-val" [class.mjt-val--red]="KPIs.Blocked > 0">{{ KPIs.Blocked }}</span>
-                    </div>
-                    <div class="mjt-kpi-tile">
-                        <span class="mjt-kpi-label">Overdue</span>
-                        <span class="mjt-kpi-val" [class.mjt-val--amber]="KPIs.Overdue > 0">{{ KPIs.Overdue }}</span>
-                    </div>
-                    <div class="mjt-kpi-tile">
-                        <span class="mjt-kpi-label">Avg Completion</span>
-                        <span class="mjt-kpi-val mjt-val--green">{{ KPIs.AvgPercentComplete }}%</span>
-                    </div>
-                </div>
-
-                <!-- Secondary Filter Bar -->
-                <div class="mjt-filter-bar">
-                    <div class="mjt-filter-item">
-                        <label class="mjt-filter-label"><i class="fa-solid fa-folder-tree"></i> Category</label>
-                        <select class="mjt-filter-select" [(ngModel)]="SelectedCategoryID" (ngModelChange)="OnCategoryChanged()">
-                            <option [ngValue]="null">All Categories</option>
-                            @for (cat of Categories; track cat.ID) {
-                                <option [value]="cat.ID">{{ cat.Name }}</option>
-                            }
-                        </select>
-                    </div>
-
-                    @if (SelectedCategoryID) {
-                        <button type="button" class="mjt-btn-clear" (click)="ClearCategoryFilter()">
-                            <i class="fa-solid fa-xmark"></i> Clear Category
-                        </button>
+        <mj-page-layout>
+            <mj-page-header
+                Title="Projects & All Work"
+                Icon="fa-solid fa-list-check"
+                Subtitle="Hierarchical tree lists, workflow boards, and critical-path Gantt timelines.">
+                <div meta>
+                    <mj-stat-badge
+                        [Count]="KPIs.TotalActive"
+                        Label="active">
+                    </mj-stat-badge>
+                    @if (KPIs.Overdue > 0) {
+                        <mj-stat-badge
+                            [Count]="KPIs.Overdue"
+                            Label="overdue"
+                            Variant="error">
+                        </mj-stat-badge>
+                    }
+                    @if (KPIs.Blocked > 0) {
+                        <mj-stat-badge
+                            [Count]="KPIs.Blocked"
+                            Label="blocked"
+                            Variant="warning">
+                        </mj-stat-badge>
                     }
                 </div>
-            </div>
 
-            <!-- 2. Workspace View Body -->
-            <div class="mjt-body-card">
-                @if (ViewMode === 'gantt') {
-                    <bizapps-task-gantt
-                        #taskGantt
-                        [CategoryID]="SelectedCategoryID"
-                        [Height]="'calc(100vh - 340px)'"
-                        (TaskDoubleClicked)="OpenPanel('detail', $event)">
-                    </bizapps-task-gantt>
-                }
-                @if (ViewMode === 'kanban') {
-                    <bizapps-task-kanban
-                        #taskKanban
-                        [CategoryID]="SelectedCategoryID"
-                        (TaskClicked)="OpenPanel('detail', $event)"
-                        (TaskDoubleClicked)="OpenFullRecord($event)">
-                    </bizapps-task-kanban>
-                }
-                @if (ViewMode === 'list') {
-                    <bizapps-task-list
-                        #taskList
-                        [CategoryID]="SelectedCategoryID"
-                        [ShowCreateButton]="false"
-                        (AfterTaskSelected)="OpenPanel('detail', $event.ID)"
-                        (TaskDoubleClicked)="OpenFullRecord($event.ID)"
-                        (CreateTask)="OpenPanel('edit', null)">
-                    </bizapps-task-list>
-                }
-            </div>
+                <div actions>
+                    <mj-refresh-button [Loading]="Loading" (Clicked)="RefreshAll()" />
+                    <button type="button" mjButton variant="outline" size="sm" (click)="ShowCmdK = true" title="Tasks Quick Jump (Cmd/Ctrl+J)" aria-label="Tasks Quick Jump">
+                        <i class="fa-solid fa-terminal" aria-hidden="true"></i>
+                        <span class="action-btn-label">⌘J</span>
+                    </button>
+                    <button type="button" mjButton variant="outline" size="sm" (click)="OpenPanel('template')" title="Create from Template" aria-label="From Template">
+                        <i class="fa-solid fa-copy" aria-hidden="true"></i>
+                        <span class="action-btn-label">From Template</span>
+                    </button>
+                    <button type="button" mjButton variant="primary" size="sm" (click)="OpenPanel('edit', null)" title="Create New Task" aria-label="New Task">
+                        <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                        <span class="action-btn-label">New Task</span>
+                    </button>
+                </div>
 
-            <!-- 3. Slide-in Side Drawer Overlay -->
-            @if (PanelMode !== 'none') {
-                <div class="mjt-panel-backdrop" (click)="ClosePanel()"></div>
-                <aside class="mjt-side-panel">
-                    @if (PanelMode === 'detail') {
-                        <bizapps-task-detail-panel
-                            [TaskID]="SelectedTaskID"
-                            [PersonID]="CurrentPersonID"
-                            [ShowDelete]="true"
-                            (EditRequested)="OpenPanel('edit', $event)"
-                            (OpenRecordRequested)="OpenFullRecord($event)"
-                            (DeleteRequested)="OnTaskDeleted()"
-                            (Close)="ClosePanel()">
-                        </bizapps-task-detail-panel>
-                    }
-                    @if (PanelMode === 'edit') {
-                        <bizapps-task-edit-panel
-                            [TaskID]="SelectedTaskID"
-                            [DefaultCategoryID]="SelectedCategoryID"
-                            (Saved)="OnTaskSaved($event)"
-                            (Cancel)="ClosePanel()">
-                        </bizapps-task-edit-panel>
-                    }
-                    @if (PanelMode === 'template') {
-                        <bizapps-task-template-wizard
-                            [DefaultCategoryID]="SelectedCategoryID"
-                            (Created)="OnTemplateCreated($event)"
-                            (Cancelled)="ClosePanel()">
-                        </bizapps-task-template-wizard>
-                    }
-                </aside>
+                <div toolbar>
+                    <mj-page-search
+                        Placeholder="Search tasks across projects..."
+                        [Value]="SearchText"
+                        (ValueChange)="SearchText = $event; cdr.markForCheck()">
+                    </mj-page-search>
+
+                    <mj-filter-popover
+                        Label="Filters"
+                        Icon="fa-solid fa-filter"
+                        [ActiveCount]="ActiveFilterCount"
+                        [ShowClearAll]="ActiveFilterCount > 0"
+                        (ClearAllRequested)="ResetFilters()">
+                        <mj-filter-panel
+                            [Fields]="FilterFields"
+                            [Values]="FilterValues"
+                            (ValuesChange)="OnFilterValuesChange($event)"
+                            (Reset)="ResetFilters()">
+                        </mj-filter-panel>
+                    </mj-filter-popover>
+
+                    <mj-view-toggle
+                        [Options]="ViewToggleOptions"
+                        [ActiveKey]="ViewMode"
+                        (KeyChange)="onViewToggleChange($event)">
+                    </mj-view-toggle>
+                </div>
+            </mj-page-header>
+
+            <mj-page-body [Padding]="false" [Flex]="true" Direction="row">
+                <mj-left-nav
+                    [Sections]="CategoryNavSections"
+                    [ActiveId]="SelectedCategoryID ?? '__all__'"
+                    [Width]="224"
+                    [Collapsible]="true"
+                    [Collapsed]="RailCollapsed"
+                    MobileTitle="Categories"
+                    (CollapsedChange)="OnRailCollapsedChange($event)"
+                    (ItemClicked)="OnCategoryNavClicked($event)">
+                </mj-left-nav>
+
+                <mj-left-nav-content>
+                    <div class="mjt-proj-stage">
+                        @if (ViewMode === 'list') {
+                            <bizapps-task-list
+                                #taskList
+                                [CategoryID]="SelectedCategoryID"
+                                [SearchText]="SearchText"
+                                [StatusFilter]="StatusFilterValue"
+                                [PriorityFilter]="PriorityFilterValue"
+                                [TypeIDFilter]="TypeFilterValue"
+                                [HideToolbar]="true"
+                                [ShowCreateButton]="false"
+                                [ShowQuickAdd]="true"
+                                (AfterTaskSelected)="OpenPanel('detail', $event.ID)"
+                                (TaskDoubleClicked)="OpenFullRecord($event.ID)"
+                                (AfterTaskCreated)="LoadKPIs()"
+                                (CreateTask)="OpenPanel('edit', null)">
+                            </bizapps-task-list>
+                        }
+                        @if (ViewMode === 'kanban') {
+                            <bizapps-task-kanban
+                                #taskKanban
+                                [CategoryID]="SelectedCategoryID"
+                                [SearchText]="SearchText"
+                                [PriorityFilter]="PriorityFilterValue"
+                                [TypeIDFilter]="TypeFilterValue"
+                                (TaskClicked)="OpenPanel('detail', $event)"
+                                (TaskDoubleClicked)="OpenFullRecord($event)"
+                                (AfterStatusChange)="LoadKPIs()">
+                            </bizapps-task-kanban>
+                        }
+                        @if (ViewMode === 'gantt') {
+                            <bizapps-task-gantt
+                                #taskGantt
+                                [CategoryID]="SelectedCategoryID"
+                                [SearchText]="SearchText"
+                                [PriorityFilter]="PriorityFilterValue"
+                                [TypeIDFilter]="TypeFilterValue"
+                                [Height]="'calc(100vh - 250px)'"
+                                (TaskClicked)="OpenPanel('detail', $event)"
+                                (TaskDoubleClicked)="OpenFullRecord($event)">
+                            </bizapps-task-gantt>
+                        }
+                    </div>
+                </mj-left-nav-content>
+            </mj-page-body>
+        </mj-page-layout>
+
+        <!-- Responsive Slide-Over / Mobile Bottom Sheet -->
+        <bizapps-task-drawer-shell
+            [Visible]="PanelMode !== 'none'"
+            [Title]="DrawerTitle"
+            (Closed)="ClosePanel()">
+            @if (PanelMode === 'detail' && SelectedTaskID) {
+                <bizapps-task-detail-panel
+                    [TaskID]="SelectedTaskID"
+                    [PersonID]="CurrentPersonID"
+                    [ShowDelete]="true"
+                    (EditRequested)="OpenPanel('edit', $event)"
+                    (OpenRecordRequested)="OpenFullRecord($event)"
+                    (TaskMutated)="OnTaskMutated()"
+                    (DeleteRequested)="OnTaskDeleted()"
+                    (Close)="ClosePanel()">
+                </bizapps-task-detail-panel>
             }
-        </div>
+            @if (PanelMode === 'edit') {
+                <bizapps-task-edit-panel
+                    [TaskID]="SelectedTaskID"
+                    [DefaultCategoryID]="SelectedCategoryID"
+                    (Saved)="OnTaskSaved($event)"
+                    (Cancel)="ClosePanel()">
+                </bizapps-task-edit-panel>
+            }
+            @if (PanelMode === 'template') {
+                <bizapps-task-template-wizard
+                    [DefaultCategoryID]="SelectedCategoryID"
+                    (Created)="OnTemplateCreated($event)"
+                    (Cancelled)="ClosePanel()">
+                </bizapps-task-template-wizard>
+            }
+        </bizapps-task-drawer-shell>
+
+        <!-- Command Palette (Cmd/Ctrl+K) -->
+        <mjt-command-palette
+            [Visible]="ShowCmdK"
+            [Items]="CommandItems"
+            (ItemSelected)="OnCommandSelected($event)"
+            (Closed)="ShowCmdK = false">
+        </mjt-command-palette>
     `,
     styles: [`
         :host { display: block; width: 100%; height: 100%; }
-        .mjt-dashboard { display: flex; flex-direction: column; gap: 16px; padding: 16px; min-width: 0; box-sizing: border-box; }
-
-        /* Header Card */
-        .mjt-header-card {
-            background: var(--mj-bg-surface-card, #ffffff);
-            border: 1px solid var(--mj-border-default, #e2e8f0);
-            border-radius: var(--mj-radius-lg, 12px);
-            padding: 16px 20px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-        }
-
-        .mjt-header-top {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            flex-wrap: wrap;
-        }
-
-        .mjt-identity {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-        }
-
-        .mjt-avatar {
-            width: 48px;
-            height: 48px;
-            border-radius: var(--mj-radius-md, 8px);
-            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-            color: #ffffff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            box-shadow: 0 4px 10px rgba(2, 132, 199, 0.25);
-            flex-shrink: 0;
-        }
-
-        .mjt-title-area { display: flex; flex-direction: column; gap: 2px; }
-        .mjt-title { margin: 0; font-size: 18px; font-weight: 700; color: var(--mj-text-primary, #0f172a); }
-        .mjt-subtitle { margin: 0; font-size: 12px; color: var(--mj-text-muted, #64748b); }
-
-        .mjt-actions-strip { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-
-        .mjt-btn-primary {
-            padding: 6px 14px;
-            border-radius: var(--mj-radius-sm, 6px);
-            border: none;
-            background: var(--mj-brand-primary, #0076b6);
-            color: #ffffff;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            box-shadow: 0 2px 4px rgba(0, 118, 182, 0.25);
-        }
-
-        .mjt-btn-secondary {
-            padding: 6px 12px;
-            border-radius: var(--mj-radius-sm, 6px);
-            border: 1px solid var(--mj-border-default, #cbd5e1);
-            background: var(--mj-bg-surface-card, #ffffff);
-            color: var(--mj-text-secondary, #475569);
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        /* KPI Bar */
-        .mjt-kpi-bar {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 12px;
-            padding-top: 12px;
-            border-top: 1px solid var(--mj-border-default, #e2e8f0);
-        }
-
-        .mjt-kpi-tile { display: flex; flex-direction: column; gap: 2px; }
-        .mjt-kpi-label { font-size: 11px; font-weight: 600; color: var(--mj-text-muted, #64748b); text-transform: uppercase; letter-spacing: 0.04em; }
-        .mjt-kpi-val { font-size: 15px; font-weight: 700; font-family: var(--mj-font-mono, monospace); color: var(--mj-text-primary, #0f172a); }
-        .mjt-val--blue { color: #0284c7; }
-        .mjt-val--green { color: #16a34a; }
-        .mjt-val--amber { color: #d97706; }
-        .mjt-val--red { color: #dc2626; }
-
-        /* Secondary Filter Bar */
-        .mjt-filter-bar {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding-top: 10px;
-            border-top: 1px dashed var(--mj-border-default, #e2e8f0);
-            flex-wrap: wrap;
-        }
-
-        .mjt-filter-item { display: flex; align-items: center; gap: 6px; font-size: 12px; }
-        .mjt-filter-label { font-weight: 600; color: var(--mj-text-muted, #64748b); display: flex; align-items: center; gap: 4px; }
-        .mjt-filter-select {
-            padding: 4px 8px;
-            font-size: 12px;
-            border: 1px solid var(--mj-border-default, #cbd5e1);
-            border-radius: var(--mj-radius-sm, 6px);
-            background: var(--mj-bg-surface-card, #ffffff);
-            color: var(--mj-text-primary, #0f172a);
-        }
-
-        .mjt-btn-clear {
-            padding: 3px 8px;
-            font-size: 11px;
-            color: var(--mj-text-muted, #64748b);
-            background: transparent;
-            border: 1px dashed var(--mj-border-default, #cbd5e1);
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        /* Body Card */
-        .mjt-body-card {
-            background: var(--mj-bg-surface-card, #ffffff);
-            border: 1px solid var(--mj-border-default, #e2e8f0);
-            border-radius: var(--mj-radius-lg, 12px);
+        .mjt-proj-stage {
             padding: 16px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
             min-width: 0;
-            display: flex;
-            flex-direction: column;
-            min-height: calc(100vh - 340px);
+            width: 100%;
+            box-sizing: border-box;
         }
-
-        /* Slide-in Side Drawer */
-        .mjt-panel-backdrop {
-            position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45);
-            z-index: 999; animation: fadeIn 0.15s ease;
+        @media (max-width: 640px) {
+            .mjt-proj-stage { padding: 12px; }
         }
-        .mjt-side-panel {
-            position: fixed; top: 0; right: 0; bottom: 0;
-            width: 540px; max-width: 90vw;
-            background: var(--mj-bg-surface-card, #ffffff); z-index: 1000;
-            box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
-            overflow-y: auto;
-            animation: slideIn 0.2s ease;
-        }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
-    `]
+    `],
 })
 export class TasksDashboardPageComponent implements OnInit {
     public ViewToggleOptions: ViewToggleOption[] = [
-        { key: 'gantt', icon: 'fa-solid fa-chart-gantt', label: 'Timeline', title: 'Timeline View' },
-        { key: 'kanban', icon: 'fa-solid fa-table-columns', label: 'Board', title: 'Board View' },
-        { key: 'list', icon: 'fa-solid fa-list', label: 'List', title: 'List View' },
+        { key: 'list', icon: 'fa-solid fa-list', label: 'List', title: 'Tree List View' },
+        { key: 'kanban', icon: 'fa-solid fa-table-columns', label: 'Board', title: 'Smart Board View' },
+        { key: 'gantt', icon: 'fa-solid fa-chart-gantt', label: 'Timeline', title: 'Gantt Timeline View' },
     ];
-    public ViewMode: TaskViewMode = 'gantt';
+    public ViewMode: TaskViewMode = 'list';
     public PanelMode: TasksDashboardPanelMode = 'none';
     public SelectedTaskID: string | null = null;
     public SelectedCategoryID: string | null = null;
     public CurrentPersonID: string | null = null;
+    public RailCollapsed = false;
+    public Loading = false;
+    public SearchText = '';
+    public ShowCmdK = false;
 
     public Categories: TaskCategoryOption[] = [];
+    public CategoryNavSections: MJLeftNavSection[] = [];
+    public TaskTypes: { ID: string; Name: string }[] = [];
+    public FilterValues: Record<string, unknown> = { status: null, priority: null, typeId: null };
+    public FilterFields: FilterFieldConfig[] = [];
     public KPIs: TaskKPIs = {
         TotalActive: 0,
         InProgress: 0,
@@ -366,110 +310,280 @@ export class TasksDashboardPageComponent implements OnInit {
         AvgPercentComplete: 0,
     };
 
-    @ViewChild('taskGantt') taskGantt?: TaskGanttComponent;
-    @ViewChild('taskKanban') taskKanban?: TaskKanbanComponent;
-    @ViewChild('taskList') taskList?: TaskListComponent;
+    @ViewChild('taskGantt') public taskGantt?: TaskGanttComponent;
+    @ViewChild('taskKanban') public taskKanban?: TaskKanbanComponent;
+    @ViewChild('taskList') public taskList?: TaskListComponent;
 
-    private cdr = inject(ChangeDetectorRef);
+    public cdr = inject(ChangeDetectorRef);
+    private categoryCounts = new Map<string, number>();
+
+    @HostListener('window:keydown', ['$event'])
+    public onGlobalKeydown(event: KeyboardEvent): void {
+        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'j') {
+            event.preventDefault();
+            this.ShowCmdK = !this.ShowCmdK;
+            this.cdr.markForCheck();
+        }
+    }
+
+    public get DrawerTitle(): string {
+        if (this.PanelMode === 'edit') return this.SelectedTaskID ? 'Edit Task' : 'New Task';
+        if (this.PanelMode === 'template') return 'Launch Playbook Template';
+        return 'Task Inspector';
+    }
+
+    public get StatusFilterValue(): string | null {
+        return (this.FilterValues['status'] as string | null) ?? null;
+    }
+
+    public get PriorityFilterValue(): string | null {
+        return (this.FilterValues['priority'] as string | null) ?? null;
+    }
+
+    public get TypeFilterValue(): string | null {
+        return (this.FilterValues['typeId'] as string | null) ?? null;
+    }
+
+    public get ActiveFilterCount(): number {
+        let count = 0;
+        if (this.FilterValues['status']) count++;
+        if (this.FilterValues['priority']) count++;
+        if (this.FilterValues['typeId']) count++;
+        return count;
+    }
+
+    public get CommandItems(): TaskCommandPaletteItem[] {
+        return [
+            { ID: 'new-task', Label: 'Create New Task', Group: 'Actions', IconClass: 'fa-solid fa-plus' },
+            { ID: 'from-template', Label: 'Launch from Template', Group: 'Actions', IconClass: 'fa-solid fa-copy' },
+            { ID: 'view-list', Label: 'Switch to Tree List View', Group: 'Views', IconClass: 'fa-solid fa-list' },
+            { ID: 'view-kanban', Label: 'Switch to Smart Board View', Group: 'Views', IconClass: 'fa-solid fa-table-columns' },
+            { ID: 'view-gantt', Label: 'Switch to Timeline / Gantt View', Group: 'Views', IconClass: 'fa-solid fa-chart-gantt' },
+            { ID: 'reset-filters', Label: 'Clear All Filters', Group: 'Actions', IconClass: 'fa-solid fa-filter-circle-xmark' },
+        ];
+    }
 
     public OpenFullRecord(taskID: string | null): void {
         OpenTaskRecord(taskID);
     }
 
-    async ngOnInit(): Promise<void> {
+    public async ngOnInit(): Promise<void> {
+        const savedView = UserInfoEngine.Instance.GetSetting(VIEW_MODE_SETTING);
+        if (savedView === 'list' || savedView === 'kanban' || savedView === 'gantt') {
+            this.ViewMode = savedView;
+        }
+        const savedRail = UserInfoEngine.Instance.GetSetting(RAIL_COLLAPSED_SETTING);
+        if (savedRail === 'true') {
+            this.RailCollapsed = true;
+        }
+
         const [personID] = await Promise.all([
-            // The dashboard works without a Person ID, so a failed lookup only drops it.
             ResolveCurrentPersonID().catch((err) => {
                 LogError(err);
                 return null;
             }),
-            this.LoadCategories(),
+            this.LoadCategoriesAndTypes(),
             this.LoadKPIs(),
         ]);
         this.CurrentPersonID = personID;
+        this.buildCategoryNav();
+        this.buildFilterFields();
         this.cdr.markForCheck();
     }
 
     public SetView(mode: TaskViewMode): void {
         this.ViewMode = mode;
+        UserInfoEngine.Instance.SetSettingDebounced(VIEW_MODE_SETTING, mode);
         this.cdr.markForCheck();
     }
 
-    /** @internal */
     public onViewToggleChange(key: string): void {
         this.SetView(key as TaskViewMode);
     }
 
-    public async LoadCategories(): Promise<void> {
-        try {
-            const rv = new RunView();
-            const res = await rv.RunView<TaskCategoryOption>({
+    public OnRailCollapsedChange(collapsed: boolean): void {
+        this.RailCollapsed = collapsed;
+        UserInfoEngine.Instance.SetSettingDebounced(RAIL_COLLAPSED_SETTING, String(collapsed));
+        this.cdr.markForCheck();
+    }
+
+    public OnCategoryNavClicked(item: MJLeftNavItem): void {
+        this.SelectedCategoryID = item.id === '__all__' ? null : item.id;
+        this.OnCategoryChanged();
+    }
+
+    public OnFilterValuesChange(values: Record<string, unknown>): void {
+        this.FilterValues = { ...values };
+        this.cdr.markForCheck();
+    }
+
+    public ResetFilters(): void {
+        this.FilterValues = { status: null, priority: null, typeId: null };
+        this.SearchText = '';
+        this.cdr.markForCheck();
+    }
+
+    public async RefreshAll(): Promise<void> {
+        await Promise.all([this.LoadCategoriesAndTypes(), this.LoadKPIs()]);
+        this.buildCategoryNav();
+        this.RefreshActiveView();
+    }
+
+    private async LoadCategoriesAndTypes(): Promise<void> {
+        const [catsRes, typesRes] = await Promise.all([
+            new RunView().RunView<TaskCategoryOption>({
                 EntityName: 'MJ_BizApps_Tasks: Task Categories',
+                ExtraFilter: 'IsActive = 1',
+                OrderBy: 'Sequence ASC, Name ASC',
+                ResultType: 'simple',
+            }),
+            new RunView().RunView<{ ID: string; Name: string }>({
+                EntityName: 'MJ_BizApps_Tasks: Task Types',
+                ExtraFilter: 'IsActive = 1',
                 OrderBy: 'Name ASC',
                 ResultType: 'simple',
-            });
-            if (res.Success && res.Results) {
-                this.Categories = res.Results;
-            }
-        } catch {
-            // ignore
-        }
+            }),
+        ]);
+        this.Categories = catsRes?.Results ?? [];
+        this.TaskTypes = typesRes?.Results ?? [];
     }
 
     public async LoadKPIs(): Promise<void> {
+        this.Loading = true;
+        this.cdr.markForCheck();
         try {
-            const rv = new RunView();
-            const filter = this.SelectedCategoryID ? `CategoryID = '${this.SelectedCategoryID}'` : undefined;
-            const res = await rv.RunView<{
+            const res = await new RunView().RunView<{
                 Status: string;
                 DueAt: string | null;
                 PercentComplete: number;
+                CategoryID: string | null;
             }>({
                 EntityName: 'MJ_BizApps_Tasks: Tasks',
-                ExtraFilter: filter,
+                Fields: ['Status', 'DueAt', 'PercentComplete', 'CategoryID'],
                 ResultType: 'simple',
                 MaxRows: 1000,
+                BypassCache: true,
             });
 
-            if (res.Success && res.Results) {
-                const now = new Date();
-                let active = 0;
-                let inProg = 0;
-                let blocked = 0;
-                let overdue = 0;
-                let totalPct = 0;
+            const rows = res?.Results ?? [];
+            const now = new Date();
+            this.categoryCounts.clear();
 
-                for (const t of res.Results) {
-                    if (t.Status !== 'Cancelled' && t.Status !== 'Completed') {
-                        active++;
-                        totalPct += (t.PercentComplete ?? 0);
-                        if (t.Status === 'InProgress') inProg++;
-                        if (t.Status === 'Blocked') blocked++;
-                        if (t.DueAt && new Date(t.DueAt) < now) overdue++;
-                    }
+            let active = 0;
+            let inProg = 0;
+            let blocked = 0;
+            let overdue = 0;
+            let totalPct = 0;
+
+            for (const t of rows) {
+                const isActive = t.Status !== 'Cancelled' && t.Status !== 'Completed';
+                if (isActive && t.CategoryID) {
+                    const k = t.CategoryID.toLowerCase();
+                    this.categoryCounts.set(k, (this.categoryCounts.get(k) ?? 0) + 1);
                 }
-
-                this.KPIs = {
-                    TotalActive: active,
-                    InProgress: inProg,
-                    Blocked: blocked,
-                    Overdue: overdue,
-                    AvgPercentComplete: active > 0 ? Math.round(totalPct / active) : 0,
-                };
+                if (this.SelectedCategoryID && t.CategoryID?.toLowerCase() !== this.SelectedCategoryID.toLowerCase()) {
+                    continue;
+                }
+                if (isActive) {
+                    active++;
+                    totalPct += t.PercentComplete ?? 0;
+                    if (t.Status === 'InProgress') inProg++;
+                    if (t.Status === 'Blocked') blocked++;
+                    if (t.DueAt && new Date(t.DueAt) < now) overdue++;
+                }
             }
+
+            this.KPIs = {
+                TotalActive: active,
+                InProgress: inProg,
+                Blocked: blocked,
+                Overdue: overdue,
+                AvgPercentComplete: active > 0 ? Math.round(totalPct / active) : 0,
+            };
+            this.buildCategoryNav();
         } finally {
+            this.Loading = false;
             this.cdr.markForCheck();
         }
     }
 
-    public OnCategoryChanged(): void {
-        this.LoadKPIs();
-        this.RefreshActiveView();
+    private buildCategoryNav(): void {
+        let totalActive = 0;
+        for (const n of this.categoryCounts.values()) totalActive += n;
+
+        const catItems: MJLeftNavItem[] = this.Categories.map((c) => {
+            const count = this.categoryCounts.get(c.ID.toLowerCase()) ?? 0;
+            return {
+                id: c.ID,
+                label: c.Name,
+                icon: 'fa-solid fa-folder',
+                badge: count > 0 ? count : undefined,
+            };
+        });
+
+        this.CategoryNavSections = [
+            {
+                label: 'Scope',
+                items: [
+                    {
+                        id: '__all__',
+                        label: 'All Work',
+                        icon: 'fa-solid fa-layer-group',
+                        badge: this.KPIs.TotalActive > 0 ? this.KPIs.TotalActive : (totalActive || undefined),
+                    },
+                ],
+            },
+            ...(catItems.length > 0 ? [{ label: 'Categories', items: catItems }] : []),
+        ];
     }
 
-    public ClearCategoryFilter(): void {
-        this.SelectedCategoryID = null;
-        this.OnCategoryChanged();
+    private buildFilterFields(): void {
+        this.FilterFields = [
+            {
+                key: 'status',
+                type: 'dropdown',
+                label: 'Status',
+                icon: 'fa-solid fa-circle-dot',
+                placeholder: 'All statuses',
+                options: [
+                    { text: 'All statuses', value: null },
+                    { text: 'Open', value: 'Open' },
+                    { text: 'In Progress', value: 'InProgress' },
+                    { text: 'Blocked', value: 'Blocked' },
+                    { text: 'Completed', value: 'Completed' },
+                ],
+            },
+            {
+                key: 'priority',
+                type: 'dropdown',
+                label: 'Priority',
+                icon: 'fa-solid fa-flag',
+                placeholder: 'All priorities',
+                options: [
+                    { text: 'All priorities', value: null },
+                    { text: 'Critical', value: 'Critical' },
+                    { text: 'High', value: 'High' },
+                    { text: 'Medium', value: 'Medium' },
+                    { text: 'Low', value: 'Low' },
+                ],
+            },
+            {
+                key: 'typeId',
+                type: 'dropdown',
+                label: 'Task Type',
+                icon: 'fa-solid fa-shapes',
+                placeholder: 'All task types',
+                options: [
+                    { text: 'All task types', value: null },
+                    ...this.TaskTypes.map((t) => ({ text: t.Name, value: t.ID })),
+                ],
+            },
+        ];
+    }
+
+    public OnCategoryChanged(): void {
+        void this.LoadKPIs();
+        this.RefreshActiveView();
     }
 
     public OpenPanel(mode: TasksDashboardPanelMode, taskID: string | null = null): void {
@@ -484,8 +598,13 @@ export class TasksDashboardPageComponent implements OnInit {
         this.cdr.markForCheck();
     }
 
-    public async OnTaskSaved(taskID: string): Promise<void> {
+    public async OnTaskSaved(_taskID: string): Promise<void> {
         this.ClosePanel();
+        await this.LoadKPIs();
+        this.RefreshActiveView();
+    }
+
+    public async OnTaskMutated(): Promise<void> {
         await this.LoadKPIs();
         this.RefreshActiveView();
     }
@@ -496,16 +615,27 @@ export class TasksDashboardPageComponent implements OnInit {
         this.RefreshActiveView();
     }
 
-    public async OnTemplateCreated(result: unknown): Promise<void> {
+    public async OnTemplateCreated(_result: unknown): Promise<void> {
         this.ClosePanel();
         await this.LoadKPIs();
         this.RefreshActiveView();
     }
 
+    public OnCommandSelected(item: TaskCommandPaletteItem): void {
+        this.ShowCmdK = false;
+        if (item.ID === 'new-task') this.OpenPanel('edit', null);
+        else if (item.ID === 'from-template') this.OpenPanel('template');
+        else if (item.ID === 'view-list') this.SetView('list');
+        else if (item.ID === 'view-kanban') this.SetView('kanban');
+        else if (item.ID === 'view-gantt') this.SetView('gantt');
+        else if (item.ID === 'reset-filters') this.ResetFilters();
+        this.cdr.markForCheck();
+    }
+
     private RefreshActiveView(): void {
         this.taskGantt?.Refresh();
         this.taskKanban?.Refresh();
-        this.taskList?.Refresh();
+        void this.taskList?.Refresh();
         this.cdr.markForCheck();
     }
 }
