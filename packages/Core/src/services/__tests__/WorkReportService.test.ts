@@ -45,6 +45,8 @@ import {
     IsPrivilegedWorkReportUser,
     LoadPendingFieldSuggestionCountsForTasks,
     NormalizeReportPeriodWindow,
+    TASK_ACTIVITIES_ENTITY_NAME,
+    TASK_CHECK_INS_ENTITY_NAME,
     WorkReportService,
     type WorkReportProvider,
     type WorkReportViewModel,
@@ -1009,6 +1011,74 @@ describe('WorkReportService', () => {
             expect(outcome.Report?.Body).toBe('### Custom Author Markdown Body');
             expect(outcome.Items).toHaveLength(1);
             expect(surplusItem.Delete).toHaveBeenCalledTimes(1);
+        });
+
+        it('queries Task Check Ins (no hyphen) and Task Activities Description column when collecting activity', async () => {
+            expect(TASK_CHECK_INS_ENTITY_NAME).toBe('MJ_BizApps_Tasks: Task Check Ins');
+            expect(WorkReportService.Instance).toBe(WorkReportService.Instance);
+
+            runViewMock
+                // 1. Task assignments
+                .mockResolvedValueOnce({
+                    Success: true,
+                    Results: [{ TaskID: TASK_ACTIVE }],
+                })
+                // 2. Tasks
+                .mockResolvedValueOnce({
+                    Success: true,
+                    Results: [
+                        {
+                            ID: TASK_ACTIVE,
+                            Name: 'Implement RelatedRecordCollection',
+                            Status: 'InProgress',
+                            Priority: 'High',
+                            PercentComplete: 50,
+                            HoursActual: null,
+                            HealthStatus: 'OnTrack',
+                            ParentID: null,
+                            DueAt: null,
+                            CompletedAt: null,
+                            __mj_UpdatedAt: '2026-11-01T00:00:00.000Z',
+                        },
+                    ],
+                })
+                // 3. Task Check Ins (none)
+                .mockResolvedValueOnce({ Success: true, Results: [] })
+                // 4. Task Activities (with Description, not Summary)
+                .mockResolvedValueOnce({
+                    Success: true,
+                    Results: [
+                        {
+                            TaskID: TASK_ACTIVE,
+                            Description: 'Progress updated to 50%',
+                            ActivityType: 'PercentCompleteChanged',
+                            __mj_CreatedAt: '2026-11-09T16:00:00.000Z',
+                        },
+                    ],
+                });
+
+            const summary = await WorkReportService.Instance.GetPersonTaskActivityForWindow(
+                PERSON_ALICE,
+                new Date('2026-11-09T00:00:00.000Z'),
+                new Date('2026-11-09T23:59:59.999Z'),
+                aliceUser,
+                fakeProvider,
+            );
+
+            const checkInCall = runViewMock.mock.calls.find(
+                ([params]) => (params as RunViewParams).EntityName === 'MJ_BizApps_Tasks: Task Check Ins',
+            );
+            expect(checkInCall).toBeDefined();
+
+            const activityCall = runViewMock.mock.calls.find(
+                ([params]) => (params as RunViewParams).EntityName === TASK_ACTIVITIES_ENTITY_NAME,
+            );
+            expect(activityCall).toBeDefined();
+            expect((activityCall?.[0] as RunViewParams).Fields).toContain('Description');
+            expect((activityCall?.[0] as RunViewParams).Fields).not.toContain('Summary');
+
+            expect(summary.InProgress).toHaveLength(1);
+            expect(summary.InProgress[0].LatestCheckInSummary).toBe('Progress updated to 50%');
         });
     });
 });

@@ -8,8 +8,9 @@ import {
     RunView,
     UserInfo,
 } from '@memberjunction/core';
-import { BaseSingleton, EscapeSQLString, IsValidUUID, NormalizeUUID, UUIDsEqual } from '@memberjunction/global';
+import { BaseSingleton, EscapeSQLString, GetGlobalObjectStore, IsValidUUID, NormalizeUUID, UUIDsEqual } from '@memberjunction/global';
 import type {
+    mjBizAppsTasksTaskEntity,
     mjBizAppsTasksWorkReportEntity,
     mjBizAppsTasksWorkReportItemEntity,
 } from '@mj-biz-apps/tasks-entities';
@@ -26,7 +27,7 @@ export const REVIEW_WORK_REPORT_ACTION_ID = 'B880DABA-0FC1-4012-9C3B-92694D99985
 
 export const TASKS_ENTITY_NAME = 'MJ_BizApps_Tasks: Tasks';
 export const TASK_ASSIGNMENTS_ENTITY_NAME = 'MJ_BizApps_Tasks: Task Assignments';
-export const TASK_CHECK_INS_ENTITY_NAME = 'MJ_BizApps_Tasks: Task Check-Ins';
+export const TASK_CHECK_INS_ENTITY_NAME = 'MJ_BizApps_Tasks: Task Check Ins';
 export const TASK_ACTIVITIES_ENTITY_NAME = 'MJ_BizApps_Tasks: Task Activities';
 export const WORK_REPORTS_ENTITY_NAME = 'MJ_BizApps_Tasks: Work Reports';
 export const WORK_REPORT_ITEMS_ENTITY_NAME = 'MJ_BizApps_Tasks: Work Report Items';
@@ -235,11 +236,11 @@ interface RawTaskAssignmentRow {
 interface RawTaskRow {
     ID: string;
     Name: string;
-    Status: string;
-    Priority?: string | null;
+    Status: mjBizAppsTasksTaskEntity['Status'];
+    Priority?: mjBizAppsTasksTaskEntity['Priority'] | null;
     PercentComplete?: number | null;
     HoursActual?: number | null;
-    HealthStatus?: string | null;
+    HealthStatus?: mjBizAppsTasksTaskEntity['HealthStatus'];
     ParentID?: string | null;
     DueAt?: string | Date | null;
     CompletedAt?: string | Date | null;
@@ -255,7 +256,7 @@ interface RawCheckInRow {
 
 interface RawTaskActivityRow {
     TaskID: string;
-    Summary?: string | null;
+    Description?: string | null;
     ActivityType?: string | null;
     __mj_CreatedAt?: string | Date | null;
 }
@@ -694,12 +695,17 @@ export function BuildWorkReportsAgentContext(state: {
  * and resolving supervisor reporting lines across `MJ_BizApps_Common: People` and `MJ: Employees`.
  */
 export class WorkReportService extends BaseSingleton<WorkReportService> {
-    public constructor() {
+    protected constructor() {
         super();
     }
 
     public static get Instance(): WorkReportService {
-        return WorkReportService.getInstance<WorkReportService>();
+        const g = GetGlobalObjectStore();
+        const key = '___SINGLETON__WorkReportService';
+        if (g && g[key]) {
+            return g[key] as WorkReportService;
+        }
+        return new WorkReportService();
     }
 
     private createRunView(provider?: WorkReportProvider): RunView {
@@ -1313,7 +1319,7 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
                 {
                     EntityName: TASK_ACTIVITIES_ENTITY_NAME,
                     ExtraFilter: `TaskID IN (${inScopedTasks})`,
-                    Fields: ['TaskID', 'Summary', 'ActivityType', '__mj_CreatedAt'],
+                    Fields: ['TaskID', 'Description', 'ActivityType', '__mj_CreatedAt'],
                     OrderBy: '__mj_CreatedAt DESC',
                     ResultType: 'simple',
                 },
@@ -1323,7 +1329,7 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
 
         if (!checkInsRes.Success) {
             throw new Error(
-                `Failed to load Task Check-Ins for '${personID}': ${checkInsRes.ErrorMessage ?? 'RunView failed'}`,
+                `Failed to load Task Check Ins for '${personID}': ${checkInsRes.ErrorMessage ?? 'RunView failed'}`,
             );
         }
         if (!activitiesRes.Success) {
@@ -1350,7 +1356,7 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
             if (isTimestampWithinWindow(act.__mj_CreatedAt, startMs, endMs)) {
                 const key = NormalizeUUID(act.TaskID);
                 touchedInWindowTaskKeys.add(key);
-                const text = act.Summary?.trim() || null;
+                const text = act.Description?.trim() || null;
                 if (text && !latestSummaryByTaskKey.has(key)) {
                     latestSummaryByTaskKey.set(key, text);
                 }
@@ -1395,7 +1401,7 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
                 completed.push(entry);
             } else if (task.Status === 'Blocked') {
                 blockers.push(entry);
-            } else if (task.Status === 'InProgress' || task.Status === 'InReview') {
+            } else if (task.Status === 'InProgress') {
                 inProgress.push(entry);
             } else if (task.Status === 'Open') {
                 next.push(entry);
