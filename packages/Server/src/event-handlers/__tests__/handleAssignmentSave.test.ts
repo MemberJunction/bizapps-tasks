@@ -2,12 +2,11 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 type ViewParams = { EntityName: string; ExtraFilter?: string; Fields?: string[] };
 
-const { runView, runAction, saveNotification, resolveRoleUsers, notifiedUsers } = vi.hoisted(() => ({
+const { runView, runAction, sendNotification, resolveRoleUsers } = vi.hoisted(() => ({
   runView: vi.fn(),
   runAction: vi.fn(),
-  saveNotification: vi.fn(),
+  sendNotification: vi.fn(),
   resolveRoleUsers: vi.fn(),
-  notifiedUsers: [] as string[],
 }));
 
 const ROLES_ENTITY = 'roles-entity';
@@ -16,15 +15,7 @@ vi.mock('@memberjunction/core', () => ({
   BaseEntity: class { static BaseEventCode = 'BaseEntity'; },
   LogError: vi.fn(),
   LogStatus: vi.fn(),
-  Metadata: class {
-    GetEntityObject() {
-      return Promise.resolve({
-        NewRecord() {},
-        Set(field: string, value: string) { if (field === 'UserID') notifiedUsers.push(value); },
-        Save: saveNotification,
-      });
-    }
-  },
+  Metadata: class {},
   RunView: class { RunView = runView; },
   UserInfo: class {},
 }));
@@ -54,13 +45,20 @@ vi.mock('../../role-assignees.js', () => ({
   ResolveUserIDsForRoles: resolveRoleUsers,
   RoleName: (id: string) => (id === 'role-finance' ? 'Finance' : null),
 }));
+vi.mock('@memberjunction/notifications', () => ({
+  NotificationEngine: { Instance: { Config: vi.fn(), SendNotification: sendNotification } },
+}));
 vi.mock('@memberjunction/actions', () => ({
   ActionEngineServer: { Instance: { Config: vi.fn(), Actions: [{ ID: 'assign-action' }], RunAction: runAction } },
 }));
 
 import { handleAssignmentSave, handleEntityEvent } from '../TaskNotificationHandler.js';
 
+// Read as a simple row by the assignment notice and as an entity by the OnAssign hook.
 const task = {
+  Name: 'Approve discount',
+  Priority: 'High',
+  DueAt: null,
   Get: (field: string) => ({ ID: 'task-1', Name: 'Approve discount', Status: 'Open', TypeID: 'type-1' } as Record<string, string>)[field],
 };
 
@@ -98,9 +96,8 @@ const paramsPassed = () =>
 
 beforeEach(() => {
   vi.clearAllMocks();
-  notifiedUsers.length = 0;
   runAction.mockResolvedValue({ Success: true });
-  saveNotification.mockResolvedValue(true);
+  sendNotification.mockResolvedValue({ success: true });
 });
 
 describe('handleAssignmentSave', () => {
@@ -117,7 +114,22 @@ describe('handleAssignmentSave', () => {
       AssigneePersonID: 'person-1',
       AssigneeName: 'Pat Doe',
     });
-    expect(saveNotification).toHaveBeenCalledOnce();
+    expect(sendNotification).toHaveBeenCalledOnce();
+  });
+
+  it('sends the assignment as MJ\'s Task Assignment notification type', async () => {
+    mockViews('user-1');
+
+    await handleAssignmentSave(assignmentCreated());
+
+    expect(sendNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        typeNameOrId: 'Task Assignment',
+        title: 'Task Assigned: Approve discount',
+      }),
+      expect.anything(),
+    );
   });
 
   it('still invokes the OnAssign action when the assignee has no linked user', async () => {
@@ -125,14 +137,14 @@ describe('handleAssignmentSave', () => {
 
     await handleAssignmentSave(assignmentCreated());
 
-    expect(saveNotification).not.toHaveBeenCalled();
+    expect(sendNotification).not.toHaveBeenCalled();
     expect(runAction).toHaveBeenCalledOnce();
     expect(paramsPassed().AssigneePersonID).toBe('person-1');
   });
 
   it('still invokes the OnAssign action when the notification throws', async () => {
     mockViews('user-1');
-    saveNotification.mockRejectedValue(new Error('notification store down'));
+    sendNotification.mockRejectedValue(new Error('notification store down'));
 
     await handleAssignmentSave(assignmentCreated());
 
@@ -173,14 +185,14 @@ describe('handleAssignmentSave', () => {
     expect(capturePostCommitToken).toHaveBeenCalledOnce();
     expect(runAfterCommit).toHaveBeenCalledOnce();
     expect(runAction).not.toHaveBeenCalled();
-    expect(saveNotification).not.toHaveBeenCalled();
+    expect(sendNotification).not.toHaveBeenCalled();
 
     const [queuedTask, description, passedToken] = runAfterCommit.mock.calls[0];
     expect(description).toBe('Task assignment notification and OnAssign hook');
     expect(passedToken).toBe(token);
 
     await (queuedTask as () => Promise<void>)();
-    expect(saveNotification).toHaveBeenCalledOnce();
+    expect(sendNotification).toHaveBeenCalledOnce();
     expect(runAction).toHaveBeenCalledOnce();
   });
 });
@@ -202,7 +214,7 @@ describe('handleAssignmentSave for a role assignee (bc-aidp-next-golive#442)', (
     await handleAssignmentSave(roleAssignmentCreated());
 
     expect(resolveRoleUsers).toHaveBeenCalledWith(['role-finance'], { ID: 'user-ctx' });
-    expect(notifiedUsers).toEqual(['user-a', 'user-b']);
+    expect(sendNotification.mock.calls.map(([p]) => (p as { userId: string }).userId)).toEqual(['user-a', 'user-b']);
     expect(runView.mock.calls.some(([p]) => (p as ViewParams).EntityName === 'MJ_BizApps_Common: People')).toBe(false);
   });
 
@@ -212,7 +224,7 @@ describe('handleAssignmentSave for a role assignee (bc-aidp-next-golive#442)', (
 
     await handleAssignmentSave(roleAssignmentCreated());
 
-    expect(saveNotification).not.toHaveBeenCalled();
+    expect(sendNotification).not.toHaveBeenCalled();
     expect(paramsPassed()).toMatchObject({ AssigneePersonID: null, AssigneeName: 'Finance' });
   });
 
