@@ -10,8 +10,7 @@
  */
 import { RunView, type IMetadataProvider, type IRunViewProvider, type UserInfo } from '@memberjunction/core';
 import { MJGlobal, RegisterClass } from '@memberjunction/global';
-import type { ExternalScopeRecordFact } from '@mj-biz-apps/tasks-core';
-import { GuidLiteral } from './UserPeople.js';
+import { GuidLiteral, type ExternalScopeRecordFact } from '@mj-biz-apps/tasks-core';
 
 /**
  * Abstract base class for ClassFactory-registered time approver scope resolvers.

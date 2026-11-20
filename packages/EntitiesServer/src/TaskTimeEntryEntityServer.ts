@@ -30,6 +30,7 @@ import { RegisterClass } from '@memberjunction/global';
 import { BusinessTimeZoneEngine, ToCalendarDay, type CalendarDay } from '@mj-biz-apps/common-entities';
 import {
     DeriveIntervalMinutes,
+    GuidLiteral as guid,
     TasksSettings,
     TimeEntryRefusal,
     UserCanManageTimeEntries,
@@ -37,7 +38,7 @@ import {
     type TimeEntryFacts,
 } from '@mj-biz-apps/tasks-core';
 import { mjBizAppsTasksTaskTimeEntryEntity, type mjBizAppsTasksTimesheetEntity } from '@mj-biz-apps/tasks-entities';
-import { GuidLiteral as guid, PEOPLE_ENTITY, PeopleFilterForUser, PrimaryPersonIDForUser } from './UserPeople.js';
+import { PEOPLE_ENTITY, PeopleFilterForUser, PrimaryPersonIDForUser } from './UserPeople.js';
 
 export const TASK_TIME_ENTRY_ENTITY = 'MJ_BizApps_Tasks: Task Time Entries';
 const TASK_ENTITY = 'MJ_BizApps_Tasks: Tasks';

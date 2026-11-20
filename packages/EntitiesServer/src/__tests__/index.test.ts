@@ -1,29 +1,32 @@
 import { describe, it, expect, vi } from 'vitest';
 
 // Mock the heavy MJ runtime + sibling packages so the entry point imports cleanly
-vi.mock('@memberjunction/global', () => ({
-    RegisterClass: () => () => {},
-    IsValidUUID: () => true,
-    BaseSingleton: class {
-        public static getInstance() {
-            return {};
-        }
-    },
-    MJGlobal: {
-        Instance: {
-            ClassFactory: {
-                GetAllRegistrations: () => [],
+vi.mock('@memberjunction/global', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@memberjunction/global')>();
+    return {
+        ...actual,
+        RegisterClass: () => () => {},
+        MJGlobal: {
+            Instance: {
+                ClassFactory: {
+                    GetAllRegistrations: () => [],
+                },
             },
         },
-    },
-}));
+    };
+});
 vi.mock('@memberjunction/core', () => ({
     BaseEntity: class {},
+    BaseEntityResult: class {
+        public ValidationErrors: object[] = [];
+    },
     BaseEngine: class {
         public static getInstance() {
             return {};
         }
     },
+    BaseRemotableOperation: class {},
+    CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },
     EntityPermissionType: { Read: 'Read' },
     LogError: () => {},
     LogStatus: () => {},
@@ -31,6 +34,7 @@ vi.mock('@memberjunction/core', () => ({
         static Provider = { Entities: [] };
     },
     RunView: class {},
+    UserInfo: class {},
     ValidationErrorInfo: class {},
     ValidationErrorType: { Failure: 'Failure' },
     ValidationResult: class {},
@@ -64,6 +68,8 @@ vi.mock('@mj-biz-apps/tasks-entities', () => ({
     mjBizAppsTasksTimesheetEntity: class {},
     mjBizAppsTasksTimesheetLinkEntity: class {},
     mjBizAppsTasksTimesheetScheduleEntity: class {},
+    mjBizAppsTasksWorkReportEntity: class {},
+    mjBizAppsTasksWorkReportItemEntity: class {},
     mjBizAppsTasksMeetingEntity: class {},
     mjBizAppsTasksMeetingSeriesEntity: class {},
     mjBizAppsTasksMeetingAttendeeEntity: class {},
@@ -80,6 +86,10 @@ vi.mock('@mj-biz-apps/tasks-core', async () => ({
     TaskService: class {},
     UserCanManageTimeEntries: vi.fn().mockResolvedValue(false),
     UserCanManageTimesheets: vi.fn().mockResolvedValue(false),
+    TASKS_ENTITY_NAME: 'MJ_BizApps_Tasks: Tasks',
+    WORK_REPORTS_ENTITY_NAME: 'MJ_BizApps_Tasks: Work Reports',
+    IsPrivilegedWorkReportUser: () => false,
+    WorkReportService: { Instance: {} },
 }));
 vi.mock('@mj-biz-apps/common-entities', () => ({
     BusinessTimeZoneEngine: { Instance: { Config: vi.fn(), GetBusinessTimeZone: () => 'UTC', Zone: 'UTC' } },
@@ -109,6 +119,9 @@ describe('@mj-biz-apps/tasks-entities-server', () => {
         expect(mod.TaskCheckInEntityServer).toBeDefined();
         expect(mod.TaskDecisionEntityServer).toBeDefined();
         expect(mod.TaskAssignmentEntityServer).toBeDefined();
+        expect(mod.TaskTypeEntityServer).toBeDefined();
+        expect(mod.WorkReportEntityServer).toBeDefined();
+        expect(mod.WorkReportItemEntityServer).toBeDefined();
         expect(mod.TaskTimeEntryEntityServer).toBeDefined();
         expect(mod.TaskTimerEntityServer).toBeDefined();
         expect(mod.TaskAgentRunEntityServer).toBeDefined();

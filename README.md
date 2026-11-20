@@ -72,19 +72,21 @@ mj app remove bizapps-tasks     # Uninstall (--keep-data to preserve schema)
 ## Architecture & Lifecycle Guides
 
 - [**Task Workflow & Lifecycle Guide**](./guides/TASK_WORKFLOW_AND_LIFECYCLE_GUIDE.md) — Deep dive on **Task Types**, **Dynamic Task Type Statuses (`TaskTypeStatus`)**, **Event-Driven Action Hooks**, **Flow Agent Integration**, and **Multi-Domain Project Structures**.
+- [**Work Bus Extensions, Field Suggestions & 15Five Work Reports Guide**](./guides/WORK_BUS_AND_15FIVE_REPORTS_GUIDE.md) — Declarative IS-A subtype extensions (`TaskType.ExtensionEntity` + `SubtypeSelector`), `FIELD_SUGGESTION` review chips on `Tasks`, and **15Five Work Reports** (`WorkReport`, `WorkReportItem`, Chief of Staff `Reports` resource, skill, and supervisor review handoff).
 - [**Time Tracking, AI Agent Effort & Timesheets Guide**](./guides/TIME_TRACKING_GUIDE.md) — User, host administrator, and developer guide covering **Live Task Timers (`TaskTimer`)**, **Manual & Weekly Time Logging (`TaskTimeEntry`)**, **AI Agent Effort & Cost Rollups (`TaskAgentRun`)**, **Multi-Project Timesheet Approvals (`Timesheet`, `TimesheetApproval`, `BaseTimeApproverResolver`)**, and **Shipped Reporting Queries**.
 
 ---
 
 ## What You Get
 
-### 37 Database Tables
+### 39 Database Tables
 
 All tables live in the `__mj_BizAppsTasks` SQL schema, deployed via migrations.
 
 | Category | Tables | Purpose |
 |----------|--------|---------|
-| **Core & Workflow** | Task, TaskType, TaskTypeStatus, TaskCategory, TaskRole, TaskDecision, TaskDecisionOutcome, TaskCheckIn | Work items, unique type codes, dynamic domain stages, formal decisions, OKR check-ins, and action hooks |
+| **Core & Workflow** | Task, TaskType, TaskTypeStatus, TaskCategory, TaskRole, TaskCheckIn, TaskDecision, TaskDecisionOutcome | Work items, IS-A `ExtensionEntity` subtype routing, dynamic domain stages, OKR check-ins, formal decisions, and action hooks |
+| **Reporting (15Five)** | WorkReport, WorkReportItem | Daily/weekly 5-minute work summaries (`Draft` -> `Submitted` -> `Reviewed`) and supervisor feedback routed via `MJ: Employees.SupervisorID` |
 | **Time & Effort** | TaskTimeEntry, TaskTimer, TaskAgentRun, TaskTimeEntryLink | Human time entries, running timers, AI agent run links, and external record locks (`R8`) |
 | **Timesheets & Approvals** | Timesheet, TimesheetApproval, TimesheetSchedule, TimesheetLink, TimeApprover | Period timesheets, per-project approval parts, cadence overrides, and polymorphic approver rules |
 | **Assignment** | TaskAssignment | Multi-person polymorphic assignment (People and AI Agents) |
@@ -337,6 +339,20 @@ npm run mj:codegen
 # Build all packages (Turborepo)
 npm run build
 ```
+
+---
+
+### Related-Record Collections & Lifecycle Ownership
+
+BizApps Tasks declares 15 database-backed (`Source: "database"`, `Load: "explicit"`) `RelatedRecordCollection` accessors in `metadata/entity-relationships/.entity-relationships.json` and emits matching strongly-typed `DeclareRelatedRecords<...>` properties on the generated entity subclasses:
+
+- **`mjBizAppsTasksTaskEntity`**: `Assignments`, `TagLinks`, `Links`, `Dependencies`, `Decisions` (`OnRemove: "refuse"`), `Comments`, `CheckIns`, `Activities`, `NotificationLogs`, `SubTasks` (`OnRemove: "orphan"`)
+- **`mjBizAppsTasksTaskTypeEntity`**: `Statuses` (auto-sequenced `Sequence` from `1`)
+- **`mjBizAppsTasksTaskTemplateEntity`**: `Items` (auto-sequenced `Sequence` from `1`)
+- **`mjBizAppsTasksTaskTemplateItemEntity`**: `Roles`, `Dependencies`
+- **`mjBizAppsTasksWorkReportEntity`**: `Items` (auto-sequenced `Sequence` from `1`)
+
+**Single-owner lifecycle action hook dispatch**: `TaskEntityServer` is the sole dispatcher for task lifecycle hooks (`OnCreate`, `OnStatusChange`, `OnEnterStatus`, `OnExitStatus`, `OnComplete`, `OnCancel`, `OnReject`, `OnPercentChange`), firing `OnReject` only on `Cancelled` tasks with a recorded `Rejected` decision (and `OnCancel` otherwise). `TaskNotificationHandler` handles user notifications and `OnAssignActionID` only, deferred via `RunAfterCommit`.
 
 ---
 

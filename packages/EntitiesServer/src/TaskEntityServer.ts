@@ -20,17 +20,19 @@ import { ActionEngineServer } from '@memberjunction/actions';
 import {
     TaskEntity,
     mjBizAppsTasksTaskActivityEntity,
+    mjBizAppsTasksTaskCheckInEntity,
     mjBizAppsTasksTaskEntity,
     mjBizAppsTasksTaskTimeEntryEntity,
     mjBizAppsTasksTaskTypeEntity,
     mjBizAppsTasksTaskTypeStatusEntity,
 } from '@mj-biz-apps/tasks-entities';
-import { TaskService } from '@mj-biz-apps/tasks-core';
+import { GuidLiteral, TaskService } from '@mj-biz-apps/tasks-core';
 import { PrimaryPersonIDForUser } from './UserPeople.js';
 import {
     ApplyTimesheetApprovalOutcomeForTask,
     TIMESHEET_APPROVAL_TASK_TYPE_CODE,
 } from './TimesheetApprovalOutcome.js';
+import { EnterTaskCheckInGraphScope } from './composite-graph-scope.js';
 
 /**
  * Action hook trigger types supported on TaskType and TaskTypeStatus.
@@ -44,6 +46,14 @@ export type TaskActionHookType =
     | 'OnCancel'
     | 'OnReject'
     | 'OnPercentChange';
+
+/**
+ * Conventional TaskTypeStatus.Code for a task type's "rejected" stage (a convention deployments
+ * opt into when defining TaskTypeStatus rows with MacroStatus = 'Cancelled'; stock installs seed
+ * no TaskTypeStatus rows). Landing on a stage with this Code is treated as a rejection for
+ * OnReject/OnCancel routing even when no TaskDecision row was recorded.
+ */
+export const REJECTED_STAGE_CODE = 'REJECTED';
 
 /**
  * Lifecycle snapshot captured pre-save to drive post-save audit logging and action triggers.
@@ -116,6 +126,11 @@ function isPostCommitScheduler(provider: IEntityDataProvider | null | undefined)
  *     compares deciders against this column, so it must not depend on every caller remembering to
  *     pass it, nor be editable away afterwards.
  *
+ * Lifecycle hook dispatch lives HERE and only here — it fires on the status
+ * TRANSITION captured pre-save. TaskNotificationHandler (tasks-server) must not
+ * invoke these hooks again, or one transition would fire them twice and later
+ * edits of a terminal task would replay them.
+ *
  * Compiler/import order ensures this server subclass takes effect.
  */
 @RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Tasks')
@@ -134,11 +149,22 @@ export class TaskEntityServer extends TaskEntity {
         // 1. Pre-Save Sync: Synchronize TaskTypeStatusID <-> Status and defaults
         await this.syncTaskTypeStatusPreSave();
 
+        // 1b. Pre-Save CheckIn Sync: if CheckIns are attached on the composite Task graph,
+        // apply their derived values and propagate the latest check-in onto this Task before saving
+        // so TaskCheckInEntityServer does not trigger a redundant recursive Task.Save().
+        const pendingCheckIns = this.prepareCompositeCheckInsPreSave();
+
         // 2. Snapshot dirty flags and old values BEFORE super.Save resets them
         const lifecycleContext = this.captureLifecycleContext();
 
-        // 3. Persist record
-        const result = await super.Save(options);
+        // 3. Persist record (with composite check-in scope active so child CheckIn saves skip recursive Task.Save)
+        const exitCheckInScope = EnterTaskCheckInGraphScope(this.ID, pendingCheckIns);
+        let result: boolean;
+        try {
+            result = await super.Save(options);
+        } finally {
+            exitCheckInScope();
+        }
         if (!result) return false;
 
         // 4. Activity logging — server-only audit trail
@@ -431,7 +457,16 @@ export class TaskEntityServer extends TaskEntity {
         activity.Description = description;
         if (previousValue != null) activity.PreviousValue = previousValue;
         if (newValue != null) activity.NewValue = newValue;
-        await activity.Save();
+        // When this Task is queued inside a caller's TransactionGroup, attach the activity
+        // to the SAME TransactionGroup so both INSERTs commit atomically in order (preventing
+        // FK_TaskActivity_Task violations against a not-yet-submitted Task row).
+        if (this.TransactionGroup) {
+            activity.TransactionGroup = this.TransactionGroup;
+        }
+        const saved = await activity.Save();
+        if (!saved) {
+            LogError(`TaskEntityServer: failed to save TaskActivity (${activityType}) for task ${taskID}: ${activity.LatestResult?.CompleteMessage ?? 'unknown error'}`);
+        }
     }
 
     /**
@@ -512,24 +547,8 @@ export class TaskEntityServer extends TaskEntity {
             );
         }
 
-        if (ctx.statusChanged && this.Status === 'Cancelled' && taskType.OnCancelActionID) {
-            await this.invokeAction(
-                taskType.OnCancelActionID,
-                'OnCancel',
-                taskType.Code,
-                currentTypeStatusCode,
-                ctx.oldStatus
-            );
-        }
-
-        if (ctx.statusChanged && (this.Status === 'Blocked' || this.Status === 'Cancelled') && taskType.OnRejectActionID) {
-            await this.invokeAction(
-                taskType.OnRejectActionID,
-                'OnReject',
-                taskType.Code,
-                currentTypeStatusCode,
-                ctx.oldStatus
-            );
+        if (ctx.statusChanged && this.Status === 'Cancelled') {
+            await this.dispatchCancelOrRejectHook(taskType, currentTypeStatusCode, ctx);
         }
 
         // 6. OnPercentChange hook
@@ -626,6 +645,82 @@ export class TaskEntityServer extends TaskEntity {
     }
 
     /**
+     * Routes a Cancelled transition to exactly one of OnReject / OnCancel.
+     *
+     * A cancellation is a REJECTION when either signal is present:
+     *   (a) the task landed on a stage whose TaskTypeStatus.Code === REJECTED_STAGE_CODE
+     *       (a convention a deployment opts into when defining custom TaskTypeStatus stages,
+     *       reachable via status dropdown / bulk change with no TaskDecision row), or
+     *   (b) a TaskDecision with the Rejected outcome exists (the RecordDecision path, which saves the
+     *       decision before transitioning the task).
+     * Otherwise it is a plain cancel. Never both, and Blocked never fires OnReject.
+     * When a rejection occurs on a type that wires OnCancelActionID but not OnRejectActionID,
+     * nothing fires (by design — cancel-shaped cleanup must not run for a rejection).
+     *
+     * The decision query is skipped entirely when the type wires neither hook.
+     */
+    protected async dispatchCancelOrRejectHook(
+        taskType: mjBizAppsTasksTaskTypeEntity,
+        currentTypeStatusCode: string | null,
+        ctx: TaskLifecycleContext,
+    ): Promise<void> {
+        if (!taskType.OnRejectActionID && !taskType.OnCancelActionID) return;
+
+        const rejected = this.isRejectedStage(currentTypeStatusCode) || await this.taskHasRejectedDecision();
+        const [actionID, hook] = rejected
+            ? [taskType.OnRejectActionID, 'OnReject' as const]
+            : [taskType.OnCancelActionID, 'OnCancel' as const];
+        if (!actionID) return;
+
+        await this.invokeAction(actionID, hook, taskType.Code, currentTypeStatusCode, ctx.oldStatus);
+    }
+
+    /** True when the task's current TaskTypeStatus is the conventional rejected stage. */
+    protected isRejectedStage(currentTypeStatusCode: string | null): boolean {
+        return (currentTypeStatusCode ?? '').trim().toUpperCase() === REJECTED_STAGE_CODE;
+    }
+
+    /**
+     * Returns true when this task has a TaskDecision with the 'Rejected' outcome.
+     * Used to distinguish a rejection from a plain cancellation when routing the
+     * OnReject vs. OnCancel hooks.
+     *
+     * Resolves the rejected outcome by its stable Code, then matches decisions by
+     * OutcomeID — so renaming the outcome's display Name doesn't break routing.
+     * A failed query is logged and treated as "no rejected decision" — the stage
+     * check above still routes deployments using a REJECTED stage correctly.
+     */
+    protected async taskHasRejectedDecision(): Promise<boolean> {
+        const rv = new RunView(this.RunViewProviderToUse);
+        const outcomeResult = await rv.RunView<{ ID: string }>({
+            EntityName: 'MJ_BizApps_Tasks: Task Decision Outcomes',
+            ExtraFilter: `Code = 'Rejected'`,
+            Fields: ['ID'],
+            ResultType: 'simple',
+            MaxRows: 1,
+        }, this.ContextCurrentUser);
+        if (!outcomeResult?.Success) {
+            LogError(`TaskEntityServer: could not resolve the Rejected outcome for task ${this.ID}: ${outcomeResult?.ErrorMessage ?? 'unknown error'}`);
+            return false;
+        }
+        const rejectedOutcomeID = outcomeResult.Results?.[0]?.ID;
+        if (!rejectedOutcomeID) return false;
+
+        const result = await rv.RunView<{ ID: string }>({
+            EntityName: 'MJ_BizApps_Tasks: Task Decisions',
+            ExtraFilter: `TaskID = ${GuidLiteral(this.ID, 'TaskID')} AND OutcomeID = ${GuidLiteral(rejectedOutcomeID, 'OutcomeID')}`,
+            Fields: ['ID'],
+            ResultType: 'simple',
+            MaxRows: 1,
+        }, this.ContextCurrentUser);
+        if (!result?.Success) {
+            LogError(`TaskEntityServer: could not load decisions for task ${this.ID}: ${result?.ErrorMessage ?? 'unknown error'}`);
+            return false;
+        }
+        return (result.Results?.length ?? 0) > 0;
+    }
+
+    /**
      * Loads a TaskTypeStatus entity by ID.
      */
     protected async loadTaskTypeStatus(statusID: string): Promise<mjBizAppsTasksTaskTypeStatusEntity | null> {
@@ -638,13 +733,82 @@ export class TaskEntityServer extends TaskEntity {
     }
 
     /**
+     * Prepares any new or dirty check-ins attached via `this.CheckIns` before the parent Task saves:
+     * backfills PreviousValue / quantitative PercentComplete on each check-in and applies the newest
+     * check-in's progress/health/timestamps directly onto this Task so everything persists in one pass.
+     */
+    private prepareCompositeCheckInsPreSave(): mjBizAppsTasksTaskCheckInEntity[] {
+        const items = this.CheckIns?.Items;
+        if (!Array.isArray(items) || items.length === 0) {
+            return [];
+        }
+        const pending = items.filter(ci => !ci.IsSaved || ci.Dirty);
+        if (pending.length === 0) {
+            return [];
+        }
+
+        // Apply derived defaults in chronological order, tracking CurrentValue progression
+        const ordered = [...pending].sort((a, b) => {
+            const ta = a.CheckInAt ? new Date(a.CheckInAt).getTime() : 0;
+            const tb = b.CheckInAt ? new Date(b.CheckInAt).getTime() : 0;
+            return ta - tb;
+        });
+
+        let runningValue = this.CurrentValue;
+        for (const ci of ordered) {
+            if (ci.PreviousValue == null && runningValue != null) {
+                ci.PreviousValue = runningValue;
+            }
+            if (ci.PercentComplete == null && ci.NewValue != null && this.TargetValue != null) {
+                const computedPct = TaskService.computeQuantitativePercentComplete(
+                    this.BaselineValue,
+                    this.TargetValue,
+                    ci.NewValue,
+                    this.MetricDirection,
+                );
+                if (computedPct != null) {
+                    ci.PercentComplete = computedPct;
+                }
+            }
+            if (ci.NewValue != null) {
+                runningValue = ci.NewValue;
+            }
+        }
+
+        const latest = ordered[ordered.length - 1];
+        const checkInTime = latest.CheckInAt ?? new Date();
+        this.HealthStatus = latest.HealthStatus;
+        if (latest.ConfidenceScore != null) {
+            this.ConfidenceScore = latest.ConfidenceScore;
+        }
+        if (latest.NewValue != null) {
+            this.CurrentValue = latest.NewValue;
+        }
+        if (latest.PercentComplete != null) {
+            this.PercentComplete = latest.PercentComplete;
+        }
+        this.LastCheckInAt = checkInTime;
+        if (this.CheckInCadence) {
+            const nextDue = TaskService.computeNextCheckInDueAt(checkInTime, this.CheckInCadence);
+            if (nextDue) {
+                this.NextCheckInDueAt = nextDue;
+            }
+        }
+        return pending;
+    }
+
+    /**
      * Loads the default TaskTypeStatus for a given TaskType.
+     *
+     * @throws when `typeID` is not a UUID — on a new, unsaved task it is caller-supplied and reaches
+     * SQL text before `super.Save()` FK validation, so an invalid value fails the save loudly.
      */
     protected async loadDefaultTaskTypeStatus(typeID: string): Promise<mjBizAppsTasksTaskTypeStatusEntity | null> {
+        const typeLiteral = GuidLiteral(typeID, 'TypeID');
         const rv = new RunView(this.RunViewProviderToUse);
         const result = await rv.RunView<mjBizAppsTasksTaskTypeStatusEntity>({
             EntityName: 'MJ_BizApps_Tasks: Task Type Status',
-            ExtraFilter: `TaskTypeID='${typeID}' AND IsDefault=1 AND IsActive=1`,
+            ExtraFilter: `TaskTypeID=${typeLiteral} AND IsDefault=1 AND IsActive=1`,
             ResultType: 'entity_object',
             MaxRows: 1,
         }, this.ContextCurrentUser);

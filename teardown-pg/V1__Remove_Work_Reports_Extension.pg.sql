@@ -1,0 +1,204 @@
+-- Teardown for the Work Reports Chief of Staff extension (run by `mj app remove` with the app's data).
+-- Retires the rows this app wrote into the shared core schema: the "Work reports" skill with its
+-- Chief of Staff agent grant and dependent references, the NavItem.bizapps-tasks.work-reports
+-- setting that adds the Reports page to the Chief of Staff application, the Work Report RLS filters,
+-- and the Work Report actions with their execution logs, agent grants, and entity action bindings.
+
+UPDATE "${mjSchema}"."SearchExecutionLog"
+SET "AISkillID" = NULL
+WHERE "AISkillID" = '235CA346-1759-481C-AEAD-1F2123D4E331';
+
+DELETE FROM "${mjSchema}"."ConversationSkill"
+WHERE "SkillID" = '235CA346-1759-481C-AEAD-1F2123D4E331';
+
+DELETE FROM "${mjSchema}"."AISkillPermission"
+WHERE "SkillID" = '235CA346-1759-481C-AEAD-1F2123D4E331';
+
+DELETE FROM "${mjSchema}"."AISkillSearchScope"
+WHERE "SkillID" = '235CA346-1759-481C-AEAD-1F2123D4E331';
+
+DELETE FROM "${mjSchema}"."AISkillSubAgent"
+WHERE "SkillID" = '235CA346-1759-481C-AEAD-1F2123D4E331';
+
+DELETE FROM "${mjSchema}"."AISkillAction"
+WHERE "SkillID" = '235CA346-1759-481C-AEAD-1F2123D4E331';
+
+DELETE FROM "${mjSchema}"."AIAgentSkill"
+WHERE "SkillID" = '235CA346-1759-481C-AEAD-1F2123D4E331';
+
+DELETE FROM "${mjSchema}"."AISkill"
+WHERE "ID" = '235CA346-1759-481C-AEAD-1F2123D4E331';
+
+DELETE FROM "${mjSchema}"."ApplicationSetting"
+WHERE "ID" = '3503CDCE-C0F2-48AC-B034-5D74C9E0432B'
+   OR "Name" = 'NavItem.bizapps-tasks.work-reports';
+
+-- Remove dependent execution logs, agent action grants, and entity action bindings before deleting Action rows
+UPDATE "${mjSchema}"."ProcessRunDetail"
+SET "ActionExecutionLogID" = NULL
+WHERE "ActionExecutionLogID" IN (
+    SELECT "ID"
+    FROM "${mjSchema}"."ActionExecutionLog"
+    WHERE "ActionID" IN (
+        '9F5124A5-64F2-4C06-8D71-60710DCB531B',
+        '856D4E92-79B4-486A-A092-48CF5FC22998',
+        'B880DABA-0FC1-4012-9C3B-92694D99985E'
+    )
+    OR "EntityActionID" IN (
+        SELECT "ID"
+        FROM "${mjSchema}"."EntityAction"
+        WHERE "ActionID" IN (
+            '9F5124A5-64F2-4C06-8D71-60710DCB531B',
+            '856D4E92-79B4-486A-A092-48CF5FC22998',
+            'B880DABA-0FC1-4012-9C3B-92694D99985E'
+        )
+    )
+);
+
+UPDATE "${mjSchema}"."UserRoutineRun"
+SET "ActionExecutionLogID" = NULL
+WHERE "ActionExecutionLogID" IN (
+    SELECT "ID"
+    FROM "${mjSchema}"."ActionExecutionLog"
+    WHERE "ActionID" IN (
+        '9F5124A5-64F2-4C06-8D71-60710DCB531B',
+        '856D4E92-79B4-486A-A092-48CF5FC22998',
+        'B880DABA-0FC1-4012-9C3B-92694D99985E'
+    )
+    OR "EntityActionID" IN (
+        SELECT "ID"
+        FROM "${mjSchema}"."EntityAction"
+        WHERE "ActionID" IN (
+            '9F5124A5-64F2-4C06-8D71-60710DCB531B',
+            '856D4E92-79B4-486A-A092-48CF5FC22998',
+            'B880DABA-0FC1-4012-9C3B-92694D99985E'
+        )
+    )
+);
+
+DELETE FROM "${mjSchema}"."ActionExecutionLog"
+WHERE "ActionID" IN (
+    '9F5124A5-64F2-4C06-8D71-60710DCB531B',
+    '856D4E92-79B4-486A-A092-48CF5FC22998',
+    'B880DABA-0FC1-4012-9C3B-92694D99985E'
+)
+OR "EntityActionID" IN (
+    SELECT "ID"
+    FROM "${mjSchema}"."EntityAction"
+    WHERE "ActionID" IN (
+        '9F5124A5-64F2-4C06-8D71-60710DCB531B',
+        '856D4E92-79B4-486A-A092-48CF5FC22998',
+        'B880DABA-0FC1-4012-9C3B-92694D99985E'
+    )
+);
+
+DELETE FROM "${mjSchema}"."AIAgentAction"
+WHERE "ActionID" IN (
+    '9F5124A5-64F2-4C06-8D71-60710DCB531B',
+    '856D4E92-79B4-486A-A092-48CF5FC22998',
+    'B880DABA-0FC1-4012-9C3B-92694D99985E'
+);
+
+DELETE FROM "${mjSchema}"."AISkillAction"
+WHERE "ActionID" IN (
+    '9F5124A5-64F2-4C06-8D71-60710DCB531B',
+    '856D4E92-79B4-486A-A092-48CF5FC22998',
+    'B880DABA-0FC1-4012-9C3B-92694D99985E'
+);
+
+DELETE FROM "${mjSchema}"."EntityActionInvocation"
+WHERE "EntityActionID" IN (
+    SELECT "ID"
+    FROM "${mjSchema}"."EntityAction"
+    WHERE "ActionID" IN (
+        '9F5124A5-64F2-4C06-8D71-60710DCB531B',
+        '856D4E92-79B4-486A-A092-48CF5FC22998',
+        'B880DABA-0FC1-4012-9C3B-92694D99985E'
+    )
+);
+
+DELETE FROM "${mjSchema}"."EntityActionParam"
+WHERE "EntityActionID" IN (
+    SELECT "ID"
+    FROM "${mjSchema}"."EntityAction"
+    WHERE "ActionID" IN (
+        '9F5124A5-64F2-4C06-8D71-60710DCB531B',
+        '856D4E92-79B4-486A-A092-48CF5FC22998',
+        'B880DABA-0FC1-4012-9C3B-92694D99985E'
+    )
+);
+
+DELETE FROM "${mjSchema}"."EntityActionFilter"
+WHERE "EntityActionID" IN (
+    SELECT "ID"
+    FROM "${mjSchema}"."EntityAction"
+    WHERE "ActionID" IN (
+        '9F5124A5-64F2-4C06-8D71-60710DCB531B',
+        '856D4E92-79B4-486A-A092-48CF5FC22998',
+        'B880DABA-0FC1-4012-9C3B-92694D99985E'
+    )
+);
+
+DELETE FROM "${mjSchema}"."EntityAction"
+WHERE "ActionID" IN (
+    '9F5124A5-64F2-4C06-8D71-60710DCB531B',
+    '856D4E92-79B4-486A-A092-48CF5FC22998',
+    'B880DABA-0FC1-4012-9C3B-92694D99985E'
+);
+
+DELETE FROM "${mjSchema}"."ActionAuthorization"
+WHERE "ActionID" IN (
+    '9F5124A5-64F2-4C06-8D71-60710DCB531B',
+    '856D4E92-79B4-486A-A092-48CF5FC22998',
+    'B880DABA-0FC1-4012-9C3B-92694D99985E'
+);
+
+DELETE FROM "${mjSchema}"."ActionContext"
+WHERE "ActionID" IN (
+    '9F5124A5-64F2-4C06-8D71-60710DCB531B',
+    '856D4E92-79B4-486A-A092-48CF5FC22998',
+    'B880DABA-0FC1-4012-9C3B-92694D99985E'
+);
+
+DELETE FROM "${mjSchema}"."ActionLibrary"
+WHERE "ActionID" IN (
+    '9F5124A5-64F2-4C06-8D71-60710DCB531B',
+    '856D4E92-79B4-486A-A092-48CF5FC22998',
+    'B880DABA-0FC1-4012-9C3B-92694D99985E'
+);
+
+DELETE FROM "${mjSchema}"."ActionResultCode"
+WHERE "ActionID" IN (
+    '9F5124A5-64F2-4C06-8D71-60710DCB531B',
+    '856D4E92-79B4-486A-A092-48CF5FC22998',
+    'B880DABA-0FC1-4012-9C3B-92694D99985E'
+);
+
+DELETE FROM "${mjSchema}"."ActionParam"
+WHERE "ActionID" IN (
+    '9F5124A5-64F2-4C06-8D71-60710DCB531B',
+    '856D4E92-79B4-486A-A092-48CF5FC22998',
+    'B880DABA-0FC1-4012-9C3B-92694D99985E'
+);
+
+DELETE FROM "${mjSchema}"."Action"
+WHERE "ID" IN (
+    '9F5124A5-64F2-4C06-8D71-60710DCB531B',
+    '856D4E92-79B4-486A-A092-48CF5FC22998',
+    'B880DABA-0FC1-4012-9C3B-92694D99985E'
+);
+
+-- Clear and remove Work Report Row-Level Security filters
+UPDATE "${mjSchema}"."EntityPermission"
+SET
+    "ReadRLSFilterID" = CASE WHEN "ReadRLSFilterID" IN ('DC505938-81AC-4EFF-A6FF-99BFB5B11018', 'E2D9FE26-3490-48C5-A60B-42F1B2973B19', 'E3B9CECC-3CEF-4461-8CB1-3DD5A76FB16E') THEN NULL ELSE "ReadRLSFilterID" END,
+    "CreateRLSFilterID" = CASE WHEN "CreateRLSFilterID" IN ('DC505938-81AC-4EFF-A6FF-99BFB5B11018', 'E2D9FE26-3490-48C5-A60B-42F1B2973B19', 'E3B9CECC-3CEF-4461-8CB1-3DD5A76FB16E') THEN NULL ELSE "CreateRLSFilterID" END,
+    "UpdateRLSFilterID" = CASE WHEN "UpdateRLSFilterID" IN ('DC505938-81AC-4EFF-A6FF-99BFB5B11018', 'E2D9FE26-3490-48C5-A60B-42F1B2973B19', 'E3B9CECC-3CEF-4461-8CB1-3DD5A76FB16E') THEN NULL ELSE "UpdateRLSFilterID" END,
+    "DeleteRLSFilterID" = CASE WHEN "DeleteRLSFilterID" IN ('DC505938-81AC-4EFF-A6FF-99BFB5B11018', 'E2D9FE26-3490-48C5-A60B-42F1B2973B19', 'E3B9CECC-3CEF-4461-8CB1-3DD5A76FB16E') THEN NULL ELSE "DeleteRLSFilterID" END
+WHERE "ReadRLSFilterID" IN ('DC505938-81AC-4EFF-A6FF-99BFB5B11018', 'E2D9FE26-3490-48C5-A60B-42F1B2973B19', 'E3B9CECC-3CEF-4461-8CB1-3DD5A76FB16E')
+   OR "CreateRLSFilterID" IN ('DC505938-81AC-4EFF-A6FF-99BFB5B11018', 'E2D9FE26-3490-48C5-A60B-42F1B2973B19', 'E3B9CECC-3CEF-4461-8CB1-3DD5A76FB16E')
+   OR "UpdateRLSFilterID" IN ('DC505938-81AC-4EFF-A6FF-99BFB5B11018', 'E2D9FE26-3490-48C5-A60B-42F1B2973B19', 'E3B9CECC-3CEF-4461-8CB1-3DD5A76FB16E')
+   OR "DeleteRLSFilterID" IN ('DC505938-81AC-4EFF-A6FF-99BFB5B11018', 'E2D9FE26-3490-48C5-A60B-42F1B2973B19', 'E3B9CECC-3CEF-4461-8CB1-3DD5A76FB16E');
+
+DELETE FROM "${mjSchema}"."RowLevelSecurityFilter"
+WHERE "ID" IN ('DC505938-81AC-4EFF-A6FF-99BFB5B11018', 'E2D9FE26-3490-48C5-A60B-42F1B2973B19', 'E3B9CECC-3CEF-4461-8CB1-3DD5A76FB16E');

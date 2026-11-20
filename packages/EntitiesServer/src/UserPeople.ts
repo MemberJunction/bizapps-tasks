@@ -12,14 +12,9 @@
  */
 import { RunView, type IMetadataProvider, type IRunViewProvider, type UserInfo } from '@memberjunction/core';
 import { IsValidUUID } from '@memberjunction/global';
+import { GuidLiteral } from '@mj-biz-apps/tasks-core';
 
 export const PEOPLE_ENTITY = 'MJ_BizApps_Common: People';
-
-/** A UUID literal for a filter, or an error: every id here reaches SQL text. */
-export function GuidLiteral(id: string, label: string): string {
-    if (!IsValidUUID(id)) throw new Error(`${label} '${id}' is not a valid ID.`);
-    return `'${id}'`;
-}
 
 /** True when the entity is People or an IS-A subtype of it. */
 export function IsPeopleEntity(provider: IMetadataProvider, entityID: string): boolean {

@@ -31,22 +31,20 @@ const fakeDb = {
     selfServiceSchedules: false,
 };
 
-vi.mock('@memberjunction/global', () => ({
-    RegisterClass: () => () => {},
-    IsValidUUID: (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
-    BaseSingleton: class {
-        public static getInstance() {
-            return {};
-        }
-    },
-    MJGlobal: {
-        Instance: {
-            ClassFactory: {
-                GetAllRegistrations: () => [],
+vi.mock('@memberjunction/global', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@memberjunction/global')>();
+    return {
+        ...actual,
+        RegisterClass: () => () => {},
+        MJGlobal: {
+            Instance: {
+                ClassFactory: {
+                    GetAllRegistrations: () => [],
+                },
             },
         },
-    },
-}));
+    };
+});
 
 vi.mock('@memberjunction/core-entities', () => ({
     ApplicationSettingEngine: {

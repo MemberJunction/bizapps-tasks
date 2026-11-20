@@ -2,7 +2,13 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, in
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CompositeKey, Metadata, RunView } from '@memberjunction/core';
+import { EscapeSQLString, IsValidUUID, UUIDsEqual } from '@memberjunction/global';
 import { TasksSettings } from '@mj-biz-apps/tasks-core';
+import type {
+    mjBizAppsTasksTaskEntity,
+    mjBizAppsTasksTaskRoleEntity,
+    mjBizAppsTasksTaskTagEntity,
+} from '@mj-biz-apps/tasks-entities';
 
 /** @internal Represents one assignee row in the edit form. */
 interface AssigneeRow {
@@ -20,6 +26,36 @@ interface PersonRow {
     LastName: string | null;
 }
 
+/** @internal Lookup option for Task Type, Category, Role, or Parent Task. */
+interface NamedLookupOption {
+    ID: string;
+    Name: string;
+}
+
+/** @internal Lookup option for Task Tags. */
+interface TagOption {
+    ID: string;
+    Name: string;
+    ColorCode: string | null;
+}
+
+/** Strongly-typed form model for {@link TaskEditPanelComponent}. */
+export interface TaskEditFormData {
+    Name: string;
+    Description: string;
+    Status: mjBizAppsTasksTaskEntity['Status'];
+    Priority: mjBizAppsTasksTaskEntity['Priority'];
+    DueAt: string | null;
+    PercentComplete: number;
+    HoursEstimated: number | null;
+    HoursActual: number | null;
+    BlockedReason: string;
+    CompletionNotes: string;
+    TypeID: string | null;
+    CategoryID: string | null;
+    ParentID: string | null;
+}
+
 /**
  * Cancellable event emitted before a task is saved from the edit panel.
  * Set `Cancel = true` to prevent the save from proceeding.
@@ -31,7 +67,7 @@ export class BeforeTaskSaveEvent {
         /** The task ID being edited, or `null` for a new task. */
         public TaskID: string | null,
         /** The form data about to be saved. */
-        public FormData: Record<string, any>
+        public FormData: TaskEditFormData
     ) {}
 }
 
@@ -229,7 +265,7 @@ export class BeforeTaskSaveEvent {
                     }
                     <div class="form-actions">
                         <button type="button" class="btn-secondary" (click)="Cancel.emit()">Cancel</button>
-                        <button type="submit" class="btn-primary" [disabled]="ReadOnly || saving || !form.Name?.trim()">
+                        <button type="submit" class="btn-primary" [disabled]="ReadOnly || saving || !form.Name.trim()">
                             {{ saving ? 'Saving...' : (isNew ? 'Create' : 'Save') }}
                         </button>
                     </div>
@@ -431,7 +467,21 @@ export class TaskEditPanelComponent implements OnChanges {
     // ── Internal State ──────────────────────────────────────
 
     /** @internal */
-    form: any = {};
+    form: TaskEditFormData = {
+        Name: '',
+        Description: '',
+        Status: 'Open',
+        Priority: 'Medium',
+        DueAt: null,
+        PercentComplete: 0,
+        HoursEstimated: null,
+        HoursActual: null,
+        BlockedReason: '',
+        CompletionNotes: '',
+        TypeID: null,
+        CategoryID: null,
+        ParentID: null,
+    };
     /** @internal */
     isNew = true;
     /** @internal */
@@ -439,21 +489,21 @@ export class TaskEditPanelComponent implements OnChanges {
     /** @internal */
     saving = false;
     /** @internal */
-    taskTypes: any[] = [];
+    taskTypes: NamedLookupOption[] = [];
     /** @internal Error surfaced when a save fails so the panel doesn't close silently. */
     saveError: string | null = null;
     /** @internal */
-    categories: any[] = [];
+    categories: NamedLookupOption[] = [];
     /** @internal */
-    people: any[] = [];
+    people: PersonRow[] = [];
     /** @internal */
-    roles: any[] = [];
+    roles: NamedLookupOption[] = [];
     /** @internal */
-    availableTasks: any[] = [];
+    availableTasks: NamedLookupOption[] = [];
     /** @internal */
-    allTags: any[] = [];
+    allTags: TagOption[] = [];
     /** @internal */
-    selectedTags: any[] = [];
+    selectedTags: TagOption[] = [];
     /** @internal */
     assignees: AssigneeRow[] = [];
     /** @internal */
@@ -472,8 +522,8 @@ export class TaskEditPanelComponent implements OnChanges {
     private cdr = inject(ChangeDetectorRef);
 
     /** @internal Returns tags not already selected. */
-    get availableTagsFiltered(): any[] {
-        const selectedIDs = new Set(this.selectedTags.map((t: any) => t.ID));
+    get availableTagsFiltered(): TagOption[] {
+        const selectedIDs = new Set(this.selectedTags.map(t => t.ID));
         return this.allTags.filter(t => !selectedIDs.has(t.ID));
     }
 
@@ -504,14 +554,15 @@ export class TaskEditPanelComponent implements OnChanges {
     }
 
     private async loadTask(): Promise<void> {
+        if (!this.TaskID || !IsValidUUID(this.TaskID)) return;
         this.loading = true;
         this.cdr.markForCheck();
         const rv = new RunView();
         const result = await rv.RunView<{
             Name: string;
             Description: string | null;
-            Status: string;
-            Priority: string;
+            Status: mjBizAppsTasksTaskEntity['Status'];
+            Priority: mjBizAppsTasksTaskEntity['Priority'];
             DueAt: Date | null;
             PercentComplete: number | null;
             HoursEstimated: number | null;
@@ -523,7 +574,7 @@ export class TaskEditPanelComponent implements OnChanges {
             ParentID: string | null;
         }>({
             EntityName: 'MJ_BizApps_Tasks: Tasks',
-            ExtraFilter: `ID = '${this.TaskID}'`,
+            ExtraFilter: `ID = '${EscapeSQLString(this.TaskID)}'`,
             ResultType: 'simple',
         });
         const t = result?.Results?.[0];
@@ -544,11 +595,11 @@ export class TaskEditPanelComponent implements OnChanges {
     }
 
     private async loadExistingAssignees(): Promise<void> {
-        if (!this.TaskID) return;
+        if (!this.TaskID || !IsValidUUID(this.TaskID)) return;
         const rv = new RunView();
         const result = await rv.RunView<{ ID: string; AssigneeRecordID: string; RoleID: string | null }>({
             EntityName: 'MJ_BizApps_Tasks: Task Assignments',
-            ExtraFilter: `TaskID = '${this.TaskID}'`,
+            ExtraFilter: `TaskID = '${EscapeSQLString(this.TaskID)}'`,
             ResultType: 'simple',
         });
         this.assignees = (result?.Results ?? []).map(a => ({
@@ -561,30 +612,30 @@ export class TaskEditPanelComponent implements OnChanges {
     }
 
     private async loadExistingTags(): Promise<void> {
-        if (!this.TaskID) return;
+        if (!this.TaskID || !IsValidUUID(this.TaskID)) return;
         const rv = new RunView();
         const result = await rv.RunView<{ TagID: string }>({
             EntityName: 'MJ_BizApps_Tasks: Task Tag Links',
-            ExtraFilter: `TaskID = '${this.TaskID}'`,
+            ExtraFilter: `TaskID = '${EscapeSQLString(this.TaskID)}'`,
             ResultType: 'simple',
         });
         const tagIDs = (result?.Results ?? []).map(l => l.TagID);
-        this.selectedTags = this.allTags.filter(t => tagIDs.includes(t.ID));
+        this.selectedTags = this.allTags.filter(t => tagIDs.some(id => UUIDsEqual(id, t.ID)));
     }
 
     private async loadLookups(): Promise<void> {
         const rv = new RunView();
         const [types, cats, ppl, rls, tasks, tags] = await Promise.all([
-            rv.RunView<{ ID: string; Name: string }>({ EntityName: 'MJ_BizApps_Tasks: Task Types', ExtraFilter: 'IsActive = 1', ResultType: 'simple' }),
-            new RunView().RunView<{ ID: string; Name: string }>({ EntityName: 'MJ_BizApps_Tasks: Task Categories', ExtraFilter: 'IsActive = 1', OrderBy: 'Sequence ASC', ResultType: 'simple' }),
+            rv.RunView<NamedLookupOption>({ EntityName: 'MJ_BizApps_Tasks: Task Types', ExtraFilter: 'IsActive = 1', ResultType: 'simple' }),
+            new RunView().RunView<NamedLookupOption>({ EntityName: 'MJ_BizApps_Tasks: Task Categories', ExtraFilter: 'IsActive = 1', OrderBy: 'Sequence ASC', ResultType: 'simple' }),
             new RunView().RunView<PersonRow>({ EntityName: 'MJ_BizApps_Common: People', ExtraFilter: this.buildAssigneeScopeFilter(), ResultType: 'simple' }),
-            new RunView().RunView<{ ID: string; Name: string }>({ EntityName: 'MJ_BizApps_Tasks: Task Roles', OrderBy: 'Sequence ASC', ResultType: 'simple' }),
-            new RunView().RunView<{ ID: string; Name: string }>({
+            new RunView().RunView<NamedLookupOption>({ EntityName: 'MJ_BizApps_Tasks: Task Roles', OrderBy: 'Sequence ASC', ResultType: 'simple' }),
+            new RunView().RunView<NamedLookupOption>({
                 EntityName: 'MJ_BizApps_Tasks: Tasks',
                 ExtraFilter: this.ParentTaskFilter || undefined,
                 ResultType: 'simple',
             }),
-            new RunView().RunView<{ ID: string; Name: string; ColorCode: string | null }>({ EntityName: 'MJ_BizApps_Tasks: Task Tags', ResultType: 'simple' }),
+            new RunView().RunView<TagOption>({ EntityName: 'MJ_BizApps_Tasks: Task Tags', ResultType: 'simple' }),
         ]);
         this.taskTypes = types?.Results ?? [];
         // TypeID is a required FK on Tasks. For a new task with no type chosen yet,
@@ -595,7 +646,7 @@ export class TaskEditPanelComponent implements OnChanges {
         this.categories = cats?.Results ?? [];
         this.people = ppl?.Results ?? [];
         this.roles = rls?.Results ?? [];
-        this.availableTasks = (tasks?.Results ?? []).filter(t => t.ID !== this.TaskID);
+        this.availableTasks = (tasks?.Results ?? []).filter(t => !UUIDsEqual(t.ID, this.TaskID));
         this.allTags = tags?.Results ?? [];
         this.peopleEntityID = Metadata.Provider.EntityByName('MJ_BizApps_Common: People')?.ID ?? null;
         if (!this.peopleEntityID) {
@@ -617,8 +668,9 @@ export class TaskEditPanelComponent implements OnChanges {
     private buildAssigneeScopeFilter(): string | undefined {
         if (!this.AssigneeScope) return undefined;
         if (Array.isArray(this.AssigneeScope)) {
-            if (this.AssigneeScope.length === 0) return undefined;
-            return `ID IN (${this.AssigneeScope.map(id => `'${id}'`).join(',')})`;
+            const validIDs = this.AssigneeScope.filter(id => IsValidUUID(id));
+            if (validIDs.length === 0) return undefined;
+            return `ID IN (${validIDs.map(id => `'${EscapeSQLString(id)}'`).join(',')})`;
         }
         return this.AssigneeScope; // ExtraFilter string
     }
@@ -636,16 +688,16 @@ export class TaskEditPanelComponent implements OnChanges {
     }
 
     onAssigneePersonChanged(a: AssigneeRow): void {
-        const person = this.people.find((p: any) => p.ID === a.PersonID);
-        a.PersonName = person ? `${person.FirstName} ${person.LastName}` : '';
+        const person = this.people.find(p => UUIDsEqual(p.ID, a.PersonID));
+        a.PersonName = person ? `${person.FirstName ?? ''} ${person.LastName ?? ''}`.trim() : '';
     }
 
     onTagSelected(event: Event): void {
         const select = event.target as HTMLSelectElement;
         const tagID = select.value;
         if (!tagID) return;
-        const tag = this.allTags.find((t: any) => t.ID === tagID);
-        if (tag && !this.selectedTags.find((t: any) => t.ID === tagID)) {
+        const tag = this.allTags.find(t => UUIDsEqual(t.ID, tagID));
+        if (tag && !this.selectedTags.some(t => UUIDsEqual(t.ID, tagID))) {
             this.selectedTags.push(tag);
         }
         select.value = '';
@@ -656,7 +708,7 @@ export class TaskEditPanelComponent implements OnChanges {
         const name = this.newRoleName.trim();
         if (!name || this.creatingRole) return;
 
-        const existing = this.roles.find((r: any) => r.Name.toLowerCase() === name.toLowerCase());
+        const existing = this.roles.find(r => r.Name.toLowerCase() === name.toLowerCase());
         if (existing) {
             this.newRoleName = '';
             this.cdr.markForCheck();
@@ -666,9 +718,9 @@ export class TaskEditPanelComponent implements OnChanges {
         this.creatingRole = true;
         this.cdr.markForCheck();
 
-        const role = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Roles');
+        const role = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskRoleEntity>('MJ_BizApps_Tasks: Task Roles');
         role.NewRecord();
-        role.Set('Name', name);
+        role.Name = name;
         const saved = await role.Save();
         if (!saved) {
             this.saveError = role.LatestResult?.CompleteMessage || 'The role was refused.';
@@ -677,7 +729,7 @@ export class TaskEditPanelComponent implements OnChanges {
             return;
         }
 
-        this.roles.push({ ID: role.Get('ID'), Name: name });
+        this.roles.push({ ID: role.ID, Name: name });
         this.newRoleName = '';
         this.creatingRole = false;
         this.cdr.markForCheck();
@@ -687,10 +739,9 @@ export class TaskEditPanelComponent implements OnChanges {
         const name = this.newTagName.trim();
         if (!name || this.creatingTag) return;
 
-        // Check if tag already exists
-        const existing = this.allTags.find((t: any) => t.Name.toLowerCase() === name.toLowerCase());
+        const existing = this.allTags.find(t => t.Name.toLowerCase() === name.toLowerCase());
         if (existing) {
-            if (!this.selectedTags.find((t: any) => t.ID === existing.ID)) {
+            if (!this.selectedTags.some(t => UUIDsEqual(t.ID, existing.ID))) {
                 this.selectedTags.push(existing);
             }
             this.newTagName = '';
@@ -698,17 +749,16 @@ export class TaskEditPanelComponent implements OnChanges {
             return;
         }
 
-        // Pick a random color from a palette
         const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#ef4444', '#f59e0b', '#10b981', '#0ea5e9', '#06b6d4'];
         const color = colors[Math.floor(Math.random() * colors.length)];
 
         this.creatingTag = true;
         this.cdr.markForCheck();
 
-        const tag = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Tags');
+        const tag = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskTagEntity>('MJ_BizApps_Tasks: Task Tags');
         tag.NewRecord();
-        tag.Set('Name', name);
-        tag.Set('ColorCode', color);
+        tag.Name = name;
+        tag.ColorCode = color;
         const saved = await tag.Save();
         if (!saved) {
             this.saveError = tag.LatestResult?.CompleteMessage || 'The tag was refused.';
@@ -717,7 +767,7 @@ export class TaskEditPanelComponent implements OnChanges {
             return;
         }
 
-        const newTag = { ID: tag.Get('ID'), Name: name, ColorCode: color };
+        const newTag: TagOption = { ID: tag.ID, Name: name, ColorCode: color };
         this.allTags.push(newTag);
         this.selectedTags.push(newTag);
         this.newTagName = '';
@@ -726,7 +776,7 @@ export class TaskEditPanelComponent implements OnChanges {
     }
 
     removeTag(tagID: string): void {
-        this.selectedTags = this.selectedTags.filter((t: any) => t.ID !== tagID);
+        this.selectedTags = this.selectedTags.filter(t => !UUIDsEqual(t.ID, tagID));
         this.cdr.markForCheck();
     }
 
@@ -737,7 +787,7 @@ export class TaskEditPanelComponent implements OnChanges {
         this.BeforeSave.emit(before);
         if (before.Cancel) return;
 
-        const assigneeWork = this.assignees.some((row) => !!row.PersonID) || !!this.TaskID;
+        const assigneeWork = this.assignees.some(row => !!row.PersonID) || !!this.TaskID;
         if (!this.peopleEntityID && assigneeWork) {
             this.saveError = 'People is not installed, so assignees cannot be saved.';
             this.cdr.markForCheck();
@@ -745,131 +795,106 @@ export class TaskEditPanelComponent implements OnChanges {
         }
 
         this.saving = true;
+        this.saveError = null;
         this.cdr.markForCheck();
 
-        // Save the task
-        const entity = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Tasks');
-        if (this.TaskID) {
-            const pk = new CompositeKey([{ FieldName: 'ID', Value: this.TaskID }]);
-            await entity.InnerLoad(pk);
-        } else {
-            entity.NewRecord();
-        }
+        try {
+            const entity = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
+            if (this.TaskID) {
+                const pk = new CompositeKey([{ FieldName: 'ID', Value: this.TaskID }]);
+                const loaded = await entity.InnerLoad(pk);
+                if (!loaded) {
+                    this.saveError = 'Could not load the task for editing.';
+                    this.saving = false;
+                    this.cdr.markForCheck();
+                    return;
+                }
+                await Promise.all([entity.Assignments.Load(true), entity.TagLinks.Load(true)]);
+            } else {
+                entity.NewRecord();
+            }
 
-        entity.Set('Name', this.form.Name.trim());
-        entity.Set('Description', this.form.Description || null);
-        entity.Set('Status', this.form.Status);
-        entity.Set('Priority', this.form.Priority);
-        entity.Set('DueAt', this.form.DueAt || null);
-        entity.Set('PercentComplete', this.form.PercentComplete ?? 0);
-        entity.Set('HoursEstimated', this.form.HoursEstimated || null);
-        entity.Set('HoursActual', this.form.HoursActual || null);
-        entity.Set('BlockedReason', this.form.BlockedReason || null);
-        entity.Set('CompletionNotes', this.form.CompletionNotes || null);
-        entity.Set('ParentID', this.form.ParentID || null);
-        if (this.form.TypeID) entity.Set('TypeID', this.form.TypeID);
-        entity.Set('CategoryID', this.form.CategoryID || null);
+            entity.Name = this.form.Name.trim();
+            entity.Description = this.form.Description || null;
+            entity.Status = this.form.Status;
+            entity.Priority = this.form.Priority;
+            entity.DueAt = this.form.DueAt ? new Date(this.form.DueAt) : null;
+            entity.PercentComplete = this.form.PercentComplete ?? 0;
+            entity.HoursEstimated = this.form.HoursEstimated || null;
+            entity.HoursActual = this.form.HoursActual || null;
+            entity.BlockedReason = this.form.BlockedReason || null;
+            entity.CompletionNotes = this.form.CompletionNotes || null;
+            entity.ParentID = this.form.ParentID || null;
+            if (this.form.TypeID) entity.TypeID = this.form.TypeID;
+            entity.CategoryID = this.form.CategoryID || null;
 
-        const taskSaved = await entity.Save();
-        if (!taskSaved) {
-            this.saveError = entity.LatestResult?.CompleteMessage ?? 'Failed to save task.';
-            console.error('Task Save() returned false:', this.saveError);
+            // Compose Assignments onto entity.Assignments (atomic graph save via MJ.SaveEntityGraph)
+            if (this.peopleEntityID) {
+                const retainedExistingIDs = new Set(
+                    this.assignees
+                        .filter(a => !a.IsNew && a.ExistingID)
+                        .map(a => a.ExistingID!.toLowerCase()),
+                );
+
+                // Remove deleted assignments
+                for (const existing of [...entity.Assignments.Items]) {
+                    if (!retainedExistingIDs.has(existing.ID.toLowerCase())) {
+                        entity.Assignments.Remove(existing);
+                    }
+                }
+
+                // Update retained or create new assignments
+                for (const a of this.assignees) {
+                    if (!a.PersonID) continue;
+                    if (!a.IsNew && a.ExistingID) {
+                        const existing = entity.Assignments.Items.find(item => UUIDsEqual(item.ID, a.ExistingID));
+                        if (existing) {
+                            existing.AssigneeRecordID = a.PersonID;
+                            if (a.RoleID) existing.RoleID = a.RoleID;
+                        }
+                    } else {
+                        const assignment = await entity.Assignments.Create();
+                        assignment.AssigneeEntityID = this.peopleEntityID;
+                        assignment.AssigneeRecordID = a.PersonID;
+                        if (a.RoleID) assignment.RoleID = a.RoleID;
+                    }
+                }
+            }
+
+            // Compose TagLinks onto entity.TagLinks
+            const selectedTagIDs = new Set(this.selectedTags.map(t => t.ID.toLowerCase()));
+            const existingTagIDs = new Set(entity.TagLinks.Items.map(l => l.TagID.toLowerCase()));
+
+            for (const existingLink of [...entity.TagLinks.Items]) {
+                if (!selectedTagIDs.has(existingLink.TagID.toLowerCase())) {
+                    entity.TagLinks.Remove(existingLink);
+                }
+            }
+
+            for (const tag of this.selectedTags) {
+                if (!existingTagIDs.has(tag.ID.toLowerCase())) {
+                    const link = await entity.TagLinks.Create();
+                    link.TagID = tag.ID;
+                }
+            }
+
+            // ONE atomic save for Task + Assignments + TagLinks
+            const saved = await entity.Save();
+            if (!saved) {
+                this.stopSave(entity, 'Failed to save task.');
+                console.error('Task Save() returned false:', this.saveError);
+                return;
+            }
+
+            this.saveError = null;
             this.saving = false;
             this.cdr.markForCheck();
-            return;
+            this.Saved.emit(entity.ID);
+        } catch (err) {
+            this.saveError = err instanceof Error ? err.message : 'Failed to save task.';
+            this.saving = false;
+            this.cdr.markForCheck();
         }
-        this.saveError = null;
-        const savedID = entity.Get('ID') as string;
-
-        if (this.peopleEntityID) {
-            const rv2 = new RunView();
-            const currentAssignments = this.TaskID ? await rv2.RunView<{ ID: string }>({
-                EntityName: 'MJ_BizApps_Tasks: Task Assignments',
-                ExtraFilter: `TaskID = '${savedID}'`,
-                ResultType: 'simple',
-            }) : null;
-            const existingIDs = new Set(this.assignees.filter(a => !a.IsNew && a.ExistingID).map(a => a.ExistingID!));
-
-            for (const dbRow of currentAssignments?.Results ?? []) {
-                if (!existingIDs.has(dbRow.ID)) {
-                    const del = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Assignments');
-                    const pk = new CompositeKey([{ FieldName: 'ID', Value: dbRow.ID }]);
-                    await del.InnerLoad(pk);
-                    const removed = await del.Delete();
-                    if (!removed) return this.stopSave(del, 'The assignee removal was refused.');
-                }
-            }
-
-            for (const a of this.assignees) {
-                if (!a.PersonID) continue;
-                if (a.IsNew) {
-                    const assignment = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Assignments');
-                    assignment.NewRecord();
-                    assignment.Set('TaskID', savedID);
-                    assignment.Set('AssigneeEntityID', this.peopleEntityID);
-                    assignment.Set('AssigneeRecordID', a.PersonID);
-                    if (a.RoleID) assignment.Set('RoleID', a.RoleID);
-                    const assigned = await assignment.Save();
-                    if (!assigned) return this.stopSave(assignment, 'The assignee was refused.');
-                } else if (a.ExistingID) {
-                    const assignment = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Assignments');
-                    const pk = new CompositeKey([{ FieldName: 'ID', Value: a.ExistingID }]);
-                    await assignment.InnerLoad(pk);
-                    assignment.Set('AssigneeRecordID', a.PersonID);
-                    if (a.RoleID) assignment.Set('RoleID', a.RoleID);
-                    const assigned = await assignment.Save();
-                    if (!assigned) return this.stopSave(assignment, 'The assignee was refused.');
-                }
-            }
-        }
-
-        // Save tags (add new links, remove old)
-        if (this.TaskID) {
-            // Load existing tag links
-            const rv = new RunView();
-            const existing = await rv.RunView<{ ID: string; TagID: string }>({
-                EntityName: 'MJ_BizApps_Tasks: Task Tag Links',
-                ExtraFilter: `TaskID = '${savedID}'`,
-                ResultType: 'simple',
-            });
-            const existingLinks = existing?.Results ?? [];
-            const existingTagIDs = new Set(existingLinks.map(l => l.TagID));
-            const selectedTagIDs = new Set(this.selectedTags.map((t: any) => t.ID));
-
-            // Add new
-            for (const tagID of selectedTagIDs) {
-                if (!existingTagIDs.has(tagID)) {
-                    const link = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Tag Links');
-                    link.NewRecord();
-                    link.Set('TaskID', savedID);
-                    link.Set('TagID', tagID);
-                    const linked = await link.Save();
-                    if (!linked) return this.stopSave(link, 'The tag was refused.');
-                }
-            }
-
-            for (const existingLink of existingLinks) {
-                if (!selectedTagIDs.has(existingLink.TagID)) {
-                    const link = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Tag Links');
-                    const pk = new CompositeKey([{ FieldName: 'ID', Value: existingLink.ID }]);
-                    await link.InnerLoad(pk);
-                    const removed = await link.Delete();
-                    if (!removed) return this.stopSave(link, 'The tag removal was refused.');
-                }
-            }
-        } else {
-            for (const tag of this.selectedTags) {
-                const link = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Tag Links');
-                link.NewRecord();
-                link.Set('TaskID', savedID);
-                link.Set('TagID', tag.ID);
-                const linked = await link.Save();
-                if (!linked) return this.stopSave(link, 'The tag was refused.');
-            }
-        }
-
-        this.saving = false;
-        this.Saved.emit(savedID);
     }
 
     private stopSave(record: { LatestResult?: { CompleteMessage?: string } | null }, fallback: string): void {

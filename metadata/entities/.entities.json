@@ -1,9 +1,15 @@
 [
   {
+    "_comments": [
+      "Tasks declares a SubtypeSelector over TaskType.ExtensionEntity so extension Open Apps",
+      "(e.g. bizapps-tasks-github) automatically create and guard disjoint IS-A child rows",
+      "and fold their subtype fields into the Task form without Task-specific server code."
+    ],
     "primaryKey": {
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Tasks"
     },
     "fields": {
+      "SubtypeSelector": "{\"Path\": \"TypeID.ExtensionEntity\", \"AutoEnsureOnSave\": true, \"OnSubtypeChange\": \"Replace\", \"FoldIntoForm\": true}",
       "AllowUserSearchAPI": true,
       "AutoUpdateAllowUserSearchAPI": false
     },
@@ -368,6 +374,24 @@
     "sync": {
       "lastModified": "2026-09-17T23:07:38.959Z",
       "checksum": "557b2f2d442156dd31b2ae55bcfb3080cb61cf2d094d43039aa4c5907568aba6"
+    }
+  },
+  {
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Work Reports"
+    },
+    "fields": {
+      "AllowUserSearchAPI": false,
+      "AutoUpdateAllowUserSearchAPI": false
+    }
+  },
+  {
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Work Report Items"
+    },
+    "fields": {
+      "AllowUserSearchAPI": false,
+      "AutoUpdateAllowUserSearchAPI": false
     }
   }
 ]

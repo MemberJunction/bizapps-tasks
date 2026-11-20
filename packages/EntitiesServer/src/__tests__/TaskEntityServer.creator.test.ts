@@ -19,10 +19,13 @@ const people = {
 };
 const superSave = vi.fn(async () => true);
 
-vi.mock('@memberjunction/global', () => ({
-    RegisterClass: () => () => {},
-    IsValidUUID: (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
-}));
+vi.mock('@memberjunction/global', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@memberjunction/global')>();
+    return {
+        ...actual,
+        RegisterClass: () => () => {},
+    };
+});
 
 vi.mock('@memberjunction/core', () => {
     class ValidationErrorInfo { constructor(public Source: string, public Message: string, public Value: unknown, public Type?: string) {} }
@@ -36,9 +39,11 @@ vi.mock('@memberjunction/core', () => {
             public ContextCurrentUser: { ID: string; LinkedEntityID?: string; LinkedEntityRecordID?: string } | null = { ID: USER_ID };
             public Fields: Array<{ CodeName: string; Dirty: boolean; Value: unknown; OldValue: unknown }> = [];
             public IsSaved = false;
+            public TransactionGroup: unknown = null;
             public ProviderToUse = provider;
             public RunViewProviderToUse = {};
             private _fieldValues: Record<string, unknown> = {};
+            public DeclareRelatedRecords() { return { Items: [] as unknown[] }; }
             public Get(fieldName: string) { return this._fieldValues[fieldName]; }
             public Set(fieldName: string, value: unknown) { this._fieldValues[fieldName] = value; }
             public GetAll() { return { ...this._fieldValues }; }
@@ -48,6 +53,7 @@ vi.mock('@memberjunction/core', () => {
         },
         BaseEngine: class { public static getInstance() { return {}; } },
         BaseRemotableOperation: class {},
+        CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },
         LogError: vi.fn(),
         LogStatus: vi.fn(),
         Metadata: class {
@@ -63,6 +69,7 @@ vi.mock('@memberjunction/core', () => {
                 return people.fail ? { Success: false, Results: [], ErrorMessage: 'database unavailable' } : { Success: true, Results: people.results };
             }
         },
+        UserInfo: class {},
         ValidationErrorInfo,
         ValidationErrorType: { Failure: 'Failure', Warning: 'Warning' },
     };
@@ -72,7 +79,8 @@ vi.mock('@memberjunction/actions', () => ({
     ActionEngineServer: { Instance: { Config: vi.fn().mockResolvedValue(undefined), Actions: [], RunAction: vi.fn() } },
 }));
 
-vi.mock('@mj-biz-apps/tasks-core', () => ({
+vi.mock('@mj-biz-apps/tasks-core', async () => ({
+    ...(await vi.importActual<typeof import('@mj-biz-apps/tasks-core')>('@mj-biz-apps/tasks-core')),
     TaskService: class { public async rollupParentProgress() { return true; } },
 }));
 

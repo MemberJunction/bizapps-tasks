@@ -29,9 +29,9 @@ import {
     type UserInfo,
 } from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
-import { TasksSettings } from '@mj-biz-apps/tasks-core';
+import { GuidLiteral as guid, TasksSettings } from '@mj-biz-apps/tasks-core';
 import { mjBizAppsTasksTaskAssignmentEntity } from '@mj-biz-apps/tasks-entities';
-import { GuidLiteral as guid, IsPeopleEntity as isPeopleEntity, PEOPLE_ENTITY, PeopleFilterForUser } from './UserPeople.js';
+import { IsPeopleEntity as isPeopleEntity, PEOPLE_ENTITY, PeopleFilterForUser } from './UserPeople.js';
 
 export const TASK_ASSIGNMENT_ENTITY = 'MJ_BizApps_Tasks: Task Assignments';
 const TASK_ENTITY = 'MJ_BizApps_Tasks: Tasks';

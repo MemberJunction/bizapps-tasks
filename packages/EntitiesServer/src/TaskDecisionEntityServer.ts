@@ -9,8 +9,9 @@
  * from the browser), the Tasks inbox, and other apps' server code calling
  * `TaskOrchestrationService.RecordDecision`.
  *
- * Enforced when either the Tasks setting `PreventSelfApproval` is true OR the task's `TaskType` has
- * `RequiresAssigneeDecision = true` (D13).
+ * On by default (secure by default): only the Tasks setting `PreventSelfApproval` explicitly set to
+ * false turns the global guard off. Even when `PreventSelfApproval` is explicitly false, a task whose
+ * `TaskType` has `RequiresAssigneeDecision = true` (D13) still enforces assignee-only / no-self-approval.
  *
  * CONNECTS TO:
  *   READS:  Tasks · Task Types · Task Assignments · MJ_BizApps_Common: People · MJ: Roles · MJ: User Roles
@@ -27,10 +28,10 @@ import {
     type UserInfo,
 } from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
-import { TasksSettings } from '@mj-biz-apps/tasks-core';
+import { GuidLiteral as guid, TasksSettings } from '@mj-biz-apps/tasks-core';
 import { mjBizAppsTasksTaskDecisionEntity } from '@mj-biz-apps/tasks-entities';
 import { TaskDecisionRefusal, type DecisionAssignmentFact, type TaskDecisionFacts } from './TaskDecisionAuthority.js';
-import { GuidLiteral as guid, IsPeopleEntity as isPeopleEntity, PEOPLE_ENTITY, PeopleFilterForUser } from './UserPeople.js';
+import { IsPeopleEntity as isPeopleEntity, PEOPLE_ENTITY, PeopleFilterForUser } from './UserPeople.js';
 
 export const TASK_DECISION_ENTITY = 'MJ_BizApps_Tasks: Task Decisions';
 const TASK_ENTITY = 'MJ_BizApps_Tasks: Tasks';

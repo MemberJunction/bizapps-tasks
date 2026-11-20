@@ -9497,6 +9497,8 @@ CREATE PROCEDURE [${flyway:defaultSchema}].[spCreateTaskType]
     @OnStatusChangeActionID_Clear bit = 0,
     @OnStatusChangeActionID uniqueidentifier = NULL,
     @IsApproval bit = NULL,
+    @ExtensionEntity_Clear bit = 0,
+    @ExtensionEntity nvarchar(255) = NULL,
     @RequiresAssigneeDecision bit = NULL
 AS
 BEGIN
@@ -9524,6 +9526,7 @@ BEGIN
                 [OnCreateActionID],
                 [OnStatusChangeActionID],
                 [IsApproval],
+                [ExtensionEntity],
                 [RequiresAssigneeDecision]
             )
         OUTPUT INSERTED.[ID] INTO @InsertedRow
@@ -9545,6 +9548,7 @@ BEGIN
                 CASE WHEN @OnCreateActionID_Clear = 1 THEN NULL ELSE ISNULL(@OnCreateActionID, NULL) END,
                 CASE WHEN @OnStatusChangeActionID_Clear = 1 THEN NULL ELSE ISNULL(@OnStatusChangeActionID, NULL) END,
                 ISNULL(@IsApproval, 0),
+                CASE WHEN @ExtensionEntity_Clear = 1 THEN NULL ELSE ISNULL(@ExtensionEntity, NULL) END,
                 ISNULL(@RequiresAssigneeDecision, 0)
             )
     END
@@ -9568,6 +9572,7 @@ BEGIN
                 [OnCreateActionID],
                 [OnStatusChangeActionID],
                 [IsApproval],
+                [ExtensionEntity],
                 [RequiresAssigneeDecision]
             )
         OUTPUT INSERTED.[ID] INTO @InsertedRow
@@ -9588,6 +9593,7 @@ BEGIN
                 CASE WHEN @OnCreateActionID_Clear = 1 THEN NULL ELSE ISNULL(@OnCreateActionID, NULL) END,
                 CASE WHEN @OnStatusChangeActionID_Clear = 1 THEN NULL ELSE ISNULL(@OnStatusChangeActionID, NULL) END,
                 ISNULL(@IsApproval, 0),
+                CASE WHEN @ExtensionEntity_Clear = 1 THEN NULL ELSE ISNULL(@ExtensionEntity, NULL) END,
                 ISNULL(@RequiresAssigneeDecision, 0)
             )
     END
@@ -9649,6 +9655,8 @@ CREATE PROCEDURE [${flyway:defaultSchema}].[spUpdateTaskType]
     @OnStatusChangeActionID_Clear bit = 0,
     @OnStatusChangeActionID uniqueidentifier = NULL,
     @IsApproval bit = NULL,
+    @ExtensionEntity_Clear bit = 0,
+    @ExtensionEntity nvarchar(255) = NULL,
     @RequiresAssigneeDecision bit = NULL
 AS
 BEGIN
@@ -9671,6 +9679,7 @@ BEGIN
         [OnCreateActionID] = CASE WHEN @OnCreateActionID_Clear = 1 THEN NULL ELSE ISNULL(@OnCreateActionID, [OnCreateActionID]) END,
         [OnStatusChangeActionID] = CASE WHEN @OnStatusChangeActionID_Clear = 1 THEN NULL ELSE ISNULL(@OnStatusChangeActionID, [OnStatusChangeActionID]) END,
         [IsApproval] = ISNULL(@IsApproval, [IsApproval]),
+        [ExtensionEntity] = CASE WHEN @ExtensionEntity_Clear = 1 THEN NULL ELSE ISNULL(@ExtensionEntity, [ExtensionEntity]) END,
         [RequiresAssigneeDecision] = ISNULL(@RequiresAssigneeDecision, [RequiresAssigneeDecision])
     WHERE
         [ID] = @ID

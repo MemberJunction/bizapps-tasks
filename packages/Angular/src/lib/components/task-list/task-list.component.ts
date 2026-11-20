@@ -1,12 +1,19 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, inject, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Metadata, RunView, CompositeKey } from '@memberjunction/core';
-import { UUIDsEqual } from '@memberjunction/global';
+import { Metadata, RunView, CompositeKey, type IMetadataProvider, type IRunViewProvider } from '@memberjunction/core';
+import { NormalizeUUID, UUIDsEqual } from '@memberjunction/global';
 import { FormatDurationMinutes, TasksSettings } from '@mj-biz-apps/tasks-core';
 import type { mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
 import { ResolveCurrentPersonID } from '../../current-person';
 import { RoleAssigneeName } from '../../role-assignees';
+import {
+    CountTotalPendingSuggestions,
+    FilterTasksByPendingSuggestions,
+    FormatPendingSuggestionTooltip,
+    TaskFieldSuggestionsHelper,
+    type TaskPendingSuggestionsSummary,
+} from '../../task-field-suggestions.helper';
 
 /**
  * Minimal shape of a Person row as queried by {@link TaskListComponent}
@@ -61,6 +68,14 @@ export interface TaskRow {
     LoggedMinutes?: number | null;
     /** True if the signed-in person's active timer is currently running on this task. */
     IsTimerRunning?: boolean;
+    /** Number of unresolved MJ core Field Suggestions anchored to this task. */
+    PendingSuggestionCount?: number;
+    /** Distinct field names (`AnchorKey`) with unresolved Field Suggestions on this task. */
+    PendingSuggestionFields?: string[];
+    /** Formatted tooltip summarizing pending suggestions on this task. */
+    PendingSuggestionTooltip?: string;
+    /** Compact preview label of the top pending suggestion on this task. */
+    PendingSuggestionPreview?: string;
 }
 
 /**
@@ -135,7 +150,8 @@ export class BeforeStatusChangeEvent {
                 <div class="toolbar-right">
                     <div class="filter-pills">
                         @for (f of statusFilters; track f.value) {
-                            <button class="filter-pill" [class.active]="statusFilter === f.value"
+                            <button type="button" class="filter-pill" [class.active]="statusFilter === f.value"
+                                    [attr.aria-pressed]="statusFilter === f.value"
                                     (click)="statusFilter = f.value; applyFilters()">
                                 {{ f.label }}
                                 @if (f.value === '' && tasks.length > 0) {
@@ -144,6 +160,20 @@ export class BeforeStatusChangeEvent {
                             </button>
                         }
                     </div>
+                    @if (fieldSuggestionsAvailable || totalPendingSuggestionsCount > 0 || pendingSuggestionsOnly) {
+                        <button type="button"
+                                class="filter-pill suggestion-filter-pill"
+                                [class.active]="pendingSuggestionsOnly"
+                                [attr.aria-pressed]="pendingSuggestionsOnly"
+                                [attr.title]="pendingSuggestionsFilterTooltip"
+                                (click)="togglePendingSuggestionsFilter()">
+                            <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+                            Pending Suggestions
+                            @if (totalPendingSuggestionsCount > 0) {
+                                <span class="filter-count">{{ totalPendingSuggestionsCount }}</span>
+                            }
+                        </button>
+                    }
                     @if (ShowCreateButton) {
                         <button class="btn-create" (click)="CreateTask.emit()">
                             <i class="fa-solid fa-plus"></i> New Task
@@ -162,6 +192,11 @@ export class BeforeStatusChangeEvent {
                 <div class="empty-state">
                     <i class="fa-solid fa-clipboard-check"></i>
                     <p>No tasks match this filter.</p>
+                    @if (hasActiveFilters) {
+                        <button type="button" class="reset-filter-btn" (click)="resetFilters()">
+                            Reset filters
+                        </button>
+                    }
                 </div>
             }
 
@@ -275,7 +310,7 @@ export class BeforeStatusChangeEvent {
                                     }
                                     @if (task.HoursEstimated) {
                                         <span class="meta-chip">
-                                            <i class="fa-solid fa-clock"></i>
+                                            <i class="fa-solid fa-clock" aria-hidden="true"></i>
                                             {{ task.HoursEstimated }}h
                                         </span>
                                     }
@@ -289,6 +324,14 @@ export class BeforeStatusChangeEvent {
                                         <span class="meta-chip logged-time-chip" title="Logged time">
                                             <i class="fa-solid fa-hourglass-half"></i>
                                             {{ formatLoggedMinutes(task.LoggedMinutes) }}
+                                        </span>
+                                    }
+                                    @if ((task.PendingSuggestionCount ?? 0) > 0) {
+                                        <span class="meta-chip suggestion-chip"
+                                              [attr.title]="getTaskSuggestionTooltip(task)"
+                                              [attr.aria-label]="getTaskSuggestionTooltip(task)">
+                                            <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+                                            {{ task.PendingSuggestionCount }} {{ task.PendingSuggestionCount === 1 ? 'suggestion' : 'suggestions' }}
                                         </span>
                                     }
                                     @for (tag of task.Tags ?? []; track tag.Name) {
@@ -544,6 +587,21 @@ export class BeforeStatusChangeEvent {
             padding: 1px 8px; border-radius: var(--mj-radius-md); font-size: 11px; font-weight: var(--mj-font-semibold);
             background: var(--mj-bg-surface-sunken); color: var(--mj-text-secondary);
         }
+        .suggestion-chip {
+            padding: 2px 8px; border-radius: var(--mj-radius-md); font-size: 11px; font-weight: var(--mj-font-semibold);
+            background: var(--mj-status-info-bg); color: var(--mj-status-info-text);
+        }
+        .suggestion-chip i { color: var(--mj-status-info-text); }
+        .suggestion-filter-pill {
+            border: 1px solid var(--mj-border-default); background: var(--mj-bg-surface);
+        }
+        .suggestion-filter-pill.active {
+            border-color: var(--mj-brand-primary); color: var(--mj-brand-primary);
+            background: color-mix(in srgb, var(--mj-brand-primary) 8%, var(--mj-bg-surface));
+        }
+        .filter-pill:focus-visible, .btn-create:focus-visible, .expand-toggle:focus-visible {
+            outline: 2px solid var(--mj-brand-primary); outline-offset: 2px;
+        }
 
         /* ─── Status Badge ─── */
         .card-status { flex-shrink: 0; }
@@ -590,6 +648,15 @@ export class BeforeStatusChangeEvent {
         .empty-state { text-align: center; padding: 64px 24px; }
         .empty-state i { font-size: 40px; color: var(--mj-border-default); display: block; margin-bottom: 16px; }
         .empty-state p { font-size: 15px; font-weight: var(--mj-font-medium); color: var(--mj-text-disabled); margin: 0; }
+        .reset-filter-btn {
+            margin-top: 12px; padding: 6px 14px; border: 1px solid var(--mj-border-default);
+            border-radius: var(--mj-radius-md); background: var(--mj-bg-surface);
+            color: var(--mj-text-secondary); font-size: 13px; font-weight: var(--mj-font-semibold);
+            cursor: pointer; font-family: inherit; transition: border-color 0.15s, color 0.15s;
+        }
+        .reset-filter-btn:hover {
+            border-color: var(--mj-brand-primary); color: var(--mj-brand-primary);
+        }
 
         /* ─── Responsive ─── */
         @media (max-width: 768px) {
@@ -624,6 +691,16 @@ export class BeforeStatusChangeEvent {
  */
 export class TaskListComponent implements OnInit, OnChanges {
     // ── Inputs ──────────────────────────────────────────────
+
+    /**
+     * Optional metadata/data provider for multi-provider embeds.
+     * Falls back to `Metadata.Provider` when omitted.
+     */
+    @Input() Provider: IMetadataProvider | null = null;
+
+    public get ProviderToUse(): IMetadataProvider {
+        return this.Provider ?? Metadata.Provider;
+    }
 
     /**
      * Filter tasks to a specific category. Pass a TaskCategory ID to scope
@@ -687,6 +764,30 @@ export class TaskListComponent implements OnInit, OnChanges {
      * @default false
      */
     @Input() ReadOnly = false;
+
+    /**
+     * When true, filters the list to tasks with unresolved Field Suggestions.
+     * @default false
+     */
+    @Input()
+    get PendingSuggestionsOnly(): boolean {
+        return this.pendingSuggestionsOnly;
+    }
+    set PendingSuggestionsOnly(value: boolean) {
+        const next = Boolean(value);
+        if (next !== this.pendingSuggestionsOnly) {
+            this.pendingSuggestionsOnly = next;
+            if (this.isInitialized) {
+                this.applyFilters();
+                this.cdr.markForCheck();
+            }
+        }
+    }
+
+    /**
+     * Emitted whenever the Pending Suggestions filter toggle changes.
+     */
+    @Output() PendingSuggestionsOnlyChange = new EventEmitter<boolean>();
 
     // ── Outputs ─────────────────────────────────────────────
 
@@ -761,7 +862,15 @@ export class TaskListComponent implements OnInit, OnChanges {
     /** @internal */
     statusFilter = '';
     /** @internal */
-    private searchTimeout: any;
+    pendingSuggestionsOnly = false;
+    /** @internal True when `MJ: Field Suggestions` is available on the host (`MJ 6.3+`). */
+    fieldSuggestionsAvailable = false;
+    /** @internal Aggregated pending suggestion summaries keyed by normalized task UUID. */
+    pendingSuggestionsByTask = new Map<string, TaskPendingSuggestionsSummary>();
+    /** @internal */
+    private isInitialized = false;
+    /** @internal */
+    private searchTimeout: ReturnType<typeof setTimeout> | null = null;
     /** @internal */
     cdr = inject(ChangeDetectorRef);
 
@@ -777,9 +886,79 @@ export class TaskListComponent implements OnInit, OnChanges {
     // ── Lifecycle ───────────────────────────────────────────
 
     ngOnInit(): void {
+        this.isInitialized = true;
         if (this.StatusFilter) this.statusFilter = this.StatusFilter;
         this.loadTasks();
         if (this.ShowQuickAdd) this.loadQuickAddPeople();
+    }
+
+    /** Total number of pending suggestions across all loaded tasks. */
+    get totalPendingSuggestionsCount(): number {
+        if (this.tasks.length > 0) {
+            return this.tasks.reduce((sum, t) => sum + (t.PendingSuggestionCount ?? 0), 0);
+        }
+        return CountTotalPendingSuggestions(this.pendingSuggestionsByTask);
+    }
+
+    /** Number of distinct tasks that have at least one pending suggestion. */
+    get tasksWithPendingSuggestionsCount(): number {
+        return this.tasks.filter((t) => (t.PendingSuggestionCount ?? 0) > 0).length;
+    }
+
+    get pendingSuggestionsFilterTooltip(): string {
+        const total = this.totalPendingSuggestionsCount;
+        if (total <= 0) {
+            return 'Filter to tasks with pending AI/ambient field suggestions';
+        }
+        const taskCount = this.tasksWithPendingSuggestionsCount;
+        const suggNoun = total === 1 ? 'pending suggestion' : 'pending suggestions';
+        const taskNoun = taskCount === 1 ? 'task' : 'tasks';
+        return `${total} ${suggNoun} across ${taskCount} ${taskNoun}`;
+    }
+
+    get hasActiveFilters(): boolean {
+        return Boolean(this.statusFilter || this.pendingSuggestionsOnly || this.searchText.trim());
+    }
+
+    togglePendingSuggestionsFilter(): void {
+        this.pendingSuggestionsOnly = !this.pendingSuggestionsOnly;
+        this.PendingSuggestionsOnlyChange.emit(this.pendingSuggestionsOnly);
+        this.applyFilters();
+        this.cdr.markForCheck();
+    }
+
+    resetFilters(): void {
+        const hadPendingFilter = this.pendingSuggestionsOnly;
+        this.statusFilter = '';
+        this.searchText = '';
+        this.pendingSuggestionsOnly = false;
+        if (hadPendingFilter) {
+            this.PendingSuggestionsOnlyChange.emit(false);
+        }
+        this.applyFilters();
+        this.cdr.markForCheck();
+    }
+
+    getTaskSuggestionTooltip(task: TaskRow): string {
+        if (task.PendingSuggestionTooltip) {
+            return task.PendingSuggestionTooltip;
+        }
+        const summary = this.pendingSuggestionsByTask.get(NormalizeUUID(task.ID));
+        if (summary) {
+            return FormatPendingSuggestionTooltip(summary);
+        }
+        return FormatPendingSuggestionTooltip({
+            pendingCount: task.PendingSuggestionCount ?? 0,
+            fieldNames: task.PendingSuggestionFields ?? [],
+        });
+    }
+
+    private createRunView(): RunView {
+        const p = this.ProviderToUse;
+        if (p && typeof (p as Partial<IRunViewProvider>).RunView === 'function') {
+            return RunView.FromMetadataProvider(p);
+        }
+        return new RunView();
     }
 
     ngOnChanges(changes: SimpleChanges): void {
@@ -848,7 +1027,7 @@ export class TaskListComponent implements OnInit, OnChanges {
         } else if (typeof this.AssigneeScope === 'string' && this.AssigneeScope) {
             extraFilter = this.AssigneeScope;
         }
-        const rv = new RunView();
+        const rv = this.createRunView();
         const result = await rv.RunView<TaskListPersonRow>({
             EntityName: 'MJ_BizApps_Common: People',
             ExtraFilter: extraFilter,
@@ -890,44 +1069,34 @@ export class TaskListComponent implements OnInit, OnChanges {
                 return;
             }
 
-            const entity = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Tasks');
+            const entity = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
             entity.NewRecord();
-            entity.Set('Name', name);
-            entity.Set('Status', 'Open');
-            entity.Set('Priority', 'Medium');
-            entity.Set('TypeID', typeID);
-            if (this.CategoryID) entity.Set('CategoryID', this.CategoryID);
-            const saved = await entity.Save();
+            entity.Name = name;
+            entity.Status = 'Open';
+            entity.Priority = 'Medium';
+            entity.TypeID = typeID;
+            if (this.CategoryID) entity.CategoryID = this.CategoryID;
 
+            // Attach assignee directly onto entity.Assignments so Task + Assignment save atomically via MJ.SaveEntityGraph
+            if (this.quickAddPersonID) {
+                const peopleEntityID = Metadata.Provider.EntityByName('MJ_BizApps_Common: People')?.ID;
+                if (!peopleEntityID) {
+                    console.error('Quick-add assignment skipped: People is not installed.');
+                } else {
+                    const assignment = await entity.Assignments.Create();
+                    assignment.AssigneeEntityID = peopleEntityID;
+                    assignment.AssigneeRecordID = this.quickAddPersonID;
+                    assignment.Status = 'Pending';
+                }
+            }
+
+            const saved = await entity.Save();
             if (!saved) {
                 console.error('Quick-add Save() returned false. LatestResult:', entity.LatestResult);
                 return;
             }
 
-            const savedID = entity.Get('ID') as string;
-
-            // Create assignment if a person was selected
-            if (this.quickAddPersonID) {
-                try {
-                    const peopleEntityID = Metadata.Provider.EntityByName('MJ_BizApps_Common: People')?.ID;
-                    if (!peopleEntityID) {
-                        console.error('Quick-add assignment skipped: People is not installed.');
-                    } else {
-                        const assignment = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Assignments');
-                        assignment.NewRecord();
-                        assignment.Set('TaskID', savedID);
-                        assignment.Set('AssigneeEntityID', peopleEntityID);
-                        assignment.Set('AssigneeRecordID', this.quickAddPersonID);
-                        assignment.Set('Status', 'Pending');
-                        const assigned = await assignment.Save();
-                        if (!assigned) {
-                            console.error('Quick-add assignment was refused:', assignment.LatestResult?.CompleteMessage);
-                        }
-                    }
-                } catch (e) {
-                    console.error('Quick-add assignment failed:', e);
-                }
-            }
+            const savedID = entity.ID;
 
             this.quickAddName = '';
             this.quickAddPersonID = '';
@@ -954,7 +1123,7 @@ export class TaskListComponent implements OnInit, OnChanges {
         this.loading = true;
         this.cdr.markForCheck();
 
-        const rv = new RunView();
+        const rv = this.createRunView();
         const filters: string[] = [];
         if (this.CategoryID) filters.push(`CategoryID = '${this.CategoryID}'`);
         if (this.ExtraFilter) filters.push(this.ExtraFilter);
@@ -1031,8 +1200,8 @@ export class TaskListComponent implements OnInit, OnChanges {
         // Filter out any selected ID that is no longer in current rawTasks
         this.selectedIDs = this.selectedIDs.filter(id => rawTasks.some(t => UUIDsEqual(t.ID, id)));
 
-        // Load assignees, tags, and active timer in parallel
-        await Promise.all([this.loadAssignees(), this.loadTags(), this.loadActiveTimerState(rv)]);
+        // Load assignees, tags, active timer, and pending Field Suggestions in parallel
+        await Promise.all([this.loadAssignees(), this.loadTags(), this.loadActiveTimerState(rv), this.loadPendingSuggestions()]);
         this.applyFilters();
         this.loading = false;
         this.cdr.markForCheck();
@@ -1065,9 +1234,25 @@ export class TaskListComponent implements OnInit, OnChanges {
         }
     }
 
+    private async loadPendingSuggestions(): Promise<void> {
+        const res = await TaskFieldSuggestionsHelper.LoadPendingSuggestions(this.ProviderToUse, {
+            taskIds: this.tasks.map((t) => t.ID),
+        });
+        this.fieldSuggestionsAvailable = res.available;
+        this.pendingSuggestionsByTask = res.byTaskId;
+
+        for (const task of this.tasks) {
+            const summary = res.byTaskId.get(NormalizeUUID(task.ID));
+            task.PendingSuggestionCount = summary?.pendingCount ?? 0;
+            task.PendingSuggestionFields = summary ? [...summary.fieldNames] : [];
+            task.PendingSuggestionTooltip = summary ? FormatPendingSuggestionTooltip(summary) : '';
+            task.PendingSuggestionPreview = summary?.topPreviewLabel ?? '';
+        }
+    }
+
     private async loadAssignees(): Promise<void> {
         if (this.tasks.length === 0) return;
-        const rv = new RunView();
+        const rv = this.createRunView();
         const taskIDs = this.tasks.map(t => `'${t.ID}'`).join(',');
 
         const [assignments, people] = await Promise.all([
@@ -1076,14 +1261,14 @@ export class TaskListComponent implements OnInit, OnChanges {
                 ExtraFilter: `TaskID IN (${taskIDs})`,
                 ResultType: 'simple',
             }),
-            new RunView().RunView<TaskListPersonRow>({
+            this.createRunView().RunView<TaskListPersonRow>({
                 EntityName: 'MJ_BizApps_Common: People',
                 ResultType: 'simple',
             }),
         ]);
 
         // Load roles
-        const roles = await new RunView().RunView<{ ID: string; Name: string }>({
+        const roles = await this.createRunView().RunView<{ ID: string; Name: string }>({
             EntityName: 'MJ_BizApps_Tasks: Task Roles',
             ResultType: 'simple',
         });
@@ -1112,7 +1297,7 @@ export class TaskListComponent implements OnInit, OnChanges {
 
     private async loadTags(): Promise<void> {
         if (this.tasks.length === 0) return;
-        const rv = new RunView();
+        const rv = this.createRunView();
         const taskIDs = this.tasks.map(t => `'${t.ID}'`).join(',');
 
         const [tagLinks, tags] = await Promise.all([
@@ -1121,7 +1306,7 @@ export class TaskListComponent implements OnInit, OnChanges {
                 ExtraFilter: `TaskID IN (${taskIDs})`,
                 ResultType: 'simple',
             }),
-            new RunView().RunView<{ ID: string; Name: string; ColorCode: string | null }>({
+            this.createRunView().RunView<{ ID: string; Name: string; ColorCode: string | null }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Tags',
                 ResultType: 'simple',
             }),
@@ -1166,7 +1351,9 @@ export class TaskListComponent implements OnInit, OnChanges {
 
     // -- Filtering --
     onSearchChange(): void {
-        clearTimeout(this.searchTimeout);
+        if (this.searchTimeout != null) {
+            clearTimeout(this.searchTimeout);
+        }
         this.searchTimeout = setTimeout(() => { this.applyFilters(); this.cdr.markForCheck(); }, 200);
     }
 
@@ -1175,6 +1362,11 @@ export class TaskListComponent implements OnInit, OnChanges {
 
         if (this.statusFilter) {
             filtered = filtered.filter(t => t.Status === this.statusFilter);
+        }
+
+        if (this.pendingSuggestionsOnly) {
+            const mapToUse = this.pendingSuggestionsByTask.size > 0 ? this.pendingSuggestionsByTask : undefined;
+            filtered = FilterTasksByPendingSuggestions(filtered, true, mapToUse);
         }
 
         if (this.searchText.trim()) {

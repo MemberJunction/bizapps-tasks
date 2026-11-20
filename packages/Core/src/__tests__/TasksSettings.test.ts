@@ -24,17 +24,23 @@ const provider = Metadata.Provider;
 describe('TasksSettings (@mj-biz-apps/tasks-core)', () => {
     beforeEach(() => settings.clear());
 
-    it('reads PreventSelfApproval and SelfApprovalExemptRole with safe defaults', () => {
-        expect(TasksSettings.PreventSelfApproval(provider)).toBe(false);
+    it('reads PreventSelfApproval (ON by default, secure by default) and SelfApprovalExemptRole', () => {
+        expect(TasksSettings.PreventSelfApproval(provider)).toBe(true);
         expect(TasksSettings.SelfApprovalExemptRole(provider)).toBeNull();
+
+        settings.set('PreventSelfApproval', 'false');
+        expect(TasksSettings.PreventSelfApproval(provider)).toBe(false);
 
         settings.set('PreventSelfApproval', 'true');
         settings.set('SelfApprovalExemptRole', ' Finance Admin ');
         expect(TasksSettings.PreventSelfApproval(provider)).toBe(true);
         expect(TasksSettings.SelfApprovalExemptRole(provider)).toBe('Finance Admin');
 
+        // Empty or unrecognized values retain the secure default (true).
+        settings.set('PreventSelfApproval', '');
+        expect(TasksSettings.PreventSelfApproval(provider)).toBe(true);
         settings.set('PreventSelfApproval', 'garbage');
-        expect(TasksSettings.PreventSelfApproval(provider)).toBe(false);
+        expect(TasksSettings.PreventSelfApproval(provider)).toBe(true);
     });
 
     it('reads ApprovalReassignRoles as a comma-separated list, empty by default', () => {

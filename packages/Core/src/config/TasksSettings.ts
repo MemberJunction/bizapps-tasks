@@ -23,8 +23,8 @@ export type TimesheetApprovalRoutingMode = 'ProjectApproval' | 'SingleApproval' 
 export const TASKS_SETTING = {
     /**
      * Whether a decision on an approval task must come from one of its assignees, attributed to that
-     * assignee, and not from the person who created the task (bc-aidp-next-golive#320 §3). Off by
-     * default, which leaves every decision accepted as before.
+     * assignee, and not from the person who created the task (bc-aidp-next-golive#320 §3). On by
+     * default (secure by default): only an explicit `false` setting turns the guard off.
      */
     PreventSelfApproval: 'PreventSelfApproval',
     /**
@@ -141,12 +141,15 @@ const VALID_ROUTING_MODES: ReadonlySet<TimesheetApprovalRoutingMode> = new Set([
     'AutoApprove',
 ]);
 
-/** Coerces a raw setting string to boolean, falling back when absent or unrecognised. */
+/**
+ * Only an explicit value flips a guard; anything else — absent, empty or unrecognized — keeps the
+ * fallback, so a security control cannot be switched off by a typo or a cleared value.
+ */
 function asBoolean(raw: string | undefined, fallback: boolean): boolean {
     if (raw == null) return fallback;
     const v = raw.trim().toLowerCase();
     if (['true', '1', 'yes', 'on'].includes(v)) return true;
-    if (['false', '0', 'no', 'off', ''].includes(v)) return false;
+    if (['false', '0', 'no', 'off'].includes(v)) return false;
     return fallback;
 }
 
@@ -173,9 +176,9 @@ export class TasksSettings {
         return ApplicationSettingEngine.Instance.GetSetting(key, appID);
     }
 
-    /** Whether approval decisions are limited to assignees other than the requester. Default `false`. */
+    /** Whether approval decisions are limited to assignees other than the requester. Default `true` (secure by default). */
     public static PreventSelfApproval(provider: IMetadataProvider): boolean {
-        return asBoolean(this.raw(TASKS_SETTING.PreventSelfApproval, provider), false);
+        return asBoolean(this.raw(TASKS_SETTING.PreventSelfApproval, provider), true);
     }
 
     /** The role exempt from the self-approval refusal, or `null` when none is configured. */

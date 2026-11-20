@@ -45,15 +45,13 @@ function userRolesMatching(filter: string): Array<{ ID: string; Role: string }> 
     return db.userRoles.filter((r) => names.includes(r.Role));
 }
 
-vi.mock('@memberjunction/global', () => ({
-    RegisterClass: () => () => {},
-    IsValidUUID: (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
-    BaseSingleton: class {
-        public static getInstance() {
-            return {};
-        }
-    },
-}));
+vi.mock('@memberjunction/global', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@memberjunction/global')>();
+    return {
+        ...actual,
+        RegisterClass: () => () => {},
+    };
+});
 
 vi.mock('@mj-biz-apps/common-entities', () => ({
     BusinessTimeZoneEngine: { Instance: {} },
@@ -86,13 +84,16 @@ vi.mock('@memberjunction/core', () => {
         },
         BaseRemotableOperation: class {},
         BaseEntityResult,
+        CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },
         LogError: logError,
+        LogStatus: vi.fn(),
         Metadata: { Provider: provider },
         RunView: class {
             async RunView(p: { EntityName: string; ExtraFilter: string }) {
                 return viewResult(p.EntityName, p.ExtraFilter);
             }
         },
+        UserInfo: class {},
         ValidationResult,
         ValidationErrorInfo,
     };

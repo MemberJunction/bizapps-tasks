@@ -25,6 +25,9 @@ import { TimesheetScheduleEntityServer } from './TimesheetScheduleEntityServer.j
 import { TimesheetLinkEntityServer } from './TimesheetLinkEntityServer.js';
 import { TaskTimeEntryLinkEntityServer } from './TaskTimeEntryLinkEntityServer.js';
 import { TaskLinkScopeApproverResolver } from './BaseTimeApproverResolver.js';
+import { TaskTypeEntityServer, LoadTaskTypeEntityServer } from './TaskTypeEntityServer.js';
+import { WorkReportEntityServer, LoadWorkReportEntityServer } from './WorkReportEntityServer.js';
+import { WorkReportItemEntityServer, LoadWorkReportItemEntityServer } from './WorkReportItemEntityServer.js';
 import { MeetingEntityServer } from './MeetingEntityServer.js';
 import { MeetingSeriesEntityServer } from './MeetingSeriesEntityServer.js';
 import { MeetingAttendeeEntityServer, MeetingSeriesAttendeeEntityServer } from './MeetingAttendeeEntityServer.js';
@@ -36,7 +39,7 @@ import { registerMeetingServerAIRuntime } from './ai/meeting-ai-runtime.js';
 
 registerMeetingServerAIRuntime();
 
-export { TaskEntityServer, type TaskActionHookType, type TaskLifecycleContext, type TaskActionHookResult } from './TaskEntityServer.js';
+export { TaskEntityServer, REJECTED_STAGE_CODE, type TaskActionHookType, type TaskLifecycleContext, type TaskActionHookResult } from './TaskEntityServer.js';
 export { TaskCheckInEntityServer } from './TaskCheckInEntityServer.js';
 export { TaskDecisionEntityServer, TASK_DECISION_ENTITY } from './TaskDecisionEntityServer.js';
 export { TaskAssignmentEntityServer, TASK_ASSIGNMENT_ENTITY } from './TaskAssignmentEntityServer.js';
@@ -64,13 +67,24 @@ export {
     type PolymorphicTargetCheckResult,
 } from './PolymorphicRecordValidation.js';
 export {
-    GuidLiteral,
     IsPeopleEntity,
     PEOPLE_ENTITY,
     PeopleFilterForUser,
     PeopleForUser,
     PrimaryPersonIDForUser,
 } from './UserPeople.js';
+export { TaskTypeEntityServer, TASK_TYPE_ENTITY, LoadTaskTypeEntityServer } from './TaskTypeEntityServer.js';
+export { WorkReportEntityServer, WORK_REPORT_ENTITY, LoadWorkReportEntityServer } from './WorkReportEntityServer.js';
+export { WorkReportItemEntityServer, WORK_REPORT_ITEM_ENTITY, LoadWorkReportItemEntityServer } from './WorkReportItemEntityServer.js';
+export {
+    WorkReportRefusal,
+    WorkReportDeleteRefusal,
+    WorkReportItemRefusal,
+    type WorkReportAuthorityFacts,
+    type WorkReportDeleteAuthorityFacts,
+    type WorkReportItemAuthorityFacts,
+    type WorkReportStatus,
+} from './WorkReportAuthority.js';
 export { MeetingEntityServer } from './MeetingEntityServer.js';
 export { MeetingSeriesEntityServer } from './MeetingSeriesEntityServer.js';
 export { MeetingAttendeeEntityServer, MeetingSeriesAttendeeEntityServer } from './MeetingAttendeeEntityServer.js';
@@ -89,6 +103,9 @@ export { runAfterCommit } from './after-commit.js';
  * subclasses are included in the bundle and registered.
  */
 export function LoadBizAppsTasksEntitiesServer(): void {
+    LoadTaskTypeEntityServer();
+    LoadWorkReportEntityServer();
+    LoadWorkReportItemEntityServer();
     registerMeetingServerAIRuntime();
     // Reference the classes so bundlers cannot tree-shake the registrations away.
     const anchor = [
@@ -106,6 +123,9 @@ export function LoadBizAppsTasksEntitiesServer(): void {
         TimesheetLinkEntityServer,
         TaskTimeEntryLinkEntityServer,
         TaskLinkScopeApproverResolver,
+        TaskTypeEntityServer,
+        WorkReportEntityServer,
+        WorkReportItemEntityServer,
         MeetingEntityServer,
         MeetingSeriesEntityServer,
         MeetingAttendeeEntityServer,

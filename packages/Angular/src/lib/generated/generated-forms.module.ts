@@ -55,6 +55,8 @@ import { mjBizAppsTasksTimesheetFormComponent } from "./Entities/mjBizAppsTasksT
 import { mjBizAppsTasksTimesheetLinkFormComponent } from "./Entities/mjBizAppsTasksTimesheetLink/mjbizappstaskstimesheetlink.form.component";
 import { mjBizAppsTasksTimesheetScheduleFormComponent } from "./Entities/mjBizAppsTasksTimesheetSchedule/mjbizappstaskstimesheetschedule.form.component";
 import { mjBizAppsTasksVideoProviderFormComponent } from "./Entities/mjBizAppsTasksVideoProvider/mjbizappstasksvideoprovider.form.component";
+import { mjBizAppsTasksWorkReportFormComponent } from "./Entities/mjBizAppsTasksWorkReport/mjbizappstasksworkreport.form.component";
+import { mjBizAppsTasksWorkReportItemFormComponent } from "./Entities/mjBizAppsTasksWorkReportItem/mjbizappstasksworkreportitem.form.component";
    
 
 @NgModule({
@@ -79,7 +81,8 @@ export class GeneratedForms_SubModule_0 { }
 declarations: [
     mjBizAppsTasksTaskDecisionOutcomeFormComponent,
     mjBizAppsTasksTaskTypeStatusFormComponent,
-    mjBizAppsTasksTimesheetScheduleFormComponent
+    mjBizAppsTasksTimesheetScheduleFormComponent,
+    mjBizAppsTasksWorkReportFormComponent
 ],
 imports: [
     CommonModule,
@@ -135,7 +138,8 @@ export class GeneratedForms_SubModule_3 { }
 @NgModule({
 declarations: [
     mjBizAppsTasksTaskNotificationConfigFormComponent,
-    mjBizAppsTasksTimeApproverFormComponent
+    mjBizAppsTasksTimeApproverFormComponent,
+    mjBizAppsTasksWorkReportItemFormComponent
 ],
 imports: [
     CommonModule,
