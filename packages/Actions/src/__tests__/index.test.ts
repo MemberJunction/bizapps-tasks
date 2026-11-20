@@ -14,7 +14,7 @@ vi.mock('@memberjunction/global', async (importOriginal) => {
 vi.mock('@memberjunction/core', () => ({
     BaseEntity: class {},
     BaseRemotableOperation: class {},
-    CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },
+    CompositeKey: class { constructor(public KeyValuePairs: Array<{ FieldName: string; Value: string }> = []) {} },
     LogError: () => {},
     LogStatus: () => {},
     Metadata: class {},
@@ -25,6 +25,27 @@ vi.mock('@memberjunction/core', () => ({
 vi.mock('@memberjunction/core-entities', () => ({
     MJAIAgentRunEntity: class {},
 }));
+vi.mock('@memberjunction/ai-core-plus', () => ({
+    TypedActionPolicyGuard: { CheckEntityAccess: vi.fn(), MaskRecord: vi.fn(), MaskRows: vi.fn() },
+    TranscriptSourceBase: class {},
+    ResolveTranscriptSource: vi.fn(),
+}));
+vi.mock('@memberjunction/ai-agents', () => ({
+    AgentRunner: class {},
+    AgentWakeTriggerService: { Instance: { TriggerWakeForWorkstream: vi.fn() } },
+}));
+vi.mock('@memberjunction/aiengine', () => ({
+    AIEngine: { Instance: { Config: vi.fn(), Agents: [] } },
+}));
+vi.mock('@memberjunction/generic-database-provider', () => ({
+    UserCache: { Instance: { GetSystemUser: vi.fn() } },
+}));
+vi.mock('@memberjunction/storage', () => ({
+    FileStorageEngine: { Instance: { Config: vi.fn() } },
+}));
+vi.mock('@mj-biz-apps/common-entities', () => ({
+    ResolveUserIDForPerson: vi.fn(),
+}));
 vi.mock('@mj-biz-apps/tasks-entities', () => ({
     mjBizAppsTasksTaskAgentRunEntity: class {},
     mjBizAppsTasksTaskEntity: class {},
@@ -33,13 +54,37 @@ vi.mock('@mj-biz-apps/tasks-entities', () => ({
 vi.mock('@memberjunction/credentials', () => ({ CredentialEngine: class {} }));
 
 describe('@mj-biz-apps/tasks-actions', () => {
-    it('imports the package entry point without error', async () => {
+    it('imports the package entry point without error and exports all typed actions and transcript plugins', async () => {
         const mod = await import('../index.js');
         expect(mod).toBeDefined();
         expect(mod.PostTaskAssignmentToTeamsAction).toBeDefined();
         expect(mod.LinkAgentRunToTaskAction).toBeDefined();
+        // Work Report actions (5)
+        expect(mod.GetWorkReportAction).toBeDefined();
+        expect(mod.ListWorkReportsAction).toBeDefined();
         expect(mod.DraftWorkReportAction).toBeDefined();
         expect(mod.SubmitWorkReportAction).toBeDefined();
         expect(mod.ReviewWorkReportAction).toBeDefined();
+        // Typed Task actions (9)
+        expect(mod.FindTasksAction).toBeDefined();
+        expect(mod.GetTaskAction).toBeDefined();
+        expect(mod.CreateTaskAction).toBeDefined();
+        expect(mod.UpdateTaskAction).toBeDefined();
+        expect(mod.CompleteTaskAction).toBeDefined();
+        expect(mod.AssignTaskAction).toBeDefined();
+        expect(mod.AddTaskUpdateAction).toBeDefined();
+        expect(mod.FindSimilarTasksAction).toBeDefined();
+        expect(mod.GetMyTasksBriefingAction).toBeDefined();
+        // Typed Meetings actions (5) & Transcript plugins/service
+        expect(mod.GetMyUpcomingMeetingsAction).toBeDefined();
+        expect(mod.PrepareMeetingBriefAction).toBeDefined();
+        expect(mod.ProcessMeetingTranscriptAction).toBeDefined();
+        expect(mod.AcceptMeetingCommitmentsAction).toBeDefined();
+        expect(mod.GetMeetingNotesAction).toBeDefined();
+        expect(mod.ZoomTranscriptSource).toBeDefined();
+        expect(mod.AttachedFileTranscriptSource).toBeDefined();
+        expect(mod.MeetingTranscriptService).toBeDefined();
+        // Agent Task OnAssign hook
+        expect(mod.ExecuteAssignedAgentAction).toBeDefined();
     });
 });

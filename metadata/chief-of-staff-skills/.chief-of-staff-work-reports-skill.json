@@ -16,16 +16,102 @@
           "fields": {
             "AgentID": "@lookup:MJ: AI Agents.Name=Chief of Staff",
             "SkillID": "@parent:ID",
-            "Status": "Active"
+            "Status": "Active",
+            "AllowMetadataSyncUpdate": true
           },
           "primaryKey": {
             "ID": "A4E5A956-6837-4361-AD54-B8862F7850C6"
+          },
+          "sync": {
+            "lastModified": "2026-11-20T22:09:05.853Z",
+            "checksum": "591a1f357a8b3456ab40970d75895d198e046d5ac09526a13498f9b2ec98d3f0"
+          }
+        }
+      ],
+      "MJ: AI Skill Actions": [
+        {
+          "fields": {
+            "SkillID": "@parent:ID",
+            "ActionID": "@lookup:MJ: Actions.Name=Get Work Report",
+            "Role": "Tool",
+            "ExposeToModel": true
+          },
+          "primaryKey": {
+            "ID": "FBEC5CD9-A803-4F29-BD78-3747DE6CD8D5"
+          },
+          "sync": {
+            "lastModified": "2026-11-20T22:09:05.860Z",
+            "checksum": "99faf4a314846288eb46102aaa5674c0ba045a44038d422a50e7bc2980822609"
+          }
+        },
+        {
+          "fields": {
+            "SkillID": "@parent:ID",
+            "ActionID": "@lookup:MJ: Actions.Name=List Work Reports",
+            "Role": "Tool",
+            "ExposeToModel": true
+          },
+          "primaryKey": {
+            "ID": "2D6BA742-FDF1-4C2B-8C1C-6CC86A33F498"
+          },
+          "sync": {
+            "lastModified": "2026-11-20T22:09:05.867Z",
+            "checksum": "3afedef3ef38b5a9255369ca90f841336e4cbaadbff11d90b6f20b261bc793d9"
+          }
+        },
+        {
+          "fields": {
+            "SkillID": "@parent:ID",
+            "ActionID": "@lookup:MJ: Actions.Name=Draft Work Report",
+            "Role": "Tool",
+            "ExposeToModel": true
+          },
+          "primaryKey": {
+            "ID": "F6F8C6A4-AD3D-429D-BB7B-962AAAF19A85"
+          },
+          "sync": {
+            "lastModified": "2026-11-20T22:09:05.873Z",
+            "checksum": "5dbbd4388c3dfc601971c7164807a779ed87dbeca14d1978bc411b56b59761cc"
+          }
+        },
+        {
+          "fields": {
+            "SkillID": "@parent:ID",
+            "ActionID": "@lookup:MJ: Actions.Name=Submit Work Report",
+            "Role": "Tool",
+            "ExposeToModel": true
+          },
+          "primaryKey": {
+            "ID": "A3152C91-56A6-4B34-B7F0-C70A08D0B49A"
+          },
+          "sync": {
+            "lastModified": "2026-11-20T22:09:05.882Z",
+            "checksum": "1a6aac66ad54cfe99969f273fedde60f6118c030f3971f11885598add8dea22c"
+          }
+        },
+        {
+          "fields": {
+            "SkillID": "@parent:ID",
+            "ActionID": "@lookup:MJ: Actions.Name=Review Work Report",
+            "Role": "Tool",
+            "ExposeToModel": true
+          },
+          "primaryKey": {
+            "ID": "F31DB450-1AB2-496F-9AC3-73DCFA814A2C"
+          },
+          "sync": {
+            "lastModified": "2026-11-20T22:09:05.889Z",
+            "checksum": "3d5f9b9f7daafde2d423e2435ea5e9eb3d7057567b7bad24480e0eaf80702741"
           }
         }
       ]
     },
     "primaryKey": {
       "ID": "235CA346-1759-481C-AEAD-1F2123D4E331"
+    },
+    "sync": {
+      "lastModified": "2026-11-20T22:09:05.847Z",
+      "checksum": "e4d52e580f89b3311ed34848415e75aee546610cbaecc2375aae6b25fd4cf5dd"
     }
   }
 ]

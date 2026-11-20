@@ -1,0 +1,65 @@
+[
+  {
+    "fields": {
+      "AgentID": "@lookup:MJ: AI Agents.Name=Chief of Staff",
+      "SkillID": "16334576-42C0-4A19-9A15-0C7392752A6C",
+      "Name": "Daily Tasks Triage",
+      "WorkstreamKey": "tasks-daily-triage",
+      "Description": "Weekday morning triage covering overdue, due-today, blocked, newly assigned, and waiting-on-others tasks, plus scheduling pre-meeting prep and post-meeting transcript wakes.",
+      "DefaultCronExpression": "30 7 * * 1-5",
+      "DefaultWakeGate": "{\"watchedEntities\":[{\"entityName\":\"MJ_BizApps_Tasks: Tasks\",\"alias\":\"tasks\"},{\"entityName\":\"MJ_BizApps_Tasks: Task Assignments\",\"alias\":\"assignments\"},{\"entityName\":\"MJ_BizApps_Tasks: Meetings\",\"alias\":\"meetings\"}],\"wakeGate\":{\"skipIfUnchanged\":true,\"forceWakeAfterMinutes\":1440}}",
+      "WakeReason": "Run weekday morning tasks triage via Assemble My Briefing: surface overdue, due today, blocked, newly assigned, and waiting-on-others items, and schedule meeting prep/transcript wakes for qualifying meetings.",
+      "OfferAt": "Both",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "46070CBD-59A0-4B39-98B0-0D8C216546B6"
+    },
+    "sync": {
+      "lastModified": "2026-11-20T22:09:05.937Z",
+      "checksum": "88174c6ad0544a99bfcb06957c53dcc56b2c766337d0a7605cfd04e104e7f1f3"
+    }
+  },
+  {
+    "fields": {
+      "AgentID": "@lookup:MJ: AI Agents.Name=Chief of Staff",
+      "SkillID": "16334576-42C0-4A19-9A15-0C7392752A6C",
+      "Name": "Weekly Tasks Review",
+      "WorkstreamKey": "tasks-weekly-review",
+      "Description": "Friday afternoon review summarizing completed vs. slipped tasks, open loops waiting on others, stalled blockers, and team work pulse signals.",
+      "DefaultCronExpression": "0 15 * * 5",
+      "DefaultWakeGate": "{\"watchedEntities\":[{\"entityName\":\"MJ_BizApps_Tasks: Tasks\",\"alias\":\"tasks\"},{\"entityName\":\"MJ_BizApps_Tasks: Task Check Ins\",\"alias\":\"checkIns\"}],\"wakeGate\":{\"skipIfUnchanged\":false}}",
+      "WakeReason": "Run Friday weekly review via Assemble My Briefing and Find Tasks: summarize completed vs. slipped items, open waiting-on-others loops, and recommended cleanup for next week.",
+      "OfferAt": "Both",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "83390C68-83D7-4A35-8042-3974F7EA6548"
+    },
+    "sync": {
+      "lastModified": "2026-11-20T22:09:05.947Z",
+      "checksum": "c0eee021cfdf7445071a2af45d16bd0b9036a1b38b912511980d88c50b747834"
+    }
+  },
+  {
+    "fields": {
+      "AgentID": "@lookup:MJ: AI Agents.Name=Chief of Staff",
+      "SkillID": "@lookup:MJ: AI Skills.Name=Work reports",
+      "Name": "Daily 15Five Work Report",
+      "WorkstreamKey": "daily-15five",
+      "Description": "End-of-day 15Five draft synthesized from your task completions, check-ins, and updates (skips quietly on NO_ACTIVITY) and presented for author approval before submitting to your supervisor.",
+      "DefaultCronExpression": "0 17 * * 1-5",
+      "DefaultWakeGate": "{\"watchedEntities\":[{\"entityName\":\"MJ_BizApps_Tasks: Tasks\",\"alias\":\"tasks\"},{\"entityName\":\"MJ_BizApps_Tasks: Task Activities\",\"alias\":\"activities\"},{\"entityName\":\"MJ_BizApps_Tasks: Task Check Ins\",\"alias\":\"checkIns\"}],\"wakeGate\":{\"skipIfUnchanged\":true}}",
+      "WakeReason": "Call Draft Work Report for today; stop silently on NO_ACTIVITY, otherwise present the concise 5-minute draft for author approval before submission.",
+      "OfferAt": "Both",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "55653494-EE4F-4069-962B-439E62362E1B"
+    },
+    "sync": {
+      "lastModified": "2026-11-20T22:09:05.962Z",
+      "checksum": "8db834616455b3d638bc2197c28c48d83246a79f9adda7e494a6f1ab3e88af03"
+    }
+  }
+]
