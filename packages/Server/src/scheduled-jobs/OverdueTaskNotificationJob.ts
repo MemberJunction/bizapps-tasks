@@ -2,9 +2,10 @@
  * Overdue Task Notification Scheduled Job
  *
  * Runs on a cron schedule (default: daily at 8 AM) to find tasks that are
- * past their DueAt and send in-app notifications to assignees and/or the
- * task creator. Optionally invokes a configured MJ Action for external
- * notification delivery (email, SMS, Teams, etc.).
+ * past their DueAt and send 'Task Overdue' notifications to assignees and/or
+ * the task creator, through MJ's NotificationEngine so in-app and email follow
+ * each user's preferences. Optionally invokes a configured MJ Action for
+ * external notification delivery (email, SMS, Teams, etc.).
  *
  * Configuration is read from the `TaskNotificationConfig` table:
  * - One row with TaskTypeID = NULL serves as the global default
@@ -14,13 +15,17 @@
  * 1. TaskNotificationConfig with matching TaskTypeID → OverdueActionID
  * 2. TaskType.OnOverdueActionID
  * 3. TaskNotificationConfig global default → OverdueActionID
- * 4. Built-in: create MJ: User Notifications (in-app only)
+ *
+ * The 'Task Overdue' notification is sent whether or not an action resolves.
  */
 import { Metadata, RunView, UserInfo, ValidationResult } from '@memberjunction/core';
 import { MJScheduledJobEntity } from '@memberjunction/core-entities';
 import { RegisterClass } from '@memberjunction/global';
 import { BaseScheduledJob, ScheduledJobExecutionContext } from '@memberjunction/scheduling-engine';
 import { ScheduledJobResult, NotificationContent } from '@memberjunction/scheduling-base-types';
+import { ResolveUserIDsForPeople } from '@mj-biz-apps/common-entities';
+import { IsRoleEntityID, ResolveUserIDsForRoles } from '../role-assignees.js';
+import { sendTaskNotifications, TASK_OVERDUE_NOTIFICATION_TYPE } from '../notifications/sendTaskNotifications.js';
 
 /** Shape of the TaskNotificationConfig rows loaded from the DB. */
 interface NotificationConfig {
@@ -81,7 +86,7 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
                 const recipients = await this.resolveRecipients(task, config, ContextUser);
                 if (recipients.length === 0) continue;
 
-                // Create in-app notifications
+                // Send 'Task Overdue' notifications (never throws)
                 await this.sendNotifications(task, recipients, ContextUser);
 
                 // Invoke action if configured
@@ -209,43 +214,48 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
         config: NotificationConfig,
         contextUser: UserInfo,
     ): Promise<string[]> {
-        const userIDs = new Set<string>();
+        const personIDs: string[] = [];
+        const roleUserIDs: string[] = [];
         const rv = new RunView();
 
         // Assignees
         if (config.NotifyAssignees) {
-            const assignments = await rv.RunView<{ AssigneeRecordID: string }>({
+            const assignments = await rv.RunView<{ AssigneeEntityID: string | null; AssigneeRecordID: string }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Assignments',
                 ExtraFilter: `TaskID='${task.ID}'`,
                 ResultType: 'simple',
             }, contextUser);
-
-            const personIDs = (assignments?.Results ?? []).map(a => a.AssigneeRecordID);
-            for (const personID of personIDs) {
-                const uid = await this.getLinkedUserID(personID, contextUser);
-                if (uid) userIDs.add(uid);
+            const results = assignments?.Results ?? [];
+            // A task assigned to an MJ role reaches every active holder of the role (bc-aidp-next-golive#442).
+            const roleIDs = results.filter(a => IsRoleEntityID(a.AssigneeEntityID)).map(a => a.AssigneeRecordID);
+            try {
+                roleUserIDs.push(...await ResolveUserIDsForRoles(roleIDs, contextUser));
+            } catch (err) {
+                // One task's failed lookup must not stop the run; its people are still notified.
+                this.logError(`Could not resolve the members of task ${task.ID}'s assigned roles`, err);
             }
+
+            personIDs.push(...results.filter(a => !IsRoleEntityID(a.AssigneeEntityID)).map(a => a.AssigneeRecordID));
         }
 
         // Creator
         if (config.NotifyCreator && task.CreatedByPersonID) {
-            const uid = await this.getLinkedUserID(task.CreatedByPersonID, contextUser);
-            if (uid) userIDs.add(uid);
+            personIDs.push(task.CreatedByPersonID);
         }
 
-        return [...userIDs];
+        const personUserIDs = await this.getLinkedUserIDs(personIDs, task.ID, contextUser);
+        return [...new Set([...roleUserIDs, ...personUserIDs])];
     }
 
-    private async getLinkedUserID(personID: string, contextUser: UserInfo): Promise<string | null> {
-        const rv = new RunView();
-        const result = await rv.RunView<{ ID: string; LinkedUserID: string | null }>({
-            EntityName: 'MJ_BizApps_Common: People',
-            ExtraFilter: `ID='${personID}'`,
-            Fields: ['ID', 'LinkedUserID'],
-            ResultType: 'simple',
-            MaxRows: 1,
-        }, contextUser);
-        return result?.Results?.[0]?.LinkedUserID ?? null;
+    /** The users bound to these Persons: each user's People link, else People.LinkedUserID. */
+    private async getLinkedUserIDs(personIDs: string[], taskID: string, contextUser: UserInfo): Promise<string[]> {
+        if (personIDs.length === 0) return [];
+        try {
+            return [...new Set((await ResolveUserIDsForPeople(personIDs, Metadata.Provider, contextUser)).values())];
+        } catch (error) {
+            this.logError(`Could not resolve the recipients of task ${taskID}`, error);
+            return [];
+        }
     }
 
     // ---------------------------------------------------------------
@@ -266,19 +276,21 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
             : `Task Overdue: ${task.Name}`;
         const message = `"${task.Name}" was due ${dueDate} and is still ${task.Status}. Priority: ${task.Priority}.`;
 
-        const md = new Metadata();
-        for (const userID of userIDs) {
-            try {
-                const notification = await md.GetEntityObject<any>('MJ: User Notifications', contextUser);
-                notification.NewRecord();
-                notification.Set('UserID', userID);
-                notification.Set('Title', title);
-                notification.Set('Message', message);
-                notification.Set('Unread', true);
-                await notification.Save();
-            } catch {
-                this.logError(`Failed to create notification for user ${userID}`);
-            }
+        const sent = await sendTaskNotifications(userIDs, {
+            TypeName: TASK_OVERDUE_NOTIFICATION_TYPE,
+            Title: title,
+            Message: message,
+            TemplateData: {
+                taskName: task.Name,
+                message,
+                dueDate,
+                status: task.Status,
+                priority: task.Priority,
+                isReminder,
+            },
+        }, contextUser);
+        if (sent < userIDs.length) {
+            this.logError(`Sent the overdue notification for task ${task.ID} to ${sent} of ${userIDs.length} recipient(s)`);
         }
     }
 

@@ -3,6 +3,9 @@ import { DeciderAssignments, TaskDecisionRefusal, type TaskDecisionFacts } from 
 
 const PEOPLE = 'A0000000-0000-0000-0000-000000000001';
 const USERS = 'A0000000-0000-0000-0000-000000000002';
+const ROLES = 'A0000000-0000-0000-0000-000000000003';
+const FINANCE_ROLE = 'D0000000-0000-0000-0000-000000000001';
+const OTHER_ROLE = 'D0000000-0000-0000-0000-000000000002';
 const APPROVER_USER = 'B0000000-0000-0000-0000-000000000001';
 const APPROVER_PERSON = 'C0000000-0000-0000-0000-000000000001';
 const REQUESTER_PERSON = 'C0000000-0000-0000-0000-000000000002';
@@ -19,6 +22,8 @@ function facts(overrides: Partial<TaskDecisionFacts> = {}): TaskDecisionFacts {
         Assignments: [{ ID: 'asg-1', AssigneeEntityID: PEOPLE, AssigneeRecordID: APPROVER_PERSON, Status: 'Pending' }],
         IsPeopleEntityID: (id) => id.toLowerCase() === PEOPLE.toLowerCase(),
         UsersEntityID: USERS,
+        RolesEntityID: ROLES,
+        DeciderRoleIDs: [],
         DeciderIsExempt: false,
         ...overrides,
     };
@@ -130,5 +135,32 @@ describe('DeciderAssignments', () => {
     it('ignores an assignment to another entity that happens to carry the same record ID', () => {
         const other = 'A0000000-0000-0000-0000-000000000099';
         expect(DeciderAssignments(facts({ Assignments: [{ ID: 'x', AssigneeEntityID: other, AssigneeRecordID: APPROVER_PERSON, Status: 'Pending' }] }))).toEqual([]);
+    });
+});
+
+describe('role assignments (bc-aidp-next-golive#442)', () => {
+    const roleAssignment = (roleID: string, status: 'Pending' | 'InProgress' | 'Completed' = 'Pending') =>
+        [{ ID: 'asg-role', AssigneeEntityID: ROLES, AssigneeRecordID: roleID, Status: status }];
+
+    it('accepts a holder of the assigned role', () => {
+        expect(TaskDecisionRefusal(facts({ Assignments: roleAssignment(FINANCE_ROLE), DeciderRoleIDs: [FINANCE_ROLE.toLowerCase()] }))).toBeNull();
+    });
+
+    it('refuses a user who does not hold the assigned role', () => {
+        expect(TaskDecisionRefusal(facts({ Assignments: roleAssignment(FINANCE_ROLE), DeciderRoleIDs: [OTHER_ROLE] }))).toMatch(/not assigned to you/);
+    });
+
+    it('does not read a role ID as a person or user assignment', () => {
+        const f = facts({ Assignments: [{ ID: 'asg-x', AssigneeEntityID: USERS, AssigneeRecordID: FINANCE_ROLE, Status: 'Pending' }], DeciderRoleIDs: [FINANCE_ROLE] });
+        expect(DeciderAssignments(f)).toEqual([]);
+    });
+
+    it('refuses a role holder whose role assignment is completed', () => {
+        expect(TaskDecisionRefusal(facts({ Assignments: roleAssignment(FINANCE_ROLE, 'Completed'), DeciderRoleIDs: [FINANCE_ROLE] }))).toMatch(/already completed/);
+    });
+
+    it('still refuses a role holder who created the task', () => {
+        const f = facts({ Assignments: roleAssignment(FINANCE_ROLE), DeciderRoleIDs: [FINANCE_ROLE], TaskCreatedByPersonID: APPROVER_PERSON });
+        expect(TaskDecisionRefusal(f)).toMatch(/Nobody may approve their own request/);
     });
 });

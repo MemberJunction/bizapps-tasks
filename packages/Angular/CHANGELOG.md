@@ -1,5 +1,29 @@
 # @mj-biz-apps/tasks-ng
 
+## 1.13.0
+
+### Minor Changes
+
+- 8f15adc: A task can be assigned to an MJ role: a Task Assignment with `AssigneeEntityID` = `MJ: Roles` lists the task in every holder's My Tasks and approval inbox, notifies each active holder, and lets any holder decide an approval. The approval inbox also names and links the records each task is linked to, and takes `Title`, `EmptyText`, `ApproverRoleIDs` and `ShowLinkedRecords` inputs.
+
+### Patch Changes
+
+- edb5663: Assignment, comment and overdue notifications find the user to notify for a Person through the user's own People link first: a user whose `LinkedEntityID` is People or an IS-A subtype of it and whose `LinkedEntityRecordID` is the Person. `People.LinkedUserID`, which bizapps-common deprecated and a platform that binds users through a People subtype leaves empty, is the fallback. Before, those Persons got no in-app notification. An assignee with no linked user, and a failed lookup, are now logged. Both use bizapps-common's shared resolver (`@mj-biz-apps/common-entities` 5.55.0+), which the tasks pages now use too to find the signed-in user's Person.
+  - @mj-biz-apps/tasks-core@1.13.0
+  - @mj-biz-apps/tasks-entities@1.13.0
+
+## 1.12.0
+
+### Minor Changes
+
+- 7b3ea77: Guard approval-task assignments on the server (bc-aidp-next-golive#389). When the new Tasks setting `ApprovalReassignRoles` names roles (comma-separated role names matched case-insensitively; a name that is not a role is logged), changing who an approval is assigned to, or removing its assignee, is refused unless the user holds one of them. Empty, the default, switches that rule off, so installing this release changes nothing until a host sets a value. Nobody may reassign an approval to themselves, whatever the setting. Creating an assignment is not checked, so workflow routing is unaffected, as are ordinary tasks. Deleting a task from the detail panel now removes its assignments first and stops at the first refused child delete, so a refused approval delete no longer destroys the task's activities, comments and tags.
+
+### Patch Changes
+
+- Updated dependencies [86d0081]
+  - @mj-biz-apps/tasks-entities@1.12.0
+  - @mj-biz-apps/tasks-core@1.12.0
+
 ## 1.11.1
 
 ### Patch Changes

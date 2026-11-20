@@ -5,6 +5,7 @@ import { BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { Metadata, RunView, CompositeKey, type IMetadataProvider, type IRunViewProvider } from '@memberjunction/core';
 import { NormalizeUUID } from '@memberjunction/global';
 import { OpenTaskRecord } from '../../open-task-record';
+import { RoleAssigneeName } from '../../role-assignees';
 import { TaskAssigneeInfo } from '../task-assignee-list/task-assignee-list.component';
 import {
     FormatPendingSuggestionTooltip,
@@ -693,7 +694,7 @@ export class TaskDetailPanelComponent implements OnChanges {
         if (!this.TaskID) return;
         const rv = this.createRunView();
         const [assignmentResult, peopleResult, rolesResult] = await Promise.all([
-            rv.RunView<{ AssigneeRecordID: string; RoleID: string; Status: 'Pending' | 'InProgress' | 'Completed' | null }>({
+            rv.RunView<{ AssigneeEntityID: string; AssigneeRecordID: string; RoleID: string; Status: 'Pending' | 'InProgress' | 'Completed' | null }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Assignments',
                 ExtraFilter: `TaskID = '${this.TaskID}'`,
                 ResultType: 'simple',
@@ -719,7 +720,7 @@ export class TaskDetailPanelComponent implements OnChanges {
 
         this.assignees = (assignmentResult?.Results ?? []).map((a) => ({
             AssigneeRecordID: a.AssigneeRecordID,
-            DisplayName: personMap.get(a.AssigneeRecordID) ?? a.AssigneeRecordID,
+            DisplayName: personMap.get(a.AssigneeRecordID) ?? RoleAssigneeName(a.AssigneeEntityID, a.AssigneeRecordID) ?? a.AssigneeRecordID,
             RoleName: roleMap.get(a.RoleID) ?? '',
             Status: a.Status ?? 'Pending',
         }));

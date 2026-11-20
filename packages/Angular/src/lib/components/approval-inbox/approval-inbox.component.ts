@@ -1,8 +1,11 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, inject, Input, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RunView } from '@memberjunction/core';
+import { CompositeKey, RunView } from '@memberjunction/core';
+import { SharedService } from '@memberjunction/ng-shared';
 import { ApprovalDecisionPanelComponent, DecisionRecordedEvent } from '../approval-decision-panel/approval-decision-panel.component';
 import { ApprovalTypePredicate } from './approval-type-predicate';
+import { AssignedToFilter, CurrentUserRoleIDs } from '../../role-assignees';
+import { LoadTaskRecordLinks, type TaskRecordLink } from '../../task-record-links';
 
 /** A pending approval-request task shown in the inbox. */
 export interface ApprovalRow {
@@ -20,7 +23,11 @@ export interface ApprovalRow {
  * recording the outcome. Once a decision is recorded the row clears from the inbox.
  *
  * "Pending" = a task of an approval type (`TaskType.IsApproval`), assigned to the
- * approver, still in an open state (not Completed/Cancelled) and without a terminal decision.
+ * approver or to an MJ role the approver holds, still in an open state (not
+ * Completed/Cancelled) and without a terminal decision.
+ *
+ * Each row names the records the task is linked to (an order under review, say), and each
+ * name opens its record.
  *
  * Standalone and Router-free so any Explorer or app can embed it.
  *
@@ -41,7 +48,7 @@ export interface ApprovalRow {
         <div class="approval-inbox">
             <div class="inbox-card">
                 <div class="inbox-card-header">
-                    <h3 class="inbox-title"><i class="fa-solid fa-stamp"></i> Approvals</h3>
+                    <h3 class="inbox-title"><i class="fa-solid fa-stamp"></i> {{ Title }}</h3>
                     @if (!Loading && !LoadError && Approvals.length > 0) {
                         <span class="inbox-count">{{ Approvals.length }} pending</span>
                     }
@@ -52,7 +59,7 @@ export interface ApprovalRow {
                 } @else if (LoadError) {
                     <div class="inbox-error">{{ LoadError }}</div>
                 } @else if (Approvals.length === 0) {
-                    <div class="inbox-empty"><i class="fa-regular fa-circle-check"></i> No approvals waiting on you.</div>
+                    <div class="inbox-empty"><i class="fa-regular fa-circle-check"></i> {{ EmptyText }}</div>
                 } @else {
                     <ul class="inbox-list">
                         @for (a of Approvals; track a.ID) {
@@ -62,6 +69,13 @@ export interface ApprovalRow {
                                 <div class="row-main">
                                     <span class="row-name">{{ a.Name }}</span>
                                     @if (a.Description) { <span class="row-desc">{{ a.Description }}</span> }
+                                    @if (ShowLinkedRecords) {
+                                        @for (link of LinksFor(a.ID); track link.EntityName + link.RecordID) {
+                                            <a href="#" class="row-link" (click)="OpenLinkedRecord($event, link)">
+                                                <i class="fa-solid fa-arrow-up-right-from-square"></i> {{ link.Name }}
+                                            </a>
+                                        }
+                                    }
                                 </div>
                                 <span class="badge" [class]="priorityBadgeClass(a.Priority)">{{ a.Priority }}</span>
                             </li>
@@ -128,6 +142,12 @@ export interface ApprovalRow {
         }
         .row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
         .row-name { color: var(--mj-text-primary); font-weight: var(--mj-font-medium, 500); }
+        .row-link {
+            color: var(--mj-text-link); font-size: var(--mj-text-sm, 0.875rem); text-decoration: none;
+            display: inline-flex; align-items: center; gap: var(--mj-space-1, 4px); width: fit-content;
+        }
+        .row-link:hover { text-decoration: underline; }
+        .row-link i { font-size: var(--mj-text-xs, 0.75rem); }
         .row-desc {
             color: var(--mj-text-muted); font-size: var(--mj-text-sm, 0.875rem);
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -171,6 +191,21 @@ export class ApprovalInboxComponent implements OnInit {
      */
     @Input() ApprovalTypeName: string | null = null;
 
+    /**
+     * MJ role IDs whose assignments count as the approver's (bc-aidp-next-golive#442). When null (the
+     * default), the signed-in user's roles are used; pass `[]` to list only the approver's own assignments.
+     */
+    @Input() ApproverRoleIDs: string[] | null = null;
+
+    /** The card heading. */
+    @Input() Title = 'Approvals';
+
+    /** Shown when nothing is waiting. */
+    @Input() EmptyText = 'No approvals waiting on you.';
+
+    /** Whether each row names, and links to, the records its task is linked to. */
+    @Input() ShowLinkedRecords = true;
+
     // ── Outputs ─────────────────────────────────────────────
 
     /** Re-emitted from the embedded decision panel after a decision is recorded. */
@@ -182,6 +217,8 @@ export class ApprovalInboxComponent implements OnInit {
     public LoadError: string | null = null;
     public Approvals: ApprovalRow[] = [];
     public SelectedApprovalID: string | null = null;
+    /** Linked records per task, keyed by lower-cased task ID. */
+    public Links = new Map<string, TaskRecordLink[]>();
 
     async ngOnInit(): Promise<void> {
         if (this._approverPersonID) {
@@ -213,6 +250,7 @@ export class ApprovalInboxComponent implements OnInit {
                 throw new Error(result?.ErrorMessage || 'Failed to load approvals');
             }
             this.Approvals = result.Results ?? [];
+            this.Links = this.ShowLinkedRecords ? await this.loadLinks(this.Approvals) : new Map();
         } catch (err) {
             this.LoadError = err instanceof Error ? err.message : String(err);
         } finally {
@@ -222,6 +260,27 @@ export class ApprovalInboxComponent implements OnInit {
     }
 
     // ── Internal ────────────────────────────────────────────
+
+    /** The records a listed task is linked to. */
+    LinksFor(taskID: string): TaskRecordLink[] {
+        return this.Links.get(taskID.toLowerCase()) ?? [];
+    }
+
+    /** Opens a linked record without selecting the row it sits in. */
+    OpenLinkedRecord(event: Event, link: TaskRecordLink): void {
+        event.preventDefault();
+        event.stopPropagation();
+        SharedService.Instance.OpenEntityRecord(link.EntityName, CompositeKey.FromID(link.RecordID));
+    }
+
+    /** Linked records for the listed tasks; a failure leaves the rows without links rather than failing the inbox. */
+    private async loadLinks(approvals: ApprovalRow[]): Promise<Map<string, TaskRecordLink[]>> {
+        try {
+            return await LoadTaskRecordLinks(approvals.map(a => a.ID));
+        } catch {
+            return new Map();
+        }
+    }
 
     Select(approvalID: string): void {
         this.SelectedApprovalID = approvalID;
@@ -246,15 +305,15 @@ export class ApprovalInboxComponent implements OnInit {
     }
 
     /**
-     * Builds the ExtraFilter for pending approvals: tasks of an approval TaskType,
-     * assigned to this approver, still open, and without any terminal decision yet.
+     * Builds the ExtraFilter for pending approvals: tasks of an approval TaskType, assigned to this
+     * approver or to one of their MJ roles, still open, and without any terminal decision yet.
      */
     private async buildPendingFilter(): Promise<string> {
-        const personID = this._approverPersonID.replace(/'/g, "''");
+        const roleIDs = this.ApproverRoleIDs ?? CurrentUserRoleIDs();
         return [
             `TypeID IN (SELECT ID FROM __mj_BizAppsTasks.vwTaskTypes WHERE ${ApprovalTypePredicate(this.ApprovalTypeName)})`,
             `Status NOT IN ('Completed', 'Cancelled')`,
-            `ID IN (SELECT TaskID FROM __mj_BizAppsTasks.vwTaskAssignments WHERE AssigneeRecordID = '${personID}')`,
+            AssignedToFilter(this._approverPersonID, roleIDs),
             `ID NOT IN (SELECT d.TaskID FROM __mj_BizAppsTasks.vwTaskDecisions d INNER JOIN __mj_BizAppsTasks.vwTaskDecisionOutcomes o ON d.OutcomeID = o.ID WHERE o.IsTerminal = 1)`,
         ].join(' AND ');
     }

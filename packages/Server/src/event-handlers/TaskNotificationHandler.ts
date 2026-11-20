@@ -1,11 +1,11 @@
 /**
  * BizAppsTasks Notification Handler
  *
- * Subscribes to MJGlobal entity events and creates in-app notifications
+ * Subscribes to MJGlobal entity events and creates notifications
  * (MJ: User Notifications) for key task events:
  *
- * - Task assigned → notify the assignee
- * - Task completed → notify all assignees
+ * - Task assigned → notify the assignee, or every active holder when the assignee is an MJ role ('Task Assignment' type, through NotificationEngine)
+ * - Task completed → notify all assignees ('Task Completed' type, through NotificationEngine)
  * - Task status changed to Blocked → notify all assignees
  * - Task comment created → notify all assignees except the commenter
  * - TaskType action hooks → invoke linked MJ Actions (OnAssign, OnComplete, OnOverdue, OnPercentChange)
@@ -13,14 +13,49 @@
 import {
     BaseEntity,
     BaseEntityEvent,
+    IEntityDataProvider,
     LogError,
     LogStatus,
     Metadata,
     RunView,
     UserInfo,
 } from '@memberjunction/core';
-import { MJEventType, MJGlobal, MJEvent } from '@memberjunction/global';
+import type { MJUserNotificationEntity } from '@memberjunction/core-entities';
+import { MJEventType, MJGlobal, MJEvent, UUIDsEqual } from '@memberjunction/global';
 import { Subscription } from 'rxjs';
+import { ResolveUserIDForPerson, ResolveUserIDsForPeople } from '@mj-biz-apps/common-entities';
+import { IsRoleEntityID, ResolveUserIDsForRoles, RoleName } from '../role-assignees.js';
+import {
+    sendTaskNotifications,
+    TASK_ASSIGNMENT_NOTIFICATION_TYPE,
+    TASK_COMPLETED_NOTIFICATION_TYPE,
+} from '../notifications/sendTaskNotifications.js';
+
+/**
+ * The post-commit scheduling surface of MJ's `DatabaseProviderBase` (MJ 6.1.3+).
+ * Declared locally so notifications and `OnAssign` hooks wait for the caller's open
+ * transaction to commit (and are dropped on rollback), while still working against
+ * providers without a post-commit scheduler.
+ */
+interface PostCommitScheduler {
+    RunAfterCommit(task: () => Promise<void>, description?: string, token?: object): void;
+    CapturePostCommitToken(): object | undefined;
+}
+
+function isPostCommitScheduler(provider: IEntityDataProvider | null | undefined): provider is IEntityDataProvider & PostCommitScheduler {
+    const candidate = provider as Partial<PostCommitScheduler> | null | undefined;
+    return typeof candidate?.RunAfterCommit === 'function' && typeof candidate?.CapturePostCommitToken === 'function';
+}
+
+function scheduleAfterCommit(entity: BaseEntity, description: string, task: () => Promise<void>): void {
+    const provider = entity.ProviderToUse;
+    if (isPostCommitScheduler(provider)) {
+        const token = provider.CapturePostCommitToken();
+        provider.RunAfterCommit(task, description, token);
+    } else {
+        void task();
+    }
+}
 
 /** Entity names we listen for */
 const TASKS_ENTITY = 'MJ_BizApps_Tasks: Tasks';
@@ -35,12 +70,6 @@ type TaskTypeActionColumn =
     | 'OnPercentChangeActionID'
     | 'OnRejectActionID'
     | 'OnCancelActionID';
-
-/** Row shape for a Person resolved to its linked MJ UserID. */
-interface PersonLinkRow {
-    ID: string;
-    LinkedUserID: string | null;
-}
 
 /** An extra input param passed to a TaskType action hook. */
 type ActionHookInput = {
@@ -90,22 +119,29 @@ export function InitTaskNotificationHandler(): void {
 // Event Router
 // ---------------------------------------------------------------------------
 
-function handleEntityEvent(event: BaseEntityEvent): void {
+export function handleEntityEvent(event: BaseEntityEvent): void {
     if (event.type !== 'save' || !event.baseEntity) {
         return;
     }
 
-    const entityName = event.baseEntity.EntityInfo.Name;
+    const entity = event.baseEntity;
+    const entityName = entity.EntityInfo.Name;
 
     switch (entityName) {
         case TASKS_ENTITY:
-            handleTaskSave(event).catch(logHandlerError('TaskSave'));
+            scheduleAfterCommit(entity, 'Task save notifications and hooks', () =>
+                handleTaskSave(event).catch(logHandlerError('TaskSave')),
+            );
             break;
         case TASK_ASSIGNMENTS_ENTITY:
-            handleAssignmentSave(event).catch(logHandlerError('AssignmentSave'));
+            scheduleAfterCommit(entity, 'Task assignment notification and OnAssign hook', () =>
+                handleAssignmentSave(event).catch(logHandlerError('AssignmentSave')),
+            );
             break;
         case TASK_COMMENTS_ENTITY:
-            handleCommentSave(event).catch(logHandlerError('CommentSave'));
+            scheduleAfterCommit(entity, 'Task comment notifications', () =>
+                handleCommentSave(event).catch(logHandlerError('CommentSave')),
+            );
             break;
     }
 }
@@ -146,13 +182,14 @@ async function handleTaskSave(event: BaseEntityEvent): Promise<void> {
     if (status === 'Completed') {
         const userIDs = await getTaskAssigneeUserIDs(taskID, contextUser);
         if (userIDs.length > 0) {
-            await createNotificationsForUsers(
-                userIDs,
-                `Task Completed: ${taskName}`,
-                `"${taskName}" has been marked as completed.`,
-                contextUser
-            );
-            LogStatus(`[BizAppsTasks] Sent completion notification for "${taskName}" to ${userIDs.length} assignee(s)`);
+            const message = `"${taskName}" has been marked as completed.`;
+            const sent = await sendTaskNotifications(userIDs, {
+                TypeName: TASK_COMPLETED_NOTIFICATION_TYPE,
+                Title: `Task Completed: ${taskName}`,
+                Message: message,
+                TemplateData: { taskName, message },
+            }, contextUser);
+            LogStatus(`[BizAppsTasks] Sent completion notification for "${taskName}" to ${sent} of ${userIDs.length} assignee(s)`);
         }
 
         // Invoke OnComplete action if configured on TaskType
@@ -234,9 +271,15 @@ export async function handleAssignmentSave(event: BaseEntityEvent): Promise<void
     const contextUser = assignment.ContextCurrentUser;
     if (!contextUser) return;
 
+    const assigneeEntityID = assignment.Get('AssigneeEntityID') as string | null;
     const assigneeRecordID = assignment.Get('AssigneeRecordID') as string;
     const taskID = assignment.Get('TaskID') as string;
     const roleID = assignment.Get('RoleID') as string | null;
+
+    if (IsRoleEntityID(assigneeEntityID)) {
+        await handleRoleAssignment(assigneeRecordID, taskID, roleID, contextUser);
+        return;
+    }
 
     // The in-app notification needs a linked MJ user; the OnAssign hook does not. An external
     // channel such as Teams is how an assignee without a linked user learns of the task, so a
@@ -257,9 +300,48 @@ export async function handleAssignmentSave(event: BaseEntityEvent): Promise<void
  */
 async function notifyAssignee(assigneeRecordID: string, taskID: string, roleID: string | null, contextUser: UserInfo): Promise<void> {
     // Resolve the assignee's linked MJ UserID
-    const userID = await getPersonLinkedUserID(assigneeRecordID, contextUser);
-    if (!userID) return;
+    const userID = await getPersonUserID(assigneeRecordID, contextUser);
+    if (!userID) {
+        LogStatus(`[Tasks] Assignee ${assigneeRecordID} of task ${taskID} has no linked user; no in-app notification sent`);
+        return;
+    }
+    await sendAssignmentNotification([userID], taskID, roleID, null, contextUser);
+}
 
+/**
+ * A task assigned to an MJ role (bc-aidp-next-golive#442): every active user holding the role is
+ * notified, and the OnAssign hook names the role in place of a person.
+ */
+async function handleRoleAssignment(mjRoleID: string, taskID: string, roleID: string | null, contextUser: UserInfo): Promise<void> {
+    const mjRoleName = RoleName(mjRoleID) ?? mjRoleID;
+    try {
+        const userIDs = await ResolveUserIDsForRoles([mjRoleID], contextUser);
+        if (userIDs.length === 0) {
+            LogStatus(`[BizAppsTasks] Role ${mjRoleName}, assigned task ${taskID}, has no active members; no in-app notification sent`);
+        } else {
+            await sendAssignmentNotification(userIDs, taskID, roleID, mjRoleName, contextUser);
+        }
+    } catch (err) {
+        LogError(`[BizAppsTasks] Role assignment notification error: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    await invokeTaskTypeActionByTaskID(taskID, 'OnAssignActionID', contextUser, [
+        { Name: 'AssigneePersonID', Value: null },
+        { Name: 'AssigneeName', Value: mjRoleName },
+    ]);
+}
+
+/**
+ * Sends the "You've been assigned" notification to each user. `viaRoleName` names the MJ role the
+ * task was assigned to, when it went to a role rather than to the person.
+ */
+async function sendAssignmentNotification(
+    userIDs: string[],
+    taskID: string,
+    roleID: string | null,
+    viaRoleName: string | null,
+    contextUser: UserInfo,
+): Promise<void> {
     // Load the task to get its name and details
     const rv = new RunView();
     const taskResult = await rv.RunView<{ Name: string; Priority: string; DueAt: string | null }>({
@@ -290,13 +372,17 @@ async function notifyAssignee(assigneeRecordID: string, taskID: string, roleID: 
         if (roleName) roleStr = ` Role: ${roleName}.`;
     }
 
-    await createNotificationsForUsers(
-        [userID],
-        `Task Assigned: ${taskName}`,
-        `You've been assigned to "${taskName}". Priority: ${priority}.${roleStr}${dueStr}`,
-        contextUser
-    );
-    LogStatus(`[BizAppsTasks] Sent assignment notification for "${taskName}"`);
+    const assignedStr = viaRoleName
+        ? `"${taskName}" has been assigned to the ${viaRoleName} role, which you hold.`
+        : `You've been assigned to "${taskName}".`;
+    const message = `${assignedStr} Priority: ${priority}.${roleStr}${dueStr}`;
+    const sent = await sendTaskNotifications(userIDs, {
+        TypeName: TASK_ASSIGNMENT_NOTIFICATION_TYPE,
+        Title: `Task Assigned: ${taskName}`,
+        Message: message,
+        TemplateData: { taskName, message, priority, dueDate: dueAt },
+    }, contextUser);
+    LogStatus(`[BizAppsTasks] Sent assignment notification for "${taskName}" to ${sent} of ${userIDs.length} user(s)`);
 }
 
 /**
@@ -348,8 +434,8 @@ async function handleCommentSave(event: BaseEntityEvent): Promise<void> {
 
     // Get all assignee UserIDs except the author
     const allUserIDs = await getTaskAssigneeUserIDs(taskID, contextUser);
-    const authorUserID = await getPersonLinkedUserID(authorPersonID, contextUser);
-    const notifyUserIDs = allUserIDs.filter(id => id !== authorUserID);
+    const authorUserID = await getPersonUserID(authorPersonID, contextUser);
+    const notifyUserIDs = allUserIDs.filter(id => !UUIDsEqual(id, authorUserID));
 
     if (notifyUserIDs.length === 0) return;
 
@@ -482,13 +568,13 @@ async function invokeTaskTypeActionByTaskID(
 // ---------------------------------------------------------------------------
 
 /**
- * Returns MJ UserIDs for all people assigned to a task.
- * Two-step: TaskAssignment → Person → LinkedUserID.
+ * Returns MJ UserIDs for everyone assigned to a task, each once: the active holders of an assigned
+ * MJ role, and the linked users of assigned people.
  */
 async function getTaskAssigneeUserIDs(taskID: string, contextUser: UserInfo): Promise<string[]> {
     const rv = new RunView();
 
-    const assignments = await rv.RunView<{ AssigneeRecordID: string }>({
+    const assignments = await rv.RunView<{ AssigneeEntityID: string | null; AssigneeRecordID: string }>({
         EntityName: TASK_ASSIGNMENTS_ENTITY,
         ExtraFilter: `TaskID='${taskID}'`,
         ResultType: 'simple',
@@ -498,39 +584,58 @@ async function getTaskAssigneeUserIDs(taskID: string, contextUser: UserInfo): Pr
         return [];
     }
 
-    const personIDs = assignments.Results.map(a => a.AssigneeRecordID);
-    const inClause = personIDs.map((id: string) => `'${id}'`).join(',');
+    const roleIDs = assignments.Results.filter(a => IsRoleEntityID(a.AssigneeEntityID)).map(a => a.AssigneeRecordID);
+    const personIDs = assignments.Results.filter(a => !IsRoleEntityID(a.AssigneeEntityID)).map(a => a.AssigneeRecordID);
+    const roleUserIDs = await getRoleAssigneeUserIDs(taskID, roleIDs, contextUser);
+    const personUserIDs = await getPersonAssigneeUserIDs(taskID, personIDs, contextUser);
+    return uniqueUserIDs([...roleUserIDs, ...personUserIDs]);
+}
 
-    const people = await rv.RunView<PersonLinkRow>({
-        EntityName: 'MJ_BizApps_Common: People',
-        ExtraFilter: `ID IN (${inClause}) AND LinkedUserID IS NOT NULL`,
-        Fields: ['ID', 'LinkedUserID'],
-        ResultType: 'simple',
-    }, contextUser);
-
-    if (!people?.Success) {
+/** The active holders of the task's assigned MJ roles; empty, and logged, when the lookup fails. */
+async function getRoleAssigneeUserIDs(taskID: string, mjRoleIDs: string[], contextUser: UserInfo): Promise<string[]> {
+    if (mjRoleIDs.length === 0) return [];
+    try {
+        return await ResolveUserIDsForRoles(mjRoleIDs, contextUser);
+    } catch (err) {
+        LogError(`[BizAppsTasks] Could not resolve the members of task ${taskID}'s assigned roles: ${errorText(err)}`);
         return [];
     }
+}
 
-    return people.Results
-        .map(p => p.LinkedUserID)
-        .filter((id: string | null): id is string => id != null);
+/** Each user ID once, compared case-insensitively. */
+function uniqueUserIDs(userIDs: string[]): string[] {
+    const seen = new Map<string, string>();
+    for (const id of userIDs) {
+        if (!seen.has(id.toLowerCase())) seen.set(id.toLowerCase(), id);
+    }
+    return [...seen.values()];
+}
+
+/** MJ UserIDs of the assigned people (see ResolveUserIDsForPeople); empty, and logged, when the lookup fails. */
+async function getPersonAssigneeUserIDs(taskID: string, personIDs: string[], contextUser: UserInfo): Promise<string[]> {
+    if (personIDs.length === 0) return [];
+    try {
+        return [...(await ResolveUserIDsForPeople(personIDs, Metadata.Provider, contextUser)).values()];
+    } catch (error) {
+        LogError(`[Tasks] Could not resolve the users of task ${taskID}'s assignees: ${errorText(error)}`);
+        return [];
+    }
 }
 
 /**
- * Resolves a PersonID to their linked MJ UserID (if any).
+ * Resolves a PersonID to its MJ UserID (if any): the user's People link, else People.LinkedUserID.
  */
-async function getPersonLinkedUserID(personID: string, contextUser: UserInfo): Promise<string | null> {
-    const rv = new RunView();
-    const result = await rv.RunView<PersonLinkRow>({
-        EntityName: 'MJ_BizApps_Common: People',
-        ExtraFilter: `ID='${personID}'`,
-        Fields: ['ID', 'LinkedUserID'],
-        ResultType: 'simple',
-        MaxRows: 1,
-    }, contextUser);
+async function getPersonUserID(personID: string, contextUser: UserInfo): Promise<string | null> {
+    try {
+        return await ResolveUserIDForPerson(personID, Metadata.Provider, contextUser);
+    } catch (error) {
+        LogError(`[Tasks] Could not resolve the user of person ${personID}: ${errorText(error)}`);
+        return null;
+    }
+}
 
-    return result?.Results?.[0]?.LinkedUserID ?? null;
+function errorText(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
 }
 
 /**
@@ -551,7 +656,9 @@ async function getPersonName(personID: string, contextUser: UserInfo): Promise<s
 }
 
 /**
- * Creates an in-app notification for each UserID in the list.
+ * Creates an untyped in-app notification for each UserID in the list. Used for the blocked
+ * and comment notices, which have no notification type yet; completion and assignment go
+ * through {@link sendTaskNotifications}.
  */
 async function createNotificationsForUsers(
     userIDs: string[],
@@ -562,19 +669,19 @@ async function createNotificationsForUsers(
     const md = new Metadata();
 
     const saves = userIDs.map(async (userID) => {
-        const notification = await md.GetEntityObject<any>(
+        const notification = await md.GetEntityObject<MJUserNotificationEntity>(
             'MJ: User Notifications',
             contextUser
         );
         notification.NewRecord();
-        notification.Set('UserID', userID);
-        notification.Set('Title', title);
-        notification.Set('Message', message);
-        notification.Set('Unread', true);
+        notification.UserID = userID;
+        notification.Title = title;
+        notification.Message = message;
+        notification.Unread = true;
 
         const saved = await notification.Save();
         if (!saved) {
-            LogError(`[BizAppsTasks] Failed to save notification for user ${userID}`);
+            LogError(`[BizAppsTasks] Failed to save notification for user ${userID}: ${notification.LatestResult?.CompleteMessage ?? 'unknown error'}`);
         }
     });
 

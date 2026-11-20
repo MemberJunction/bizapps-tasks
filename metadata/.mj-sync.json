@@ -6,6 +6,8 @@
   "directoryOrder": [
     "row-level-security-filters",
     "entities",
+    "templates",
+    "notification-types",
     "credential-types",
     "action-categories",
     "actions",
@@ -20,6 +22,12 @@
     "ml-training-pipelines",
     "ml-models",
     "ml-model-scoring-bindings",
+    "prompts",
+    "meeting-agenda-item-types",
+    "meeting-types",
+    "video-providers",
+    "scheduled-job-types",
+    "scheduled-jobs",
     "chief-of-staff-skills",
     "chief-of-staff-nav-items"
   ],
@@ -28,7 +36,10 @@
     "enabled": true,
     "outputDirectory": "./sql_logging",
     "formatAsMigration": true,
-    "filterPatterns": ["*spCreateAIPromptRun*", "*spUpdateAIPromptRun*"],
+    "filterPatterns": [
+      "*spCreateAIPromptRun*",
+      "*spUpdateAIPromptRun*"
+    ],
     "filterType": "exclude"
   }
 }
