@@ -339,6 +339,20 @@ npm run build
 
 ---
 
+### Related-Record Collections & Lifecycle Ownership
+
+BizApps Tasks declares 15 database-backed (`Source: "database"`, `Load: "explicit"`) `RelatedRecordCollection` accessors in `metadata/entity-relationships/.entity-relationships.json` and emits matching strongly-typed `DeclareRelatedRecords<...>` properties on the generated entity subclasses:
+
+- **`mjBizAppsTasksTaskEntity`**: `Assignments`, `TagLinks`, `Links`, `Dependencies`, `Decisions` (`OnRemove: "refuse"`), `Comments`, `CheckIns`, `Activities`, `NotificationLogs`, `SubTasks` (`OnRemove: "orphan"`)
+- **`mjBizAppsTasksTaskTypeEntity`**: `Statuses` (auto-sequenced `Sequence` from `1`)
+- **`mjBizAppsTasksTaskTemplateEntity`**: `Items` (auto-sequenced `Sequence` from `1`)
+- **`mjBizAppsTasksTaskTemplateItemEntity`**: `Roles`, `Dependencies`
+- **`mjBizAppsTasksWorkReportEntity`**: `Items` (auto-sequenced `Sequence` from `1`)
+
+**Single-owner lifecycle action hook dispatch**: `TaskEntityServer` is the sole dispatcher for task lifecycle hooks (`OnCreate`, `OnStatusChange`, `OnEnterStatus`, `OnExitStatus`, `OnComplete`, `OnCancel`, `OnReject`, `OnPercentChange`), firing `OnReject` only on `Cancelled` tasks with a recorded `Rejected` decision (and `OnCancel` otherwise). `TaskNotificationHandler` handles user notifications and `OnAssignActionID` only, deferred via `RunAfterCommit`.
+
+---
+
 ## Repository Structure
 
 ```
