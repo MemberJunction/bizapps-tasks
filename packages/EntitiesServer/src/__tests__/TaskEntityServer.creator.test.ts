@@ -19,14 +19,13 @@ const people = {
 };
 const superSave = vi.fn(async () => true);
 
-vi.mock('@memberjunction/global', () => ({
-    RegisterClass: () => () => {},
-    IsValidUUID: (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
-    NormalizeUUID: (v: string) => v.trim().toLowerCase(),
-    EscapeSQLString: (v: string) => v.replace(/'/g, "''"),
-    UUIDsEqual: (a?: string | null, b?: string | null) =>
-        Boolean(a && b && a.toLowerCase() === b.toLowerCase()),
-}));
+vi.mock('@memberjunction/global', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@memberjunction/global')>();
+    return {
+        ...actual,
+        RegisterClass: () => () => {},
+    };
+});
 
 vi.mock('@memberjunction/core', () => {
     class ValidationErrorInfo { constructor(public Source: string, public Message: string, public Value: unknown, public Type?: string) {} }
@@ -53,6 +52,7 @@ vi.mock('@memberjunction/core', () => {
             public async Save() { return superSave(); }
         },
         BaseEngine: class { public static getInstance() { return {}; } },
+        CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },
         LogError: vi.fn(),
         LogStatus: vi.fn(),
         Metadata: class {
@@ -68,6 +68,7 @@ vi.mock('@memberjunction/core', () => {
                 return people.fail ? { Success: false, Results: [], ErrorMessage: 'database unavailable' } : { Success: true, Results: people.results };
             }
         },
+        UserInfo: class {},
         ValidationErrorInfo,
         ValidationErrorType: { Failure: 'Failure', Warning: 'Warning' },
     };

@@ -41,10 +41,13 @@ function viewResult(entityName: string, filter: string, fields?: string[]): { Su
     }
 }
 
-vi.mock('@memberjunction/global', () => ({
-    RegisterClass: () => () => {},
-    IsValidUUID: (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
-}));
+vi.mock('@memberjunction/global', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@memberjunction/global')>();
+    return {
+        ...actual,
+        RegisterClass: () => () => {},
+    };
+});
 
 vi.mock('@memberjunction/core-entities', () => ({
     ApplicationSettingEngine: {
@@ -65,7 +68,9 @@ vi.mock('@memberjunction/core', () => {
     };
     return {
         BaseEntity: class {},
+        CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },
         LogError: vi.fn(),
+        LogStatus: vi.fn(),
         Metadata: { Provider: provider },
         RunView: class {
             async RunViews(params: Array<{ EntityName: string; ExtraFilter: string; Fields?: string[] }>) {
@@ -75,6 +80,7 @@ vi.mock('@memberjunction/core', () => {
                 return viewResult(p.EntityName, p.ExtraFilter, p.Fields);
             }
         },
+        UserInfo: class {},
         ValidationResult,
         ValidationErrorInfo,
     };
