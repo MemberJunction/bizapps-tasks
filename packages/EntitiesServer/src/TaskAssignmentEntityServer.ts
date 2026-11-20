@@ -31,7 +31,8 @@ import {
 import { RegisterClass } from '@memberjunction/global';
 import { mjBizAppsTasksTaskAssignmentEntity } from '@mj-biz-apps/tasks-entities';
 import { TasksSettings } from './TasksSettings.js';
-import { GuidLiteral as guid, IsPeopleEntity as isPeopleEntity, PEOPLE_ENTITY, PeopleFilterForUser } from './UserPeople.js';
+import { GuidLiteral as guid } from '@mj-biz-apps/tasks-core';
+import { IsPeopleEntity as isPeopleEntity, PEOPLE_ENTITY, PeopleFilterForUser } from './UserPeople.js';
 
 export const TASK_ASSIGNMENT_ENTITY = 'MJ_BizApps_Tasks: Task Assignments';
 const TASK_ENTITY = 'MJ_BizApps_Tasks: Tasks';

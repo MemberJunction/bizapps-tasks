@@ -219,7 +219,10 @@ flowchart LR
         TSK05["TSK-05: Templates<br/>(Workflow Instantiation)"]
         TSK06["TSK-06: Statuses<br/>(Dynamic Lifecycle & Terminal Auto-Completion)"]
         TSK07["TSK-07: Action Hooks<br/>(Event Triggers & Action Invocations)"]
+        TSK08["TSK-08: Work Bus & 15Five Reports<br/>(SubtypeSelector, Field Suggestions & WorkReport Lifecycle)"]
     end
 
-    TSK00 --> TSK01 --> TSK02 --> TSK03 --> TSK04 --> TSK05 --> TSK06 --> TSK07
+    TSK00 --> TSK01 --> TSK02 --> TSK03 --> TSK04 --> TSK05 --> TSK06 --> TSK07 --> TSK08
 ```
+
+For declarative IS-A subtype extensions (`TaskType.ExtensionEntity`), `FIELD_SUGGESTION` comments on `Tasks`, and **15Five Work Reports**, see [**WORK_BUS_AND_15FIVE_REPORTS_GUIDE.md**](./WORK_BUS_AND_15FIVE_REPORTS_GUIDE.md).

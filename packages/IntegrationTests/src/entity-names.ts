@@ -17,5 +17,7 @@ export const TASK_TEMPLATE_ITEM_ENTITY = 'MJ_BizApps_Tasks: Task Template Items'
 export const TASK_TEMPLATE_ITEM_DEP_ENTITY = 'MJ_BizApps_Tasks: Task Template Item Dependencies';
 export const TASK_TEMPLATE_ITEM_ROLE_ENTITY = 'MJ_BizApps_Tasks: Task Template Item Roles';
 export const TASK_TYPE_STATUS_ENTITY = 'MJ_BizApps_Tasks: Task Type Status';
+export const WORK_REPORT_ENTITY = 'MJ_BizApps_Tasks: Work Reports';
+export const WORK_REPORT_ITEM_ENTITY = 'MJ_BizApps_Tasks: Work Report Items';
 export const ACTION_ENTITY = 'MJ: Actions';
 export const PERSON_ENTITY = 'MJ_BizApps_Common: People';

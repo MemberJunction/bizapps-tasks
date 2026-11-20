@@ -41,10 +41,13 @@ function viewResult(entityName: string, filter: string, fields?: string[]): { Su
     }
 }
 
-vi.mock('@memberjunction/global', () => ({
-    RegisterClass: () => () => {},
-    IsValidUUID: (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
-}));
+vi.mock('@memberjunction/global', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@memberjunction/global')>();
+    return {
+        ...actual,
+        RegisterClass: () => () => {},
+    };
+});
 
 vi.mock('@memberjunction/core-entities', () => ({
     ApplicationSettingEngine: {
@@ -65,7 +68,9 @@ vi.mock('@memberjunction/core', () => {
     };
     return {
         BaseEntity: class {},
+        CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },
         LogError: vi.fn(),
+        LogStatus: vi.fn(),
         Metadata: { Provider: provider },
         RunView: class {
             async RunViews(params: Array<{ EntityName: string; ExtraFilter: string; Fields?: string[] }>) {
@@ -75,6 +80,7 @@ vi.mock('@memberjunction/core', () => {
                 return viewResult(p.EntityName, p.ExtraFilter, p.Fields);
             }
         },
+        UserInfo: class {},
         ValidationResult,
         ValidationErrorInfo,
     };
@@ -122,8 +128,17 @@ describe('TaskDecisionEntityServer', () => {
         expect(decision().DefaultSkipAsyncValidation).toBe(false);
     });
 
-    it('reads nothing and accepts while PreventSelfApproval is unset', async () => {
+    it('enforces the guard by default: an unset PreventSelfApproval still refuses the creator', async () => {
         db.settings = new Map();
+        db.task.CreatedByPersonID = PERSON_ID;
+        const result = await decision().ValidateAsync();
+        expect(result.Success).toBe(false);
+        expect(result.Errors[0].Message).toMatch(/Nobody may approve their own request/);
+    });
+
+    it('reads nothing and accepts only when PreventSelfApproval is explicitly false', async () => {
+        db.settings = new Map([['PreventSelfApproval', 'false']]);
+        db.task.CreatedByPersonID = PERSON_ID;
         const result = await decision().ValidateAsync();
         expect(result.Success).toBe(true);
         expect(filtersSeen).toEqual([]);
@@ -209,6 +224,15 @@ describe('TaskDecisionEntityServer', () => {
     });
 
     it('refuses a save with no signed-in user while the guard is on', async () => {
+        const d = decision();
+        d.ContextCurrentUser = null;
+        const result = await d.ValidateAsync();
+        expect(result.Success).toBe(false);
+        expect(result.Errors[0].Message).toMatch(/without a signed-in user/);
+    });
+
+    it('refuses a save with no signed-in user even when the setting is unset (fails closed by default)', async () => {
+        db.settings = new Map();
         const d = decision();
         d.ContextCurrentUser = null;
         const result = await d.ValidateAsync();

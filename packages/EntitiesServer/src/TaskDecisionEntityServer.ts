@@ -9,8 +9,8 @@
  * from the browser), the Tasks inbox, and other apps' server code calling
  * `TaskOrchestrationService.RecordDecision`.
  *
- * Off by default: with the Tasks setting `PreventSelfApproval` unset or false, nothing is read and
- * every decision is accepted as before.
+ * On by default: only the Tasks setting `PreventSelfApproval` explicitly set to false turns the
+ * check off; unset, the guard is enforced (secure by default).
  *
  * CONNECTS TO:
  *   READS:  Tasks · Task Types · Task Assignments · MJ_BizApps_Common: People · MJ: Roles · MJ: User Roles
@@ -30,7 +30,8 @@ import { RegisterClass } from '@memberjunction/global';
 import { mjBizAppsTasksTaskDecisionEntity } from '@mj-biz-apps/tasks-entities';
 import { TaskDecisionRefusal, type DecisionAssignmentFact, type TaskDecisionFacts } from './TaskDecisionAuthority.js';
 import { TasksSettings } from './TasksSettings.js';
-import { GuidLiteral as guid, IsPeopleEntity as isPeopleEntity, PEOPLE_ENTITY, PeopleFilterForUser } from './UserPeople.js';
+import { GuidLiteral as guid } from '@mj-biz-apps/tasks-core';
+import { IsPeopleEntity as isPeopleEntity, PEOPLE_ENTITY, PeopleFilterForUser } from './UserPeople.js';
 
 export const TASK_DECISION_ENTITY = 'MJ_BizApps_Tasks: Task Decisions';
 const TASK_ENTITY = 'MJ_BizApps_Tasks: Tasks';
