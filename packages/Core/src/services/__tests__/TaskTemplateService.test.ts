@@ -1,192 +1,322 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import type { UserInfo } from '@memberjunction/core';
 
 const runViewMock = vi.fn();
 const getEntityObjectMock = vi.fn();
+const runViewProviders: unknown[] = [];
 
 vi.mock('@memberjunction/core', () => ({
   RunView: class {
-    RunView(...args: any[]) { return runViewMock(...args); }
+    constructor(provider?: unknown) {
+      runViewProviders.push(provider);
+    }
+    RunView(...args: unknown[]) { return runViewMock(...args); }
   },
   Metadata: {
-    Provider: { GetEntityObject: (...args: any[]) => getEntityObjectMock(...args) },
+    Provider: { GetEntityObject: (...args: unknown[]) => getEntityObjectMock(...args) },
   },
-  CompositeKey: class { constructor(public KeyValuePairs: any[]) {} },
+  CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },
   BaseEntity: class {},
 }));
 
 import { TaskTemplateService } from '../TaskTemplateService.js';
 
-/** Fake entity that auto-assigns an ID on NewRecord so item→task mapping works. */
-function makeFakeTask(id: string, initial: Record<string, any> = {}) {
-  const data: Record<string, any> = { ID: id, ...initial };
+const TMPL_1 = '11111111-1111-4111-8111-111111111111';
+const TYPE_1 = '22222222-2222-4222-8222-222222222222';
+const ITEM_1 = '33333333-3333-4333-8333-333333333331';
+const ITEM_PARENT = '33333333-3333-4333-8333-333333333332';
+const ITEM_CHILD = '33333333-3333-4333-8333-333333333333';
+const ITEM_A = '33333333-3333-4333-8333-333333333334';
+const ITEM_B = '33333333-3333-4333-8333-333333333335';
+const TASK_1 = '44444444-4444-4444-8444-444444444441';
+const TASK_PARENT = '44444444-4444-4444-8444-444444444442';
+const TASK_CHILD = '44444444-4444-4444-8444-444444444443';
+const TASK_A = '44444444-4444-4444-8444-444444444444';
+const TASK_B = '44444444-4444-4444-8444-444444444445';
+const ROLE_1 = '55555555-5555-4555-8555-555555555551';
+const ENTITY_PERSON = '66666666-6666-4666-8666-666666666661';
+const PERSON_1 = '77777777-7777-4777-8777-777777777771';
+
+interface FakeCollection {
+  Items: Record<string, unknown>[];
+  Create: ReturnType<typeof vi.fn>;
+}
+
+function makeFakeCollection(): FakeCollection {
+  const items: Record<string, unknown>[] = [];
   return {
-    data,
-    NewRecord: vi.fn(),
-    InnerLoad: vi.fn(async () => true),
-    Save: vi.fn(async () => true),
-    Set: vi.fn((f: string, v: any) => { data[f] = v; }),
-    Get: vi.fn((f: string) => data[f]),
+    Items: items,
+    Create: vi.fn(async () => {
+      const child: Record<string, unknown> = {};
+      items.push(child);
+      return child;
+    }),
   };
 }
 
-beforeEach(() => vi.clearAllMocks());
+/** Fake entity that exposes typed properties + RelatedRecordCollection accessors. */
+function makeFakeTask(id: string, initial: Record<string, unknown> = {}) {
+  return {
+    ID: id,
+    ...initial,
+    NewRecord: vi.fn(),
+    InnerLoad: vi.fn(async () => true),
+    Save: vi.fn(async () => true),
+    LatestResult: { CompleteMessage: '' },
+    Assignments: makeFakeCollection(),
+    Dependencies: makeFakeCollection(),
+  };
+}
+
+function makeFakeTemplateItem(
+  item: Record<string, unknown>,
+  roles: Array<{ RoleID: string }> = [],
+  deps: Array<{ ItemID: string; DependsOnItemID: string; DependencyType?: string }> = [],
+) {
+  return {
+    ...item,
+    Roles: { Items: roles },
+    Dependencies: { Items: deps },
+  };
+}
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  runViewProviders.length = 0;
+});
 
 describe('TaskTemplateService.instantiateTemplate', () => {
+  it('rejects a non-UUID templateID before querying', async () => {
+    const svc = new TaskTemplateService();
+    await expect(svc.instantiateTemplate({
+      templateID: "tmpl-1' OR 1=1--",
+      startDate: new Date('2026-06-01T00:00:00Z'),
+    })).rejects.toThrow(/Invalid templateID/);
+    expect(getEntityObjectMock).not.toHaveBeenCalled();
+    expect(runViewMock).not.toHaveBeenCalled();
+  });
+
   it('returns empty array when the template has no items', async () => {
-    const template = makeFakeTask('tmpl-1', { TypeID: 'type-1' });
-    getEntityObjectMock.mockResolvedValueOnce(template); // template load
-    runViewMock.mockResolvedValueOnce({ Results: [] });   // items query → none
+    const template = makeFakeTask(TMPL_1, { TypeID: TYPE_1 });
+    getEntityObjectMock.mockResolvedValueOnce(template);
+    runViewMock.mockResolvedValueOnce({ Success: true, Results: [] });
 
     const svc = new TaskTemplateService();
     const result = await svc.instantiateTemplate({
-      templateID: 'tmpl-1',
+      templateID: TMPL_1,
       startDate: new Date('2026-06-01T00:00:00Z'),
     });
 
     expect(result).toEqual([]);
+    expect(runViewMock).toHaveBeenCalledOnce();
+    expect(runViewMock).toHaveBeenCalledWith(expect.objectContaining({
+      EntityName: 'MJ_BizApps_Tasks: Task Template Items',
+      ResultType: 'entity_object',
+      IncludeRelatedRecords: ['Roles', 'Dependencies'],
+    }), undefined);
   });
 
-  it('creates a task per item, applies template TypeID, and computes DueAt from DaysFromStart', async () => {
-    const template = makeFakeTask('tmpl-1', { TypeID: 'type-1' });
-    // one root item, due 5 days after start
+  it('creates a task per item with a single batched RunView (no N+1) and computes DueAt from DaysFromStart', async () => {
+    const template = makeFakeTask(TMPL_1, { TypeID: TYPE_1 });
     const items = [
-      { ID: 'item-1', Name: 'Kickoff', Description: 'd', Priority: 'High', HoursEstimated: 4, Sequence: 1, DaysFromStart: 5, ParentItemID: null },
-    ];
-
-    getEntityObjectMock.mockResolvedValueOnce(template); // template load
-    runViewMock.mockResolvedValueOnce({ Results: items }); // items query
-
-    const createdTask = makeFakeTask('task-1');
-    getEntityObjectMock.mockResolvedValueOnce(createdTask); // task creation
-
-    // createAssignmentsForItem: no assigneeMap → returns early (no RunView)
-    // createDependencies: items query, then deps query
-    runViewMock
-      .mockResolvedValueOnce({ Results: items })   // createDependencies items
-      .mockResolvedValueOnce({ Results: [] });     // createDependencies deps → none
-
-    const svc = new TaskTemplateService();
-    const start = new Date('2026-06-01T00:00:00Z');
-    const result = await svc.instantiateTemplate({ templateID: 'tmpl-1', startDate: start });
-
-    expect(result).toHaveLength(1);
-    expect(createdTask.Set).toHaveBeenCalledWith('Name', 'Kickoff');
-    expect(createdTask.Set).toHaveBeenCalledWith('Priority', 'High');
-    expect(createdTask.Set).toHaveBeenCalledWith('TypeID', 'type-1');
-
-    // DueAt should be start + 5 days
-    const dueCall = createdTask.Set.mock.calls.find((c: any[]) => c[0] === 'DueAt');
-    expect(dueCall).toBeTruthy();
-    const due = dueCall![1] as Date;
-    const expected = new Date(start);
-    expected.setDate(expected.getDate() + 5);
-    expect(due.getTime()).toBe(expected.getTime());
-  });
-
-  it('creates parent tasks before children and wires ParentID via the item→task map', async () => {
-    const template = makeFakeTask('tmpl-1', { TypeID: 'type-1' });
-    // child listed BEFORE parent to exercise topological sort
-    const items = [
-      { ID: 'child', Name: 'Child', Sequence: 2, ParentItemID: 'parent', DaysFromStart: null },
-      { ID: 'parent', Name: 'Parent', Sequence: 1, ParentItemID: null, DaysFromStart: null },
+      makeFakeTemplateItem({
+        ID: ITEM_1,
+        Name: 'Kickoff',
+        Description: 'd',
+        Priority: 'High',
+        HoursEstimated: 4,
+        Sequence: 1,
+        DaysFromStart: 5,
+        ParentItemID: null,
+      }),
     ];
 
     getEntityObjectMock.mockResolvedValueOnce(template);
-    runViewMock.mockResolvedValueOnce({ Results: items });
+    runViewMock.mockResolvedValueOnce({ Success: true, Results: items });
 
-    // Parent must be created first (topo sort), then child.
-    const parentTask = makeFakeTask('task-parent');
-    const childTask = makeFakeTask('task-child');
+    const createdTask = makeFakeTask(TASK_1);
+    getEntityObjectMock.mockResolvedValueOnce(createdTask);
+
+    const svc = new TaskTemplateService();
+    const start = new Date('2026-06-01T00:00:00Z');
+    const result = await svc.instantiateTemplate({ templateID: TMPL_1, startDate: start });
+
+    expect(result).toHaveLength(1);
+    // Single batched query for items + Roles + Dependencies
+    expect(runViewMock).toHaveBeenCalledTimes(1);
+    expect(createdTask.Name).toBe('Kickoff');
+    expect(createdTask.Priority).toBe('High');
+    expect(createdTask.TypeID).toBe(TYPE_1);
+
+    const expected = new Date(start);
+    expected.setDate(expected.getDate() + 5);
+    expect((createdTask.DueAt as Date).getTime()).toBe(expected.getTime());
+    expect(createdTask.Save).toHaveBeenCalledOnce();
+  });
+
+  it('creates parent tasks before children and wires ParentID via the item→task map', async () => {
+    const template = makeFakeTask(TMPL_1, { TypeID: TYPE_1 });
+    // child listed BEFORE parent to exercise topological sort
+    const items = [
+      makeFakeTemplateItem({ ID: ITEM_CHILD, Name: 'Child', Sequence: 2, ParentItemID: ITEM_PARENT, DaysFromStart: null }),
+      makeFakeTemplateItem({ ID: ITEM_PARENT, Name: 'Parent', Sequence: 1, ParentItemID: null, DaysFromStart: null }),
+    ];
+
+    getEntityObjectMock.mockResolvedValueOnce(template);
+    runViewMock.mockResolvedValueOnce({ Success: true, Results: items });
+
+    const parentTask = makeFakeTask(TASK_PARENT);
+    const childTask = makeFakeTask(TASK_CHILD);
     getEntityObjectMock
-      .mockResolvedValueOnce(parentTask)  // parent created first
-      .mockResolvedValueOnce(childTask);  // then child
-
-    runViewMock
-      .mockResolvedValueOnce({ Results: items }) // createDependencies items
-      .mockResolvedValueOnce({ Results: [] });   // deps none
+      .mockResolvedValueOnce(parentTask)
+      .mockResolvedValueOnce(childTask);
 
     const svc = new TaskTemplateService();
     const result = await svc.instantiateTemplate({
-      templateID: 'tmpl-1',
+      templateID: TMPL_1,
       startDate: new Date('2026-06-01T00:00:00Z'),
     });
 
     expect(result).toHaveLength(2);
-    // first created should be the parent
-    expect(parentTask.Set).toHaveBeenCalledWith('Name', 'Parent');
-    // child should have ParentID set to the parent's created task ID
-    expect(childTask.Set).toHaveBeenCalledWith('ParentID', 'task-parent');
+    expect(parentTask.Name).toBe('Parent');
+    expect(childTask.ParentID).toBe(TASK_PARENT);
+    expect(runViewMock).toHaveBeenCalledTimes(1);
   });
 
-  it('recreates dependencies between newly created tasks', async () => {
-    const template = makeFakeTask('tmpl-1', { TypeID: 'type-1' });
+  it('attaches dependencies onto task.Dependencies using pre-loaded item.Dependencies', async () => {
+    const template = makeFakeTask(TMPL_1, { TypeID: TYPE_1 });
     const items = [
-      { ID: 'item-a', Name: 'A', Sequence: 1, ParentItemID: null, DaysFromStart: null },
-      { ID: 'item-b', Name: 'B', Sequence: 2, ParentItemID: null, DaysFromStart: null },
+      makeFakeTemplateItem({ ID: ITEM_A, Name: 'A', Sequence: 1, ParentItemID: null, DaysFromStart: null }),
+      makeFakeTemplateItem(
+        { ID: ITEM_B, Name: 'B', Sequence: 2, ParentItemID: null, DaysFromStart: null },
+        [],
+        [{ ItemID: ITEM_B, DependsOnItemID: ITEM_A, DependencyType: 'FinishToStart' }],
+      ),
     ];
 
     getEntityObjectMock.mockResolvedValueOnce(template);
-    runViewMock.mockResolvedValueOnce({ Results: items });
+    runViewMock.mockResolvedValueOnce({ Success: true, Results: items });
 
-    // topologicalSortByParent processes root items in reverse order, so the
-    // first created task corresponds to item-b and the second to item-a.
-    const firstCreated = makeFakeTask('task-for-item-b');
-    const secondCreated = makeFakeTask('task-for-item-a');
-    getEntityObjectMock.mockResolvedValueOnce(firstCreated).mockResolvedValueOnce(secondCreated);
-
-    // createDependencies: items query, then deps query (B depends on A)
-    runViewMock
-      .mockResolvedValueOnce({ Results: items })
-      .mockResolvedValueOnce({ Results: [{ ItemID: 'item-b', DependsOnItemID: 'item-a', DependencyType: 'FinishToStart' }] });
-
-    const taskDep = makeFakeTask('dep-1');
-    getEntityObjectMock.mockResolvedValueOnce(taskDep); // dependency creation
+    // topologicalSortByParent processes root items in reverse order: B first, then A.
+    const taskForB = makeFakeTask(TASK_B);
+    const taskForA = makeFakeTask(TASK_A);
+    getEntityObjectMock.mockResolvedValueOnce(taskForB).mockResolvedValueOnce(taskForA);
 
     const svc = new TaskTemplateService();
     await svc.instantiateTemplate({
-      templateID: 'tmpl-1',
+      templateID: TMPL_1,
       startDate: new Date('2026-06-01T00:00:00Z'),
     });
 
-    // dep maps item-b → task-for-item-b (TaskID), item-a → task-for-item-a (DependsOnTaskID)
-    expect(taskDep.Set).toHaveBeenCalledWith('TaskID', 'task-for-item-b');
-    expect(taskDep.Set).toHaveBeenCalledWith('DependsOnTaskID', 'task-for-item-a');
-    expect(taskDep.Set).toHaveBeenCalledWith('DependencyType', 'FinishToStart');
+    expect(runViewMock).toHaveBeenCalledTimes(1);
+    expect(taskForB.Dependencies.Create).toHaveBeenCalledOnce();
+    expect(taskForB.Dependencies.Items[0]).toEqual({
+      DependsOnTaskID: TASK_A,
+      DependencyType: 'FinishToStart',
+    });
+    // Task B saved once on creation, once after attaching dependencies
+    expect(taskForB.Save).toHaveBeenCalledTimes(2);
+    expect(taskForA.Save).toHaveBeenCalledTimes(1);
   });
 
-  it('creates role-based assignments when an assigneeMap is supplied', async () => {
-    const template = makeFakeTask('tmpl-1', { TypeID: 'type-1' });
+  it('attaches role-based assignments onto task.Assignments in the same initial task.Save()', async () => {
+    const template = makeFakeTask(TMPL_1, { TypeID: TYPE_1 });
     const items = [
-      { ID: 'item-1', Name: 'Task', Sequence: 1, ParentItemID: null, DaysFromStart: null },
+      makeFakeTemplateItem(
+        { ID: ITEM_1, Name: 'Task', Sequence: 1, ParentItemID: null, DaysFromStart: null },
+        [{ RoleID: ROLE_1 }],
+      ),
     ];
 
     getEntityObjectMock.mockResolvedValueOnce(template);
-    runViewMock.mockResolvedValueOnce({ Results: items });
+    runViewMock.mockResolvedValueOnce({ Success: true, Results: items });
 
-    const createdTask = makeFakeTask('task-1');
+    const createdTask = makeFakeTask(TASK_1);
     getEntityObjectMock.mockResolvedValueOnce(createdTask);
 
-    // createAssignmentsForItem: roles query returns one role mapped in assigneeMap
-    runViewMock.mockResolvedValueOnce({ Results: [{ RoleID: 'role-1' }] });
-    const assignment = makeFakeTask('assignment-1');
-    getEntityObjectMock.mockResolvedValueOnce(assignment);
-
-    // createDependencies
-    runViewMock
-      .mockResolvedValueOnce({ Results: items })
-      .mockResolvedValueOnce({ Results: [] });
-
-    const assigneeMap = new Map([['role-1', { entityID: 'entity-1', recordID: 'person-1' }]]);
+    const assigneeMap = new Map([[ROLE_1, { entityID: ENTITY_PERSON, recordID: PERSON_1 }]]);
 
     const svc = new TaskTemplateService();
     await svc.instantiateTemplate({
-      templateID: 'tmpl-1',
+      templateID: TMPL_1,
       startDate: new Date('2026-06-01T00:00:00Z'),
       assigneeMap,
     });
 
-    expect(assignment.Set).toHaveBeenCalledWith('TaskID', 'task-1');
-    expect(assignment.Set).toHaveBeenCalledWith('RoleID', 'role-1');
-    expect(assignment.Set).toHaveBeenCalledWith('AssigneeRecordID', 'person-1');
+    expect(runViewMock).toHaveBeenCalledTimes(1);
+    expect(createdTask.Assignments.Create).toHaveBeenCalledOnce();
+    expect(createdTask.Assignments.Items[0]).toEqual({
+      AssigneeEntityID: ENTITY_PERSON,
+      AssigneeRecordID: PERSON_1,
+      RoleID: ROLE_1,
+    });
+    // Task + its assignment saved in ONE task.Save()
+    expect(createdTask.Save).toHaveBeenCalledOnce();
+  });
+
+  it('threads contextUser + provider and wraps multi-task creation in BeginEntityTransaction() with Commit/Rollback', async () => {
+    const contextUser = { ID: 'user-1', Email: 'u@example.com' } as UserInfo;
+    const commitMock = vi.fn(async () => undefined);
+    const rollbackMock = vi.fn(async () => undefined);
+    const template = makeFakeTask(TMPL_1, { TypeID: TYPE_1 });
+    const firstTask = makeFakeTask(TASK_1);
+    const secondTask = makeFakeTask(TASK_B);
+
+    const provider = {
+      SupportsEntityTransactions: true,
+      BeginEntityTransaction: vi.fn(async () => ({
+        Commit: commitMock,
+        Rollback: rollbackMock,
+        IsNested: false,
+      })),
+      GetEntityObject: vi.fn()
+        .mockResolvedValueOnce(template)
+        .mockResolvedValueOnce(firstTask)
+        .mockResolvedValueOnce(secondTask),
+      RunView: vi.fn(),
+    };
+
+    const items = [
+      makeFakeTemplateItem({ ID: ITEM_A, Name: 'A', Sequence: 1, ParentItemID: null, DaysFromStart: null }),
+      makeFakeTemplateItem({ ID: ITEM_B, Name: 'B', Sequence: 2, ParentItemID: null, DaysFromStart: null }),
+    ];
+    runViewMock.mockResolvedValueOnce({ Success: true, Results: items });
+
+    const svc = new TaskTemplateService();
+    const created = await svc.instantiateTemplate(
+      { templateID: TMPL_1, startDate: new Date('2026-06-01T00:00:00Z') },
+      contextUser,
+      provider as never,
+    );
+
+    expect(created).toHaveLength(2);
+    expect(runViewProviders).toEqual([provider]);
+    expect(provider.GetEntityObject).toHaveBeenCalledWith('MJ_BizApps_Tasks: Task Templates', contextUser);
+    expect(provider.GetEntityObject).toHaveBeenCalledWith('MJ_BizApps_Tasks: Tasks', contextUser);
+    expect(getEntityObjectMock).not.toHaveBeenCalled();
+    expect(provider.BeginEntityTransaction).toHaveBeenCalledOnce();
+    expect(commitMock).toHaveBeenCalledOnce();
+    expect(rollbackMock).not.toHaveBeenCalled();
+
+    // Now verify Rollback on failure
+    const failingTask = makeFakeTask(TASK_1);
+    failingTask.Save.mockResolvedValueOnce(false);
+    failingTask.LatestResult = { CompleteMessage: 'DB constraint error' };
+    provider.GetEntityObject
+      .mockResolvedValueOnce(template)
+      .mockResolvedValueOnce(failingTask);
+    runViewMock.mockResolvedValueOnce({
+      Success: true,
+      Results: [makeFakeTemplateItem({ ID: ITEM_1, Name: 'FailMe', Sequence: 1, ParentItemID: null, DaysFromStart: null })],
+    });
+
+    await expect(svc.instantiateTemplate(
+      { templateID: TMPL_1, startDate: new Date('2026-06-01T00:00:00Z') },
+      contextUser,
+      provider as never,
+    )).rejects.toThrow(/DB constraint error/);
+
+    expect(rollbackMock).toHaveBeenCalledOnce();
+    expect(commitMock).toHaveBeenCalledOnce(); // still only 1 commit from the first run
   });
 });

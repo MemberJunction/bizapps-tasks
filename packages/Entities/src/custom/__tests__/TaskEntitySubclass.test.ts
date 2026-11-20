@@ -47,6 +47,7 @@ vi.mock('@memberjunction/core', () => {
     Validate() { return new FakeValidationResult(); }
     async ValidateAsync() { return new FakeValidationResult(); }
     async Save(_options?: any) { return true; }
+    DeclareRelatedRecords(options: unknown) { return { Options: options }; }
   }
   return {
     BaseEntity: FakeBaseEntity,

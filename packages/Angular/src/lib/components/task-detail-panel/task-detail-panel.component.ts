@@ -3,6 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { Metadata, RunView, CompositeKey, type IMetadataProvider, type IRunViewProvider } from '@memberjunction/core';
+import { EscapeSQLString, IsValidUUID, UUIDsEqual } from '@memberjunction/global';
+import type {
+    mjBizAppsTasksTaskCommentEntity,
+    mjBizAppsTasksTaskDependencyEntity,
+    mjBizAppsTasksTaskEntity,
+} from '@mj-biz-apps/tasks-entities';
 import { NormalizeUUID } from '@memberjunction/global';
 import { OpenTaskRecord } from '../../open-task-record';
 import { RoleAssigneeName } from '../../role-assignees';
@@ -690,17 +696,37 @@ export class TaskDetailPanelComponent implements OnChanges {
         }));
     }
 
+    private async loadPeopleByIDs(personIDs: readonly (string | null | undefined)[]): Promise<Map<string, string>> {
+        const uniqueValidIDs = Array.from(
+            new Set(
+                personIDs
+                    .filter((id): id is string => typeof id === 'string' && IsValidUUID(id))
+                    .map(id => id.toLowerCase()),
+            ),
+        );
+        const personMap = new Map<string, string>();
+        if (uniqueValidIDs.length === 0) return personMap;
+
+        const inClause = uniqueValidIDs.map(id => `'${EscapeSQLString(id)}'`).join(',');
+        const peopleResult = await this.createRunView().RunView<PersonRow>({
+            EntityName: 'MJ_BizApps_Common: People',
+            ExtraFilter: `ID IN (${inClause})`,
+            Fields: ['ID', 'FirstName', 'LastName'],
+            ResultType: 'simple',
+        });
+        for (const p of peopleResult?.Results ?? []) {
+            personMap.set(p.ID.toLowerCase(), `${p.FirstName} ${p.LastName}`.trim());
+        }
+        return personMap;
+    }
+
     private async loadAssignees(): Promise<void> {
-        if (!this.TaskID) return;
+        if (!this.TaskID || !IsValidUUID(this.TaskID)) return;
         const rv = this.createRunView();
-        const [assignmentResult, peopleResult, rolesResult] = await Promise.all([
+        const [assignmentResult, rolesResult] = await Promise.all([
             rv.RunView<{ AssigneeEntityID: string; AssigneeRecordID: string; RoleID: string; Status: 'Pending' | 'InProgress' | 'Completed' | null }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Assignments',
-                ExtraFilter: `TaskID = '${this.TaskID}'`,
-                ResultType: 'simple',
-            }),
-            this.createRunView().RunView<PersonRow>({
-                EntityName: 'MJ_BizApps_Common: People',
+                ExtraFilter: `TaskID = '${EscapeSQLString(this.TaskID)}'`,
                 ResultType: 'simple',
             }),
             this.createRunView().RunView<{ ID: string; Name: string }>({
@@ -709,66 +735,62 @@ export class TaskDetailPanelComponent implements OnChanges {
             }),
         ]);
 
-        const personMap = new Map<string, string>();
-        for (const p of peopleResult?.Results ?? []) {
-            personMap.set(p.ID, `${p.FirstName} ${p.LastName}`);
-        }
+        const assignments = assignmentResult?.Results ?? [];
+        const personMap = await this.loadPeopleByIDs(assignments.map(a => a.AssigneeRecordID));
         const roleMap = new Map<string, string>();
         for (const r of rolesResult?.Results ?? []) {
-            roleMap.set(r.ID, r.Name);
+            roleMap.set(r.ID.toLowerCase(), r.Name);
         }
 
-        this.assignees = (assignmentResult?.Results ?? []).map((a) => ({
+        this.assignees = assignments.map((a) => ({
             AssigneeRecordID: a.AssigneeRecordID,
-            DisplayName: personMap.get(a.AssigneeRecordID) ?? RoleAssigneeName(a.AssigneeEntityID, a.AssigneeRecordID) ?? a.AssigneeRecordID,
-            RoleName: roleMap.get(a.RoleID) ?? '',
+            DisplayName: personMap.get(a.AssigneeRecordID.toLowerCase()) ?? RoleAssigneeName(a.AssigneeEntityID, a.AssigneeRecordID) ?? a.AssigneeRecordID,
+            RoleName: a.RoleID ? (roleMap.get(a.RoleID.toLowerCase()) ?? '') : '',
             Status: a.Status ?? 'Pending',
         }));
     }
 
     private async loadTimeline(): Promise<void> {
-        if (!this.TaskID) return;
+        if (!this.TaskID || !IsValidUUID(this.TaskID)) return;
         const rv = this.createRunView();
 
-        const [activities, comments, people] = await Promise.all([
+        const [activities, comments] = await Promise.all([
             rv.RunView<{ __mj_CreatedAt: Date; PersonID: string | null; ActivityType: string; Description: string | null }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Activities',
-                ExtraFilter: `TaskID = '${this.TaskID}'`,
+                ExtraFilter: `TaskID = '${EscapeSQLString(this.TaskID)}'`,
                 OrderBy: '__mj_CreatedAt DESC',
                 ResultType: 'simple',
             }),
             this.createRunView().RunView<{ __mj_CreatedAt: Date; PersonID: string; Content: string }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Comments',
-                ExtraFilter: `TaskID = '${this.TaskID}'`,
+                ExtraFilter: `TaskID = '${EscapeSQLString(this.TaskID)}'`,
                 OrderBy: '__mj_CreatedAt DESC',
-                ResultType: 'simple',
-            }),
-            this.createRunView().RunView<PersonRow>({
-                EntityName: 'MJ_BizApps_Common: People',
                 ResultType: 'simple',
             }),
         ]);
 
-        const personMap = new Map<string, string>();
-        for (const p of people?.Results ?? []) {
-            personMap.set(p.ID, `${p.FirstName} ${p.LastName}`);
-        }
+        const activityRows = activities?.Results ?? [];
+        const commentRows = comments?.Results ?? [];
+        const personMap = await this.loadPeopleByIDs([
+            ...activityRows.map(a => a.PersonID),
+            ...commentRows.map(c => c.PersonID),
+        ]);
 
         const entries: ActivityEntry[] = [];
-        for (const a of activities?.Results ?? []) {
+        for (const a of activityRows) {
             entries.push({
                 Type: 'activity',
                 Timestamp: new Date(a.__mj_CreatedAt),
-                PersonName: a.PersonID ? personMap.get(a.PersonID) : undefined,
+                PersonName: a.PersonID ? personMap.get(a.PersonID.toLowerCase()) : undefined,
                 ActivityType: a.ActivityType,
                 Content: a.Description ?? `${a.ActivityType}`,
             });
         }
-        for (const c of comments?.Results ?? []) {
+        for (const c of commentRows) {
             entries.push({
                 Type: 'comment',
                 Timestamp: new Date(c.__mj_CreatedAt),
-                PersonName: personMap.get(c.PersonID) ?? c.PersonID,
+                PersonName: c.PersonID ? (personMap.get(c.PersonID.toLowerCase()) ?? c.PersonID) : undefined,
                 Content: c.Content,
             });
         }
@@ -787,11 +809,11 @@ export class TaskDetailPanelComponent implements OnChanges {
         this.BeforeCommentPosted.emit(before);
         if (before.Cancel) return;
 
-        const comment = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Comments');
+        const comment = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskCommentEntity>('MJ_BizApps_Tasks: Task Comments');
         comment.NewRecord();
-        comment.Set('TaskID', this.TaskID);
-        if (this.PersonID) comment.Set('PersonID', this.PersonID);
-        comment.Set('Content', this.newComment.trim());
+        comment.TaskID = this.TaskID;
+        if (this.PersonID) comment.PersonID = this.PersonID;
+        comment.Content = this.newComment.trim();
         const saved = await comment.Save();
         if (!saved) {
             this.commentError = comment.LatestResult?.CompleteMessage || 'The comment was refused.';
@@ -806,51 +828,66 @@ export class TaskDetailPanelComponent implements OnChanges {
     }
 
     /**
-     * @internal Deletes child records then the task itself. Assignments go first and the first refused
-     * child delete stops everything: the server refuses removing an approval's assignee (golive #389),
-     * and that must not cost the task its activities, comments and tags.
+     * @internal Deletes the task and its owned child records atomically via `entity.Delete()`
+     * (leveraging declared `OnRemove: 'delete'` RelatedRecordCollections). Incoming `DependsOnTaskID`
+     * edges and child subtasks (`OnRemove: 'orphan'`) are cleaned up cleanly beforehand.
      */
     async onDelete(): Promise<void> {
         this.confirmingDelete = false;
-        if (!this.TaskID) return;
+        if (!this.TaskID || !IsValidUUID(this.TaskID)) return;
         try {
-            const rv = new RunView();
-            // Delete child records in dependency order
-            const childEntities = [
-                'MJ_BizApps_Tasks: Task Assignments',
-                'MJ_BizApps_Tasks: Task Activities',
-                'MJ_BizApps_Tasks: Task Comments',
-                'MJ_BizApps_Tasks: Task Tag Links',
-                'MJ_BizApps_Tasks: Task Dependencies',
-                'MJ_BizApps_Tasks: Task Links',
-                'MJ_BizApps_Tasks: Task Notification Logs',
-            ];
-            for (const entityName of childEntities) {
-                const result = await rv.RunView<{ ID: string }>({
-                    EntityName: entityName,
-                    ExtraFilter: `TaskID = '${this.TaskID}'`,
-                    ResultType: 'simple',
-                });
-                for (const row of result?.Results ?? []) {
-                    const child = await Metadata.Provider.GetEntityObject(entityName);
-                    const pk = new CompositeKey([{ FieldName: 'ID', Value: row.ID }]);
-                    await child.InnerLoad(pk);
-                    if (!(await child.Delete())) {
-                        console.error(`Delete failed: ${entityName} ${row.ID}: ${child.LatestResult?.CompleteMessage ?? 'unknown error'}`);
-                        return;
-                    }
+            const entity = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
+            const pk = new CompositeKey([{ FieldName: 'ID', Value: this.TaskID }]);
+            const loaded = await entity.InnerLoad(pk);
+            if (!loaded) {
+                console.error('Delete failed: task not found');
+                return;
+            }
+
+            // Load owned child collections (OnRemove: 'delete') and SubTasks (OnRemove: 'orphan') in parallel
+            await Promise.all([
+                entity.Assignments.Load(true),
+                entity.TagLinks.Load(true),
+                entity.Links.Load(true),
+                entity.Dependencies.Load(true),
+                entity.Comments.Load(true),
+                entity.CheckIns.Load(true),
+                entity.Activities.Load(true),
+                entity.NotificationLogs.Load(true),
+                entity.SubTasks.Load(true),
+            ]);
+
+            // Orphan any subtasks first so ParentID FK doesn't block task deletion
+            if (entity.SubTasks.Items.length > 0) {
+                entity.SubTasks.Clear();
+                if (!(await entity.Save())) {
+                    console.error('Delete failed while detaching subtasks:', entity.LatestResult?.CompleteMessage ?? 'unknown error');
+                    return;
                 }
             }
 
-            // Now delete the task
-            const entity = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Tasks');
-            const pk = new CompositeKey([{ FieldName: 'ID', Value: this.TaskID }]);
-            await entity.InnerLoad(pk);
+            // Remove incoming dependency edges where other tasks depend on this task
+            const rv = this.createRunView();
+            const incomingDeps = await rv.RunView<mjBizAppsTasksTaskDependencyEntity>({
+                EntityName: 'MJ_BizApps_Tasks: Task Dependencies',
+                ExtraFilter: `DependsOnTaskID = '${EscapeSQLString(this.TaskID)}'`,
+                ResultType: 'entity_object',
+            });
+            for (const dep of incomingDeps?.Results ?? []) {
+                if (!UUIDsEqual(dep.TaskID, this.TaskID) && !(await dep.Delete())) {
+                    console.error('Delete failed while removing incoming dependency:', dep.LatestResult?.CompleteMessage ?? 'unknown error');
+                    return;
+                }
+            }
+
+            // Atomic composite delete: BaseEntity.Delete() deletes all loaded OnRemove:'delete'
+            // collections (Assignments, TagLinks, Links, Dependencies, Comments, CheckIns,
+            // Activities, NotificationLogs) and the Task in one transaction.
             const deleted = await entity.Delete();
             if (deleted) {
                 this.DeleteRequested.emit(this.TaskID);
             } else {
-                console.error('Delete failed:', entity.LatestResult);
+                console.error('Delete failed:', entity.LatestResult?.CompleteMessage ?? entity.LatestResult);
             }
         } catch (e) {
             console.error('Delete failed:', e);

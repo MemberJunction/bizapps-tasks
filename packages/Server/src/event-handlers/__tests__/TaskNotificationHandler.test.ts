@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // vi.hoisted so the hoisted mock factory can reference the shared store/spies.
 const { store, subscribeMock, getEventListenerMock } = vi.hoisted(() => {
-  const store: Record<string, any> = {};
+  const store: Record<string, unknown> = {};
   const subscribeMock = vi.fn(() => ({ unsubscribe: vi.fn() }));
   const getEventListenerMock = vi.fn(() => ({ subscribe: subscribeMock }));
   return { store, subscribeMock, getEventListenerMock };
@@ -18,11 +18,14 @@ vi.mock('@memberjunction/core', () => ({
 }));
 
 vi.mock('@memberjunction/global', () => ({
+  IsValidUUID: (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
+  EscapeSQLString: (v: string) => v.replace(/'/g, "''"),
+  UUIDsEqual: (a?: string | null, b?: string | null) => Boolean(a && b && a.toLowerCase() === b.toLowerCase()),
   MJEventType: { ComponentEvent: 'ComponentEvent' },
   MJGlobal: {
     Instance: {
       GetGlobalObjectStore: () => store,
-      GetEventListener: (...args: any[]) => getEventListenerMock(...args),
+      GetEventListener: (...args: unknown[]) => getEventListenerMock(...args),
     },
   },
 }));
@@ -34,6 +37,10 @@ vi.mock('@mj-biz-apps/common-entities', () => ({
 
 vi.mock('@memberjunction/notifications', () => ({
   NotificationEngine: { Instance: { Config: vi.fn(), SendNotification: vi.fn() } },
+}));
+
+vi.mock('@memberjunction/actions', () => ({
+  ActionEngineServer: { Instance: { Config: vi.fn(), Actions: [], RunAction: vi.fn() } },
 }));
 
 import { InitTaskNotificationHandler } from '../TaskNotificationHandler.js';

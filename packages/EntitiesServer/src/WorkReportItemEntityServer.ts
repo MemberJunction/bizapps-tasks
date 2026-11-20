@@ -32,6 +32,7 @@ import {
     WorkReportItemRefusal,
     type WorkReportStatus,
 } from './WorkReportAuthority.js';
+import { FindInFlightParentWorkReportForItem } from './composite-graph-scope.js';
 
 export const WORK_REPORT_ITEM_ENTITY = 'MJ_BizApps_Tasks: Work Report Items';
 const VALIDATE_SOURCE = 'WorkReportItemEntityServer.ValidateAsync';
@@ -142,7 +143,22 @@ export class WorkReportItemEntityServer extends mjBizAppsTasksWorkReportItemEnti
             throw new Error(parentRes?.ErrorMessage ?? `Failed to load parent Work Report '${workReportID}'`);
         }
 
-        const parentReport = parentRes.Results?.[0] ?? null;
+        let parentReport: ParentWorkReportRow | null = parentRes.Results?.[0] ?? null;
+        // When a brand-new WorkReport and its `Items` RelatedRecordCollection are saved together
+        // in one composite `workReport.Save()`, child ValidateAsync() runs before the parent row
+        // is inserted. Only an item instance directly attached to that in-flight WorkReport's Items
+        // collection may validate against the in-flight parent's PersonID/Status; standalone saves
+        // always require the parent row to exist in the database.
+        if (!parentReport && operation === 'create') {
+            const inFlightParent = FindInFlightParentWorkReportForItem(workReportID, this);
+            if (inFlightParent) {
+                parentReport = {
+                    ID: inFlightParent.ID,
+                    PersonID: inFlightParent.PersonID,
+                    Status: inFlightParent.Status,
+                };
+            }
+        }
         const callerIsPrivileged = IsPrivilegedWorkReportUser(user);
         const callerPersonIDs: string[] = [];
         if (!callerIsPrivileged) {

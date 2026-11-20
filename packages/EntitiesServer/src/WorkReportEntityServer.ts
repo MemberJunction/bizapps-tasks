@@ -39,6 +39,7 @@ import {
     type WorkReportAuthorityFacts,
     type WorkReportStatus,
 } from './WorkReportAuthority.js';
+import { EnterWorkReportGraphScope } from './composite-graph-scope.js';
 
 export const WORK_REPORT_ENTITY = 'MJ_BizApps_Tasks: Work Reports';
 const VALIDATE_SOURCE = 'WorkReportEntityServer.ValidateAsync';
@@ -54,7 +55,12 @@ export class WorkReportEntityServer extends mjBizAppsTasksWorkReportEntity {
 
     public override async Save(options?: EntitySaveOptions): Promise<boolean> {
         await this.stampReviewMetadataPreSave();
-        return super.Save(options);
+        const exitScope = EnterWorkReportGraphScope(this);
+        try {
+            return await super.Save(options);
+        } finally {
+            exitScope();
+        }
     }
 
     public override async Delete(options?: EntityDeleteOptions): Promise<boolean> {
@@ -78,7 +84,13 @@ export class WorkReportEntityServer extends mjBizAppsTasksWorkReportEntity {
     }
 
     public override async ValidateAsync(): Promise<ValidationResult> {
-        const result = await super.ValidateAsync();
+        const exitScope = EnterWorkReportGraphScope(this);
+        let result: ValidationResult;
+        try {
+            result = await super.ValidateAsync();
+        } finally {
+            exitScope();
+        }
         try {
             const refusal = await this.evaluateAuthorityRefusal();
             if (refusal) {

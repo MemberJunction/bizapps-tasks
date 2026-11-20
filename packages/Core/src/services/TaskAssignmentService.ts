@@ -1,4 +1,6 @@
-import { BaseEntity, CompositeKey, IMetadataProvider, IRunViewProvider, Metadata, RunView, UserInfo } from "@memberjunction/core";
+import { CompositeKey, IMetadataProvider, IRunViewProvider, Metadata, RunView, UserInfo } from "@memberjunction/core";
+import { EscapeSQLString, IsValidUUID } from "@memberjunction/global";
+import type { mjBizAppsTasksTaskAssignmentEntity } from "@mj-biz-apps/tasks-entities";
 import { TaskService } from "./TaskService.js";
 
 /**
@@ -18,9 +20,7 @@ export class TaskAssignmentService {
      * Pass `provider` to create the assignment and activity on the caller's transactional
      * provider instead of the process-global provider.
      *
-     * @throws when the assignment does not save. A refused save used to return the unsaved entity
-     * with an ID already on it, so the caller recorded an assignment with no row behind it and the
-     * task was assigned to no one. No activity is logged for a refused assignment.
+     * @throws when the assignment does not save. No activity is logged for a refused assignment.
      */
     async assignToTask(params: {
         taskID: string;
@@ -29,15 +29,19 @@ export class TaskAssignmentService {
         roleID?: string;
         roleNotes?: string;
         assignedByPersonID?: string;
-    }, contextUser?: UserInfo, provider?: IMetadataProvider): Promise<BaseEntity> {
-        const assignment = await (provider ?? this.provider).GetEntityObject('MJ_BizApps_Tasks: Task Assignments', contextUser);
+    }, contextUser?: UserInfo, provider?: IMetadataProvider): Promise<mjBizAppsTasksTaskAssignmentEntity> {
+        const effectiveProvider = provider ?? this.provider;
+        const assignment = await effectiveProvider.GetEntityObject<mjBizAppsTasksTaskAssignmentEntity>(
+            'MJ_BizApps_Tasks: Task Assignments',
+            contextUser,
+        );
         assignment.NewRecord();
-        assignment.Set('TaskID', params.taskID);
-        assignment.Set('AssigneeEntityID', params.assigneeEntityID);
-        assignment.Set('AssigneeRecordID', params.assigneeRecordID);
-        if (params.roleID) assignment.Set('RoleID', params.roleID);
-        if (params.roleNotes) assignment.Set('RoleNotes', params.roleNotes);
-        if (params.assignedByPersonID) assignment.Set('AssignedByPersonID', params.assignedByPersonID);
+        assignment.TaskID = params.taskID;
+        assignment.AssigneeEntityID = params.assigneeEntityID;
+        assignment.AssigneeRecordID = params.assigneeRecordID;
+        if (params.roleID) assignment.RoleID = params.roleID;
+        if (params.roleNotes) assignment.RoleNotes = params.roleNotes;
+        if (params.assignedByPersonID) assignment.AssignedByPersonID = params.assignedByPersonID;
 
         if (!(await assignment.Save())) {
             throw new Error(
@@ -51,13 +55,15 @@ export class TaskAssignmentService {
             activityType: 'AssignmentAdded',
             newValue: params.assigneeRecordID,
             description: `Assignee added to task`,
-        }, contextUser, provider);
+        }, contextUser, effectiveProvider);
 
         return assignment;
     }
 
     /**
      * Removes an assignment and logs the removal.
+     *
+     * @throws when the assignment cannot be loaded or the delete is refused (no activity is logged on refusal).
      */
     async removeAssignment(
         assignmentID: string,
@@ -65,14 +71,26 @@ export class TaskAssignmentService {
         contextUser?: UserInfo,
         provider?: IMetadataProvider,
     ): Promise<void> {
-        const assignment = await (provider ?? Metadata.Provider).GetEntityObject('MJ_BizApps_Tasks: Task Assignments', contextUser);
+        const effectiveProvider = provider ?? this.provider;
+        const assignment = await effectiveProvider.GetEntityObject<mjBizAppsTasksTaskAssignmentEntity>(
+            'MJ_BizApps_Tasks: Task Assignments',
+            contextUser,
+        );
         const pk = new CompositeKey([{ FieldName: 'ID', Value: assignmentID }]);
-        await assignment.InnerLoad(pk);
+        const loaded = await assignment.InnerLoad(pk);
+        if (!loaded) {
+            throw new Error(`Task assignment '${assignmentID}' not found`);
+        }
 
-        const taskID = assignment.Get('TaskID') as string;
-        const assigneeRecordID = assignment.Get('AssigneeRecordID') as string;
+        const taskID = assignment.TaskID;
+        const assigneeRecordID = assignment.AssigneeRecordID;
 
-        await assignment.Delete();
+        const deleted = await assignment.Delete();
+        if (!deleted) {
+            throw new Error(
+                `Failed to remove assignment '${assignmentID}' from task ${taskID}: ${assignment.LatestResult?.CompleteMessage ?? 'the delete was refused without a reason'}`,
+            );
+        }
 
         await this.taskService.logActivity({
             taskID,
@@ -80,7 +98,7 @@ export class TaskAssignmentService {
             activityType: 'AssignmentRemoved',
             previousValue: assigneeRecordID,
             description: `Assignee removed from task`,
-        }, contextUser, provider);
+        }, contextUser, effectiveProvider);
     }
 
     /**
@@ -90,11 +108,14 @@ export class TaskAssignmentService {
         taskID: string,
         contextUser?: UserInfo,
         provider?: IRunViewProvider,
-    ): Promise<BaseEntity[]> {
+    ): Promise<mjBizAppsTasksTaskAssignmentEntity[]> {
+        if (!IsValidUUID(taskID)) {
+            throw new Error(`Invalid taskID '${taskID}'`);
+        }
         const rv = new RunView(provider);
-        const result = await rv.RunView<BaseEntity>({
+        const result = await rv.RunView<mjBizAppsTasksTaskAssignmentEntity>({
             EntityName: 'MJ_BizApps_Tasks: Task Assignments',
-            ExtraFilter: `TaskID = '${taskID}'`,
+            ExtraFilter: `TaskID = '${EscapeSQLString(taskID)}'`,
             ResultType: 'entity_object',
         }, contextUser);
         return result?.Results ?? [];

@@ -1,4 +1,5 @@
 import { CompositeKey, IMetadataProvider, IRunViewProvider, Metadata, RunView, UserInfo } from "@memberjunction/core";
+import { EscapeSQLString, IsValidUUID } from "@memberjunction/global";
 import type {
     mjBizAppsTasksTaskActivityEntity,
     mjBizAppsTasksTaskEntity,
@@ -48,10 +49,13 @@ export class TaskService {
         contextUser?: UserInfo,
         provider?: IMetadataProvider & IRunViewProvider,
     ): Promise<void> {
+        if (!IsValidUUID(parentTaskID)) {
+            throw new Error(`Invalid parentTaskID '${parentTaskID}'`);
+        }
         const rv = new RunView(provider);
         const children = await rv.RunView<TaskRollupChildRow>({
             EntityName: 'MJ_BizApps_Tasks: Tasks',
-            ExtraFilter: `ParentID = '${parentTaskID}'`,
+            ExtraFilter: `ParentID = '${EscapeSQLString(parentTaskID)}'`,
             ResultType: 'simple',
         }, contextUser);
 

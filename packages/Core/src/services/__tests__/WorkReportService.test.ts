@@ -57,8 +57,29 @@ type FakeEntityState = Record<string, FakeEntityValue>;
 
 function createFakeEntity(initial: FakeEntityState = {}) {
     const state: FakeEntityState = { ...initial };
+    const itemsList: ReturnType<typeof createFakeEntity>[] = [];
+    let createdItemCounter = 0;
+    const itemsCollection = {
+        get Items() {
+            return itemsList;
+        },
+        Load: vi.fn(async () => true),
+        Clear: vi.fn(() => {
+            itemsList.length = 0;
+        }),
+        Create: vi.fn(async () => {
+            createdItemCounter += 1;
+            const child = createFakeEntity({
+                ID: `66666666-6666-4666-8666-6666666666${String(createdItemCounter).padStart(2, '0')}`,
+                WorkReportID: state['ID'],
+            });
+            itemsList.push(child);
+            return child;
+        }),
+    };
     const target = {
         state,
+        Items: itemsCollection,
         NewRecord: vi.fn(() => {
             if (!state['ID']) {
                 state['ID'] = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
@@ -138,7 +159,7 @@ const bobUser = createFakeUser(USER_BOB, 'bob@example.com');
 const carolUser = createFakeUser(USER_CAROL, 'carol@example.com');
 
 beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
 });
 
 describe('WorkReportService', () => {
@@ -407,21 +428,7 @@ describe('WorkReportService', () => {
                 });
 
             const createdReport = createFakeEntity({ ID: REPORT_ID });
-            const createdItems = [
-                createFakeEntity({ ID: '66666666-6666-4666-8666-666666666661' }),
-                createFakeEntity({ ID: '66666666-6666-4666-8666-666666666662' }),
-                createFakeEntity({ ID: '66666666-6666-4666-8666-666666666663' }),
-                createFakeEntity({ ID: '66666666-6666-4666-8666-666666666664' }),
-            ];
-            let itemIdx = 0;
-            getEntityObjectMock.mockImplementation(async (entityName: string) => {
-                if (entityName === 'MJ_BizApps_Tasks: Work Reports') {
-                    return createdReport;
-                }
-                const next = createdItems[itemIdx];
-                itemIdx += 1;
-                return next;
-            });
+            getEntityObjectMock.mockResolvedValueOnce(createdReport);
 
             const outcome = await WorkReportService.Instance.DraftWorkReport({
                 PersonID: PERSON_ALICE,
@@ -437,9 +444,12 @@ describe('WorkReportService', () => {
             expect(String(createdReport.state['Body'])).toContain('UI layout complete');
             expect(String(createdReport.state['Body'])).toContain('### Blockers');
             expect(outcome.Items).toHaveLength(4); // Completed, InProgress, Blockers, AtRisk
+            expect(createdReport.Items.Create).toHaveBeenCalledTimes(4);
+            expect(createdReport.Save).toHaveBeenCalledTimes(1);
+            expect(getEntityObjectMock).toHaveBeenCalledTimes(1);
         });
 
-        it('reuses and updates an existing Draft WorkReport for the same (PersonID, PeriodStart, PeriodEnd) instead of duplicating', async () => {
+        it('reuses and updates an existing Draft WorkReport for the same (PersonID, PeriodStart, PeriodEnd) via Items collection in ONE Save()', async () => {
             runViewMock
                 // 0. Caller Person resolution
                 .mockResolvedValueOnce({
@@ -478,11 +488,6 @@ describe('WorkReportService', () => {
                 .mockResolvedValueOnce({
                     Success: true,
                     Results: [{ ID: REPORT_ID, Status: 'Draft' }],
-                })
-                // 6. Existing WorkReportItems lookup -> returns 1 existing item
-                .mockResolvedValueOnce({
-                    Success: true,
-                    Results: [{ ID: '66666666-6666-4666-8666-666666666661', Sequence: 1 }],
                 });
 
             const existingReport = createFakeEntity({
@@ -492,13 +497,7 @@ describe('WorkReportService', () => {
                 PeriodEnd: new Date('2026-11-09T23:59:59.000Z'),
                 Status: 'Draft',
             });
-            const existingItem = createFakeEntity({
-                ID: '66666666-6666-4666-8666-666666666661',
-                WorkReportID: REPORT_ID,
-            });
-            getEntityObjectMock.mockImplementation(async (entityName: string) =>
-                entityName === 'MJ_BizApps_Tasks: Work Reports' ? existingReport : existingItem,
-            );
+            getEntityObjectMock.mockResolvedValueOnce(existingReport);
 
             const outcome = await WorkReportService.Instance.DraftWorkReport({
                 PersonID: PERSON_ALICE,
@@ -511,8 +510,11 @@ describe('WorkReportService', () => {
             expect(outcome.Report?.ID).toBe(REPORT_ID);
             expect(existingReport.Load).toHaveBeenCalledWith(REPORT_ID);
             expect(existingReport.NewRecord).not.toHaveBeenCalled();
-            expect(existingItem.Load).toHaveBeenCalledWith('66666666-6666-4666-8666-666666666661');
-            expect(existingItem.NewRecord).not.toHaveBeenCalled();
+            expect(existingReport.Items.Load).toHaveBeenCalledWith(true);
+            expect(existingReport.Items.Clear).toHaveBeenCalledTimes(1);
+            expect(existingReport.Items.Create).toHaveBeenCalledTimes(1);
+            expect(existingReport.Save).toHaveBeenCalledTimes(1);
+            expect(getEntityObjectMock).toHaveBeenCalledTimes(1);
         });
 
         it('includes tasks on the last day of a multi-day date-only range (2026-11-02..2026-11-06)', async () => {
@@ -935,7 +937,7 @@ describe('WorkReportService', () => {
             expect(person).toBeNull();
         });
 
-        it('preserves author-edited Title/Body and deletes surplus WorkReportItems when re-drafting an existing Draft', async () => {
+        it('preserves author-edited Title/Body and replaces Items collection atomically when re-drafting an existing Draft', async () => {
             const existingReport = createFakeEntity({
                 ID: REPORT_ID,
                 PersonID: PERSON_ALICE,
@@ -943,13 +945,8 @@ describe('WorkReportService', () => {
                 Title: 'Alice Custom Edited Title',
                 Body: '### Custom Author Markdown Body',
             });
-            const keptItem = createFakeEntity({ ID: '66666666-6666-4666-8666-666666666661' });
-            const surplusItem = createFakeEntity({ ID: '66666666-6666-4666-8666-666666666662' });
 
-            getEntityObjectMock
-                .mockResolvedValueOnce(existingReport)
-                .mockResolvedValueOnce(keptItem)
-                .mockResolvedValueOnce(surplusItem);
+            getEntityObjectMock.mockResolvedValueOnce(existingReport);
 
             runViewMock
                 // 1. Caller Person resolution
@@ -989,14 +986,6 @@ describe('WorkReportService', () => {
                 .mockResolvedValueOnce({
                     Success: true,
                     Results: [{ ID: REPORT_ID, Status: 'Draft' }],
-                })
-                // 7. Existing WorkReportItems lookup (2 items existed previously, only 1 task in new window)
-                .mockResolvedValueOnce({
-                    Success: true,
-                    Results: [
-                        { ID: '66666666-6666-4666-8666-666666666661', Sequence: 1 },
-                        { ID: '66666666-6666-4666-8666-666666666662', Sequence: 2 },
-                    ],
                 });
 
             const outcome = await WorkReportService.Instance.DraftWorkReport({
@@ -1010,7 +999,11 @@ describe('WorkReportService', () => {
             expect(outcome.Report?.Title).toBe('Alice Custom Edited Title');
             expect(outcome.Report?.Body).toBe('### Custom Author Markdown Body');
             expect(outcome.Items).toHaveLength(1);
-            expect(surplusItem.Delete).toHaveBeenCalledTimes(1);
+            expect(existingReport.Items.Load).toHaveBeenCalledWith(true);
+            expect(existingReport.Items.Clear).toHaveBeenCalledTimes(1);
+            expect(existingReport.Items.Create).toHaveBeenCalledTimes(1);
+            expect(existingReport.Save).toHaveBeenCalledTimes(1);
+            expect(getEntityObjectMock).toHaveBeenCalledTimes(1);
         });
 
         it('queries Task Check Ins (no hyphen) and Task Activities Description column when collecting activity', async () => {

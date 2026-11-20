@@ -15,12 +15,21 @@ const H = vi.hoisted(() => {
     globalGetEntityObject: vi.fn(),
     rollupParentProgress: vi.fn(async () => undefined),
     runViewProviders: [] as unknown[],
+    runViewMock: vi.fn(async () => ({ Success: true, Results: [] })),
+    lastCreatedActivity: null as Record<string, unknown> | null,
   };
 });
 
 function resetProvider(withScheduler: boolean) {
   for (const key of Object.keys(H.provider)) delete H.provider[key];
-  H.provider.GetEntityObject = vi.fn(async () => H.makeEntityObject());
+  H.lastCreatedActivity = null;
+  H.provider.GetEntityObject = vi.fn(async (entityName?: string) => {
+    const obj = H.makeEntityObject();
+    if (entityName === 'MJ_BizApps_Tasks: Task Activities') {
+      H.lastCreatedActivity = obj;
+    }
+    return obj;
+  });
   H.provider.RunView = vi.fn(async () => ({ Success: true, Results: [] }));
   if (withScheduler) {
     H.provider.CapturePostCommitToken = vi.fn(() => ({ frame: 'caller-tx' }));
@@ -32,6 +41,10 @@ function resetProvider(withScheduler: boolean) {
 vi.mock('@memberjunction/global', () => ({
   RegisterClass: () => () => {},
   IsValidUUID: (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
+  NormalizeUUID: (v: string) => v.trim().toLowerCase(),
+  EscapeSQLString: (v: string) => v.replace(/'/g, "''"),
+  UUIDsEqual: (a?: string | null, b?: string | null) =>
+    Boolean(a && b && a.toLowerCase() === b.toLowerCase()),
   BaseSingleton: class {
     public static getInstance() {
       return {};
@@ -45,8 +58,12 @@ vi.mock('@memberjunction/core', () => {
       public ContextCurrentUser = { ID: '00000000-0000-0000-0000-000000000001', Name: 'Test User' };
       public Fields: Array<{ CodeName: string; Dirty: boolean; Value: unknown; OldValue: unknown }> = [];
       public IsSaved = false;
+      public TransactionGroup: unknown = null;
       private _fieldValues: Record<string, unknown> = {};
 
+      public DeclareRelatedRecords() {
+        return { Items: [] as unknown[] };
+      }
       public Get(fieldName: string) {
         return this._fieldValues[fieldName];
       }
@@ -87,8 +104,8 @@ vi.mock('@memberjunction/core', () => {
       constructor(provider?: unknown) {
         H.runViewProviders.push(provider);
       }
-      public async RunView() {
-        return { Success: true, Results: [] };
+      public async RunView(...args: unknown[]) {
+        return H.runViewMock(...args);
       }
     },
   };
@@ -116,6 +133,26 @@ vi.mock('@memberjunction/actions', () => ({
 vi.mock('@mj-biz-apps/tasks-core', () => ({
   TaskService: class {
     public rollupParentProgress = H.rollupParentProgress;
+    public static computeQuantitativePercentComplete(
+      baseline: number | null | undefined,
+      target: number | null | undefined,
+      current: number | null | undefined,
+    ): number | null {
+      if (target == null || current == null) return null;
+      const b = baseline ?? 0;
+      const span = target - b;
+      if (span <= 0) return current >= target ? 100 : 0;
+      return Math.max(0, Math.min(100, Math.round(((current - b) / span) * 100)));
+    }
+    public static computeNextCheckInDueAt(from: Date, cadence: string | null | undefined): Date | null {
+      if (!cadence || cadence === 'None') return null;
+      const next = new Date(from.getTime());
+      if (cadence === 'Weekly') {
+        next.setUTCDate(next.getUTCDate() + 7);
+        return next;
+      }
+      return null;
+    }
   },
 }));
 
@@ -351,9 +388,71 @@ describe('TaskEntityServer', () => {
         'InProgress'
       );
     });
+    it('dispatches OnReject ONLY (not OnCancel) when Cancelled with a Rejected decision, and OnCancel ONLY when Cancelled without one', async () => {
+      const TASK_UUID = '11111111-1111-4111-8111-111111111111';
+      const server = new TaskEntityServer();
+      server.ID = TASK_UUID;
+      server.TypeID = 'TYPE-1';
+      server.Status = 'Cancelled';
+
+      vi.spyOn(server as unknown as { loadTaskType: (id: string) => Promise<unknown> }, 'loadTaskType').mockResolvedValue({
+        ID: 'TYPE-1',
+        Code: 'APPROVAL_REQUEST',
+        OnCancelActionID: 'ACTION-CANCEL',
+        OnRejectActionID: 'ACTION-REJECT',
+      });
+
+      const invokeSpy = vi.spyOn(server, 'invokeAction').mockResolvedValue({ Invoked: true, Success: true });
+
+      const cancelCtx: TaskLifecycleContext = {
+        isNew: false,
+        statusChanged: true,
+        typeStatusChanged: false,
+        pctChanged: false,
+        priorityChanged: false,
+        dueChanged: false,
+        oldStatus: 'Open',
+        newStatus: 'Cancelled',
+        oldTypeStatusID: null,
+        newTypeStatusID: null,
+        oldPct: 0,
+        newPct: 0,
+        oldPriority: 'High',
+        newPriority: 'High',
+        oldDue: null,
+        newDue: null,
+        typeID: 'TYPE-1',
+      };
+
+      // Case 1: Rejected decision exists -> OnReject ONLY
+      H.runViewMock
+        .mockResolvedValueOnce({ Success: true, Results: [{ ID: '22222222-2222-4222-8222-222222222222' }] }) // Rejected outcome
+        .mockResolvedValueOnce({ Success: true, Results: [{ ID: '33333333-3333-4333-8333-333333333333' }] }); // Decision row
+
+      await server.dispatchLifecycleActionHooks(cancelCtx);
+      expect(invokeSpy).toHaveBeenCalledWith('ACTION-REJECT', 'OnReject', 'APPROVAL_REQUEST', null, 'Open');
+      expect(invokeSpy).not.toHaveBeenCalledWith('ACTION-CANCEL', 'OnCancel', expect.anything(), expect.anything(), expect.anything());
+
+      // Case 2: No Rejected decision -> OnCancel ONLY
+      invokeSpy.mockClear();
+      H.runViewMock
+        .mockResolvedValueOnce({ Success: true, Results: [{ ID: '22222222-2222-4222-8222-222222222222' }] })
+        .mockResolvedValueOnce({ Success: true, Results: [] });
+
+      await server.dispatchLifecycleActionHooks(cancelCtx);
+      expect(invokeSpy).toHaveBeenCalledWith('ACTION-CANCEL', 'OnCancel', 'APPROVAL_REQUEST', null, 'Open');
+      expect(invokeSpy).not.toHaveBeenCalledWith('ACTION-REJECT', 'OnReject', expect.anything(), expect.anything(), expect.anything());
+
+      // Case 3: Blocked status -> NEVER dispatches OnReject or OnCancel
+      invokeSpy.mockClear();
+      server.Status = 'Blocked';
+      await server.dispatchLifecycleActionHooks({ ...cancelCtx, newStatus: 'Blocked' });
+      expect(invokeSpy).not.toHaveBeenCalled();
+    });
   });
-  describe('provider routing (#78)', () => {
+  describe('provider routing (#78) & TransactionGroup / composite CheckIns', () => {
     it('loads the task type and statuses through the provider the Task was created on', async () => {
+      const TYPE_UUID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
       const server = new TaskEntityServer();
       const loader = server as unknown as {
         loadTaskType: (id: string) => Promise<unknown>;
@@ -361,13 +460,62 @@ describe('TaskEntityServer', () => {
         loadDefaultTaskTypeStatus: (id: string) => Promise<unknown>;
       };
 
-      await loader.loadTaskType('TYPE-1');
+      await loader.loadTaskType(TYPE_UUID);
       await loader.loadTaskTypeStatus('STATUS-1');
-      await loader.loadDefaultTaskTypeStatus('TYPE-1');
+      await loader.loadDefaultTaskTypeStatus(TYPE_UUID);
+      expect(await loader.loadDefaultTaskTypeStatus('not-a-uuid')).toBeNull();
 
       expect(H.provider.GetEntityObject).toHaveBeenCalledTimes(2);
       expect(H.runViewProviders).toEqual([H.provider]);
       expect(H.globalGetEntityObject).not.toHaveBeenCalled();
+    });
+
+    it('attaches this.TransactionGroup to TaskActivity so activity saves join the same transaction (zero FK_TaskActivity_Task)', async () => {
+      const server = new TaskEntityServer();
+      const txGroup = { id: 'tx-group-1' };
+      server.ID = '11111111-1111-4111-8111-111111111111';
+      server.Name = 'Task in TransactionGroup';
+      server.TransactionGroup = txGroup as never;
+      vi.spyOn(server, 'dispatchLifecycleActionHooks').mockResolvedValue(undefined);
+
+      const saved = await server.Save();
+      expect(saved).toBe(true);
+      expect(H.lastCreatedActivity).not.toBeNull();
+      expect(H.lastCreatedActivity?.TransactionGroup).toBe(txGroup);
+    });
+
+    it('applies unsaved composite task.CheckIns pre-save onto the parent Task and populates check-in defaults', async () => {
+      const server = new TaskEntityServer();
+      server.ID = '11111111-1111-4111-8111-111111111111';
+      server.Name = 'OKR Key Result';
+      server.BaselineValue = 10;
+      server.TargetValue = 50;
+      server.CurrentValue = 20;
+      server.MetricDirection = 'Increase';
+      server.CheckInCadence = 'Weekly';
+
+      const pendingCheckIn = {
+        IsSaved: false,
+        HealthStatus: 'AtRisk',
+        ConfidenceScore: 70,
+        PreviousValue: null as number | null,
+        NewValue: 30,
+        PercentComplete: null as number | null,
+        CheckInAt: new Date('2026-11-10T12:00:00.000Z'),
+      };
+      (server.CheckIns as unknown as { Items: unknown[] }).Items.push(pendingCheckIn);
+      vi.spyOn(server, 'dispatchLifecycleActionHooks').mockResolvedValue(undefined);
+
+      const saved = await server.Save();
+      expect(saved).toBe(true);
+      expect(pendingCheckIn.PreviousValue).toBe(20);
+      expect(pendingCheckIn.PercentComplete).toBe(50);
+      expect(server.CurrentValue).toBe(30);
+      expect(server.PercentComplete).toBe(50);
+      expect(server.HealthStatus).toBe('AtRisk');
+      expect(server.ConfidenceScore).toBe(70);
+      expect(server.LastCheckInAt?.toISOString()).toBe('2026-11-10T12:00:00.000Z');
+      expect(server.NextCheckInDueAt?.toISOString()).toBe('2026-11-17T12:00:00.000Z');
     });
 
     it('runs hook actions on the Task\'s provider', async () => {
