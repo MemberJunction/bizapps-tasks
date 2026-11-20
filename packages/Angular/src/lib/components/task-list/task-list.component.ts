@@ -12,8 +12,8 @@ import {
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { CompositeKey, Metadata, RunView } from '@memberjunction/core';
-import { EscapeSQLString, UUIDsEqual } from '@memberjunction/global';
+import { CompositeKey, Metadata, RunView, type IMetadataProvider, type IRunViewProvider } from '@memberjunction/core';
+import { EscapeSQLString, NormalizeUUID, UUIDsEqual } from '@memberjunction/global';
 import { BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { MJButtonDirective, MJEmptyStateComponent } from '@memberjunction/ng-ui-components';
 import type {
@@ -31,6 +31,13 @@ import {
 } from '@mj-biz-apps/tasks-ng-widgets';
 import { RoleAssigneeName } from '../../role-assignees';
 import { LoadTaskRecordLinks, type TaskRecordLink } from '../../task-record-links';
+import {
+    CountTotalPendingSuggestions,
+    FilterTasksByPendingSuggestions,
+    FormatPendingSuggestionTooltip,
+    TaskFieldSuggestionsHelper,
+    type TaskPendingSuggestionsSummary,
+} from '../../task-field-suggestions.helper';
 
 export interface TaskListPersonRow {
     ID: string;
@@ -57,6 +64,12 @@ export interface TaskRow {
     IsDueSoon: boolean;
     ChildCount?: number;
     CompletedChildCount?: number;
+    LoggedMinutes?: number | null;
+    IsTimerRunning?: boolean;
+    PendingSuggestionCount?: number;
+    PendingSuggestionFields?: string[];
+    PendingSuggestionTooltip?: string;
+    PendingSuggestionPreview?: string;
 }
 
 export function computeDueStatus(
@@ -413,6 +426,7 @@ export class BeforeStatusChangeEvent {
     `],
 })
 export class TaskListComponent implements OnInit, OnChanges {
+    @Input() Provider: IMetadataProvider | null = null;
     @Input() CategoryID: string | null = null;
     @Input() ExtraFilter: string | null = null;
     @Input() StatusFilter: string | null = null;
@@ -427,6 +441,28 @@ export class TaskListComponent implements OnInit, OnChanges {
     @Input() AssigneeScope: string | string[] | null = null;
     @Input() ReadOnly = false;
 
+    private _pendingSuggestionsOnly = false;
+    private isInitialized = false;
+
+    @Input()
+    public get PendingSuggestionsOnly(): boolean {
+        return this._pendingSuggestionsOnly;
+    }
+    public set PendingSuggestionsOnly(value: boolean) {
+        const next = Boolean(value);
+        if (next !== this._pendingSuggestionsOnly) {
+            this._pendingSuggestionsOnly = next;
+            if (this.isInitialized) {
+                this.applyFilters();
+            }
+        }
+    }
+
+    public get ProviderToUse(): IMetadataProvider {
+        return this.Provider ?? Metadata.Provider;
+    }
+
+    @Output() PendingSuggestionsOnlyChange = new EventEmitter<boolean>();
     @Output() BeforeTaskSelected = new EventEmitter<BeforeTaskSelectedEvent>();
     @Output() AfterTaskSelected = new EventEmitter<TaskRow>();
     @Output() TaskDoubleClicked = new EventEmitter<TaskRow>();
@@ -440,6 +476,8 @@ export class TaskListComponent implements OnInit, OnChanges {
     public selectedIDs: string[] = [];
     public expandedIDs = new Set<string>();
     public quickAddPeople: TaskListPersonRow[] = [];
+    public quickAddName = '';
+    public quickAddPersonID = '';
     public quickAdding = false;
     public bulkStatus = '';
     public bulkPercent: number | null = null;
@@ -447,6 +485,10 @@ export class TaskListComponent implements OnInit, OnChanges {
     public loading = false;
     public searchText = '';
     public statusFilter = '';
+    public fieldSuggestionsAvailable = false;
+    public pendingSuggestionsByTask = new Map<string, TaskPendingSuggestionsSummary>();
+    public totalPendingSuggestionsCount = 0;
+    public tasksWithPendingSuggestionsCount = 0;
     public cdr = inject(ChangeDetectorRef);
 
     public statusFilters = [
@@ -460,6 +502,7 @@ export class TaskListComponent implements OnInit, OnChanges {
     private searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
     public ngOnInit(): void {
+        this.isInitialized = true;
         if (this.StatusFilter) this.statusFilter = this.StatusFilter;
         if (this.SearchText) this.searchText = this.SearchText;
         void this.loadTasks();
@@ -553,15 +596,33 @@ export class TaskListComponent implements OnInit, OnChanges {
         this.searchTimeout = setTimeout(() => this.applyFilters(), 150);
     }
 
+    public getTaskSuggestionTooltip(task: TaskRow): string {
+        if (task.PendingSuggestionTooltip) return task.PendingSuggestionTooltip;
+        const summary = this.pendingSuggestionsByTask.get(NormalizeUUID(task.ID));
+        return FormatPendingSuggestionTooltip(summary ?? null);
+    }
+
+    public resetFilters(): void {
+        this.statusFilter = '';
+        this.searchText = '';
+        if (this._pendingSuggestionsOnly) {
+            this._pendingSuggestionsOnly = false;
+            this.PendingSuggestionsOnlyChange.emit(false);
+        }
+        this.applyFilters();
+    }
+
     public applyFilters(): void {
         const q = this.searchText.trim().toLowerCase();
-        this.filteredTasks = this.tasks.filter((t) => {
+        let list = this.tasks.filter((t) => {
             if (this.statusFilter && t.Status !== this.statusFilter) return false;
             if (q && !t.Name.toLowerCase().includes(q) && !(t.Description?.toLowerCase().includes(q) ?? false)) {
                 return false;
             }
             return true;
         });
+        list = FilterTasksByPendingSuggestions(list, this._pendingSuggestionsOnly, this.pendingSuggestionsByTask);
+        this.filteredTasks = list;
         this.cdr.markForCheck();
     }
 
@@ -675,6 +736,64 @@ export class TaskListComponent implements OnInit, OnChanges {
         this.cdr.markForCheck();
     }
 
+    private createRunView(): RunView {
+        const p = this.ProviderToUse;
+        if (p && typeof (p as Partial<IRunViewProvider>).RunView === 'function') {
+            return RunView.FromMetadataProvider(p);
+        }
+        return new RunView();
+    }
+
+    public async quickAddTask(): Promise<void> {
+        const name = this.quickAddName.trim();
+        if (!name || this.quickAdding) return;
+        this.quickAdding = true;
+        this.cdr.markForCheck();
+        try {
+            let typeID = this.QuickAddDefaultTypeID;
+            if (!typeID) {
+                const res = await this.createRunView().RunView<{ ID: string }>({
+                    EntityName: 'MJ_BizApps_Tasks: Task Types',
+                    ExtraFilter: 'IsActive = 1',
+                    OrderBy: "CASE WHEN Code = 'GENERAL' THEN 0 ELSE 1 END, Name ASC",
+                    Fields: ['ID'],
+                    MaxRows: 1,
+                    ResultType: 'simple',
+                });
+                typeID = res.Results?.[0]?.ID ?? null;
+            }
+            if (!typeID) return;
+
+            const entity = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
+            entity.NewRecord();
+            entity.Name = name;
+            entity.TypeID = typeID;
+            entity.Status = 'Open';
+            entity.Priority = 'Medium';
+            if (this.CategoryID) entity.CategoryID = this.CategoryID;
+
+            if (this.quickAddPersonID) {
+                const peopleEntityID = Metadata.Provider.EntityByName('MJ_BizApps_Common: People')?.ID;
+                if (peopleEntityID) {
+                    const assignment = await entity.Assignments.Create();
+                    assignment.AssigneeEntityID = peopleEntityID;
+                    assignment.AssigneeRecordID = this.quickAddPersonID;
+                    assignment.Status = 'Pending';
+                }
+            }
+
+            if (await entity.Save()) {
+                this.quickAddName = '';
+                this.quickAddPersonID = '';
+                this.AfterTaskCreated.emit(entity.ID);
+                await this.loadTasks();
+            }
+        } finally {
+            this.quickAdding = false;
+            this.cdr.markForCheck();
+        }
+    }
+
     public async onQuickCaptureSubmit(event: TaskQuickCaptureSubmitEvent): Promise<void> {
         if (!event.Title || this.quickAdding) return;
         this.quickAdding = true;
@@ -740,7 +859,7 @@ export class TaskListComponent implements OnInit, OnChanges {
             if (this.ExtraFilter) filters.push(this.ExtraFilter);
 
             const [tasksRes, assignmentsRes, peopleRes, rolesRes, tagLinksRes, tagsRes] = await Promise.all([
-                new RunView().RunView<{
+                this.createRunView().RunView<{
                     ID: string;
                     Name: string;
                     Description: string | null;
@@ -749,6 +868,7 @@ export class TaskListComponent implements OnInit, OnChanges {
                     DueAt: string | null;
                     PercentComplete: number | null;
                     HoursEstimated: number | null;
+                    LoggedMinutes?: number | null;
                     ParentID: string | null;
                     TaskTypeStatus: string | null;
                 }>({
@@ -758,27 +878,27 @@ export class TaskListComponent implements OnInit, OnChanges {
                     ResultType: 'simple',
                     BypassCache: true,
                 }),
-                new RunView().RunView<{ TaskID: string; AssigneeEntityID: string; AssigneeRecordID: string; RoleID: string | null; Status: string | null }>({
+                this.createRunView().RunView<{ TaskID: string; AssigneeEntityID: string; AssigneeRecordID: string; RoleID: string | null; Status: string | null }>({
                     EntityName: 'MJ_BizApps_Tasks: Task Assignments',
                     ResultType: 'simple',
                     BypassCache: true,
                 }),
-                new RunView().RunView<TaskListPersonRow>({
+                this.createRunView().RunView<TaskListPersonRow>({
                     EntityName: 'MJ_BizApps_Common: People',
                     Fields: ['ID', 'FirstName', 'LastName'],
                     ResultType: 'simple',
                 }),
-                new RunView().RunView<{ ID: string; Name: string }>({
+                this.createRunView().RunView<{ ID: string; Name: string }>({
                     EntityName: 'MJ_BizApps_Tasks: Task Roles',
                     Fields: ['ID', 'Name'],
                     ResultType: 'simple',
                 }),
-                new RunView().RunView<{ TaskID: string; TagID: string }>({
+                this.createRunView().RunView<{ TaskID: string; TagID: string }>({
                     EntityName: 'MJ_BizApps_Tasks: Task Tag Links',
                     Fields: ['TaskID', 'TagID'],
                     ResultType: 'simple',
                 }),
-                new RunView().RunView<{ ID: string; Name: string; ColorCode: string | null }>({
+                this.createRunView().RunView<{ ID: string; Name: string; ColorCode: string | null }>({
                     EntityName: 'MJ_BizApps_Tasks: Task Tags',
                     Fields: ['ID', 'Name', 'ColorCode'],
                     ResultType: 'simple',
@@ -787,12 +907,17 @@ export class TaskListComponent implements OnInit, OnChanges {
 
             const raw = tasksRes?.Results ?? [];
             const taskIds = raw.map((r) => r.ID);
-            let linksMap = new Map<string, TaskRecordLink[]>();
-            try {
-                linksMap = await LoadTaskRecordLinks(taskIds);
-            } catch {
-                // Linked records are optional enrichment
-            }
+            const [linksMap, suggestionsRes] = await Promise.all([
+                LoadTaskRecordLinks(taskIds).catch(() => new Map<string, TaskRecordLink[]>()),
+                TaskFieldSuggestionsHelper.LoadPendingSuggestions(this.ProviderToUse, { taskIds }).catch(() => ({
+                    available: false,
+                    byTaskId: new Map<string, TaskPendingSuggestionsSummary>(),
+                })),
+            ]);
+            this.fieldSuggestionsAvailable = suggestionsRes.available;
+            this.pendingSuggestionsByTask = suggestionsRes.byTaskId;
+            this.totalPendingSuggestionsCount = CountTotalPendingSuggestions(suggestionsRes.byTaskId);
+            this.tasksWithPendingSuggestionsCount = suggestionsRes.byTaskId.size;
 
             const personMap = new Map<string, string>();
             for (const p of peopleRes?.Results ?? []) {
@@ -857,6 +982,7 @@ export class TaskListComponent implements OnInit, OnChanges {
                 const dueAt = item.DueAt ? new Date(item.DueAt) : null;
                 const { isOverdue, isDueSoon } = computeDueStatus(dueAt, item.Status, now);
 
+                const summary = this.pendingSuggestionsByTask.get(NormalizeUUID(item.ID)) ?? null;
                 ordered.push({
                     ID: item.ID,
                     Name: item.Name,
@@ -866,6 +992,7 @@ export class TaskListComponent implements OnInit, OnChanges {
                     DueAt: dueAt,
                     PercentComplete: item.PercentComplete ?? 0,
                     HoursEstimated: item.HoursEstimated,
+                    LoggedMinutes: item.LoggedMinutes ?? null,
                     ParentID: item.ParentID,
                     Depth: depth,
                     Assignees: assigneesByTask.get(key),
@@ -876,6 +1003,10 @@ export class TaskListComponent implements OnInit, OnChanges {
                     IsDueSoon: isDueSoon,
                     ChildCount: kids.length,
                     CompletedChildCount: completedKids,
+                    PendingSuggestionCount: summary?.pendingCount ?? 0,
+                    PendingSuggestionFields: summary?.fieldNames ?? [],
+                    PendingSuggestionTooltip: FormatPendingSuggestionTooltip(summary),
+                    PendingSuggestionPreview: summary?.topPreviewLabel ?? undefined,
                 });
                 if (kids.length > 0 && depth === 0) {
                     this.expandedIDs.add(item.ID);

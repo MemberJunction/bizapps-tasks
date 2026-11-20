@@ -11,8 +11,8 @@ import {
     inject,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { CompositeKey, Metadata, RunView } from '@memberjunction/core';
-import { EscapeSQLString } from '@memberjunction/global';
+import { CompositeKey, Metadata, RunView, type IMetadataProvider, type IRunViewProvider } from '@memberjunction/core';
+import { EscapeSQLString, NormalizeUUID } from '@memberjunction/global';
 import { UserInfoEngine } from '@memberjunction/core-entities';
 import {
     KanbanCardData,
@@ -20,8 +20,15 @@ import {
     KanbanColumnDef,
     MjKanbanBoardComponent,
 } from '@memberjunction/ng-kanban';
+import { FormatDurationMinutes } from '@mj-biz-apps/tasks-core';
 import type { mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
 import type { TaskPriorityValue, TaskStatusValue, TaskWidgetTypeStatus } from '@mj-biz-apps/tasks-ng-widgets';
+import {
+    FilterTasksByPendingSuggestions,
+    FormatPendingSuggestionTooltip,
+    TaskFieldSuggestionsHelper,
+    type TaskPendingSuggestionsSummary,
+} from '../../task-field-suggestions.helper';
 
 export type KanbanGroupByMode = 'status' | 'workflow' | 'priority' | 'assignee';
 
@@ -46,11 +53,15 @@ export interface KanbanTaskData {
     DueAt: string | null;
     PercentComplete: number | null;
     HoursEstimated: number | null;
+    LoggedMinutes?: number | null;
     ParentID: string | null;
     TypeID?: string;
     Type?: string | null;
     TaskTypeStatusID?: string | null;
     TaskTypeStatus?: string | null;
+    PendingSuggestionCount?: number;
+    PendingSuggestionFields?: string[];
+    PendingSuggestionTooltip?: string;
 }
 
 export interface AfterKanbanStatusChangeEvent {
@@ -195,6 +206,7 @@ const PRIORITY_COLUMNS: KanbanColumnDef[] = [
     `],
 })
 export class TaskKanbanComponent implements OnInit, OnChanges {
+    @Input() Provider: IMetadataProvider | null = null;
     @Input() CategoryID: string | null = null;
     @Input() ExtraFilter: string | null = null;
     @Input() SearchText = '';
@@ -202,6 +214,27 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
     @Input() TypeIDFilter: string | null = null;
     @Input() ShowGroupByBar = true;
     @Input() ReadOnly = false;
+
+    private _pendingSuggestionsOnly = false;
+    private isInitialized = false;
+
+    @Input()
+    public get PendingSuggestionsOnly(): boolean {
+        return this._pendingSuggestionsOnly;
+    }
+    public set PendingSuggestionsOnly(value: boolean) {
+        const next = Boolean(value);
+        if (next !== this._pendingSuggestionsOnly) {
+            this._pendingSuggestionsOnly = next;
+            if (this.isInitialized) {
+                this.rebuildBoard();
+            }
+        }
+    }
+
+    public get ProviderToUse(): IMetadataProvider {
+        return this.Provider ?? Metadata.Provider;
+    }
 
     @Output() BeforeStatusChange = new EventEmitter<BeforeKanbanStatusChangeEvent>();
     @Output() AfterStatusChange = new EventEmitter<AfterKanbanStatusChangeEvent>();
@@ -213,13 +246,16 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
     public columns: KanbanColumnDef[] = [...MACRO_COLUMNS];
     public cards: KanbanCardData[] = [];
     public workflowStatuses: TaskWidgetTypeStatus[] = [];
+    public rawTasks: KanbanTaskData[] = [];
+    public fieldSuggestionsAvailable = false;
+    public pendingSuggestionsByTask = new Map<string, TaskPendingSuggestionsSummary>();
     public moveError = '';
 
-    private rawTasks: KanbanTaskData[] = [];
     private assigneeByTask = new Map<string, string>();
     private cdr = inject(ChangeDetectorRef);
 
     public ngOnInit(): void {
+        this.isInitialized = true;
         const saved = UserInfoEngine.Instance.GetSetting(KANBAN_GROUP_SETTING);
         if (saved === 'status' || saved === 'workflow' || saved === 'priority' || saved === 'assignee') {
             this.GroupBy = saved;
@@ -250,8 +286,16 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
         this.rebuildBoard();
     }
 
+    private createRunView(): RunView {
+        const p = this.ProviderToUse;
+        if (p && typeof (p as Partial<IRunViewProvider>).RunView === 'function') {
+            return RunView.FromMetadataProvider(p);
+        }
+        return new RunView();
+    }
+
     public async LoadTasks(bypassCache = false): Promise<void> {
-        const rv = new RunView();
+        const rv = this.createRunView();
         const filters: string[] = ["Status <> 'Cancelled'"];
         if (this.CategoryID) filters.push(`CategoryID = '${EscapeSQLString(this.CategoryID)}'`);
         if (this.PriorityFilter) filters.push(`Priority = '${EscapeSQLString(this.PriorityFilter)}'`);
@@ -266,26 +310,41 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
                 ResultType: 'simple',
                 BypassCache: bypassCache,
             }),
-            new RunView().RunView<TaskWidgetTypeStatus>({
+            this.createRunView().RunView<TaskWidgetTypeStatus>({
                 EntityName: 'MJ_BizApps_Tasks: Task Type Status',
                 ExtraFilter: 'IsActive = 1',
                 OrderBy: 'Sequence ASC',
                 ResultType: 'simple',
             }),
-            new RunView().RunView<{ TaskID: string; AssigneeRecordID: string }>({
+            this.createRunView().RunView<{ TaskID: string; AssigneeRecordID: string }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Assignments',
                 Fields: ['TaskID', 'AssigneeRecordID'],
                 ResultType: 'simple',
                 BypassCache: bypassCache,
             }),
-            new RunView().RunView<{ ID: string; FirstName: string; LastName: string }>({
+            this.createRunView().RunView<{ ID: string; FirstName: string; LastName: string }>({
                 EntityName: 'MJ_BizApps_Common: People',
                 Fields: ['ID', 'FirstName', 'LastName'],
                 ResultType: 'simple',
             }),
         ]);
 
-        this.rawTasks = tasksRes?.Results ?? [];
+        const loadedTasks = tasksRes?.Results ?? [];
+        const suggestions = await TaskFieldSuggestionsHelper.LoadPendingSuggestions(this.ProviderToUse, {
+            taskIds: loadedTasks.map((t) => t.ID),
+        });
+        this.fieldSuggestionsAvailable = suggestions.available;
+        this.pendingSuggestionsByTask = suggestions.byTaskId;
+
+        this.rawTasks = loadedTasks.map((t) => {
+            const summary = this.pendingSuggestionsByTask.get(NormalizeUUID(t.ID));
+            return {
+                ...t,
+                PendingSuggestionCount: summary?.pendingCount ?? 0,
+                PendingSuggestionFields: summary?.fieldNames ?? [],
+                PendingSuggestionTooltip: FormatPendingSuggestionTooltip(summary ?? null),
+            };
+        });
         this.workflowStatuses = statusesRes?.Results ?? [];
 
         const personNames = new Map<string, string>();
@@ -308,7 +367,7 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
 
     private rebuildBoard(): void {
         const q = this.SearchText.trim().toLowerCase();
-        const visible = q
+        let visible = q
             ? this.rawTasks.filter(
                   (t) =>
                       t.Name.toLowerCase().includes(q) ||
@@ -316,6 +375,7 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
                       (t.TaskTypeStatus?.toLowerCase().includes(q) ?? false),
               )
             : this.rawTasks;
+        visible = FilterTasksByPendingSuggestions(visible, this._pendingSuggestionsOnly, this.pendingSuggestionsByTask);
 
         if (this.GroupBy === 'workflow' && this.workflowStatuses.length > 0) {
             this.columns = [
@@ -348,7 +408,14 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
     private toCard(r: KanbanTaskData, columnKey: string): KanbanCardData {
         const dueStr = r.DueAt ? new Date(r.DueAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
         const assignee = this.assigneeByTask.get(r.ID.toLowerCase());
-        const footerParts = [r.TaskTypeStatus, dueStr, assignee].filter(Boolean);
+        const loggedStr = r.LoggedMinutes && r.LoggedMinutes > 0 ? FormatDurationMinutes(r.LoggedMinutes) : '';
+        const footerParts = [
+            r.TaskTypeStatus,
+            dueStr,
+            assignee,
+            loggedStr,
+            r.PendingSuggestionTooltip || null,
+        ].filter(Boolean);
         return {
             ID: r.ID,
             Title: r.Name,

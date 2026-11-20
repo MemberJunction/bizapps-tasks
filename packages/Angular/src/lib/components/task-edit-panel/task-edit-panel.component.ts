@@ -12,16 +12,13 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CompositeKey, Metadata, RunView } from '@memberjunction/core';
-import { EscapeSQLString } from '@memberjunction/global';
+import { EscapeSQLString, IsValidUUID, UUIDsEqual } from '@memberjunction/global';
 import { MJButtonDirective } from '@memberjunction/ng-ui-components';
-import { ResolveTaskUiArchetype, type TaskUiArchetype } from '@mj-biz-apps/tasks-core';
+import { ResolveTaskUiArchetype, TasksSettings, type TaskUiArchetype } from '@mj-biz-apps/tasks-core';
 import type {
-    mjBizAppsTasksTaskAssignmentEntity,
     mjBizAppsTasksTaskEntity,
-    mjBizAppsTasksTaskLinkEntity,
     mjBizAppsTasksTaskRoleEntity,
     mjBizAppsTasksTaskTagEntity,
-    mjBizAppsTasksTaskTagLinkEntity,
 } from '@mj-biz-apps/tasks-entities';
 import type {
     TaskCheckInCadenceValue,
@@ -35,9 +32,11 @@ import { RecordLinkPickerDialogComponent } from '../record-link-picker/record-li
 import { ROLES_ENTITY } from '../../role-assignees';
 
 interface AssigneeRow {
-    AssigneeKind: 'person' | 'role';
-    AssigneeRecordID: string;
-    DisplayName: string;
+    AssigneeKind?: 'person' | 'role';
+    AssigneeRecordID?: string;
+    DisplayName?: string;
+    PersonID?: string;
+    PersonName?: string;
     RoleID: string;
     IsNew: boolean;
     ExistingID?: string;
@@ -456,10 +455,12 @@ export class BeforeTaskSaveEvent {
                                             <input type="number" name="hoursEst" step="0.25" min="0" class="mjt-ep-input" [(ngModel)]="form.HoursEstimated" [disabled]="ReadOnly" />
                                         </div>
                                     }
-                                    <div class="mjt-ep-field">
-                                        <label>Hours Actual</label>
-                                        <input type="number" name="hoursAct" step="0.25" min="0" class="mjt-ep-input" [(ngModel)]="form.HoursActual" [disabled]="ReadOnly" />
-                                    </div>
+                                    @if (!timeTrackingEnabled) {
+                                        <div class="mjt-ep-field">
+                                            <label>Hours Actual</label>
+                                            <input type="number" name="hoursAct" step="0.25" min="0" class="mjt-ep-input" [(ngModel)]="form.HoursActual" [disabled]="ReadOnly" />
+                                        </div>
+                                    }
                                     <div class="mjt-ep-field">
                                         <label>% Complete</label>
                                         <input type="number" name="pct" min="0" max="100" class="mjt-ep-input" [(ngModel)]="form.PercentComplete" [disabled]="ReadOnly" />
@@ -896,14 +897,12 @@ export class TaskEditPanelComponent implements OnChanges {
     public newSubtaskDraft = '';
     public newTagName = '';
     public creatingTag = false;
+    public isNew = true;
+    public timeTrackingEnabled = false;
 
     private peopleEntityID: string | null = null;
     private rolesEntityID: string | null = null;
     private cdr = inject(ChangeDetectorRef);
-
-    public get isNew(): boolean {
-        return !this.TaskID;
-    }
 
     public get activeTaskType(): TaskTypeOption | undefined {
         return this.taskTypes.find((t) => t.ID === this.form.TypeID);
@@ -972,6 +971,7 @@ export class TaskEditPanelComponent implements OnChanges {
     }
 
     private async init(): Promise<void> {
+        this.isNew = !this.TaskID;
         this.saveError = null;
         this.draftSubtasks = [];
         this.newSubtaskDraft = '';
@@ -1103,6 +1103,12 @@ export class TaskEditPanelComponent implements OnChanges {
         this.allTags = tags?.Results ?? [];
         this.peopleEntityID = Metadata.Provider.EntityByName('MJ_BizApps_Common: People')?.ID ?? null;
         this.rolesEntityID = Metadata.Provider.EntityByName(ROLES_ENTITY)?.ID ?? null;
+        try {
+            await TasksSettings.Load(Metadata.Provider);
+            this.timeTrackingEnabled = TasksSettings.TimeTrackingEnabled(Metadata.Provider);
+        } catch {
+            this.timeTrackingEnabled = TasksSettings.TimeTrackingEnabled(Metadata.Provider);
+        }
         this.cdr.markForCheck();
     }
 
@@ -1202,8 +1208,9 @@ export class TaskEditPanelComponent implements OnChanges {
     private buildAssigneeScopeFilter(): string | undefined {
         if (!this.AssigneeScope) return undefined;
         if (Array.isArray(this.AssigneeScope)) {
-            if (this.AssigneeScope.length === 0) return undefined;
-            return `ID IN (${this.AssigneeScope.map((id) => `'${EscapeSQLString(id)}'`).join(',')})`;
+            const validIDs = this.AssigneeScope.filter((id) => IsValidUUID(id));
+            if (validIDs.length === 0) return undefined;
+            return `ID IN (${validIDs.map((id) => `'${EscapeSQLString(id)}'`).join(',')})`;
         }
         return this.AssigneeScope;
     }
@@ -1295,6 +1302,15 @@ export class TaskEditPanelComponent implements OnChanges {
         this.BeforeSave.emit(before);
         if (before.Cancel) return;
 
+        const hasPersonAssignees = this.assignees.some(
+            (row) => (row.AssigneeKind ?? 'person') === 'person' && Boolean(row.AssigneeRecordID || row.PersonID),
+        );
+        if (!this.peopleEntityID && hasPersonAssignees) {
+            this.saveError = 'People is not installed, so assignees cannot be saved.';
+            this.cdr.markForCheck();
+            return;
+        }
+
         this.saving = true;
         this.saveError = null;
         this.cdr.markForCheck();
@@ -1302,7 +1318,16 @@ export class TaskEditPanelComponent implements OnChanges {
         try {
             const entity = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
             if (this.TaskID) {
-                await entity.InnerLoad(CompositeKey.FromID(this.TaskID));
+                const loaded = await entity.InnerLoad(new CompositeKey([{ FieldName: 'ID', Value: this.TaskID }]));
+                if (!loaded) {
+                    this.saveError = 'Could not load the task for editing.';
+                    return;
+                }
+                await Promise.all([
+                    entity.Assignments.Load(true),
+                    entity.TagLinks.Load(true),
+                    entity.Links.Load(true),
+                ]);
             } else {
                 entity.NewRecord();
             }
@@ -1333,6 +1358,77 @@ export class TaskEditPanelComponent implements OnChanges {
                 entity.CheckInCadence = this.form.CheckInCadence;
             }
 
+            // Compose Assignments onto entity.Assignments (atomic graph save)
+            const retainedExistingIDs = new Set(
+                this.assignees
+                    .filter((a) => !a.IsNew && a.ExistingID)
+                    .map((a) => a.ExistingID!.toLowerCase()),
+            );
+            for (const existing of [...entity.Assignments.Items]) {
+                if (!retainedExistingIDs.has(existing.ID.toLowerCase())) {
+                    entity.Assignments.Remove(existing);
+                }
+            }
+            for (const a of this.assignees) {
+                const recordID = a.AssigneeRecordID || a.PersonID;
+                if (!recordID) continue;
+                const entityID = a.AssigneeKind === 'role' ? this.rolesEntityID : this.peopleEntityID;
+                if (!entityID) continue;
+
+                if (!a.IsNew && a.ExistingID) {
+                    const existing = entity.Assignments.Items.find((item) => UUIDsEqual(item.ID, a.ExistingID));
+                    if (existing) {
+                        existing.AssigneeEntityID = entityID;
+                        existing.AssigneeRecordID = recordID;
+                        if (a.RoleID) existing.RoleID = a.RoleID;
+                    }
+                } else {
+                    const assignment = await entity.Assignments.Create();
+                    assignment.AssigneeEntityID = entityID;
+                    assignment.AssigneeRecordID = recordID;
+                    if (a.RoleID) assignment.RoleID = a.RoleID;
+                }
+            }
+
+            // Compose TagLinks onto entity.TagLinks (atomic graph save)
+            const selectedTagIDs = new Set(this.selectedTags.map((t) => t.ID.toLowerCase()));
+            for (const existing of [...entity.TagLinks.Items]) {
+                if (!selectedTagIDs.has(existing.TagID.toLowerCase())) {
+                    entity.TagLinks.Remove(existing);
+                }
+            }
+            for (const tag of this.selectedTags) {
+                const alreadyLinked = entity.TagLinks.Items.some((item) => UUIDsEqual(item.TagID, tag.ID));
+                if (!alreadyLinked) {
+                    const link = await entity.TagLinks.Create();
+                    link.TagID = tag.ID;
+                }
+            }
+
+            // Compose Linked Records onto entity.Links (atomic graph save)
+            const desiredLinkKeys = new Set<string>();
+            for (const rec of this.linkedRecords) {
+                const targetEntity = Metadata.Provider.EntityByName(rec.EntityName);
+                if (!targetEntity) continue;
+                const key = `${targetEntity.ID.toLowerCase()}|${rec.RecordID.toLowerCase()}`;
+                desiredLinkKeys.add(key);
+                const already = entity.Links.Items.some(
+                    (e) => `${e.EntityID.toLowerCase()}|${e.RecordID.toLowerCase()}` === key,
+                );
+                if (!already) {
+                    const link = await entity.Links.Create();
+                    link.EntityID = targetEntity.ID;
+                    link.RecordID = rec.RecordID;
+                    link.Description = rec.DisplayName;
+                }
+            }
+            for (const existing of [...entity.Links.Items]) {
+                const key = `${existing.EntityID.toLowerCase()}|${existing.RecordID.toLowerCase()}`;
+                if (!desiredLinkKeys.has(key)) {
+                    entity.Links.Remove(existing);
+                }
+            }
+
             const taskSaved = await entity.Save();
             if (!taskSaved) {
                 this.saveError = entity.LatestResult?.CompleteMessage ?? 'Failed to save task.';
@@ -1340,135 +1436,11 @@ export class TaskEditPanelComponent implements OnChanges {
             }
             const savedID = entity.ID;
 
-            await this.persistAssignees(savedID);
-            await this.persistTags(savedID);
-            await this.persistLinks(savedID);
             await this.persistDraftSubtasks(savedID);
-
             this.Saved.emit(savedID);
         } finally {
             this.saving = false;
             this.cdr.markForCheck();
-        }
-    }
-
-    private async persistAssignees(taskID: string): Promise<void> {
-        const rv = new RunView();
-        if (this.TaskID) {
-            const current = await rv.RunView<{ ID: string }>({
-                EntityName: 'MJ_BizApps_Tasks: Task Assignments',
-                ExtraFilter: `TaskID = '${EscapeSQLString(taskID)}'`,
-                ResultType: 'simple',
-            });
-            const keepIDs = new Set(this.assignees.filter((a) => !a.IsNew && a.ExistingID).map((a) => a.ExistingID!));
-            for (const row of current?.Results ?? []) {
-                if (!keepIDs.has(row.ID)) {
-                    const del = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskAssignmentEntity>('MJ_BizApps_Tasks: Task Assignments');
-                    await del.InnerLoad(CompositeKey.FromID(row.ID));
-                    await del.Delete();
-                }
-            }
-        }
-
-        for (const a of this.assignees) {
-            if (!a.AssigneeRecordID) continue;
-            const entityID = a.AssigneeKind === 'role' ? this.rolesEntityID : this.peopleEntityID;
-            if (!entityID) continue;
-
-            const assignment = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskAssignmentEntity>('MJ_BizApps_Tasks: Task Assignments');
-            if (a.IsNew) {
-                assignment.NewRecord();
-                assignment.TaskID = taskID;
-                assignment.AssigneeEntityID = entityID;
-                assignment.AssigneeRecordID = a.AssigneeRecordID;
-                if (a.RoleID) assignment.RoleID = a.RoleID;
-                await assignment.Save();
-            } else if (a.ExistingID) {
-                await assignment.InnerLoad(CompositeKey.FromID(a.ExistingID));
-                assignment.AssigneeEntityID = entityID;
-                assignment.AssigneeRecordID = a.AssigneeRecordID;
-                assignment.RoleID = a.RoleID || null;
-                await assignment.Save();
-            }
-        }
-    }
-
-    private async persistTags(taskID: string): Promise<void> {
-        const selectedIDs = new Set(this.selectedTags.map((t) => t.ID));
-        if (this.TaskID) {
-            const existing = await new RunView().RunView<{ ID: string; TagID: string }>({
-                EntityName: 'MJ_BizApps_Tasks: Task Tag Links',
-                ExtraFilter: `TaskID = '${EscapeSQLString(taskID)}'`,
-                ResultType: 'simple',
-            });
-            const existingRows = existing?.Results ?? [];
-            const existingTagIDs = new Set(existingRows.map((l) => l.TagID));
-
-            for (const tagID of selectedIDs) {
-                if (!existingTagIDs.has(tagID)) {
-                    const link = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskTagLinkEntity>('MJ_BizApps_Tasks: Task Tag Links');
-                    link.NewRecord();
-                    link.TaskID = taskID;
-                    link.TagID = tagID;
-                    await link.Save();
-                }
-            }
-            for (const row of existingRows) {
-                if (!selectedIDs.has(row.TagID)) {
-                    const del = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskTagLinkEntity>('MJ_BizApps_Tasks: Task Tag Links');
-                    await del.InnerLoad(CompositeKey.FromID(row.ID));
-                    await del.Delete();
-                }
-            }
-        } else {
-            for (const tag of this.selectedTags) {
-                const link = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskTagLinkEntity>('MJ_BizApps_Tasks: Task Tag Links');
-                link.NewRecord();
-                link.TaskID = taskID;
-                link.TagID = tag.ID;
-                await link.Save();
-            }
-        }
-    }
-
-    private async persistLinks(taskID: string): Promise<void> {
-        const existing = this.TaskID
-            ? (
-                  await new RunView().RunView<{ ID: string; EntityID: string; RecordID: string }>({
-                      EntityName: 'MJ_BizApps_Tasks: Task Links',
-                      ExtraFilter: `TaskID = '${EscapeSQLString(taskID)}'`,
-                      ResultType: 'simple',
-                  })
-              )?.Results ?? []
-            : [];
-
-        const desiredKeys = new Set<string>();
-        for (const rec of this.linkedRecords) {
-            const entity = Metadata.Provider.EntityByName(rec.EntityName);
-            if (!entity) continue;
-            const key = `${entity.ID.toLowerCase()}|${rec.RecordID.toLowerCase()}`;
-            desiredKeys.add(key);
-            const already = existing.some(
-                (e) => `${e.EntityID.toLowerCase()}|${e.RecordID.toLowerCase()}` === key,
-            );
-            if (!already) {
-                const link = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskLinkEntity>('MJ_BizApps_Tasks: Task Links');
-                link.NewRecord();
-                link.TaskID = taskID;
-                link.EntityID = entity.ID;
-                link.RecordID = rec.RecordID;
-                link.Description = rec.DisplayName;
-                await link.Save();
-            }
-        }
-
-        for (const row of existing) {
-            const key = `${row.EntityID.toLowerCase()}|${row.RecordID.toLowerCase()}`;
-            if (!desiredKeys.has(key)) {
-                const del = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskLinkEntity>('MJ_BizApps_Tasks: Task Links');
-                await del.InnerLoad(CompositeKey.FromID(row.ID));
-                await del.Delete();
-            }
         }
     }
 

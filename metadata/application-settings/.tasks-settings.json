@@ -3,8 +3,8 @@
     "fields": {
       "ApplicationID": "@lookup:MJ: Applications.Name=Tasks",
       "Name": "PreventSelfApproval",
-      "Value": "false",
-      "Comments": "When true, a decision on an approval task (a task whose type has IsApproval set) is accepted only from one of the task's assignees, recorded as that assignee's own decision, and never from the person who created the task (bc-aidp-next-golive#320). Checked on the server for every path that records a decision: the approval panel, the Tasks inbox and other apps' server code. False, the default, accepts every decision as before."
+      "Value": "true",
+      "Comments": "When true, a decision on an approval task (a task whose type has IsApproval set) is accepted only from one of the task's assignees, recorded as that assignee's own decision, and never from the person who created the task (bc-aidp-next-golive#320). Checked on the server for every path that records a decision: the approval panel, the Tasks inbox and other apps' server code. True is the default — the guard is on unless this is explicitly set to false, which accepts every decision unchecked."
     },
     "primaryKey": {
       "ID": "03CB418F-59E6-4838-9DA7-5646502D3D79"
@@ -52,6 +52,105 @@
     },
     "primaryKey": {
       "ID": "CBF531C2-4DBE-4F63-9CFB-C3266835AD6E"
+    }
+  },
+  {
+    "fields": {
+      "ApplicationID": "@lookup:MJ: Applications.Name=Tasks",
+      "Name": "TimeTrackingEnabled",
+      "Value": "true",
+      "Comments": "Show timer controls, Log Time buttons, and task effort sections across the Tasks application."
+    },
+    "primaryKey": {
+      "ID": "C0B1BDD6-77A1-436C-9BCF-577BFFEC741A"
+    }
+  },
+  {
+    "fields": {
+      "ApplicationID": "@lookup:MJ: Applications.Name=Tasks",
+      "Name": "TimesheetsEnabled",
+      "Value": "true",
+      "Comments": "Show the My Time nav item and enable timesheet submission and approval."
+    },
+    "primaryKey": {
+      "ID": "0231A967-2BC6-49D7-B2EB-27A70F850F76"
+    }
+  },
+  {
+    "fields": {
+      "ApplicationID": "@lookup:MJ: Applications.Name=Tasks",
+      "Name": "TimesheetCadence",
+      "Value": "Weekly",
+      "Comments": "Default timesheet period cadence when no TimesheetSchedule row applies: Weekly, BiWeekly, SemiMonthly, or Monthly."
+    },
+    "primaryKey": {
+      "ID": "FD091417-4868-4916-B8DD-CF0B3A6B2274"
+    }
+  },
+  {
+    "fields": {
+      "ApplicationID": "@lookup:MJ: Applications.Name=Tasks",
+      "Name": "TimesheetWeekStartDay",
+      "Value": "Monday",
+      "Comments": "Default first day of the week for Weekly and BiWeekly timesheet periods and the My Time weekly grid: Monday, Sunday, or Saturday."
+    },
+    "primaryKey": {
+      "ID": "10BBD73C-8334-4E1B-80F4-0FCCEF996DAF"
+    }
+  },
+  {
+    "fields": {
+      "ApplicationID": "@lookup:MJ: Applications.Name=Tasks",
+      "Name": "TimesheetBiWeeklyAnchorDate",
+      "Value": "2026-01-05",
+      "Comments": "Anchor date (which must fall on TimesheetWeekStartDay) defining the 14-day period boundary for BiWeekly timesheets."
+    },
+    "primaryKey": {
+      "ID": "654E1B0D-4178-4D26-B801-18A600E293A3"
+    }
+  },
+  {
+    "fields": {
+      "ApplicationID": "@lookup:MJ: Applications.Name=Tasks",
+      "Name": "TimesheetApprovalRouting",
+      "Value": "ProjectApproval",
+      "Comments": "Timesheet approval routing mode: ProjectApproval (one TimesheetApproval part per root project task), SingleApproval (one whole-timesheet approval task), or AutoApprove (immediately Approved on submit)."
+    },
+    "primaryKey": {
+      "ID": "3AFCF173-1AF0-4AEF-8CE9-D9B274A9B48C"
+    }
+  },
+  {
+    "fields": {
+      "ApplicationID": "@lookup:MJ: Applications.Name=Tasks",
+      "Name": "LockApprovedTimeEntries",
+      "Value": "true",
+      "Comments": "When true, TaskTimeEntry rows cannot be created, modified, or deleted on Submitted or Approved timesheets, or on dates within a Submitted or Approved timesheet period."
+    },
+    "primaryKey": {
+      "ID": "871D622F-24B2-4EEB-9A17-D231F2BC0BD5"
+    }
+  },
+  {
+    "fields": {
+      "ApplicationID": "@lookup:MJ: Applications.Name=Tasks",
+      "Name": "MaxDailyLoggedMinutes",
+      "Value": "720",
+      "Comments": "Soft warning threshold (in minutes) for a person's total logged time on a single WorkDate in the My Time UI (default 720 = 12 hours; hard DB cap is 1440 per entry)."
+    },
+    "primaryKey": {
+      "ID": "3A8D3074-59BF-461A-9C9F-B2383F5AE1D7"
+    }
+  },
+  {
+    "fields": {
+      "ApplicationID": "@lookup:MJ: Applications.Name=Tasks",
+      "Name": "TimeEntryRoundingMinutes",
+      "Value": "0",
+      "Comments": "Optional minute rounding increment applied when stopping a timer (0 = exact 1-minute rounding, 5, 6, or 15 = round up to nearest N minutes)."
+    },
+    "primaryKey": {
+      "ID": "6DCD3F6B-F831-4E25-B134-7E7FA1F78F96"
     }
   }
 ]

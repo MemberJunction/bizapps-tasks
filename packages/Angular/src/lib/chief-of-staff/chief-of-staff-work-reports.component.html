@@ -1,0 +1,264 @@
+<mj-page-layout>
+    <mj-page-header
+        Title="15Five Work Reports"
+        Icon="fa-solid fa-clipboard-check"
+        Subtitle="Daily progress reports drafted from your tasks and GitHub activity, with supervisor review">
+        <div meta>
+            <mj-stat-badge
+                [Count]="FilteredReports.length"
+                [Total]="SourceReports.length"
+                Label="reports" />
+        </div>
+        <div actions>
+            <mj-refresh-button [Loading]="IsLoading" (Clicked)="Load()" />
+            <button
+                mjButton
+                variant="primary"
+                size="sm"
+                type="button"
+                [disabled]="IsDrafting || !!PersonMessage"
+                (click)="DraftTodayReport()">
+                <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+                {{ IsDrafting ? 'Drafting...' : "Draft Today's 15Five" }}
+            </button>
+        </div>
+        <div toolbar>
+            <div class="cos-reports-tabs" role="tablist" aria-label="Work report views" (keydown)="OnTabKeydown($event)">
+                <button
+                    id="cos-reports-tab-mine"
+                    type="button"
+                    role="tab"
+                    class="cos-tab-btn"
+                    [class.active]="ActiveTab === 'mine'"
+                    [attr.aria-selected]="ActiveTab === 'mine'"
+                    [attr.tabindex]="ActiveTab === 'mine' ? 0 : -1"
+                    aria-controls="cos-reports-panel"
+                    (click)="SwitchTab('mine')">
+                    My Reports
+                    <span class="cos-tab-count">{{ MyReports.length }}</span>
+                </button>
+                <button
+                    id="cos-reports-tab-team"
+                    type="button"
+                    role="tab"
+                    class="cos-tab-btn"
+                    [class.active]="ActiveTab === 'team'"
+                    [attr.aria-selected]="ActiveTab === 'team'"
+                    [attr.tabindex]="ActiveTab === 'team' ? 0 : -1"
+                    aria-controls="cos-reports-panel"
+                    (click)="SwitchTab('team')">
+                    Team Reviews
+                    @if (PendingTeamReviewCount > 0) {
+                        <span class="cos-tab-count cos-tab-count-alert">{{ PendingTeamReviewCount }}</span>
+                    }
+                </button>
+            </div>
+            <mj-page-search [Value]="SearchText" (ValueChange)="OnSearchChange($event)" />
+            <div class="cos-status-chips" role="group" aria-label="Filter reports by status">
+                @for (opt of StatusFilterOptions; track opt.Value) {
+                    <mj-filter-chip
+                        [Label]="opt.Label"
+                        [Active]="StatusFilter === opt.Value"
+                        (Clicked)="OnStatusFilterChange(opt.Value)" />
+                }
+            </div>
+        </div>
+    </mj-page-header>
+
+    <mj-page-body>
+        @if (Banner) {
+            <div
+                class="cos-banner"
+                [class.cos-banner-error]="Banner.Type === 'error'"
+                [class.cos-banner-success]="Banner.Type === 'success'"
+                [class.cos-banner-info]="Banner.Type === 'info'"
+                [attr.role]="Banner.Type === 'error' ? 'alert' : 'status'"
+                aria-live="polite">
+                <span>{{ Banner.Message }}</span>
+                <button type="button" class="cos-banner-dismiss" aria-label="Dismiss notification" (click)="Banner = null">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
+            </div>
+        }
+
+        @if (IsLoading && FilteredReports.length === 0) {
+            <mj-loading text="Loading work reports..."></mj-loading>
+        } @else if (PersonMessage) {
+            <mj-empty-state
+                Icon="fa-solid fa-user-slash"
+                Title="Person Link Required"
+                [Message]="PersonMessage" />
+        } @else if (!IsLoading && FilteredReports.length === 0) {
+            <mj-empty-state
+                Icon="fa-solid fa-clipboard-check"
+                [Title]="ActiveTab === 'mine' ? 'No Work Reports Found' : 'No Team Reports Awaiting Review'"
+                [Message]="ActiveTab === 'mine'
+                    ? 'Click Draft Today\'s 15Five to generate a five-minute summary from your completed, active, and blocked tasks.'
+                    : 'Submitted 15Five reports from direct reports in MJ: Employees appear here for supervisor feedback.'" />
+        } @else {
+            <div
+                id="cos-reports-panel"
+                role="tabpanel"
+                [attr.aria-labelledby]="ActiveTab === 'mine' ? 'cos-reports-tab-mine' : 'cos-reports-tab-team'"
+                class="cos-reports-split">
+                <!-- Left list -->
+                <ul class="cos-report-list" role="list">
+                    @for (r of FilteredReports; track r.ID) {
+                        <li>
+                            <button
+                                type="button"
+                                class="cos-report-card"
+                                [class.selected]="SelectedReport?.ID === r.ID"
+                                (click)="SelectReport(r.ID)">
+                                <div class="cos-report-card-top">
+                                    <span class="cos-report-title">{{ r.Title }}</span>
+                                    <span [class]="'cos-status-pill status-' + r.Status.toLowerCase()">{{ r.Status }}</span>
+                                </div>
+                                <div class="cos-report-card-meta">
+                                    <span>{{ r.PersonName }}</span>
+                                    <span>{{ r.PeriodStart }} – {{ r.PeriodEnd }}</span>
+                                    <span>{{ r.Items.length }} {{ r.Items.length === 1 ? 'item' : 'items' }}</span>
+                                </div>
+                            </button>
+                        </li>
+                    }
+                </ul>
+
+                <!-- Right detail & review pane -->
+                @if (SelectedReport; as sel) {
+                    <article class="cos-report-detail">
+                        <header class="cos-detail-header">
+                            <div>
+                                <h2 class="cos-detail-title">{{ sel.Title }}</h2>
+                                <p class="cos-detail-subtitle">
+                                    {{ sel.PersonName }} · {{ sel.PeriodStart }} to {{ sel.PeriodEnd }}
+                                </p>
+                            </div>
+                            <span [class]="'cos-status-pill status-' + sel.Status.toLowerCase()">{{ sel.Status }}</span>
+                        </header>
+
+                        @if (sel.Items.length > 0) {
+                            <section class="cos-items-section" aria-labelledby="cos-linked-tasks-heading">
+                                <h3 id="cos-linked-tasks-heading" class="cos-section-heading">Linked Task Activity</h3>
+                                <ul class="cos-item-list" role="list">
+                                    @for (item of sel.Items; track item.ID) {
+                                        <li class="cos-item-row">
+                                            <span [class]="'cos-section-tag tag-' + item.Section.toLowerCase()">
+                                                {{ SectionLabel(item.Section) }}
+                                            </span>
+                                            <span class="cos-item-summary">{{ item.Summary }}</span>
+                                            @if (item.TaskID) {
+                                                <button
+                                                    type="button"
+                                                    class="cos-task-link"
+                                                    [attr.aria-label]="'Open task ' + (item.TaskName || item.Summary)"
+                                                    (click)="OpenTask(item.TaskID, $event)">
+                                                    Open task
+                                                </button>
+                                            }
+                                        </li>
+                                    }
+                                </ul>
+                            </section>
+                        }
+
+                        @if (ActiveTab === 'mine' && sel.Status === 'Draft') {
+                            <form class="cos-editor-form" (submit)="SubmitSelectedDraft($event)">
+                                <div class="cos-field-group">
+                                    <label for="cos-draft-title">Report headline</label>
+                                    <input
+                                        id="cos-draft-title"
+                                        name="draftTitle"
+                                        type="text"
+                                        class="cos-input"
+                                        [(ngModel)]="DraftEditorTitle" />
+                                </div>
+
+                                <div class="cos-field-group">
+                                    <label for="cos-draft-body">5-minute summary (Markdown)</label>
+                                    <p id="cos-draft-hint" class="cos-field-hint">
+                                        Edit accomplishments, next priorities, and blockers before approving. Submitting notifies your supervisor's Chief of Staff.
+                                    </p>
+                                    <textarea
+                                        id="cos-draft-body"
+                                        name="draftBody"
+                                        rows="10"
+                                        required
+                                        class="cos-textarea"
+                                        aria-describedby="cos-draft-hint cos-draft-error"
+                                        [attr.aria-invalid]="DraftBodyError ? 'true' : null"
+                                        [(ngModel)]="DraftEditorBody"
+                                        (input)="OnDraftBodyInput()"
+                                        (blur)="OnDraftBodyBlur()"></textarea>
+                                    @if (DraftBodyError) {
+                                        <p id="cos-draft-error" class="cos-field-error" role="alert">{{ DraftBodyError }}</p>
+                                    }
+                                </div>
+
+                                <div class="cos-form-actions">
+                                    <button
+                                        mjButton
+                                        variant="primary"
+                                        type="submit"
+                                        [disabled]="BusyReportID === sel.ID">
+                                        {{ BusyReportID === sel.ID ? 'Submitting...' : 'Approve & Submit Report' }}
+                                    </button>
+                                </div>
+                            </form>
+                        } @else {
+                            <section class="cos-readonly-body" aria-labelledby="cos-report-body-heading">
+                                <h3 id="cos-report-body-heading" class="cos-section-heading">Report Summary</h3>
+                                <pre class="cos-markdown-preview">{{ sel.Body }}</pre>
+                            </section>
+                        }
+
+                        @if (ActiveTab === 'team') {
+                            <form class="cos-editor-form cos-feedback-form" (submit)="SendSupervisorFeedback($event)">
+                                <div class="cos-field-group">
+                                    <label for="cos-supervisor-feedback">Supervisor feedback</label>
+                                    <p id="cos-feedback-hint" class="cos-field-hint">
+                                        Review and tailor feedback before sending. Approved feedback is saved on this report and shared with {{ sel.PersonName }}.
+                                    </p>
+                                    <textarea
+                                        id="cos-supervisor-feedback"
+                                        name="supervisorFeedback"
+                                        rows="5"
+                                        required
+                                        class="cos-textarea"
+                                        aria-describedby="cos-feedback-hint cos-feedback-error"
+                                        [attr.aria-invalid]="FeedbackError ? 'true' : null"
+                                        [(ngModel)]="FeedbackEditorText"
+                                        (input)="OnFeedbackInput()"
+                                        (blur)="OnFeedbackBlur()"></textarea>
+                                    @if (FeedbackError) {
+                                        <p id="cos-feedback-error" class="cos-field-error" role="alert">{{ FeedbackError }}</p>
+                                    }
+                                </div>
+
+                                <div class="cos-form-actions">
+                                    <button
+                                        mjButton
+                                        variant="primary"
+                                        type="submit"
+                                        [disabled]="BusyReportID === sel.ID">
+                                        {{ BusyReportID === sel.ID ? 'Sending...' : 'Approve & Send Feedback' }}
+                                    </button>
+                                </div>
+                            </form>
+                        } @else if (sel.SupervisorFeedback) {
+                            <section class="cos-feedback-callout" aria-labelledby="cos-feedback-heading">
+                                <h3 id="cos-feedback-heading" class="cos-section-heading">
+                                    Supervisor Feedback
+                                    @if (sel.ReviewedByName) {
+                                        <span class="cos-reviewer-byline">from {{ sel.ReviewedByName }}</span>
+                                    }
+                                </h3>
+                                <p class="cos-feedback-text">{{ sel.SupervisorFeedback }}</p>
+                            </section>
+                        }
+                    </article>
+                }
+            </div>
+        }
+    </mj-page-body>
+</mj-page-layout>

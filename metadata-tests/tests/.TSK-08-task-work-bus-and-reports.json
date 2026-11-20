@@ -1,0 +1,24 @@
+{
+  "fields": {
+    "TypeID": "@lookup:MJ: Test Types.Name=Integration Test",
+    "Name": "TSK-08 - Task Work Bus and 15Five Reports",
+    "Description": "Verifies TaskType.ExtensionEntity SubtypeSelector metadata & validation, FIELD_SUGGESTION comments on Tasks, Chief of Staff Work Reports skill/NavItem/Actions, and WorkReport + WorkReportItem lifecycle.",
+    "InputDefinition": {},
+    "ExpectedOutcomes": {
+      "summary": "Declarative SubtypeSelector validation, pending Field Suggestions on Tasks, and Draft -> Submitted -> Reviewed 15Five Work Reports."
+    },
+    "Configuration": {
+      "tier": "deterministic",
+      "transport": "server",
+      "checks": [
+        {
+          "type": "task-work-bus-and-reports"
+        }
+      ]
+    },
+    "Status": "Active"
+  },
+  "primaryKey": {
+    "ID": "1A111000-0000-4000-8000-000000000009"
+  }
+}

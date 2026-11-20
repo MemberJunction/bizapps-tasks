@@ -37,6 +37,7 @@ import { AssignedToFilter, CurrentUserRoleIDs } from '../role-assignees';
 import { LoadTaskRecordLinks } from '../task-record-links';
 import { ApprovalDecisionPanelComponent, type DecisionRecordedEvent } from '../components/approval-decision-panel/approval-decision-panel.component';
 import { ApprovalTypePredicate } from '../components/approval-inbox/approval-type-predicate';
+import { RunningTimerChipComponent } from '../components/running-timer-chip/running-timer-chip.component';
 
 interface DecidedApprovalRow {
     ID: string;
@@ -68,6 +69,7 @@ interface DecidedApprovalRow {
         MJEmptyStateComponent,
         TaskApprovalCardComponent,
         ApprovalDecisionPanelComponent,
+        RunningTimerChipComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
@@ -87,6 +89,7 @@ interface DecidedApprovalRow {
                 }
 
                 <div actions>
+                    <bizapps-running-timer-chip [PersonID]="PersonID"></bizapps-running-timer-chip>
                     <mj-refresh-button [Loading]="Loading" (Clicked)="LoadApprovals(true)" />
                 </div>
 

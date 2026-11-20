@@ -14,6 +14,7 @@ import {
     MJRefreshButtonComponent,
     MJStatBadgeComponent,
 } from '@memberjunction/ng-ui-components';
+import { RunningTimerChipComponent } from '../components/running-timer-chip/running-timer-chip.component';
 import { TaskDrawerShellComponent } from '../components/task-drawer-shell/task-drawer-shell.component';
 import { TaskTemplateWizardComponent } from '../components/task-template-wizard/task-template-wizard.component';
 
@@ -49,6 +50,7 @@ interface TemplateCard {
         MJCardFooterDirective,
         MJEmptyStateComponent,
         MJButtonDirective,
+        RunningTimerChipComponent,
         TaskDrawerShellComponent,
         TaskTemplateWizardComponent,
     ],
@@ -70,6 +72,7 @@ interface TemplateCard {
                 }
 
                 <div actions>
+                    <bizapps-running-timer-chip></bizapps-running-timer-chip>
                     <mj-refresh-button [Loading]="Loading" (Clicked)="LoadTemplates()" />
                     <button type="button" mjButton variant="primary" size="sm" (click)="OpenLauncher(null)" title="Launch Template" aria-label="Launch Template">
                         <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>

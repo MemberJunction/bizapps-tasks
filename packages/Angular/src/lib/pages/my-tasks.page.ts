@@ -3,11 +3,12 @@ import {
     ChangeDetectorRef,
     Component,
     HostListener,
+    Input,
     OnInit,
     inject,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { CompositeKey, LogError, Metadata, RunView } from '@memberjunction/core';
+import { CompositeKey, LogError, Metadata, RunView, type IMetadataProvider } from '@memberjunction/core';
 import { EscapeSQLString } from '@memberjunction/global';
 import { BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { SharedService } from '@memberjunction/ng-shared';
@@ -60,6 +61,7 @@ import { OpenTaskRecord } from '../open-task-record';
 import { AssignedToFilter, CurrentUserRoleIDs } from '../role-assignees';
 import { LoadTaskRecordLinks } from '../task-record-links';
 import { RecordLinkPickerDialogComponent } from '../components/record-link-picker/record-link-picker-dialog.component';
+import { RunningTimerChipComponent } from '../components/running-timer-chip/running-timer-chip.component';
 import { TaskDetailPanelComponent } from '../components/task-detail-panel/task-detail-panel.component';
 import { TaskDrawerShellComponent } from '../components/task-drawer-shell/task-drawer-shell.component';
 import { TaskEditPanelComponent } from '../components/task-edit-panel/task-edit-panel.component';
@@ -115,6 +117,7 @@ interface MyWorkTaskRow {
         TaskDetailPanelComponent,
         TaskEditPanelComponent,
         RecordLinkPickerDialogComponent,
+        RunningTimerChipComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
@@ -134,6 +137,7 @@ interface MyWorkTaskRow {
                 }
 
                 <div actions>
+                    <bizapps-running-timer-chip [PersonID]="PersonID"></bizapps-running-timer-chip>
                     <mj-refresh-button [Loading]="Loading" (Clicked)="LoadMyWork(true)" />
                     <button type="button" mjButton variant="outline" size="sm" (click)="ShowCmdK = true" title="Tasks Quick Jump (Cmd/Ctrl+J)" aria-label="Tasks Quick Jump">
                         <i class="fa-solid fa-terminal" aria-hidden="true"></i>
@@ -433,6 +437,7 @@ interface MyWorkTaskRow {
             (Closed)="ClosePanel()">
             @if (PanelMode === 'detail' && SelectedTaskID) {
                 <bizapps-task-detail-panel
+                    [Provider]="Provider"
                     [TaskID]="SelectedTaskID"
                     [PersonID]="PersonID"
                     [ShowDelete]="true"
@@ -551,6 +556,7 @@ interface MyWorkTaskRow {
     `],
 })
 export class MyTasksPageComponent implements OnInit {
+    @Input() Provider: IMetadataProvider | null = null;
     public PersonID: string | null = null;
     public PersonResolved = false;
     public PersonLookupFailed = false;

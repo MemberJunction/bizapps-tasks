@@ -2,12 +2,15 @@ import {
     ChangeDetectionStrategy,
     ChangeDetectorRef,
     Component,
+    EventEmitter,
     HostListener,
+    Input,
     OnInit,
+    Output,
     ViewChild,
     inject,
 } from '@angular/core';
-import { LogError, RunView } from '@memberjunction/core';
+import { LogError, Metadata, RunView, type IMetadataProvider, type IRunViewProvider } from '@memberjunction/core';
 import { UserInfoEngine } from '@memberjunction/core-entities';
 import {
     MJButtonDirective,
@@ -41,6 +44,13 @@ import { TaskKanbanComponent } from '../components/task-kanban/task-kanban.compo
 import { TaskListComponent } from '../components/task-list/task-list.component';
 import type { TaskViewMode } from '../components/task-panel/task-panel.component';
 import { TaskTemplateWizardComponent } from '../components/task-template-wizard/task-template-wizard.component';
+import { RunningTimerChipComponent } from '../components/running-timer-chip/running-timer-chip.component';
+import {
+    BuildPendingSuggestionsSqlFilter,
+    CountTotalPendingSuggestions,
+    TaskFieldSuggestionsHelper,
+    type TaskPendingSuggestionsSummary,
+} from '../task-field-suggestions.helper';
 
 export type { TaskViewMode };
 export type TasksDashboardPanelMode = 'none' | 'detail' | 'edit' | 'template';
@@ -92,6 +102,7 @@ const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
         TaskTemplateWizardComponent,
         TaskDrawerShellComponent,
         TaskCommandPaletteComponent,
+        RunningTimerChipComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
@@ -122,6 +133,7 @@ const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
                 </div>
 
                 <div actions>
+                    <bizapps-running-timer-chip [PersonID]="CurrentPersonID"></bizapps-running-timer-chip>
                     <mj-refresh-button [Loading]="Loading" (Clicked)="RefreshAll()" />
                     <button type="button" mjButton variant="outline" size="sm" (click)="ShowCmdK = true" title="Tasks Quick Jump (Cmd/Ctrl+J)" aria-label="Tasks Quick Jump">
                         <i class="fa-solid fa-terminal" aria-hidden="true"></i>
@@ -158,6 +170,21 @@ const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
                         </mj-filter-panel>
                     </mj-filter-popover>
 
+                    @if (FieldSuggestionsAvailable || TotalPendingSuggestionsCount > 0 || OnlyPendingSuggestions) {
+                        <button type="button"
+                                class="mjt-suggestion-pill"
+                                [class.mjt-suggestion-pill--active]="OnlyPendingSuggestions"
+                                [attr.aria-pressed]="OnlyPendingSuggestions"
+                                [attr.title]="PendingSuggestionsFilterTooltip"
+                                (click)="TogglePendingSuggestions()">
+                            <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+                            <span class="action-btn-label">Suggestions</span>
+                            @if (TotalPendingSuggestionsCount > 0) {
+                                <span class="mjt-suggestion-pill__count">{{ TotalPendingSuggestionsCount }}</span>
+                            }
+                        </button>
+                    }
+
                     <mj-view-toggle
                         [Options]="ViewToggleOptions"
                         [ActiveKey]="ViewMode"
@@ -183,11 +210,14 @@ const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
                         @if (ViewMode === 'list') {
                             <bizapps-task-list
                                 #taskList
+                                [Provider]="Provider"
                                 [CategoryID]="SelectedCategoryID"
                                 [SearchText]="SearchText"
                                 [StatusFilter]="StatusFilterValue"
                                 [PriorityFilter]="PriorityFilterValue"
                                 [TypeIDFilter]="TypeFilterValue"
+                                [PendingSuggestionsOnly]="OnlyPendingSuggestions"
+                                (PendingSuggestionsOnlyChange)="OnPendingSuggestionsChanged($event)"
                                 [HideToolbar]="true"
                                 [ShowCreateButton]="false"
                                 [ShowQuickAdd]="true"
@@ -200,10 +230,12 @@ const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
                         @if (ViewMode === 'kanban') {
                             <bizapps-task-kanban
                                 #taskKanban
+                                [Provider]="Provider"
                                 [CategoryID]="SelectedCategoryID"
                                 [SearchText]="SearchText"
                                 [PriorityFilter]="PriorityFilterValue"
                                 [TypeIDFilter]="TypeFilterValue"
+                                [PendingSuggestionsOnly]="OnlyPendingSuggestions"
                                 (TaskClicked)="OpenPanel('detail', $event)"
                                 (TaskDoubleClicked)="OpenFullRecord($event)"
                                 (AfterStatusChange)="LoadKPIs()">
@@ -213,6 +245,7 @@ const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
                             <bizapps-task-gantt
                                 #taskGantt
                                 [CategoryID]="SelectedCategoryID"
+                                [ExtraFilter]="GanttExtraFilter"
                                 [SearchText]="SearchText"
                                 [PriorityFilter]="PriorityFilterValue"
                                 [TypeIDFilter]="TypeFilterValue"
@@ -233,6 +266,7 @@ const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
             (Closed)="ClosePanel()">
             @if (PanelMode === 'detail' && SelectedTaskID) {
                 <bizapps-task-detail-panel
+                    [Provider]="Provider"
                     [TaskID]="SelectedTaskID"
                     [PersonID]="CurrentPersonID"
                     [ShowDelete]="true"
@@ -270,6 +304,38 @@ const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
     `,
     styles: [`
         :host { display: block; width: 100%; height: 100%; }
+        .mjt-suggestion-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 11px;
+            border: 1px solid var(--mj-border-default);
+            border-radius: var(--mj-radius-md);
+            background: var(--mj-bg-surface);
+            color: var(--mj-text-secondary);
+            font-size: 12px;
+            font-weight: var(--mj-font-semibold);
+            font-family: inherit;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .mjt-suggestion-pill:hover {
+            border-color: var(--mj-brand-primary);
+            color: var(--mj-text-primary);
+        }
+        .mjt-suggestion-pill--active {
+            border-color: var(--mj-brand-primary);
+            color: var(--mj-brand-primary);
+            background: color-mix(in srgb, var(--mj-brand-primary) 8%, var(--mj-bg-surface));
+        }
+        .mjt-suggestion-pill__count {
+            font-size: 11px;
+            font-weight: var(--mj-font-bold);
+            padding: 1px 6px;
+            border-radius: var(--mj-radius-full, 9999px);
+            background: var(--mj-status-info-bg);
+            color: var(--mj-status-info-text);
+        }
         .mjt-proj-stage {
             padding: 16px;
             min-width: 0;
@@ -282,6 +348,28 @@ const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
     `],
 })
 export class TasksDashboardPageComponent implements OnInit {
+    @Input() Provider: IMetadataProvider | null = null;
+
+    private _onlyPendingSuggestions = false;
+
+    @Input()
+    public get OnlyPendingSuggestions(): boolean {
+        return this._onlyPendingSuggestions;
+    }
+    public set OnlyPendingSuggestions(value: boolean) {
+        const next = Boolean(value);
+        if (next !== this._onlyPendingSuggestions) {
+            this._onlyPendingSuggestions = next;
+            this.cdr.markForCheck();
+        }
+    }
+
+    @Output() OnlyPendingSuggestionsChange = new EventEmitter<boolean>();
+
+    public get ProviderToUse(): IMetadataProvider {
+        return this.Provider ?? Metadata.Provider;
+    }
+
     public ViewToggleOptions: ViewToggleOption[] = [
         { key: 'list', icon: 'fa-solid fa-list', label: 'List', title: 'Tree List View' },
         { key: 'kanban', icon: 'fa-solid fa-table-columns', label: 'Board', title: 'Smart Board View' },
@@ -296,6 +384,9 @@ export class TasksDashboardPageComponent implements OnInit {
     public Loading = false;
     public SearchText = '';
     public ShowCmdK = false;
+    public FieldSuggestionsAvailable = false;
+    public PendingSuggestionsByTask = new Map<string, TaskPendingSuggestionsSummary>();
+    public TotalPendingSuggestionsCount = 0;
 
     public Categories: TaskCategoryOption[] = [];
     public CategoryNavSections: MJLeftNavSection[] = [];
@@ -363,6 +454,41 @@ export class TasksDashboardPageComponent implements OnInit {
         ];
     }
 
+    public get GanttExtraFilter(): string | null {
+        return BuildPendingSuggestionsSqlFilter(this._onlyPendingSuggestions, this.PendingSuggestionsByTask);
+    }
+
+    public get PendingSuggestionsFilterTooltip(): string {
+        if (this.TotalPendingSuggestionsCount <= 0) {
+            return 'Filter to tasks with pending AI/ambient field suggestions';
+        }
+        const taskCount = this.PendingSuggestionsByTask.size;
+        const suggNoun = this.TotalPendingSuggestionsCount === 1 ? 'pending suggestion' : 'pending suggestions';
+        const taskNoun = taskCount === 1 ? 'task' : 'tasks';
+        return `${this.TotalPendingSuggestionsCount} ${suggNoun} across ${taskCount} ${taskNoun}`;
+    }
+
+    public TogglePendingSuggestions(): void {
+        this.OnPendingSuggestionsChanged(!this._onlyPendingSuggestions);
+    }
+
+    public OnPendingSuggestionsChanged(next: boolean): void {
+        const normalized = Boolean(next);
+        if (normalized !== this._onlyPendingSuggestions) {
+            this._onlyPendingSuggestions = normalized;
+            this.OnlyPendingSuggestionsChange.emit(normalized);
+            this.cdr.markForCheck();
+        }
+    }
+
+    private createRunView(): RunView {
+        const p = this.ProviderToUse;
+        if (p && typeof (p as Partial<IRunViewProvider>).RunView === 'function') {
+            return RunView.FromMetadataProvider(p);
+        }
+        return new RunView();
+    }
+
     public OpenFullRecord(taskID: string | null): void {
         OpenTaskRecord(taskID);
     }
@@ -420,6 +546,7 @@ export class TasksDashboardPageComponent implements OnInit {
     public ResetFilters(): void {
         this.FilterValues = { status: null, priority: null, typeId: null };
         this.SearchText = '';
+        this.OnPendingSuggestionsChanged(false);
         this.cdr.markForCheck();
     }
 
@@ -430,14 +557,15 @@ export class TasksDashboardPageComponent implements OnInit {
     }
 
     private async LoadCategoriesAndTypes(): Promise<void> {
+        const rv = this.createRunView();
         const [catsRes, typesRes] = await Promise.all([
-            new RunView().RunView<TaskCategoryOption>({
+            rv.RunView<TaskCategoryOption>({
                 EntityName: 'MJ_BizApps_Tasks: Task Categories',
                 ExtraFilter: 'IsActive = 1',
                 OrderBy: 'Sequence ASC, Name ASC',
                 ResultType: 'simple',
             }),
-            new RunView().RunView<{ ID: string; Name: string }>({
+            rv.RunView<{ ID: string; Name: string }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Types',
                 ExtraFilter: 'IsActive = 1',
                 OrderBy: 'Name ASC',
@@ -452,14 +580,16 @@ export class TasksDashboardPageComponent implements OnInit {
         this.Loading = true;
         this.cdr.markForCheck();
         try {
-            const res = await new RunView().RunView<{
+            const rv = this.createRunView();
+            const res = await rv.RunView<{
+                ID: string;
                 Status: string;
                 DueAt: string | null;
                 PercentComplete: number;
                 CategoryID: string | null;
             }>({
                 EntityName: 'MJ_BizApps_Tasks: Tasks',
-                Fields: ['Status', 'DueAt', 'PercentComplete', 'CategoryID'],
+                Fields: ['ID', 'Status', 'DueAt', 'PercentComplete', 'CategoryID'],
                 ResultType: 'simple',
                 MaxRows: 1000,
                 BypassCache: true,
@@ -501,6 +631,13 @@ export class TasksDashboardPageComponent implements OnInit {
                 AvgPercentComplete: active > 0 ? Math.round(totalPct / active) : 0,
             };
             this.buildCategoryNav();
+
+            const suggestions = await TaskFieldSuggestionsHelper.LoadPendingSuggestions(this.ProviderToUse, {
+                taskIds: rows.map((t) => t.ID),
+            });
+            this.FieldSuggestionsAvailable = suggestions.available;
+            this.PendingSuggestionsByTask = suggestions.byTaskId;
+            this.TotalPendingSuggestionsCount = CountTotalPendingSuggestions(suggestions.byTaskId);
         } finally {
             this.Loading = false;
             this.cdr.markForCheck();

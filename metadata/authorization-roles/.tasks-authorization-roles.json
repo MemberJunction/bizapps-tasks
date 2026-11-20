@@ -1,0 +1,42 @@
+[
+  {
+    "fields": {
+      "AuthorizationID": "@lookup:MJ: Authorizations.Name=Manage Time Entries",
+      "RoleID": "@lookup:MJ: Roles.Name=Developer",
+      "Type": "Allow"
+    },
+    "primaryKey": {
+      "ID": "A1B2C3D4-3333-4A33-8333-333333333301"
+    }
+  },
+  {
+    "fields": {
+      "AuthorizationID": "@lookup:MJ: Authorizations.Name=Manage Time Entries",
+      "RoleID": "@lookup:MJ: Roles.Name=Integration",
+      "Type": "Allow"
+    },
+    "primaryKey": {
+      "ID": "A1B2C3D4-3333-4A33-8333-333333333302"
+    }
+  },
+  {
+    "fields": {
+      "AuthorizationID": "@lookup:MJ: Authorizations.Name=Manage Timesheets",
+      "RoleID": "@lookup:MJ: Roles.Name=Developer",
+      "Type": "Allow"
+    },
+    "primaryKey": {
+      "ID": "A1B2C3D4-3333-4A33-8333-333333333303"
+    }
+  },
+  {
+    "fields": {
+      "AuthorizationID": "@lookup:MJ: Authorizations.Name=Manage Timesheets",
+      "RoleID": "@lookup:MJ: Roles.Name=Integration",
+      "Type": "Allow"
+    },
+    "primaryKey": {
+      "ID": "A1B2C3D4-3333-4A33-8333-333333333304"
+    }
+  }
+]

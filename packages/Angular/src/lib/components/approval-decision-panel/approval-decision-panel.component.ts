@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RunView } from '@memberjunction/core';
 import { TaskOrchestrationService, TaskDecisionOutcomeCode } from '@mj-biz-apps/tasks-core';
+import { HasApprovalSubjectPanelRegistration } from './base-approval-subject-panel';
+import { TimesheetPartApprovalPanelComponent } from './timesheet-part-approval-panel.component';
 
 /** A selectable decision outcome loaded from the TaskDecisionOutcome lookup. */
 export interface DecisionOutcomeOption {
@@ -48,7 +50,7 @@ export interface DecisionRecordedEvent {
     selector: 'bizapps-approval-decision-panel',
     standalone: true,
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [CommonModule, FormsModule],
+    imports: [CommonModule, FormsModule, TimesheetPartApprovalPanelComponent],
     template: `
         <div class="decision-panel">
             @if (Loading) {
@@ -57,6 +59,13 @@ export interface DecisionRecordedEvent {
                 <div class="decision-error">{{ LoadError }}</div>
             } @else {
                 <h3 class="decision-title">{{ TaskName || 'Approval Decision' }}</h3>
+
+                @if (SubjectLink && SubjectLink.LinkedEntity === 'MJ_BizApps_Tasks: Timesheet Approvals') {
+                    <bizapps-timesheet-part-approval-panel
+                        [SubjectRecordID]="SubjectLink.LinkedRecordID"
+                        [ApprovalTaskID]="TaskID">
+                    </bizapps-timesheet-part-approval-panel>
+                }
 
                 <div class="field">
                     <label class="field-label" for="outcome">Outcome</label>
@@ -182,6 +191,7 @@ export class ApprovalDecisionPanelComponent implements OnInit {
     public Outcomes: DecisionOutcomeOption[] = [];
     public SelectedOutcomeCode = '';
     public Notes = '';
+    public SubjectLink: { LinkedEntity: string; LinkedRecordID: string } | null = null;
 
     async ngOnInit(): Promise<void> {
         if (this._taskID) {
@@ -196,13 +206,32 @@ export class ApprovalDecisionPanelComponent implements OnInit {
         this.LoadError = null;
         this.cdr.detectChanges();
         try {
-            await Promise.all([this.loadTaskName(), this.loadOutcomes()]);
+            await Promise.all([this.loadTaskName(), this.loadOutcomes(), this.loadSubjectLinks()]);
         } catch (err) {
             this.LoadError = err instanceof Error ? err.message : String(err);
         } finally {
             this.Loading = false;
             this.cdr.detectChanges();
         }
+    }
+
+    private async loadSubjectLinks(): Promise<void> {
+        if (!this._taskID) {
+            this.SubjectLink = null;
+            return;
+        }
+        const result = await new RunView().RunView<{ LinkedEntity: string | null; LinkedRecordID: string }>({
+            EntityName: 'MJ_BizApps_Tasks: Task Links',
+            ExtraFilter: `TaskID = '${this._taskID}'`,
+            Fields: ['LinkedEntity', 'LinkedRecordID'],
+            ResultType: 'simple',
+        });
+        const match = (result?.Results ?? []).find(
+            (link) => !!link.LinkedEntity && HasApprovalSubjectPanelRegistration(link.LinkedEntity),
+        );
+        this.SubjectLink = match && match.LinkedEntity
+            ? { LinkedEntity: match.LinkedEntity, LinkedRecordID: match.LinkedRecordID }
+            : null;
     }
 
     private async loadTaskName(): Promise<void> {

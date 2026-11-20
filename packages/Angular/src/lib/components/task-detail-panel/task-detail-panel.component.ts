@@ -11,8 +11,8 @@ import {
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { CompositeKey, Metadata, RunView } from '@memberjunction/core';
-import { EscapeSQLString } from '@memberjunction/global';
+import { CompositeKey, Metadata, RunView, type IMetadataProvider, type IRunViewProvider } from '@memberjunction/core';
+import { EscapeSQLString, IsValidUUID, NormalizeUUID, UUIDsEqual } from '@memberjunction/global';
 import { BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { SharedService } from '@memberjunction/ng-shared';
 import {
@@ -30,6 +30,7 @@ import type {
     mjBizAppsTasksTaskAssignmentEntity,
     mjBizAppsTasksTaskCheckInEntity,
     mjBizAppsTasksTaskCommentEntity,
+    mjBizAppsTasksTaskDependencyEntity,
     mjBizAppsTasksTaskEntity,
     mjBizAppsTasksTaskLinkEntity,
 } from '@mj-biz-apps/tasks-entities';
@@ -49,7 +50,13 @@ import {
 import { OpenTaskRecord } from '../../open-task-record';
 import { RoleAssigneeName } from '../../role-assignees';
 import { LoadTaskRecordLinks } from '../../task-record-links';
+import {
+    FormatPendingSuggestionTooltip,
+    TaskFieldSuggestionsHelper,
+    type TaskPendingSuggestionsSummary,
+} from '../../task-field-suggestions.helper';
 import { RecordLinkPickerDialogComponent } from '../record-link-picker/record-link-picker-dialog.component';
+import { TaskTimeEffortComponent } from '../task-time-effort/task-time-effort.component';
 import type { TaskAssigneeInfo } from '../task-assignee-list/task-assignee-list.component';
 
 export interface ActivityEntry {
@@ -111,6 +118,7 @@ export class BeforeCommentPostedEvent {
         TaskWorkflowStepperComponent,
         TaskAdaptiveSpotlightComponent,
         RecordLinkPickerDialogComponent,
+        TaskTimeEffortComponent,
     ],
     template: `
         @if (TaskID) {
@@ -236,6 +244,22 @@ export class BeforeCommentPostedEvent {
                         (LinkedRecordClicked)="openLinkedRecord($event)">
                     </mjt-adaptive-spotlight>
 
+                    <!-- Pending AI / Ambient Field Suggestions -->
+                    @if (pendingSuggestionSummary && pendingSuggestionSummary.pendingCount > 0) {
+                        <div class="mjt-suggestions-banner" [attr.title]="pendingSuggestionTooltip">
+                            <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+                            <div class="mjt-suggestions-body">
+                                <strong>{{ pendingSuggestionTooltip }}</strong>
+                                @if (pendingSuggestionSummary.topPreviewLabel) {
+                                    <p>{{ pendingSuggestionSummary.topPreviewLabel }}</p>
+                                }
+                            </div>
+                            <button type="button" mjButton variant="outline" size="sm" (click)="onOpenFullRecord()">
+                                Review
+                            </button>
+                        </div>
+                    }
+
                     <!-- Description -->
                     @if (taskEntity.Description) {
                         <div class="mjt-block">
@@ -302,6 +326,13 @@ export class BeforeCommentPostedEvent {
                             </div>
                         }
                     </div>
+
+                    <!-- Time & Effort -->
+                    <bizapps-task-time-effort
+                        [TaskID]="TaskID"
+                        [PersonID]="PersonID"
+                        [ReadOnly]="ReadOnly">
+                    </bizapps-task-time-effort>
 
                     <!-- Work Breakdown (Sub-tasks) -->
                     <div class="mjt-block">
@@ -541,6 +572,19 @@ export class BeforeCommentPostedEvent {
             color: var(--mj-text-muted);
             font-style: italic;
         }
+        .mjt-suggestions-banner {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: var(--mj-status-info-bg);
+            border-radius: var(--mj-radius-md, 8px);
+            border: 1px solid color-mix(in srgb, var(--mj-status-info) 30%, transparent);
+        }
+        .mjt-suggestions-banner i { color: var(--mj-status-info); font-size: 14px; flex-shrink: 0; }
+        .mjt-suggestions-body { flex: 1; min-width: 0; }
+        .mjt-suggestions-body strong { display: block; font-size: 12px; color: var(--mj-status-info-text); }
+        .mjt-suggestions-body p { margin: 2px 0 0; font-size: 11.5px; color: var(--mj-text-secondary); }
         .mjt-links-wrap {
             display: flex;
             align-items: center;
@@ -675,10 +719,15 @@ export class BeforeCommentPostedEvent {
     `],
 })
 export class TaskDetailPanelComponent implements OnChanges {
+    @Input() Provider: IMetadataProvider | null = null;
     @Input() TaskID: string | null = null;
     @Input() PersonID: string | null = null;
     @Input() ShowDelete = false;
     @Input() ReadOnly = false;
+
+    public get ProviderToUse(): IMetadataProvider {
+        return this.Provider ?? Metadata.Provider;
+    }
 
     @Output() OpenRecordRequested = new EventEmitter<string>();
     @Output() EditRequested = new EventEmitter<string>();
@@ -698,6 +747,8 @@ export class TaskDetailPanelComponent implements OnChanges {
     public typeStatuses: TaskWidgetTypeStatus[] = [];
     public spotlightData: TaskAdaptiveSpotlightInput | null = null;
     public timeline: ActivityEntry[] = [];
+    public pendingSuggestionSummary: TaskPendingSuggestionsSummary | null = null;
+    public pendingSuggestionTooltip = '';
     public loading = false;
     public busy = false;
     public showLinkPicker = false;
@@ -745,16 +796,49 @@ export class TaskDetailPanelComponent implements OnChanges {
         return status?.replace(/([a-z])([A-Z])/g, '$1 $2') ?? '';
     }
 
+    private createRunView(): RunView {
+        const p = this.ProviderToUse;
+        if (p && typeof (p as Partial<IRunViewProvider>).RunView === 'function') {
+            return RunView.FromMetadataProvider(p);
+        }
+        return new RunView();
+    }
+
+    private async loadPeopleByIDs(ids: (string | null | undefined)[]): Promise<Map<string, string>> {
+        const validIds = [...new Set(ids.filter((id): id is string => Boolean(id && IsValidUUID(id))))];
+        const map = new Map<string, string>();
+        if (validIds.length === 0) return map;
+
+        const rv = this.createRunView();
+        const res = await rv.RunView<PersonRow>({
+            EntityName: 'MJ_BizApps_Common: People',
+            ExtraFilter: `ID IN (${validIds.map((id) => `'${EscapeSQLString(id)}'`).join(',')})`,
+            Fields: ['ID', 'FirstName', 'LastName'],
+            ResultType: 'simple',
+        });
+        for (const p of res?.Results ?? []) {
+            map.set(p.ID.toLowerCase(), `${p.FirstName} ${p.LastName}`.trim());
+        }
+        return map;
+    }
+
     public async LoadTask(): Promise<void> {
         if (!this.TaskID) return;
         this.loading = true;
         this.confirmingDelete = false;
+        this.pendingSuggestionSummary = null;
+        this.pendingSuggestionTooltip = '';
         this.cdr.markForCheck();
         try {
-            const entity = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
-            await entity.InnerLoad(CompositeKey.FromID(this.TaskID));
-            this.taskEntity = entity;
-            this.draftTitle = entity.Name ?? '';
+            const p = this.ProviderToUse;
+            if (typeof p.GetEntityObject === 'function') {
+                const entity = await p.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
+                if (entity && typeof entity.InnerLoad === 'function') {
+                    await entity.InnerLoad(CompositeKey.FromID(this.TaskID));
+                    this.taskEntity = entity;
+                    this.draftTitle = entity.Name ?? '';
+                }
+            }
 
             await Promise.all([
                 this.loadAssignees().catch(() => { this.assignees = []; }),
@@ -763,11 +847,25 @@ export class TaskDetailPanelComponent implements OnChanges {
                 this.loadLinkedRecords().catch(() => { this.linkedRecords = []; }),
                 this.loadSubtasks().catch(() => { this.subtasks = []; }),
                 this.loadTypeAndSpotlight().catch(() => { this.typeStatuses = []; }),
+                this.loadPendingSuggestions().catch(() => {
+                    this.pendingSuggestionSummary = null;
+                    this.pendingSuggestionTooltip = '';
+                }),
             ]);
         } finally {
             this.loading = false;
             this.cdr.markForCheck();
         }
+    }
+
+    private async loadPendingSuggestions(): Promise<void> {
+        if (!this.TaskID) return;
+        const res = await TaskFieldSuggestionsHelper.LoadPendingSuggestions(this.ProviderToUse, {
+            taskIds: [this.TaskID],
+        });
+        const summary = res.byTaskId.get(NormalizeUUID(this.TaskID)) ?? null;
+        this.pendingSuggestionSummary = summary;
+        this.pendingSuggestionTooltip = FormatPendingSuggestionTooltip(summary);
     }
 
     private async loadTypeAndSpotlight(): Promise<void> {
@@ -897,9 +995,9 @@ export class TaskDetailPanelComponent implements OnChanges {
     }
 
     private async loadAssignees(): Promise<void> {
-        if (!this.TaskID) return;
-        const rv = new RunView();
-        const [assignmentResult, peopleResult, rolesResult] = await Promise.all([
+        if (!this.TaskID || !IsValidUUID(this.TaskID)) return;
+        const rv = this.createRunView();
+        const [assignmentResult, rolesResult] = await Promise.all([
             rv.RunView<{
                 ID: string;
                 AssigneeEntityID: string;
@@ -911,27 +1009,26 @@ export class TaskDetailPanelComponent implements OnChanges {
                 ExtraFilter: `TaskID = '${EscapeSQLString(this.TaskID)}'`,
                 ResultType: 'simple',
             }),
-            new RunView().RunView<PersonRow>({
-                EntityName: 'MJ_BizApps_Common: People',
-                ResultType: 'simple',
-            }),
-            new RunView().RunView<{ ID: string; Name: string }>({
+            this.createRunView().RunView<{ ID: string; Name: string }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Roles',
                 ResultType: 'simple',
             }),
         ]);
 
-        const personMap = new Map<string, string>();
-        for (const p of peopleResult?.Results ?? []) {
-            personMap.set(p.ID.toLowerCase(), `${p.FirstName} ${p.LastName}`.trim());
-        }
+        const rows = assignmentResult?.Results ?? [];
+        const peopleEntityID = this.ProviderToUse.EntityByName('MJ_BizApps_Common: People')?.ID;
+        const personIDs = rows
+            .filter((a) => !peopleEntityID || UUIDsEqual(a.AssigneeEntityID, peopleEntityID))
+            .map((a) => a.AssigneeRecordID);
+        const personMap = await this.loadPeopleByIDs(personIDs);
+
         const roleMap = new Map<string, string>();
         for (const r of rolesResult?.Results ?? []) {
             roleMap.set(r.ID.toLowerCase(), r.Name);
         }
 
-        this.assignees = (assignmentResult?.Results ?? []).map((a) => {
-            const entity = Metadata.Provider.EntityByID(a.AssigneeEntityID);
+        this.assignees = rows.map((a) => {
+            const entity = this.ProviderToUse.EntityByID?.(a.AssigneeEntityID);
             return {
                 AssignmentID: a.ID,
                 AssigneeEntityName: entity?.Name || 'MJ_BizApps_Common: People',
@@ -947,34 +1044,32 @@ export class TaskDetailPanelComponent implements OnChanges {
     }
 
     private async loadTimeline(): Promise<void> {
-        if (!this.TaskID) return;
-        const rv = new RunView();
-        const [activities, comments, people] = await Promise.all([
+        if (!this.TaskID || !IsValidUUID(this.TaskID)) return;
+        const rv = this.createRunView();
+        const [activities, comments] = await Promise.all([
             rv.RunView<{ __mj_CreatedAt: Date; PersonID: string | null; ActivityType: string; Description: string | null }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Activities',
                 ExtraFilter: `TaskID = '${EscapeSQLString(this.TaskID)}'`,
                 OrderBy: '__mj_CreatedAt DESC',
                 ResultType: 'simple',
             }),
-            new RunView().RunView<{ __mj_CreatedAt: Date; PersonID: string; Content: string }>({
+            this.createRunView().RunView<{ __mj_CreatedAt: Date; PersonID: string; Content: string }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Comments',
                 ExtraFilter: `TaskID = '${EscapeSQLString(this.TaskID)}'`,
                 OrderBy: '__mj_CreatedAt DESC',
                 ResultType: 'simple',
             }),
-            new RunView().RunView<PersonRow>({
-                EntityName: 'MJ_BizApps_Common: People',
-                ResultType: 'simple',
-            }),
         ]);
 
-        const personMap = new Map<string, string>();
-        for (const p of people?.Results ?? []) {
-            personMap.set(p.ID.toLowerCase(), `${p.FirstName} ${p.LastName}`.trim());
-        }
+        const activityRows = activities?.Results ?? [];
+        const commentRows = comments?.Results ?? [];
+        const personMap = await this.loadPeopleByIDs([
+            ...activityRows.map((a) => a.PersonID),
+            ...commentRows.map((c) => c.PersonID),
+        ]);
 
         const entries: ActivityEntry[] = [];
-        for (const a of activities?.Results ?? []) {
+        for (const a of activityRows) {
             entries.push({
                 Type: 'activity',
                 Timestamp: new Date(a.__mj_CreatedAt),
@@ -983,11 +1078,11 @@ export class TaskDetailPanelComponent implements OnChanges {
                 Content: a.Description ?? a.ActivityType,
             });
         }
-        for (const c of comments?.Results ?? []) {
+        for (const c of commentRows) {
             entries.push({
                 Type: 'comment',
                 Timestamp: new Date(c.__mj_CreatedAt),
-                PersonName: personMap.get(c.PersonID.toLowerCase()) ?? c.PersonID,
+                PersonName: c.PersonID ? (personMap.get(c.PersonID.toLowerCase()) ?? c.PersonID) : undefined,
                 Content: c.Content,
             });
         }
@@ -1261,32 +1356,39 @@ export class TaskDetailPanelComponent implements OnChanges {
 
     public async onDelete(): Promise<void> {
         this.confirmingDelete = false;
-        if (!this.TaskID) return;
-        const rv = new RunView();
-        const childEntities = [
-            'MJ_BizApps_Tasks: Task Assignments',
-            'MJ_BizApps_Tasks: Task Activities',
-            'MJ_BizApps_Tasks: Task Comments',
-            'MJ_BizApps_Tasks: Task Tag Links',
-            'MJ_BizApps_Tasks: Task Dependencies',
-            'MJ_BizApps_Tasks: Task Links',
-            'MJ_BizApps_Tasks: Task Notification Logs',
-            'MJ_BizApps_Tasks: Task Check Ins',
-        ];
-        for (const entityName of childEntities) {
-            const result = await rv.RunView<{ ID: string }>({
-                EntityName: entityName,
-                ExtraFilter: `TaskID = '${EscapeSQLString(this.TaskID)}'`,
-                ResultType: 'simple',
-            });
-            for (const row of result?.Results ?? []) {
-                const child = await Metadata.Provider.GetEntityObject(entityName);
-                await child.InnerLoad(CompositeKey.FromID(row.ID));
-                if (!(await child.Delete())) return;
-            }
-        }
+        if (!this.TaskID || !IsValidUUID(this.TaskID)) return;
         const entity = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
-        await entity.InnerLoad(CompositeKey.FromID(this.TaskID));
+        const pk = new CompositeKey([{ FieldName: 'ID', Value: this.TaskID }]);
+        const loaded = await entity.InnerLoad(pk);
+        if (!loaded) return;
+
+        await Promise.all([
+            entity.Assignments.Load(true),
+            entity.TagLinks.Load(true),
+            entity.Links.Load(true),
+            entity.Dependencies.Load(true),
+            entity.Comments.Load(true),
+            entity.CheckIns.Load(true),
+            entity.Activities.Load(true),
+            entity.NotificationLogs.Load(true),
+            entity.SubTasks.Load(true),
+        ]);
+
+        if (entity.SubTasks.Items.length > 0) {
+            entity.SubTasks.Clear();
+            if (!(await entity.Save())) return;
+        }
+
+        const rv = this.createRunView();
+        const incomingDeps = await rv.RunView<mjBizAppsTasksTaskDependencyEntity>({
+            EntityName: 'MJ_BizApps_Tasks: Task Dependencies',
+            ExtraFilter: `DependsOnTaskID = '${EscapeSQLString(this.TaskID)}'`,
+            ResultType: 'entity_object',
+        });
+        for (const dep of incomingDeps?.Results ?? []) {
+            if (!UUIDsEqual(dep.TaskID, this.TaskID) && !(await dep.Delete())) return;
+        }
+
         if (await entity.Delete()) {
             this.DeleteRequested.emit(this.TaskID);
         }
