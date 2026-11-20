@@ -2715,7 +2715,7 @@ BEGIN
             )
     END
     -- return the new record from the base view, which might have some calculated fields
-    SELECT * FROM [${flyway:defaultSchema}].[vwTaskActivities] WHERE [ID] = (SELECT [ID] FROM @InsertedRow)
+    SELECT [ID], [__mj_CreatedAt], [__mj_UpdatedAt] FROM [${flyway:defaultSchema}].[TaskActivity] WHERE [ID] = (SELECT [ID] FROM @InsertedRow)
 END
 GO
 REVOKE EXECUTE ON [${flyway:defaultSchema}].[spCreateTaskActivity] FROM [cdp_Developer]
@@ -2775,15 +2775,10 @@ BEGIN
     -- Check if the update was successful
     IF @@ROWCOUNT = 0
         -- Nothing was updated, return no rows, but column structure from base view intact, semantically correct this way.
-        SELECT TOP 0 * FROM [${flyway:defaultSchema}].[vwTaskActivities] WHERE 1=0
+        SELECT TOP 0 [ID], [__mj_CreatedAt], [__mj_UpdatedAt] FROM [${flyway:defaultSchema}].[TaskActivity] WHERE 1=0
     ELSE
         -- Return the updated record so the caller can see the updated values and any calculated fields
-        SELECT
-                                        *
-                                    FROM
-                                        [${flyway:defaultSchema}].[vwTaskActivities]
-                                    WHERE
-                                        [ID] = @ID
+        SELECT [ID], [__mj_CreatedAt], [__mj_UpdatedAt] FROM [${flyway:defaultSchema}].[TaskActivity] WHERE [ID] = @ID
                                     
 END
 GO
@@ -4719,7 +4714,7 @@ BEGIN
             )
     END
     -- return the new record from the base view, which might have some calculated fields
-    SELECT * FROM [${flyway:defaultSchema}].[vwTaskNotificationLogs] WHERE [ID] = (SELECT [ID] FROM @InsertedRow)
+    SELECT [ID], [__mj_CreatedAt], [__mj_UpdatedAt] FROM [${flyway:defaultSchema}].[TaskNotificationLog] WHERE [ID] = (SELECT [ID] FROM @InsertedRow)
 END
 GO
 REVOKE EXECUTE ON [${flyway:defaultSchema}].[spCreateTaskNotificationLog] FROM [cdp_Developer]
@@ -4771,15 +4766,10 @@ BEGIN
     -- Check if the update was successful
     IF @@ROWCOUNT = 0
         -- Nothing was updated, return no rows, but column structure from base view intact, semantically correct this way.
-        SELECT TOP 0 * FROM [${flyway:defaultSchema}].[vwTaskNotificationLogs] WHERE 1=0
+        SELECT TOP 0 [ID], [__mj_CreatedAt], [__mj_UpdatedAt] FROM [${flyway:defaultSchema}].[TaskNotificationLog] WHERE 1=0
     ELSE
         -- Return the updated record so the caller can see the updated values and any calculated fields
-        SELECT
-                                        *
-                                    FROM
-                                        [${flyway:defaultSchema}].[vwTaskNotificationLogs]
-                                    WHERE
-                                        [ID] = @ID
+        SELECT [ID], [__mj_CreatedAt], [__mj_UpdatedAt] FROM [${flyway:defaultSchema}].[TaskNotificationLog] WHERE [ID] = @ID
                                     
 END
 GO
