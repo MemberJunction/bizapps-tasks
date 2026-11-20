@@ -1,4 +1,32 @@
-import { BaseEntity, CompositeKey, Metadata, RunView } from "@memberjunction/core";
+import {
+    CompositeKey,
+    EntityTransactionScope,
+    IEntityDataProvider,
+    IMetadataProvider,
+    IRunViewProvider,
+    Metadata,
+    RunView,
+    UserInfo,
+} from "@memberjunction/core";
+import { EscapeSQLString, IsValidUUID } from "@memberjunction/global";
+import type {
+    mjBizAppsTasksTaskEntity,
+    mjBizAppsTasksTaskTemplateEntity,
+    mjBizAppsTasksTaskTemplateItemEntity,
+} from "@mj-biz-apps/tasks-entities";
+
+/** A provider that can instantiate entities and run views. */
+export type TaskTemplateProvider = IMetadataProvider & IRunViewProvider;
+
+interface TransactionalProvider extends IEntityDataProvider {
+    SupportsEntityTransactions: true;
+    BeginEntityTransaction(): Promise<EntityTransactionScope>;
+}
+
+function isTransactionalProvider(provider: unknown): provider is TransactionalProvider {
+    const candidate = provider as Partial<IEntityDataProvider> | null | undefined;
+    return candidate?.SupportsEntityTransactions === true && typeof candidate.BeginEntityTransaction === 'function';
+}
 
 /**
  * Service for instantiating tasks from templates.
@@ -6,101 +34,173 @@ import { BaseEntity, CompositeKey, Metadata, RunView } from "@memberjunction/cor
  * "Create from Template" hydrates real Task records from a TaskTemplate:
  *   - Converts DaysFromStart offsets to actual DueAt dates
  *   - Recreates the sub-task hierarchy (ParentID)
- *   - Recreates dependencies between tasks
- *   - Creates placeholder TaskAssignment rows for pre-defined roles
+ *   - Recreates dependencies between tasks via `task.Dependencies`
+ *   - Creates TaskAssignment rows for pre-defined roles via `task.Assignments`
+ *   - Loads template items + roles + dependencies in a single batched `IncludeRelatedRecords` query
+ *   - Wraps multi-task instantiation in `BeginEntityTransaction()` when supported by the provider
  */
 export class TaskTemplateService {
 
     /**
      * Instantiates a full set of Tasks from a template.
      *
-     * @param templateID  - The TaskTemplate to instantiate
-     * @param startDate   - The reference date for DaysFromStart calculations
-     * @param categoryID  - Optional category to assign to all created tasks
-     * @param assigneeMap - Optional map of RoleID → { entityID, recordID } for
-     *                      filling in role placeholders with real assignees
+     * @param params      - Template instantiation parameters
+     * @param contextUser - Optional caller UserInfo for multi-user server isolation
+     * @param provider    - Optional metadata/view/transaction provider (defaults to Metadata.Provider)
      * @returns The created Task entities (root-level + children)
      */
-    async instantiateTemplate(params: {
-        templateID: string;
-        startDate: Date;
-        categoryID?: string;
-        assigneeMap?: Map<string, { entityID: string; recordID: string }>;
-    }): Promise<BaseEntity[]> {
+    async instantiateTemplate(
+        params: {
+            templateID: string;
+            startDate: Date;
+            categoryID?: string;
+            assigneeMap?: Map<string, { entityID: string; recordID: string }>;
+        },
+        contextUser?: UserInfo,
+        provider?: TaskTemplateProvider,
+    ): Promise<mjBizAppsTasksTaskEntity[]> {
         const { templateID, startDate, categoryID, assigneeMap } = params;
-        const rv = new RunView();
+        if (!IsValidUUID(templateID)) {
+            throw new Error(`Invalid templateID '${templateID}'`);
+        }
+
+        const md: IMetadataProvider = provider ?? Metadata.Provider;
+        const rv = new RunView(provider);
 
         // 1. Load the template
-        const template = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Templates');
+        const template = await md.GetEntityObject<mjBizAppsTasksTaskTemplateEntity>(
+            'MJ_BizApps_Tasks: Task Templates',
+            contextUser,
+        );
         const pk = new CompositeKey([{ FieldName: 'ID', Value: templateID }]);
-        await template.InnerLoad(pk);
+        const templateLoaded = await template.InnerLoad(pk);
+        if (!templateLoaded) {
+            throw new Error(`Task template '${templateID}' not found`);
+        }
 
-        // 2. Load all template items
-        const itemsResult = await rv.RunView<BaseEntity>({
+        // 2. Load all template items with their Roles and Dependencies batched in one 1+2 RunView call
+        const itemsResult = await rv.RunView<mjBizAppsTasksTaskTemplateItemEntity>({
             EntityName: 'MJ_BizApps_Tasks: Task Template Items',
-            ExtraFilter: `TemplateID = '${templateID}'`,
+            ExtraFilter: `TemplateID = '${EscapeSQLString(templateID)}'`,
             OrderBy: 'Sequence ASC',
-            ResultType: 'simple',
-        });
-        const items = itemsResult?.Results ?? [];
-        if (items.length === 0) return [];
+            ResultType: 'entity_object',
+            IncludeRelatedRecords: ['Roles', 'Dependencies'],
+        }, contextUser);
+        if (!itemsResult?.Success) {
+            throw new Error(`Failed to load template items for '${templateID}': ${itemsResult?.ErrorMessage ?? 'unknown error'}`);
+        }
 
-        // 3. Create tasks from items, maintaining a map of templateItemID → new taskID
-        const itemToTaskID = new Map<string, string>();
-        const createdTasks: BaseEntity[] = [];
+        const items = itemsResult.Results ?? [];
+        if (items.length === 0) return [];
 
         // Sort items so parents are created before children
         const sorted = this.topologicalSortByParent(items);
 
-        for (const item of sorted) {
-            const itemID = (item as any).ID as string;
-            const task = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Tasks');
-            task.NewRecord();
-            task.Set('Name', (item as any).Name);
-            task.Set('Description', (item as any).Description ?? null);
-            task.Set('Priority', (item as any).Priority ?? 'Medium');
-            task.Set('HoursEstimated', (item as any).HoursEstimated ?? null);
-            task.Set('Sequence', (item as any).Sequence ?? 100);
+        // 3. Instantiate all tasks + assignments + dependencies inside one transaction when supported
+        const txScope = isTransactionalProvider(md)
+            ? await md.BeginEntityTransaction()
+            : null;
 
-            // Set type and category from template defaults
-            const typeID = template.Get('TypeID') as string | null;
-            if (typeID) task.Set('TypeID', typeID);
-            if (categoryID) task.Set('CategoryID', categoryID);
+        try {
+            const itemToTask = new Map<string, mjBizAppsTasksTaskEntity>();
+            const createdTasks: mjBizAppsTasksTaskEntity[] = [];
 
-            // Calculate DueAt from DaysFromStart
-            const daysFromStart = (item as any).DaysFromStart as number | null;
-            if (daysFromStart != null) {
-                const dueAt = new Date(startDate);
-                dueAt.setDate(dueAt.getDate() + daysFromStart);
-                task.Set('DueAt', dueAt);
+            for (const item of sorted) {
+                const task = await md.GetEntityObject<mjBizAppsTasksTaskEntity>(
+                    'MJ_BizApps_Tasks: Tasks',
+                    contextUser,
+                );
+                task.NewRecord();
+                task.Name = item.Name;
+                task.Description = item.Description ?? null;
+                task.Priority = item.Priority ?? 'Medium';
+                task.HoursEstimated = item.HoursEstimated ?? null;
+                task.Sequence = item.Sequence ?? 100;
+
+                if (template.TypeID) {
+                    task.TypeID = template.TypeID;
+                }
+                if (categoryID) {
+                    task.CategoryID = categoryID;
+                }
+
+                if (item.DaysFromStart != null) {
+                    const dueAt = new Date(startDate);
+                    dueAt.setDate(dueAt.getDate() + item.DaysFromStart);
+                    task.DueAt = dueAt;
+                }
+
+                if (item.ParentItemID && itemToTask.has(item.ParentItemID)) {
+                    task.ParentID = itemToTask.get(item.ParentItemID)!.ID;
+                }
+
+                // Attach assignments from pre-loaded item.Roles onto task.Assignments
+                if (assigneeMap && assigneeMap.size > 0) {
+                    for (const role of item.Roles?.Items ?? []) {
+                        const assignee = assigneeMap.get(role.RoleID);
+                        if (!assignee) continue;
+                        const assignment = await task.Assignments.Create();
+                        assignment.AssigneeEntityID = assignee.entityID;
+                        assignment.AssigneeRecordID = assignee.recordID;
+                        assignment.RoleID = role.RoleID;
+                    }
+                }
+
+                if (!(await task.Save())) {
+                    throw new Error(
+                        `Failed to create task "${item.Name}" from template ${templateID}: ${task.LatestResult?.CompleteMessage ?? 'unknown error'}`,
+                    );
+                }
+
+                itemToTask.set(item.ID, task);
+                createdTasks.push(task);
             }
 
-            // Wire up parent task
-            const parentItemID = (item as any).ParentItemID as string | null;
-            if (parentItemID && itemToTaskID.has(parentItemID)) {
-                task.Set('ParentID', itemToTaskID.get(parentItemID)!);
+            // 4. Attach dependencies from pre-loaded item.Dependencies onto each task's Dependencies collection
+            for (const item of sorted) {
+                const deps = item.Dependencies?.Items ?? [];
+                if (deps.length === 0) continue;
+
+                const targetTask = itemToTask.get(item.ID);
+                if (!targetTask) continue;
+
+                let addedDeps = 0;
+                for (const dep of deps) {
+                    const dependsOnTask = itemToTask.get(dep.DependsOnItemID);
+                    if (!dependsOnTask) continue;
+
+                    const taskDep = await targetTask.Dependencies.Create();
+                    taskDep.DependsOnTaskID = dependsOnTask.ID;
+                    taskDep.DependencyType = dep.DependencyType ?? 'FinishToStart';
+                    addedDeps += 1;
+                }
+
+                if (addedDeps > 0 && !(await targetTask.Save())) {
+                    throw new Error(
+                        `Failed to save dependencies for task "${targetTask.Name}" from template ${templateID}: ${targetTask.LatestResult?.CompleteMessage ?? 'unknown error'}`,
+                    );
+                }
             }
 
-            await task.Save();
-            const newTaskID = task.Get('ID') as string;
-            itemToTaskID.set(itemID, newTaskID);
-            createdTasks.push(task);
-
-            // 4. Create assignments from template item roles
-            await this.createAssignmentsForItem(itemID, newTaskID, assigneeMap);
+            if (txScope) {
+                await txScope.Commit();
+            }
+            return createdTasks;
+        } catch (err) {
+            if (txScope) {
+                await txScope.Rollback();
+            }
+            throw err;
         }
-
-        // 5. Create dependencies between the new tasks
-        await this.createDependencies(templateID, itemToTaskID);
-
-        return createdTasks;
     }
 
     /**
-     * Sort template items so that parents come before children (simple iterative approach).
+     * Sort template items so that parents come before children (iterative topological sort).
      */
-    private topologicalSortByParent(items: any[]): any[] {
-        const result: any[] = [];
+    private topologicalSortByParent(
+        items: readonly mjBizAppsTasksTaskTemplateItemEntity[],
+    ): mjBizAppsTasksTaskTemplateItemEntity[] {
+        const result: mjBizAppsTasksTaskTemplateItemEntity[] = [];
         const remaining = [...items];
         const placed = new Set<string>();
 
@@ -117,7 +217,8 @@ export class TaskTemplateService {
         let maxIterations = remaining.length + 1;
         while (remaining.length > 0 && maxIterations-- > 0) {
             for (let i = remaining.length - 1; i >= 0; i--) {
-                if (placed.has(remaining[i].ParentItemID)) {
+                const parentID = remaining[i].ParentItemID;
+                if (parentID && placed.has(parentID)) {
                     placed.add(remaining[i].ID);
                     result.push(remaining[i]);
                     remaining.splice(i, 1);
@@ -128,79 +229,5 @@ export class TaskTemplateService {
         // Any remaining items (orphans) go at the end
         result.push(...remaining);
         return result;
-    }
-
-    /**
-     * Creates TaskAssignment records for a newly created task based on
-     * the template item's pre-defined roles.
-     */
-    private async createAssignmentsForItem(
-        templateItemID: string,
-        taskID: string,
-        assigneeMap?: Map<string, { entityID: string; recordID: string }>,
-    ): Promise<void> {
-        if (!assigneeMap || assigneeMap.size === 0) return;
-
-        const rv = new RunView();
-        const rolesResult = await rv.RunView<BaseEntity>({
-            EntityName: 'MJ_BizApps_Tasks: Task Template Item Roles',
-            ExtraFilter: `ItemID = '${templateItemID}'`,
-            ResultType: 'simple',
-        });
-
-        for (const role of rolesResult?.Results ?? []) {
-            const roleID = (role as any).RoleID as string;
-            const assignee = assigneeMap.get(roleID);
-            if (!assignee) continue;
-
-            const assignment = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Assignments');
-            assignment.NewRecord();
-            assignment.Set('TaskID', taskID);
-            assignment.Set('AssigneeEntityID', assignee.entityID);
-            assignment.Set('AssigneeRecordID', assignee.recordID);
-            assignment.Set('RoleID', roleID);
-            await assignment.Save();
-        }
-    }
-
-    /**
-     * Recreates the dependency graph between newly instantiated tasks
-     * based on the template's TaskTemplateItemDependency records.
-     */
-    private async createDependencies(
-        templateID: string,
-        itemToTaskID: Map<string, string>,
-    ): Promise<void> {
-        const rv = new RunView();
-
-        // Get all template items for this template (we need their IDs to filter deps)
-        const itemsResult = await rv.RunView<BaseEntity>({
-            EntityName: 'MJ_BizApps_Tasks: Task Template Items',
-            ExtraFilter: `TemplateID = '${templateID}'`,
-            ResultType: 'simple',
-        });
-        const itemIDs = (itemsResult?.Results ?? []).map((i: any) => `'${i.ID}'`).join(',');
-        if (!itemIDs) return;
-
-        const depsResult = await rv.RunView<BaseEntity>({
-            EntityName: 'MJ_BizApps_Tasks: Task Template Item Dependencies',
-            ExtraFilter: `ItemID IN (${itemIDs})`,
-            ResultType: 'simple',
-        });
-
-        for (const dep of depsResult?.Results ?? []) {
-            const itemID = (dep as any).ItemID as string;
-            const dependsOnItemID = (dep as any).DependsOnItemID as string;
-            const taskID = itemToTaskID.get(itemID);
-            const dependsOnTaskID = itemToTaskID.get(dependsOnItemID);
-            if (!taskID || !dependsOnTaskID) continue;
-
-            const taskDep = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Dependencies');
-            taskDep.NewRecord();
-            taskDep.Set('TaskID', taskID);
-            taskDep.Set('DependsOnTaskID', dependsOnTaskID);
-            taskDep.Set('DependencyType', (dep as any).DependencyType ?? 'FinishToStart');
-            await taskDep.Save();
-        }
     }
 }

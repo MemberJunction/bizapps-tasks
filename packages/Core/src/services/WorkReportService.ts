@@ -266,11 +266,6 @@ interface RawWorkReportLookupRow {
     Status: WorkReportStatus;
 }
 
-interface RawWorkReportItemLookupRow {
-    ID: string;
-    Sequence: number;
-}
-
 interface RawAgentRow {
     ID: string;
     Name?: string | null;
@@ -1549,13 +1544,13 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
                 ? params.AuthoredByAgentRunID
                 : null;
 
-        const saved = await reportEntity.Save();
-        if (!saved) {
-            const msg = reportEntity.LatestResult?.CompleteMessage ?? 'Failed to save Draft WorkReport';
-            throw new Error(msg);
+        // Compose all report items onto the `reportEntity.Items` RelatedRecordCollection
+        // and persist the header + item inserts/removals in ONE atomic `reportEntity.Save()`.
+        if (existingReportID) {
+            await reportEntity.Items.Load(true);
+            reportEntity.Items.Clear();
         }
 
-        const reportID = String(reportEntity.ID ?? reportEntity.PrimaryKey.Values()[0]);
         const sectionPlan: Array<{ Section: WorkReportItemSection; Entries: TaskActivityWindowEntry[] }> = [
             { Section: 'Completed', Entries: activity.Completed },
             { Section: 'InProgress', Entries: activity.InProgress },
@@ -1564,91 +1559,35 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
             { Section: 'AtRisk', Entries: activity.AtRisk },
         ];
 
-        let existingItems: RawWorkReportItemLookupRow[] = [];
-        if (existingReportID && findEntityByName(md, WORK_REPORT_ITEMS_ENTITY_NAME)) {
-            const existingItemsRes = await rv.RunView<RawWorkReportItemLookupRow>(
-                {
-                    EntityName: WORK_REPORT_ITEMS_ENTITY_NAME,
-                    ExtraFilter: `WorkReportID = '${EscapeSQLString(reportID)}'`,
-                    Fields: ['ID', 'Sequence'],
-                    OrderBy: 'Sequence ASC',
-                    ResultType: 'simple',
-                },
-                params.ContextUser,
-            );
-            if (!existingItemsRes.Success) {
-                throw new Error(
-                    `Failed to load existing WorkReportItems: ${existingItemsRes.ErrorMessage ?? 'RunView failed'}`,
-                );
-            }
-            existingItems = existingItemsRes.Results ?? [];
-        }
-
-        const createdItems: WorkReportItemRecordSnapshot[] = [];
+        const plannedItems: mjBizAppsTasksWorkReportItemEntity[] = [];
         let sequence = 1;
-        let existingIdx = 0;
-
         for (const group of sectionPlan) {
             for (const entry of group.Entries) {
-                const itemEntity = await md.GetEntityObject<mjBizAppsTasksWorkReportItemEntity>(
-                    WORK_REPORT_ITEMS_ENTITY_NAME,
-                    params.ContextUser,
-                );
-                const summary = this.buildItemSummary(group.Section, entry);
-                const existingItem = existingItems[existingIdx];
-                existingIdx += 1;
-
-                if (existingItem) {
-                    const itemLoaded = await itemEntity.Load(existingItem.ID);
-                    if (!itemLoaded) {
-                        throw new Error(`Failed to load existing WorkReportItem '${existingItem.ID}'.`);
-                    }
-                } else {
-                    itemEntity.NewRecord();
-                    itemEntity.WorkReportID = reportID;
-                }
-
+                const itemEntity = await reportEntity.Items.Create();
                 itemEntity.TaskID = entry.TaskID;
                 itemEntity.Section = group.Section;
-                itemEntity.Summary = summary;
+                itemEntity.Summary = this.buildItemSummary(group.Section, entry);
                 itemEntity.Sequence = sequence;
-
-                const itemSaved = await itemEntity.Save();
-                if (!itemSaved) {
-                    const msg = itemEntity.LatestResult?.CompleteMessage ?? 'Failed to save WorkReportItem';
-                    throw new Error(msg);
-                }
-
-                const itemID = String(itemEntity.ID ?? itemEntity.PrimaryKey.Values()[0]);
-                createdItems.push({
-                    ID: itemID,
-                    WorkReportID: reportID,
-                    TaskID: entry.TaskID,
-                    Section: group.Section,
-                    Summary: summary,
-                    Sequence: sequence,
-                });
+                plannedItems.push(itemEntity);
                 sequence += 1;
             }
         }
 
-        // Delete any surplus existing WorkReportItems when re-drafting shrinks the item list
-        const surplusItems = existingItems.slice(existingIdx);
-        for (const surplus of surplusItems) {
-            const surplusEntity = await md.GetEntityObject<mjBizAppsTasksWorkReportItemEntity>(
-                WORK_REPORT_ITEMS_ENTITY_NAME,
-                params.ContextUser,
-            );
-            const loadedSurplus = await surplusEntity.Load(surplus.ID);
-            if (!loadedSurplus) {
-                throw new Error(`Failed to load surplus WorkReportItem '${surplus.ID}' for deletion.`);
-            }
-            const deleted = await surplusEntity.Delete();
-            if (!deleted) {
-                const msg = surplusEntity.LatestResult?.CompleteMessage ?? `Failed to delete surplus WorkReportItem '${surplus.ID}'.`;
-                throw new Error(msg);
-            }
+        const saved = await reportEntity.Save();
+        if (!saved) {
+            const msg = reportEntity.LatestResult?.CompleteMessage ?? 'Failed to save Draft WorkReport';
+            throw new Error(msg);
         }
+
+        const reportID = String(reportEntity.ID ?? reportEntity.PrimaryKey.Values()[0]);
+        const createdItems: WorkReportItemRecordSnapshot[] = plannedItems.map((itemEntity, idx) => ({
+            ID: String(itemEntity.ID ?? itemEntity.PrimaryKey.Values()[0]),
+            WorkReportID: reportID,
+            TaskID: itemEntity.TaskID,
+            Section: itemEntity.Section,
+            Summary: itemEntity.Summary,
+            Sequence: itemEntity.Sequence ?? idx + 1,
+        }));
 
         return {
             SkippedNoActivity: false,
