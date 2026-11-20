@@ -9,6 +9,7 @@ module.exports = {
   output: [
     { type: 'SQL', directory: './SQL Scripts/generated', appendOutputCode: true },
     { type: 'EntitySubclasses', directory: './packages/Entities/src/generated' },
+    { type: 'RemoteOperations', directory: './packages/Entities/src/generated' },
     { type: 'ActionSubclasses', directory: './packages/Actions/src/generated' },
     { type: 'GraphQLServer', directory: './packages/Server/src/generated' },
     {

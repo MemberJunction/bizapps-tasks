@@ -39,7 +39,8 @@ const mockState = vi.hoisted(() => ({
     failTaskTypeLookup: false,
 }));
 
-vi.mock('@memberjunction/core', () => {
+vi.mock('@memberjunction/core', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@memberjunction/core')>();
     class ValidationResult {
         Success = true;
         Errors: Array<{ Source: string; Message: string }> = [];
@@ -70,6 +71,7 @@ vi.mock('@memberjunction/core', () => {
             name === 'MJ_BizApps_Common: People' ? { ID: PEOPLE_ENTITY_ID, Name: name } : null,
     };
     return {
+        ...actual,
         BaseEntity: class {},
         BaseEntityResult,
         LogError: vi.fn(),

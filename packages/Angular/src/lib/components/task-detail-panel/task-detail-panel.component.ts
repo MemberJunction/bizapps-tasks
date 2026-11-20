@@ -3,16 +3,16 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { Metadata, RunView, CompositeKey, type IMetadataProvider, type IRunViewProvider } from '@memberjunction/core';
-import { EscapeSQLString, IsValidUUID, UUIDsEqual } from '@memberjunction/global';
+import { EscapeSQLString, IsValidUUID, NormalizeUUID, UUIDsEqual } from '@memberjunction/global';
 import type {
     mjBizAppsTasksTaskCommentEntity,
     mjBizAppsTasksTaskDependencyEntity,
     mjBizAppsTasksTaskEntity,
 } from '@mj-biz-apps/tasks-entities';
-import { NormalizeUUID } from '@memberjunction/global';
 import { OpenTaskRecord } from '../../open-task-record';
 import { RoleAssigneeName } from '../../role-assignees';
 import { TaskAssigneeInfo } from '../task-assignee-list/task-assignee-list.component';
+import { TaskTimeEffortComponent } from '../task-time-effort/task-time-effort.component';
 import {
     FormatPendingSuggestionTooltip,
     TaskFieldSuggestionsHelper,
@@ -77,7 +77,7 @@ export class BeforeCommentPostedEvent {
     selector: 'bizapps-task-detail-panel',
     standalone: true,
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [CommonModule, FormsModule, BaseFormsModule],
+    imports: [CommonModule, FormsModule, BaseFormsModule, TaskTimeEffortComponent],
     template: `
         @if (TaskID) {
             <div class="detail-panel">
@@ -248,6 +248,13 @@ export class BeforeCommentPostedEvent {
                             </div>
                         }
                     </div>
+
+                    <!-- Time & Effort (§8.1–8.3, §8.5) -->
+                    <bizapps-task-time-effort
+                        [TaskID]="TaskID"
+                        [PersonID]="PersonID"
+                        [ReadOnly]="ReadOnly">
+                    </bizapps-task-time-effort>
 
                     <!-- Activity + Comments -->
                     <div class="field-block">

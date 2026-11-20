@@ -25,6 +25,7 @@ import { mjBizAppsTasksMeetingSeriesAttendeeFormComponent } from "./Entities/mjB
 import { mjBizAppsTasksMeetingSeriesFormComponent } from "./Entities/mjBizAppsTasksMeetingSeries/mjbizappstasksmeetingseries.form.component";
 import { mjBizAppsTasksMeetingTypeFormComponent } from "./Entities/mjBizAppsTasksMeetingType/mjbizappstasksmeetingtype.form.component";
 import { mjBizAppsTasksTaskActivityFormComponent } from "./Entities/mjBizAppsTasksTaskActivity/mjbizappstaskstaskactivity.form.component";
+import { mjBizAppsTasksTaskAgentRunFormComponent } from "./Entities/mjBizAppsTasksTaskAgentRun/mjbizappstaskstaskagentrun.form.component";
 import { mjBizAppsTasksTaskAssignmentFormComponent } from "./Entities/mjBizAppsTasksTaskAssignment/mjbizappstaskstaskassignment.form.component";
 import { mjBizAppsTasksTaskCategoryFormComponent } from "./Entities/mjBizAppsTasksTaskCategory/mjbizappstaskstaskcategory.form.component";
 import { mjBizAppsTasksTaskCheckInFormComponent } from "./Entities/mjBizAppsTasksTaskCheckIn/mjbizappstaskstaskcheckin.form.component";
@@ -43,8 +44,16 @@ import { mjBizAppsTasksTaskTemplateFormComponent } from "./Entities/mjBizAppsTas
 import { mjBizAppsTasksTaskTemplateItemDependencyFormComponent } from "./Entities/mjBizAppsTasksTaskTemplateItemDependency/mjbizappstaskstasktemplateitemdependency.form.component";
 import { mjBizAppsTasksTaskTemplateItemFormComponent } from "./Entities/mjBizAppsTasksTaskTemplateItem/mjbizappstaskstasktemplateitem.form.component";
 import { mjBizAppsTasksTaskTemplateItemRoleFormComponent } from "./Entities/mjBizAppsTasksTaskTemplateItemRole/mjbizappstaskstasktemplateitemrole.form.component";
+import { mjBizAppsTasksTaskTimeEntryFormComponent } from "./Entities/mjBizAppsTasksTaskTimeEntry/mjbizappstaskstasktimeentry.form.component";
+import { mjBizAppsTasksTaskTimeEntryLinkFormComponent } from "./Entities/mjBizAppsTasksTaskTimeEntryLink/mjbizappstaskstasktimeentrylink.form.component";
+import { mjBizAppsTasksTaskTimerFormComponent } from "./Entities/mjBizAppsTasksTaskTimer/mjbizappstaskstasktimer.form.component";
 import { mjBizAppsTasksTaskTypeFormComponent } from "./Entities/mjBizAppsTasksTaskType/mjbizappstaskstasktype.form.component";
 import { mjBizAppsTasksTaskTypeStatusFormComponent } from "./Entities/mjBizAppsTasksTaskTypeStatus/mjbizappstaskstasktypestatus.form.component";
+import { mjBizAppsTasksTimeApproverFormComponent } from "./Entities/mjBizAppsTasksTimeApprover/mjbizappstaskstimeapprover.form.component";
+import { mjBizAppsTasksTimesheetApprovalFormComponent } from "./Entities/mjBizAppsTasksTimesheetApproval/mjbizappstaskstimesheetapproval.form.component";
+import { mjBizAppsTasksTimesheetFormComponent } from "./Entities/mjBizAppsTasksTimesheet/mjbizappstaskstimesheet.form.component";
+import { mjBizAppsTasksTimesheetLinkFormComponent } from "./Entities/mjBizAppsTasksTimesheetLink/mjbizappstaskstimesheetlink.form.component";
+import { mjBizAppsTasksTimesheetScheduleFormComponent } from "./Entities/mjBizAppsTasksTimesheetSchedule/mjbizappstaskstimesheetschedule.form.component";
 import { mjBizAppsTasksVideoProviderFormComponent } from "./Entities/mjBizAppsTasksVideoProvider/mjbizappstasksvideoprovider.form.component";
 import { mjBizAppsTasksWorkReportFormComponent } from "./Entities/mjBizAppsTasksWorkReport/mjbizappstasksworkreport.form.component";
 import { mjBizAppsTasksWorkReportItemFormComponent } from "./Entities/mjBizAppsTasksWorkReportItem/mjbizappstasksworkreportitem.form.component";
@@ -52,7 +61,6 @@ import { mjBizAppsTasksWorkReportItemFormComponent } from "./Entities/mjBizAppsT
 
 @NgModule({
 declarations: [
-    mjBizAppsTasksMeetingSeriesAttendeeFormComponent,
     mjBizAppsTasksTaskDependencyFormComponent
 ],
 imports: [
@@ -71,9 +79,9 @@ export class GeneratedForms_SubModule_0 { }
 
 @NgModule({
 declarations: [
-    mjBizAppsTasksMeetingTypeFormComponent,
     mjBizAppsTasksTaskDecisionOutcomeFormComponent,
     mjBizAppsTasksTaskTypeStatusFormComponent,
+    mjBizAppsTasksTimesheetScheduleFormComponent,
     mjBizAppsTasksWorkReportFormComponent
 ],
 imports: [
@@ -87,6 +95,24 @@ exports: [
 ]
 })
 export class GeneratedForms_SubModule_1 { }
+    
+
+
+@NgModule({
+declarations: [
+    mjBizAppsTasksTaskTimeEntryFormComponent
+],
+imports: [
+    CommonModule,
+    FormsModule,
+    BaseFormsModule,
+    EntityViewerModule,
+    LinkDirectivesModule
+],
+exports: [
+]
+})
+export class GeneratedForms_SubModule_2 { }
     
 
 
@@ -112,6 +138,7 @@ export class GeneratedForms_SubModule_3 { }
 @NgModule({
 declarations: [
     mjBizAppsTasksTaskNotificationConfigFormComponent,
+    mjBizAppsTasksTimeApproverFormComponent,
     mjBizAppsTasksWorkReportItemFormComponent
 ],
 imports: [
@@ -125,6 +152,24 @@ exports: [
 ]
 })
 export class GeneratedForms_SubModule_4 { }
+    
+
+
+@NgModule({
+declarations: [
+    mjBizAppsTasksTimesheetLinkFormComponent
+],
+imports: [
+    CommonModule,
+    FormsModule,
+    BaseFormsModule,
+    EntityViewerModule,
+    LinkDirectivesModule
+],
+exports: [
+]
+})
+export class GeneratedForms_SubModule_6 { }
     
 
 
@@ -145,24 +190,6 @@ exports: [
 ]
 })
 export class GeneratedForms_SubModule_8 { }
-    
-
-
-@NgModule({
-declarations: [
-    mjBizAppsTasksMeetingFormComponent
-],
-imports: [
-    CommonModule,
-    FormsModule,
-    BaseFormsModule,
-    EntityViewerModule,
-    LinkDirectivesModule
-],
-exports: [
-]
-})
-export class GeneratedForms_SubModule_9 { }
     
 
 
@@ -189,7 +216,7 @@ export class GeneratedForms_SubModule_11 { }
 
 @NgModule({
 declarations: [
-    mjBizAppsTasksMeetingNoteFormComponent
+    mjBizAppsTasksTaskTimeEntryLinkFormComponent
 ],
 imports: [
     CommonModule,
@@ -201,7 +228,7 @@ imports: [
 exports: [
 ]
 })
-export class GeneratedForms_SubModule_13 { }
+export class GeneratedForms_SubModule_14 { }
     
 
 
@@ -244,7 +271,6 @@ export class GeneratedForms_SubModule_18 { }
 
 @NgModule({
 declarations: [
-    mjBizAppsTasksMeetingAttendeeFormComponent,
     mjBizAppsTasksTaskTagFormComponent
 ],
 imports: [
@@ -263,7 +289,7 @@ export class GeneratedForms_SubModule_19 { }
 
 @NgModule({
 declarations: [
-    mjBizAppsTasksMeetingAgendaItemTypeFormComponent
+    mjBizAppsTasksTaskTimerFormComponent
 ],
 imports: [
     CommonModule,
@@ -299,6 +325,24 @@ export class GeneratedForms_SubModule_21 { }
 
 @NgModule({
 declarations: [
+    mjBizAppsTasksTimesheetApprovalFormComponent
+],
+imports: [
+    CommonModule,
+    FormsModule,
+    BaseFormsModule,
+    EntityViewerModule,
+    LinkDirectivesModule
+],
+exports: [
+]
+})
+export class GeneratedForms_SubModule_23 { }
+    
+
+
+@NgModule({
+declarations: [
     mjBizAppsTasksTaskTemplateItemRoleFormComponent
 ],
 imports: [
@@ -317,7 +361,6 @@ export class GeneratedForms_SubModule_24 { }
 
 @NgModule({
 declarations: [
-    mjBizAppsTasksMeetingLinkFormComponent,
     mjBizAppsTasksTaskTemplateFormComponent
 ],
 imports: [
@@ -336,9 +379,25 @@ export class GeneratedForms_SubModule_25 { }
 
 @NgModule({
 declarations: [
-    mjBizAppsTasksMeetingAgendaItemFormComponent,
-    mjBizAppsTasksTaskTemplateItemFormComponent,
-    mjBizAppsTasksVideoProviderFormComponent
+    mjBizAppsTasksTimesheetFormComponent
+],
+imports: [
+    CommonModule,
+    FormsModule,
+    BaseFormsModule,
+    EntityViewerModule,
+    LinkDirectivesModule
+],
+exports: [
+]
+})
+export class GeneratedForms_SubModule_26 { }
+    
+
+
+@NgModule({
+declarations: [
+    mjBizAppsTasksTaskTemplateItemFormComponent
 ],
 imports: [
     CommonModule,
@@ -356,7 +415,34 @@ export class GeneratedForms_SubModule_28 { }
 
 @NgModule({
 declarations: [
-    mjBizAppsTasksMeetingSeriesFormComponent
+    mjBizAppsTasksTaskAgentRunFormComponent
+],
+imports: [
+    CommonModule,
+    FormsModule,
+    BaseFormsModule,
+    EntityViewerModule,
+    LinkDirectivesModule
+],
+exports: [
+]
+})
+export class GeneratedForms_SubModule_29 { }
+    
+
+
+@NgModule({
+declarations: [
+    mjBizAppsTasksMeetingAgendaItemFormComponent,
+    mjBizAppsTasksMeetingAgendaItemTypeFormComponent,
+    mjBizAppsTasksMeetingAttendeeFormComponent,
+    mjBizAppsTasksMeetingFormComponent,
+    mjBizAppsTasksMeetingLinkFormComponent,
+    mjBizAppsTasksMeetingNoteFormComponent,
+    mjBizAppsTasksMeetingSeriesAttendeeFormComponent,
+    mjBizAppsTasksMeetingSeriesFormComponent,
+    mjBizAppsTasksMeetingTypeFormComponent,
+    mjBizAppsTasksVideoProviderFormComponent
 ],
 imports: [
     CommonModule,
@@ -378,20 +464,24 @@ declarations: [
 imports: [
     GeneratedForms_SubModule_0,
     GeneratedForms_SubModule_1,
+    GeneratedForms_SubModule_2,
     GeneratedForms_SubModule_3,
     GeneratedForms_SubModule_4,
+    GeneratedForms_SubModule_6,
     GeneratedForms_SubModule_8,
-    GeneratedForms_SubModule_9,
     GeneratedForms_SubModule_11,
-    GeneratedForms_SubModule_13,
+    GeneratedForms_SubModule_14,
     GeneratedForms_SubModule_15,
     GeneratedForms_SubModule_18,
     GeneratedForms_SubModule_19,
     GeneratedForms_SubModule_20,
     GeneratedForms_SubModule_21,
+    GeneratedForms_SubModule_23,
     GeneratedForms_SubModule_24,
     GeneratedForms_SubModule_25,
+    GeneratedForms_SubModule_26,
     GeneratedForms_SubModule_28,
+    GeneratedForms_SubModule_29,
     GeneratedForms_SubModule_30
 ]
 })

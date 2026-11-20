@@ -604,5 +604,185 @@
         }
       ]
     }
+  },
+  {
+    "fields": {
+      "Name": "Link Agent Run to Task",
+      "CategoryID": "@lookup:MJ: Action Categories.Name=Tasks",
+      "Description": "Idempotently links an MJ: AI Agent Runs record to a Task (creating or returning the TaskAgentRun row) and optionally creates a TaskTimeEntry row with Source = 'Agent' from the agent run's elapsed duration.",
+      "Type": "Custom",
+      "DriverClass": "LinkAgentRunToTaskAction",
+      "IconClass": "fa-solid fa-robot",
+      "UserPrompt": "Link an AI Agent Run to a Task and optionally log its wall-clock duration as an Agent time entry.",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "A1B2C3D4-6666-4A66-8666-666666666601"
+    },
+    "relatedEntities": {
+      "MJ: Action Params": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "TaskID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": true,
+            "Description": "UUID of the Task to link the AI agent run to."
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-6666-4A66-8666-666666666602"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "AIAgentRunID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": true,
+            "Description": "UUID of the MJ: AI Agent Runs record to link."
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-6666-4A66-8666-666666666603"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Role",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "DefaultValue": "Executed",
+            "Description": "How the agent run contributed to the task: Executed, Assisted, Reviewed, Planned, or Triaged."
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-6666-4A66-8666-666666666604"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Notes",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional notes describing the agent run's contribution."
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-6666-4A66-8666-666666666605"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "LogWallClockAsTimeEntry",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "DefaultValue": "false",
+            "Description": "When true, also creates a TaskTimeEntry row with Source = 'Agent' for the agent run's elapsed minutes."
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-6666-4A66-8666-666666666606"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "PersonID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "PersonID to attribute the Agent time entry to when LogWallClockAsTimeEntry is true (defaults to the current user's linked Person)."
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-6666-4A66-8666-666666666607"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "TaskAgentRunID",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "ID of the created or existing TaskAgentRun record."
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-6666-4A66-8666-666666666608"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "TaskTimeEntryID",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "ID of the created TaskTimeEntry record when LogWallClockAsTimeEntry is true."
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-6666-4A66-8666-666666666609"
+          }
+        }
+      ],
+      "MJ: Action Result Codes": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "SUCCESS",
+            "IsSuccess": true,
+            "Description": "The AI Agent Run was linked to the Task."
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-6666-4A66-8666-666666666610"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "MISSING_PARAMS",
+            "IsSuccess": false,
+            "Description": "TaskID or AIAgentRunID was not supplied or is invalid."
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-6666-4A66-8666-666666666611"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "NOT_FOUND",
+            "IsSuccess": false,
+            "Description": "The specified Task or AI Agent Run could not be found."
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-6666-4A66-8666-666666666612"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "ERROR",
+            "IsSuccess": false,
+            "Description": "An error occurred while linking the AI Agent Run to the Task."
+          },
+          "primaryKey": {
+            "ID": "A1B2C3D4-6666-4A66-8666-666666666613"
+          }
+        }
+      ]
+    }
   }
 ]

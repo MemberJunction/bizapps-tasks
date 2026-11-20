@@ -53,6 +53,10 @@ vi.mock('@memberjunction/global', async (importOriginal) => {
     };
 });
 
+vi.mock('@mj-biz-apps/common-entities', () => ({
+    BusinessTimeZoneEngine: { Instance: {} },
+}));
+
 vi.mock('@memberjunction/core-entities', () => ({
     ApplicationSettingEngine: {
         Instance: {
@@ -73,6 +77,12 @@ vi.mock('@memberjunction/core', () => {
     };
     return {
         BaseEntity: class {},
+        BaseEngine: class {
+            public static getInstance() {
+                return {};
+            }
+        },
+        BaseRemotableOperation: class {},
         BaseEntityResult,
         CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },
         LogError: logError,

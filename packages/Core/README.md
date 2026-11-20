@@ -1,17 +1,38 @@
 # @mj-biz-apps/tasks-core
 
-Core services and business logic for BizApps Tasks.
+Client- and server-safe core services, settings, and pure business logic for BizApps Tasks.
 
-## Services
+## Exports
 
+### Task Services
 - `TaskService`: Progress calculation, parent rollup reconciliation, and task queries.
 - `TaskAssignmentService`: Polymorphic assignee management for people and AI agents.
 - `TaskTemplateService`: Multi-item template instantiation with dependency offsetting.
-- `TaskOrchestrationService`: Task decision workflows and stage transition orchestration.
+- `TaskOrchestrationService`: Task decision workflows, approval task creation, and stage transition orchestration.
 - `MeetingService`: a meeting from a type (the type's length, location, visibility and agenda template), its attendees and links, and the organizer's moves: start, end, cancel. The rules are the entity server's; the service reports its refusal.
 - `MeetingSeriesService`: a series' occurrences, made ahead of time up to a horizon and named by their slot; an untouched future occurrence takes the series' current values and the attendees and links it gained, and moves with the series when its time or rule changes (keeping its identity, agenda and answers) rather than being cancelled and remade: on its own day when the time changed, to the nearest new slot in order when the weekday did; a moved, started or cancelled one is left alone; one whose slot is gone with no new slot to take is cancelled; a cancelled series cancels every occurrence not yet held, moved or not; one materialization per series at a time.
 - `MeetingAgendaService`: the type's template applied to a meeting's agenda, items reordered, and unfinished items carried forward to the next meeting.
 - `MeetingCalendarFile`: the meeting as an `.ics` file (REQUEST or CANCEL), built on the server with no calendar provider.
+
+### Application Settings (`TasksSettings`)
+- `TasksSettings`: Client- and server-safe reader over `ApplicationSettingEngine` for all Tasks application settings:
+  - `IsTimeTrackingEnabled()`, `IsTimesheetsEnabled()`
+  - `GetTimesheetCadence()`, `GetTimesheetWeekStartDay()`, `GetTimesheetBiWeeklyAnchorDate()`
+  - `GetTimesheetApprovalRouting()`, `IsLockApprovedTimeEntriesEnabled()`
+  - `GetMaxDailyLoggedMinutes()`, `GetTimeEntryRoundingMinutes()`
+  - `IsTimesheetSchedulesSelfServiceEnabled()`, `IsTimesheetResubmitReapprovesAllEnabled()`
+  - `GetTimesheetApproverRelationshipType()`, `GetTimesheetApproverRole()`
+
+### Time Entry & Agent Effort Rules
+- `ValidateAndNormalizeTimeEntry()` (`TimeEntryRules`): Pure R1–R8 validation, timestamp-to-duration derivation (`R4`), increment rounding (`R3`), daily cap validation (`R5`), timesheet period lock checks (`R6`/`R7`), and external record link lock checks (`R8`).
+- `SplitTimerSpanByBusinessDay()`: Cross-midnight timer span splitter in the business time zone (`D5`).
+- `FormatDurationMinutes()`, `ParseDurationInput()`, `RoundMinutesUp()`: Duration formatting and parsing utilities (`1h 30m`, `1:30`, `1.5`, `90m`).
+- `ComputeAgentRunRollup()`, `ClassifyAgentRunLinkCandidate()`: Deduplicated AI agent run cost/token/duration rollups (`COALESCE(TotalCostRollup, TotalCost)`) and ancestor/descendant overlap classification (`A2`, `D7`).
+
+### Timesheet Periods (`TimesheetPeriodService`)
+- `ComputeCalendarPeriod()`: Pure period calculator for `Weekly`, `BiWeekly`, `SemiMonthly`, and `Monthly` cadences.
+- `ApplyTransitionFloor()`: Non-overlapping transition period adjustment when a person's schedule changes after a submitted timesheet (`D11`).
+- `TimesheetPeriodService`: Resolves a person's effective `TimesheetSchedule` and covering `Timesheet` period.
 
 ## The meetings rules (`src/meetings`)
 

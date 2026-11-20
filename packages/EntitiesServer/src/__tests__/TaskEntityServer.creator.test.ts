@@ -27,7 +27,8 @@ vi.mock('@memberjunction/global', async (importOriginal) => {
     };
 });
 
-vi.mock('@memberjunction/core', () => {
+vi.mock('@memberjunction/core', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@memberjunction/core')>();
     class ValidationErrorInfo { constructor(public Source: string, public Message: string, public Value: unknown, public Type?: string) {} }
     const provider = {
         EntityByID: (id: string) => (id === PEOPLE_ID ? { Name: 'MJ_BizApps_Common: People', ParentChain: [] } : null),
@@ -35,6 +36,7 @@ vi.mock('@memberjunction/core', () => {
         RunView: async () => ({ Success: true, Results: [] }),
     };
     return {
+        ...actual,
         BaseEntity: class {
             public ContextCurrentUser: { ID: string; LinkedEntityID?: string; LinkedEntityRecordID?: string } | null = { ID: USER_ID };
             public Fields: Array<{ CodeName: string; Dirty: boolean; Value: unknown; OldValue: unknown }> = [];
@@ -52,6 +54,7 @@ vi.mock('@memberjunction/core', () => {
             public async Save() { return superSave(); }
         },
         BaseEngine: class { public static getInstance() { return {}; } },
+        BaseRemotableOperation: class {},
         CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },
         LogError: vi.fn(),
         LogStatus: vi.fn(),

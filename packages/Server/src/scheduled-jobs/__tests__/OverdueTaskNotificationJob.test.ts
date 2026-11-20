@@ -25,9 +25,11 @@ vi.mock('@memberjunction/global', async (importOriginal) => {
   };
 });
 
-vi.mock('@memberjunction/core', () => {
+vi.mock('@memberjunction/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@memberjunction/core')>();
   class FakeValidationResult { Success = true; Errors: unknown[] = []; }
   return {
+    ...actual,
     BaseEntity: class {},
     ValidationResult: FakeValidationResult,
     LogError: vi.fn(),
@@ -58,7 +60,10 @@ vi.mock('@mj-biz-apps/common-entities', () => {
     ResolveUserIDForPerson: async (personID: string) => (await linkedUsers([personID])).get(personID.toLowerCase()) ?? null,
   };
 });
-vi.mock('@memberjunction/core-entities', () => ({ MJScheduledJobEntity: class {} }));
+vi.mock('@memberjunction/core-entities', () => ({
+  ApplicationSettingEngine: { Instance: { Config: vi.fn(), GetSetting: vi.fn() } },
+  MJScheduledJobEntity: class {},
+}));
 
 vi.mock('@memberjunction/scheduling-engine', () => ({
   BaseScheduledJob: class {

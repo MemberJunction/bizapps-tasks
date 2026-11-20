@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { CompositeKey, Metadata, RunView, type IMetadataProvider, type IRunViewProvider } from '@memberjunction/core';
 import { NormalizeUUID } from '@memberjunction/global';
 import { MjKanbanBoardComponent, KanbanCardData, KanbanColumnDef, KanbanCardMovedEvent } from '@memberjunction/ng-kanban';
+import { FormatDurationMinutes } from '@mj-biz-apps/tasks-core';
 import type { mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
 import {
     FilterTasksByPendingSuggestions,
@@ -35,6 +36,7 @@ export interface KanbanTaskData {
     DueAt: string | null;
     PercentComplete: number | null;
     HoursEstimated: number | null;
+    LoggedMinutes?: number | null;
     ParentID: string | null;
     PendingSuggestionCount?: number;
     PendingSuggestionFields?: string[];
@@ -223,9 +225,15 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
             const dueLabel = r.DueAt
                 ? new Date(r.DueAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
                 : '';
+            const loggedText = r.LoggedMinutes && r.LoggedMinutes > 0
+                ? FormatDurationMinutes(r.LoggedMinutes)
+                : '';
             const footerParts: string[] = [];
             if (dueLabel) {
                 footerParts.push(dueLabel);
+            }
+            if (loggedText) {
+                footerParts.push(loggedText);
             }
             if (pendingCount > 0 && suggestionTooltip) {
                 footerParts.push(suggestionTooltip);

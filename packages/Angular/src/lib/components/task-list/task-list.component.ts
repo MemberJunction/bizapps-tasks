@@ -3,8 +3,10 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Metadata, RunView, CompositeKey, type IMetadataProvider, type IRunViewProvider } from '@memberjunction/core';
 import { NormalizeUUID, UUIDsEqual } from '@memberjunction/global';
-import { RoleAssigneeName } from '../../role-assignees';
+import { FormatDurationMinutes, TasksSettings } from '@mj-biz-apps/tasks-core';
 import type { mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
+import { ResolveCurrentPersonID } from '../../current-person';
+import { RoleAssigneeName } from '../../role-assignees';
 import {
     CountTotalPendingSuggestions,
     FilterTasksByPendingSuggestions,
@@ -62,6 +64,10 @@ export interface TaskRow {
     IsDueSoon: boolean;
     /** Number of direct child tasks, or undefined if not loaded by source view. */
     ChildCount?: number;
+    /** Total logged human time in minutes (from vwTasks.LoggedMinutes). */
+    LoggedMinutes?: number | null;
+    /** True if the signed-in person's active timer is currently running on this task. */
+    IsTimerRunning?: boolean;
     /** Number of unresolved MJ core Field Suggestions anchored to this task. */
     PendingSuggestionCount?: number;
     /** Distinct field names (`AnchorKey`) with unresolved Field Suggestions on this task. */
@@ -306,6 +312,18 @@ export class BeforeStatusChangeEvent {
                                         <span class="meta-chip">
                                             <i class="fa-solid fa-clock" aria-hidden="true"></i>
                                             {{ task.HoursEstimated }}h
+                                        </span>
+                                    }
+                                    @if (task.IsTimerRunning) {
+                                        <span class="meta-chip timer-running-chip" title="Timer running">
+                                            <i class="fa-solid fa-stopwatch"></i>
+                                            Timing
+                                        </span>
+                                    }
+                                    @if (task.LoggedMinutes && task.LoggedMinutes > 0) {
+                                        <span class="meta-chip logged-time-chip" title="Logged time">
+                                            <i class="fa-solid fa-hourglass-half"></i>
+                                            {{ formatLoggedMinutes(task.LoggedMinutes) }}
                                         </span>
                                     }
                                     @if ((task.PendingSuggestionCount ?? 0) > 0) {
@@ -559,6 +577,15 @@ export class BeforeStatusChangeEvent {
         .due-soon-text { color: var(--mj-status-warning) !important; font-weight: var(--mj-font-semibold); }
         .tag-chip {
             padding: 1px 8px; border-radius: var(--mj-radius-md); font-size: 11px; font-weight: var(--mj-font-semibold);
+        }
+        .timer-running-chip {
+            padding: 1px 8px; border-radius: var(--mj-radius-md); font-size: 11px; font-weight: var(--mj-font-bold);
+            background: var(--mj-status-success-bg); color: var(--mj-status-success-text);
+        }
+        .timer-running-chip i { color: var(--mj-status-success) !important; }
+        .logged-time-chip {
+            padding: 1px 8px; border-radius: var(--mj-radius-md); font-size: 11px; font-weight: var(--mj-font-semibold);
+            background: var(--mj-bg-surface-sunken); color: var(--mj-text-secondary);
         }
         .suggestion-chip {
             padding: 2px 8px; border-radius: var(--mj-radius-md); font-size: 11px; font-weight: var(--mj-font-semibold);
@@ -1088,6 +1115,10 @@ export class TaskListComponent implements OnInit, OnChanges {
         return status.replace(/([a-z])([A-Z])/g, '$1 $2');
     }
 
+    formatLoggedMinutes(minutes: number): string {
+        return FormatDurationMinutes(minutes);
+    }
+
     async loadTasks(bypassCache: boolean = false): Promise<void> {
         this.loading = true;
         this.cdr.markForCheck();
@@ -1106,6 +1137,7 @@ export class TaskListComponent implements OnInit, OnChanges {
             DueAt: Date | null;
             PercentComplete: number | null;
             HoursEstimated: number | null;
+            LoggedMinutes: number | null;
             ParentID: string | null;
         }>({
             EntityName: 'MJ_BizApps_Tasks: Tasks',
@@ -1153,6 +1185,8 @@ export class TaskListComponent implements OnInit, OnChanges {
                 DueAt: dueAt,
                 PercentComplete: r.PercentComplete ?? 0,
                 HoursEstimated: r.HoursEstimated,
+                LoggedMinutes: r.LoggedMinutes ?? 0,
+                IsTimerRunning: false,
                 ParentID: r.ParentID,
                 Depth: depthMap.get(r.ID) ?? 0,
                 Assignees: [],
@@ -1166,11 +1200,38 @@ export class TaskListComponent implements OnInit, OnChanges {
         // Filter out any selected ID that is no longer in current rawTasks
         this.selectedIDs = this.selectedIDs.filter(id => rawTasks.some(t => UUIDsEqual(t.ID, id)));
 
-        // Load assignees, tags, and pending Field Suggestions in parallel
-        await Promise.all([this.loadAssignees(), this.loadTags(), this.loadPendingSuggestions()]);
+        // Load assignees, tags, active timer, and pending Field Suggestions in parallel
+        await Promise.all([this.loadAssignees(), this.loadTags(), this.loadActiveTimerState(rv), this.loadPendingSuggestions()]);
         this.applyFilters();
         this.loading = false;
         this.cdr.markForCheck();
+    }
+
+    private async loadActiveTimerState(rv: RunView): Promise<void> {
+        if (this.tasks.length === 0) return;
+        try {
+            await TasksSettings.Load(Metadata.Provider);
+            const enabled = TasksSettings.TimeTrackingEnabled(Metadata.Provider);
+            if (!enabled) return;
+            const personID = await ResolveCurrentPersonID();
+            if (!personID) return;
+            const timerRes = await rv.RunView<{ ID: string; TaskID: string }>({
+                EntityName: 'MJ_BizApps_Tasks: Task Timers',
+                ExtraFilter: `PersonID = '${personID}'`,
+                Fields: ['ID', 'TaskID'],
+                ResultType: 'simple',
+                MaxRows: 1,
+                BypassCache: true,
+            });
+            const timer = timerRes?.Results?.[0];
+            if (timer) {
+                for (const t of this.tasks) {
+                    t.IsTimerRunning = UUIDsEqual(t.ID, timer.TaskID);
+                }
+            }
+        } catch {
+            // Non-fatal
+        }
     }
 
     private async loadPendingSuggestions(): Promise<void> {
