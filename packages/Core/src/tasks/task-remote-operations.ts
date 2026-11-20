@@ -109,14 +109,14 @@ export class TasksBulkUpdateOperation extends BaseRemotableOperation<
     TasksBulkUpdateOutput
 > {
     public readonly OperationKey = TASKS_BULK_UPDATE_OP_KEY;
-    public override readonly AuthorizedWriteEntities = [
+    public readonly AuthorizedWriteEntities = [
         'MJ_BizApps_Tasks: Tasks',
         'MJ_BizApps_Tasks: Task Assignments',
         'MJ_BizApps_Tasks: Task Tag Links',
     ] as const;
-    public override readonly ExposeAsAgentTool = true;
-    public override readonly ExposeAsMCPTool = true;
-    public override readonly ToolDescription =
+    public readonly ExposeAsAgentTool = true;
+    public readonly ExposeAsMCPTool = true;
+    public readonly ToolDescription =
         'Bulk update multiple tasks server-side (reassign, redate/shift dates, status, priority, organization, category, task type/stage, or tag).';
 }
 
@@ -157,13 +157,13 @@ export class TasksInstantiateTemplateOperation extends BaseRemotableOperation<
     TasksInstantiateTemplateOutput
 > {
     public readonly OperationKey = TASKS_INSTANTIATE_TEMPLATE_OP_KEY;
-    public override readonly AuthorizedWriteEntities = [
+    public readonly AuthorizedWriteEntities = [
         'MJ_BizApps_Tasks: Tasks',
         'MJ_BizApps_Tasks: Task Assignments',
         'MJ_BizApps_Tasks: Task Dependencies',
     ] as const;
-    public override readonly ExposeAsAgentTool = true;
-    public override readonly ExposeAsMCPTool = true;
-    public override readonly ToolDescription =
+    public readonly ExposeAsAgentTool = true;
+    public readonly ExposeAsMCPTool = true;
+    public readonly ToolDescription =
         'Instantiate a Task Template playbook on the server with relative due dates, hierarchy, dependencies, role assignments, and target Organization scoping.';
 }

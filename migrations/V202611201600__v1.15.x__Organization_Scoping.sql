@@ -2129,9 +2129,7 @@ GRANT EXECUTE ON [${flyway:defaultSchema}].[spDeleteTask] TO [cdp_Developer], [c
 REVOKE EXECUTE ON [${flyway:defaultSchema}].[spDeleteTask] FROM [cdp_Developer]
 REVOKE EXECUTE ON [${flyway:defaultSchema}].[spDeleteTask] FROM [cdp_Integration]
 GRANT EXECUTE ON [${flyway:defaultSchema}].[spDeleteTask] TO [cdp_Developer], [cdp_Integration];
-
-         )
-      END;
+GO
 
       IF NOT EXISTS (SELECT 1 FROM [${mjSchema}].[EntityField] WHERE ID = '35a67bf2-adf1-4a2c-b367-f0d11036cc75' OR (EntityID = '802AEF11-BFE2-4B46-98B2-5FEBD4E35923' AND Name = 'Organization')) BEGIN
          INSERT INTO [${mjSchema}].[EntityField]
