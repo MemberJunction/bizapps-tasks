@@ -1,5 +1,6 @@
-import { BaseEntity, CompositeKey, IMetadataProvider, IRunViewProvider, Metadata, RunView, UserInfo } from "@memberjunction/core";
+import { BaseEntity, CompositeKey, IMetadataProvider, IRunViewProvider, LogError, Metadata, RunView, UserInfo } from "@memberjunction/core";
 import { TaskService } from "./TaskService.js";
+import { GuidLiteral } from "./sql-guards.js";
 
 /**
  * Service for managing task assignments.
@@ -40,8 +41,10 @@ export class TaskAssignmentService {
         if (params.assignedByPersonID) assignment.Set('AssignedByPersonID', params.assignedByPersonID);
 
         if (!(await assignment.Save())) {
+            const detail = assignment.LatestResult?.CompleteMessage ?? 'the save was refused without a reason';
+            LogError(`TaskAssignmentService.assignToTask: failed to save assignment for task ${params.taskID}: ${detail}`);
             throw new Error(
-                `Failed to assign ${params.assigneeRecordID} to task ${params.taskID}: ${assignment.LatestResult?.CompleteMessage ?? 'the save was refused without a reason'}`,
+                `Failed to assign ${params.assigneeRecordID} to task ${params.taskID}: ${detail}`,
             );
         }
 
@@ -85,6 +88,8 @@ export class TaskAssignmentService {
 
     /**
      * Returns all assignments for a given task.
+     *
+     * @throws when `taskID` is not a UUID — it reaches SQL text, so an invalid value fails loudly.
      */
     async getAssignmentsForTask(
         taskID: string,
@@ -94,7 +99,7 @@ export class TaskAssignmentService {
         const rv = new RunView(provider);
         const result = await rv.RunView<BaseEntity>({
             EntityName: 'MJ_BizApps_Tasks: Task Assignments',
-            ExtraFilter: `TaskID = '${taskID}'`,
+            ExtraFilter: `TaskID = ${GuidLiteral(taskID, 'TaskID')}`,
             ResultType: 'entity_object',
         }, contextUser);
         return result?.Results ?? [];

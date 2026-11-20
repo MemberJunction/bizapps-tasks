@@ -24,12 +24,19 @@ const provider = Metadata.Provider;
 describe('TasksSettings', () => {
     beforeEach(() => settings.clear());
 
-    it('reads PreventSelfApproval from the Tasks application setting, off by default', () => {
+    it('reads PreventSelfApproval from the Tasks application setting, ON by default (secure by default)', () => {
+        expect(TasksSettings.PreventSelfApproval(provider)).toBe(true);
+        settings.set('PreventSelfApproval', 'false');
         expect(TasksSettings.PreventSelfApproval(provider)).toBe(false);
         settings.set('PreventSelfApproval', 'true');
         expect(TasksSettings.PreventSelfApproval(provider)).toBe(true);
+    });
+
+    it('keeps the guard on for anything that is not an explicit value (empty, garbage)', () => {
+        settings.set('PreventSelfApproval', '');
+        expect(TasksSettings.PreventSelfApproval(provider)).toBe(true);
         settings.set('PreventSelfApproval', 'garbage');
-        expect(TasksSettings.PreventSelfApproval(provider)).toBe(false);
+        expect(TasksSettings.PreventSelfApproval(provider)).toBe(true);
     });
 
     it('reads ApprovalReassignRoles as a comma-separated list, empty by default', () => {

@@ -8,7 +8,12 @@
  * - Task completed → notify all assignees ('Task Completed' type, through NotificationEngine)
  * - Task status changed to Blocked → notify all assignees
  * - Task comment created → notify all assignees except the commenter
- * - TaskType action hooks → invoke linked MJ Actions (OnAssign, OnComplete, OnOverdue, OnPercentChange)
+ * - OnAssign TaskType action hook → invoked when a new assignment is created
+ *
+ * NOTE: Lifecycle action hooks (OnComplete, OnCancel, OnReject, OnStatusChange,
+ * etc.) are dispatched SOLELY by TaskEntityServer on the status TRANSITION —
+ * they must NOT be invoked here, or a single approval fires the privileged
+ * callback twice and any later edit of a terminal task replays it.
  */
 import {
     BaseEntity,
@@ -21,9 +26,10 @@ import {
     UserInfo,
 } from '@memberjunction/core';
 import type { MJUserNotificationEntity } from '@memberjunction/core-entities';
-import { MJEventType, MJGlobal, MJEvent, UUIDsEqual } from '@memberjunction/global';
+import { IsValidUUID, MJEventType, MJGlobal, MJEvent, UUIDsEqual } from '@memberjunction/global';
 import { Subscription } from 'rxjs';
 import { ResolveUserIDForPerson, ResolveUserIDsForPeople } from '@mj-biz-apps/common-entities';
+import { GuidLiteral } from '@mj-biz-apps/tasks-core';
 import { IsRoleEntityID, ResolveUserIDsForRoles, RoleName } from '../role-assignees.js';
 import {
     sendTaskNotifications,
@@ -129,7 +135,7 @@ export function handleEntityEvent(event: BaseEntityEvent): void {
 
     switch (entityName) {
         case TASKS_ENTITY:
-            scheduleAfterCommit(entity, 'Task save notifications and hooks', () =>
+            scheduleAfterCommit(entity, 'Task save notifications', () =>
                 handleTaskSave(event).catch(logHandlerError('TaskSave')),
             );
             break;
@@ -163,7 +169,9 @@ function logHandlerError(handler: string): (err: unknown) => void {
  * - If blocked → notify all assignees: "Task blocked: {name}"
  * - If newly created → no notification (assignment creation handles that)
  *
- * Also invokes TaskType action hooks if configured (OnComplete, OnOverdue, OnPercentChange).
+ * Notification-only: lifecycle action hook dispatch (OnComplete/OnCancel/OnReject)
+ * lives in TaskEntityServer, which fires on the status transition. Invoking hooks
+ * here as well would double-fire them and replay them on later edits.
  */
 async function handleTaskSave(event: BaseEntityEvent): Promise<void> {
     const task = event.baseEntity!;
@@ -191,9 +199,7 @@ async function handleTaskSave(event: BaseEntityEvent): Promise<void> {
             }, contextUser);
             LogStatus(`[BizAppsTasks] Sent completion notification for "${taskName}" to ${sent} of ${userIDs.length} assignee(s)`);
         }
-
-        // Invoke OnComplete action if configured on TaskType
-        await invokeTaskTypeAction(task, 'OnCompleteActionID', contextUser);
+        // OnComplete action dispatch intentionally NOT here — TaskEntityServer owns it.
     }
 
     if (status === 'Blocked') {
@@ -211,42 +217,8 @@ async function handleTaskSave(event: BaseEntityEvent): Promise<void> {
         }
     }
 
-    if (status === 'Cancelled') {
-        // A cancellation that follows a Rejected decision is treated as a rejection,
-        // firing OnReject (e.g. "return the source record to Draft"); a plain cancel
-        // fires OnCancel. Both are post-commit and non-blocking.
-        const rejected = await taskHasRejectedDecision(taskID, contextUser);
-        await invokeTaskTypeAction(task, rejected ? 'OnRejectActionID' : 'OnCancelActionID', contextUser);
-    }
-}
-
-/**
- * Returns true when the task has a TaskDecision with the 'Rejected' outcome.
- * Used to distinguish a rejection from a plain cancellation when routing hooks.
- *
- * Resolves the rejected outcome by its stable Code, then matches decisions by
- * OutcomeID — so renaming the outcome's display Name doesn't break routing.
- */
-async function taskHasRejectedDecision(taskID: string, contextUser: UserInfo): Promise<boolean> {
-    const rv = new RunView();
-    const outcomeResult = await rv.RunView<{ ID: string }>({
-        EntityName: 'MJ_BizApps_Tasks: Task Decision Outcomes',
-        ExtraFilter: `Code = 'Rejected'`,
-        Fields: ['ID'],
-        ResultType: 'simple',
-        MaxRows: 1,
-    }, contextUser);
-    const rejectedOutcomeID = outcomeResult?.Results?.[0]?.ID;
-    if (!rejectedOutcomeID) return false;
-
-    const result = await rv.RunView<{ ID: string }>({
-        EntityName: 'MJ_BizApps_Tasks: Task Decisions',
-        ExtraFilter: `TaskID = '${taskID}' AND OutcomeID = '${rejectedOutcomeID}'`,
-        Fields: ['ID'],
-        ResultType: 'simple',
-        MaxRows: 1,
-    }, contextUser);
-    return (result?.Results?.length ?? 0) > 0;
+    // OnCancel/OnReject action dispatch intentionally NOT here — TaskEntityServer
+    // fires them on the status transition, including rejected-stage / rejected-decision routing.
 }
 
 // ---------------------------------------------------------------------------
@@ -346,7 +318,7 @@ async function sendAssignmentNotification(
     const rv = new RunView();
     const taskResult = await rv.RunView<{ Name: string; Priority: string; DueAt: string | null }>({
         EntityName: TASKS_ENTITY,
-        ExtraFilter: `ID='${taskID}'`,
+        ExtraFilter: `ID=${GuidLiteral(taskID, 'TaskID')}`,
         ResultType: 'simple',
         MaxRows: 1,
     }, contextUser);
@@ -364,7 +336,7 @@ async function sendAssignmentNotification(
     if (roleID) {
         const roleResult = await new RunView().RunView<{ Name: string }>({
             EntityName: 'MJ_BizApps_Tasks: Task Roles',
-            ExtraFilter: `ID='${roleID}'`,
+            ExtraFilter: `ID=${GuidLiteral(roleID, 'RoleID')}`,
             ResultType: 'simple',
             MaxRows: 1,
         }, contextUser);
@@ -423,7 +395,7 @@ async function handleCommentSave(event: BaseEntityEvent): Promise<void> {
     const rv = new RunView();
     const taskResult = await rv.RunView<{ Name: string }>({
         EntityName: TASKS_ENTITY,
-        ExtraFilter: `ID='${taskID}'`,
+        ExtraFilter: `ID=${GuidLiteral(taskID, 'TaskID')}`,
         ResultType: 'simple',
         MaxRows: 1,
     }, contextUser);
@@ -472,7 +444,7 @@ async function invokeTaskTypeAction(
     const rv = new RunView();
     const typeResult = await rv.RunView<Record<TaskTypeActionColumn, string | null>>({
         EntityName: 'MJ_BizApps_Tasks: Task Types',
-        ExtraFilter: `ID='${typeID}'`,
+        ExtraFilter: `ID=${GuidLiteral(typeID, 'TypeID')}`,
         ResultType: 'simple',
         MaxRows: 1,
     }, contextUser);
@@ -553,7 +525,7 @@ async function invokeTaskTypeActionByTaskID(
     const rv = new RunView();
     const result = await rv.RunView<BaseEntity>({
         EntityName: TASKS_ENTITY,
-        ExtraFilter: `ID='${taskID}'`,
+        ExtraFilter: `ID=${GuidLiteral(taskID, 'TaskID')}`,
         ResultType: 'entity_object',
         MaxRows: 1,
     }, contextUser);
@@ -576,7 +548,7 @@ async function getTaskAssigneeUserIDs(taskID: string, contextUser: UserInfo): Pr
 
     const assignments = await rv.RunView<{ AssigneeEntityID: string | null; AssigneeRecordID: string }>({
         EntityName: TASK_ASSIGNMENTS_ENTITY,
-        ExtraFilter: `TaskID='${taskID}'`,
+        ExtraFilter: `TaskID=${GuidLiteral(taskID, 'TaskID')}`,
         ResultType: 'simple',
     }, contextUser);
 
@@ -613,9 +585,15 @@ function uniqueUserIDs(userIDs: string[]): string[] {
 
 /** MJ UserIDs of the assigned people (see ResolveUserIDsForPeople); empty, and logged, when the lookup fails. */
 async function getPersonAssigneeUserIDs(taskID: string, personIDs: string[], contextUser: UserInfo): Promise<string[]> {
-    if (personIDs.length === 0) return [];
+    // AssigneeRecordID is free text (NVARCHAR, no FK); filter out non-UUIDs with logging before lookup.
+    const validPersonIDs = personIDs.filter((id) => {
+        if (IsValidUUID(id)) return true;
+        LogError(`[BizAppsTasks] Skipping non-UUID AssigneeRecordID '${id}' on assignment for task ${taskID} — excluded from person lookup`);
+        return false;
+    });
+    if (validPersonIDs.length === 0) return [];
     try {
-        return [...(await ResolveUserIDsForPeople(personIDs, Metadata.Provider, contextUser)).values()];
+        return [...(await ResolveUserIDsForPeople(validPersonIDs, Metadata.Provider, contextUser)).values()];
     } catch (error) {
         LogError(`[Tasks] Could not resolve the users of task ${taskID}'s assignees: ${errorText(error)}`);
         return [];
@@ -626,6 +604,11 @@ async function getPersonAssigneeUserIDs(taskID: string, personIDs: string[], con
  * Resolves a PersonID to its MJ UserID (if any): the user's People link, else People.LinkedUserID.
  */
 async function getPersonUserID(personID: string, contextUser: UserInfo): Promise<string | null> {
+    // personID may originate from free-text AssigneeRecordID — validate before lookup.
+    if (!IsValidUUID(personID)) {
+        LogError(`[BizAppsTasks] Skipping non-UUID person ID '${personID}' — excluded from linked-user lookup`);
+        return null;
+    }
     try {
         return await ResolveUserIDForPerson(personID, Metadata.Provider, contextUser);
     } catch (error) {
@@ -640,12 +623,18 @@ function errorText(error: unknown): string {
 
 /**
  * Resolves a PersonID to their display name.
+ * Non-UUID values (such as a free-text polymorphic AssigneeRecordID) return null without
+ * touching SQL so callers such as OnAssign hook dispatch can proceed safely.
  */
 async function getPersonName(personID: string, contextUser: UserInfo): Promise<string | null> {
+    if (!IsValidUUID(personID)) {
+        LogError(`[BizAppsTasks] Skipping non-UUID person ID '${personID}' — excluded from person name lookup`);
+        return null;
+    }
     const rv = new RunView();
     const result = await rv.RunView<{ FirstName: string; LastName: string }>({
         EntityName: 'MJ_BizApps_Common: People',
-        ExtraFilter: `ID='${personID}'`,
+        ExtraFilter: `ID=${GuidLiteral(personID, 'PersonID')}`,
         Fields: ['ID', 'FirstName', 'LastName'],
         ResultType: 'simple',
         MaxRows: 1,
