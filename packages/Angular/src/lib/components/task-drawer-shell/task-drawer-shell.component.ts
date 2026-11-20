@@ -12,11 +12,10 @@ import {
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import {
-    IsPhoneViewport,
     MJBottomSheetComponent,
     MjSlidePanelComponent,
-    WatchPhoneViewport,
 } from '@memberjunction/ng-ui-components';
+import { IsPhoneViewport, WatchPhoneViewport } from '../../phone-viewport';
 
 /**
  * Responsive drawer shell for BizApps Tasks panels.

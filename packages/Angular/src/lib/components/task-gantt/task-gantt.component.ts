@@ -29,11 +29,10 @@ import {
     MjGanttChartComponent,
 } from '@memberjunction/ng-gantt';
 import {
-    IsPhoneViewport,
     MJButtonDirective,
     MJEmptyStateComponent,
-    WatchPhoneViewport,
 } from '@memberjunction/ng-ui-components';
+import { IsPhoneViewport, WatchPhoneViewport } from '../../phone-viewport';
 import {
     ComputeCriticalPathTaskIds,
     MatchesAssigneeFilter,
