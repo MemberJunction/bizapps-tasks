@@ -39,22 +39,15 @@ function resetProvider(withScheduler: boolean) {
 }
 
 // Mock MJ runtime
-vi.mock('@memberjunction/global', () => ({
+vi.mock('@memberjunction/global', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@memberjunction/global')>()),
   RegisterClass: () => () => {},
-  IsValidUUID: (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
-  NormalizeUUID: (v: string) => v.trim().toLowerCase(),
-  EscapeSQLString: (v: string) => v.replace(/'/g, "''"),
-  UUIDsEqual: (a?: string | null, b?: string | null) =>
-    Boolean(a && b && a.toLowerCase() === b.toLowerCase()),
-  BaseSingleton: class {
-    public static getInstance() {
-      return {};
-    }
-  },
 }));
 
-vi.mock('@memberjunction/core', () => {
+vi.mock('@memberjunction/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@memberjunction/core')>();
   return {
+    ...actual,
     BaseEntity: class {
       public ContextCurrentUser = { ID: '00000000-0000-0000-0000-000000000001', Name: 'Test User' };
       public Fields: Array<{ CodeName: string; Dirty: boolean; Value: unknown; OldValue: unknown }> = [];

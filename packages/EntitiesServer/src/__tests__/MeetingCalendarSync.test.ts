@@ -4,12 +4,8 @@ const runViewMock = vi.fn();
 const settingGetMock = vi.fn();
 const settingConfigMock = vi.fn();
 
-vi.mock('@memberjunction/global', () => ({
-    BaseSingleton: class {
-        protected static getInstance() {
-            return {};
-        }
-    },
+vi.mock('@memberjunction/global', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@memberjunction/global')>()),
     RegisterClass: () => () => {},
     OptionalKeyedSpecialization: () => () => {},
 }));

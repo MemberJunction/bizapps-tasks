@@ -13,11 +13,9 @@ const {
     resolveAllForRootTasksMock: vi.fn(),
 }));
 
-vi.mock('@memberjunction/global', () => ({
+vi.mock('@memberjunction/global', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@memberjunction/global')>()),
     RegisterClass: () => () => {},
-    IsValidUUID: (v: string) =>
-        typeof v === 'string' &&
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
 }));
 
 vi.mock('@memberjunction/core', () => {
