@@ -2,14 +2,19 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 type ViewParams = { EntityName: string; ExtraFilter?: string; Fields?: string[] };
 
-const { runView, runAction, sendNotification, resolveRoleUsers } = vi.hoisted(() => ({
+const { runView, runAction, sendNotification, resolveRoleUsers, ROLES_ENTITY, ROLE_FINANCE, ASSIGN_ACTION } = vi.hoisted(() => ({
   runView: vi.fn(),
   runAction: vi.fn(),
   sendNotification: vi.fn(),
   resolveRoleUsers: vi.fn(),
+  ROLES_ENTITY: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  ROLE_FINANCE: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  ASSIGN_ACTION: '44444444-4444-4444-8444-444444444444',
 }));
 
-const ROLES_ENTITY = 'roles-entity';
+const TASK_1 = '11111111-1111-4111-8111-111111111111';
+const TYPE_1 = '22222222-2222-4222-8222-222222222222';
+const PERSON_1 = '33333333-3333-4333-8333-333333333333';
 
 vi.mock('@memberjunction/core', () => ({
   BaseEntity: class { static BaseEventCode = 'BaseEntity'; },
@@ -20,11 +25,12 @@ vi.mock('@memberjunction/core', () => ({
   UserInfo: class {},
 }));
 vi.mock('@memberjunction/global', () => ({
+  IsValidUUID: (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
+  EscapeSQLString: (v: string) => v.replace(/'/g, "''"),
+  UUIDsEqual: (a?: string | null, b?: string | null) => Boolean(a && b && a.toLowerCase() === b.toLowerCase()),
   MJEventType: { ComponentEvent: 'ComponentEvent' },
   MJGlobal: { Instance: { GetGlobalObjectStore: () => ({}), GetEventListener: () => ({ subscribe: () => ({ unsubscribe() {} }) }) } },
 }));
-// The resolver answers from the mocked People rows' LinkedUserID here; its own rules (the user's
-// People link first) are covered by @mj-biz-apps/common-entities' own tests.
 vi.mock('@mj-biz-apps/common-entities', () => {
   const linkedUsers = async (personIDs: string[]): Promise<Map<string, string>> => {
     const found = new Map<string, string>();
@@ -43,23 +49,24 @@ vi.mock('@mj-biz-apps/common-entities', () => {
 vi.mock('../../role-assignees.js', () => ({
   IsRoleEntityID: (id: string | null | undefined) => id === ROLES_ENTITY,
   ResolveUserIDsForRoles: resolveRoleUsers,
-  RoleName: (id: string) => (id === 'role-finance' ? 'Finance' : null),
+  RoleName: (id: string) => (id === ROLE_FINANCE ? 'Finance' : null),
 }));
 vi.mock('@memberjunction/notifications', () => ({
   NotificationEngine: { Instance: { Config: vi.fn(), SendNotification: sendNotification } },
 }));
 vi.mock('@memberjunction/actions', () => ({
-  ActionEngineServer: { Instance: { Config: vi.fn(), Actions: [{ ID: 'assign-action' }], RunAction: runAction } },
+  ActionEngineServer: { Instance: { Config: vi.fn(), Actions: [{ ID: ASSIGN_ACTION }], RunAction: runAction } },
 }));
 
 import { handleAssignmentSave, handleEntityEvent } from '../TaskNotificationHandler.js';
 
-// Read as a simple row by the assignment notice and as an entity by the OnAssign hook.
 const task = {
+  ID: TASK_1,
   Name: 'Approve discount',
+  Status: 'Open',
+  TypeID: TYPE_1,
   Priority: 'High',
   DueAt: null,
-  Get: (field: string) => ({ ID: 'task-1', Name: 'Approve discount', Status: 'Open', TypeID: 'type-1' } as Record<string, string>)[field],
 };
 
 function mockViews(linkedUserID: string | null): void {
@@ -69,13 +76,13 @@ function mockViews(linkedUserID: string | null): void {
         return Promise.resolve({
           Success: true,
           Results: params.Fields?.includes('LinkedUserID')
-            ? [{ ID: 'person-1', LinkedUserID: linkedUserID }]
-            : [{ ID: 'person-1', FirstName: 'Pat', LastName: 'Doe' }],
+            ? [{ ID: PERSON_1, LinkedUserID: linkedUserID }]
+            : [{ ID: PERSON_1, FirstName: 'Pat', LastName: 'Doe' }],
         });
       case 'MJ_BizApps_Tasks: Tasks':
         return Promise.resolve({ Success: true, Results: params.ExtraFilter ? [task] : [] });
       case 'MJ_BizApps_Tasks: Task Types':
-        return Promise.resolve({ Success: true, Results: [{ OnAssignActionID: 'assign-action' }] });
+        return Promise.resolve({ Success: true, Results: [{ OnAssignActionID: ASSIGN_ACTION }] });
       default:
         return Promise.resolve({ Success: true, Results: [] });
     }
@@ -83,11 +90,16 @@ function mockViews(linkedUserID: string | null): void {
 }
 
 function assignmentCreated() {
-  const fields: Record<string, string | null> = { AssigneeRecordID: 'person-1', TaskID: 'task-1', RoleID: null };
   return {
     type: 'save',
     saveSubType: 'create',
-    baseEntity: { ContextCurrentUser: { ID: 'user-ctx' }, Get: (f: string) => fields[f] },
+    baseEntity: {
+      ContextCurrentUser: { ID: 'user-ctx' },
+      AssigneeEntityID: null,
+      AssigneeRecordID: PERSON_1,
+      TaskID: TASK_1,
+      RoleID: null,
+    },
   } as unknown as Parameters<typeof handleAssignmentSave>[0];
 }
 
@@ -108,16 +120,16 @@ describe('handleAssignmentSave', () => {
 
     expect(runAction).toHaveBeenCalledOnce();
     expect(paramsPassed()).toMatchObject({
-      TaskID: 'task-1',
+      TaskID: TASK_1,
       TaskName: 'Approve discount',
-      TaskTypeID: 'type-1',
-      AssigneePersonID: 'person-1',
+      TaskTypeID: TYPE_1,
+      AssigneePersonID: PERSON_1,
       AssigneeName: 'Pat Doe',
     });
     expect(sendNotification).toHaveBeenCalledOnce();
   });
 
-  it('sends the assignment as MJ\'s Task Assignment notification type', async () => {
+  it("sends the assignment as MJ's Task Assignment notification type", async () => {
     mockViews('user-1');
 
     await handleAssignmentSave(assignmentCreated());
@@ -139,7 +151,7 @@ describe('handleAssignmentSave', () => {
 
     expect(sendNotification).not.toHaveBeenCalled();
     expect(runAction).toHaveBeenCalledOnce();
-    expect(paramsPassed().AssigneePersonID).toBe('person-1');
+    expect(paramsPassed().AssigneePersonID).toBe(PERSON_1);
   });
 
   it('still invokes the OnAssign action when the notification throws', async () => {
@@ -165,7 +177,6 @@ describe('handleAssignmentSave', () => {
     const token = { frame: 'tx-1' };
     const runAfterCommit = vi.fn();
     const capturePostCommitToken = vi.fn(() => token);
-    const fields: Record<string, string | null> = { AssigneeRecordID: 'person-1', TaskID: 'task-1', RoleID: null };
     const event = {
       type: 'save',
       saveSubType: 'create',
@@ -176,7 +187,10 @@ describe('handleAssignmentSave', () => {
           CapturePostCommitToken: capturePostCommitToken,
           RunAfterCommit: runAfterCommit,
         },
-        Get: (f: string) => fields[f],
+        AssigneeEntityID: null,
+        AssigneeRecordID: PERSON_1,
+        TaskID: TASK_1,
+        RoleID: null,
       },
     } as unknown as Parameters<typeof handleEntityEvent>[0];
 
@@ -199,11 +213,16 @@ describe('handleAssignmentSave', () => {
 
 describe('handleAssignmentSave for a role assignee (bc-aidp-next-golive#442)', () => {
   function roleAssignmentCreated() {
-    const fields: Record<string, string | null> = { AssigneeEntityID: ROLES_ENTITY, AssigneeRecordID: 'role-finance', TaskID: 'task-1', RoleID: null };
     return {
       type: 'save',
       saveSubType: 'create',
-      baseEntity: { ContextCurrentUser: { ID: 'user-ctx' }, Get: (f: string) => fields[f] },
+      baseEntity: {
+        ContextCurrentUser: { ID: 'user-ctx' },
+        AssigneeEntityID: ROLES_ENTITY,
+        AssigneeRecordID: ROLE_FINANCE,
+        TaskID: TASK_1,
+        RoleID: null,
+      },
     } as unknown as Parameters<typeof handleAssignmentSave>[0];
   }
 
@@ -213,7 +232,7 @@ describe('handleAssignmentSave for a role assignee (bc-aidp-next-golive#442)', (
 
     await handleAssignmentSave(roleAssignmentCreated());
 
-    expect(resolveRoleUsers).toHaveBeenCalledWith(['role-finance'], { ID: 'user-ctx' });
+    expect(resolveRoleUsers).toHaveBeenCalledWith([ROLE_FINANCE], { ID: 'user-ctx' });
     expect(sendNotification.mock.calls.map(([p]) => (p as { userId: string }).userId)).toEqual(['user-a', 'user-b']);
     expect(runView.mock.calls.some(([p]) => (p as ViewParams).EntityName === 'MJ_BizApps_Common: People')).toBe(false);
   });

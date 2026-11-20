@@ -13,6 +13,9 @@ vi.mock('@memberjunction/core', () => ({
   UserInfo: class {},
 }));
 vi.mock('@memberjunction/global', () => ({
+  IsValidUUID: (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
+  EscapeSQLString: (v: string) => v.replace(/'/g, "''"),
+  UUIDsEqual: (a?: string | null, b?: string | null) => Boolean(a && b && a.toLowerCase() === b.toLowerCase()),
   MJEventType: { ComponentEvent: 'ComponentEvent' },
   MJGlobal: { Instance: { GetGlobalObjectStore: () => ({}), GetEventListener: () => ({ subscribe: () => ({ unsubscribe() {} }) }) } },
 }));
@@ -22,6 +25,9 @@ vi.mock('@mj-biz-apps/common-entities', () => ({
 }));
 vi.mock('@memberjunction/notifications', () => ({
   NotificationEngine: { Instance: { Config: vi.fn(), SendNotification: vi.fn() } },
+}));
+vi.mock('@memberjunction/actions', () => ({
+  ActionEngineServer: { Instance: { Config: vi.fn(), Actions: [], RunAction: vi.fn() } },
 }));
 
 import { interpretActionHookResult } from '../TaskNotificationHandler.js';

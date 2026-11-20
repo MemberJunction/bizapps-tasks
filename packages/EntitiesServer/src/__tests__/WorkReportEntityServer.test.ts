@@ -196,6 +196,7 @@ vi.mock('@mj-biz-apps/tasks-entities', () => ({
         SupervisorFeedback: string | null = null;
         ReviewedByPersonID: string | null = null;
         ReviewedAt: Date | null = null;
+        Items: { Items: unknown[] } = { Items: [] };
     },
     mjBizAppsTasksWorkReportItemEntity: class extends MockEntityBase {
         ID = ITEM_ID;
@@ -685,6 +686,60 @@ describe('WorkReportItemEntityServer', () => {
         const reparentValid = await item.ValidateAsync();
         expect(reparentValid.Success).toBe(false);
         expect(reparentValid.Errors[0]?.Message).toMatch(/WorkReportID of an existing Work Report Item cannot be changed/i);
+    });
+
+    it('validates unsaved items attached to an in-flight brand-new Draft WorkReport.Items graph, while keeping standalone creates fail-closed', async () => {
+        // Parent report does not exist in DB yet (brand-new composite save)
+        mockState.parentReportRows = [];
+
+        const report = new WorkReportEntityServer();
+        report.ID = REPORT_ID;
+        report.PersonID = PERSON_ALICE;
+        report.Status = 'Draft';
+
+        const attachedItem = new WorkReportItemEntityServer();
+        attachedItem.WorkReportID = REPORT_ID;
+        attachedItem.IsSaved = false;
+
+        const spoofedStandaloneItem = new WorkReportItemEntityServer();
+        spoofedStandaloneItem.WorkReportID = REPORT_ID;
+        spoofedStandaloneItem.IsSaved = false;
+
+        // Only attachedItem is a member of report.Items.Items
+        report.Items.Items.push(attachedItem);
+
+        // Spy on MockEntityBase.ValidateAsync to simulate BaseEntity.ValidateAsync validating children inside the parent scope
+        let attachedValidationResult: { Success: boolean; Errors: Array<{ Message: string }> } | null = null;
+        let spoofedValidationResult: { Success: boolean; Errors: Array<{ Message: string }> } | null = null;
+
+        vi.spyOn(MockEntityBase.prototype, 'ValidateAsync').mockImplementationOnce(async () => {
+            attachedValidationResult = await attachedItem.ValidateAsync();
+            spoofedValidationResult = await spoofedStandaloneItem.ValidateAsync();
+            return { Success: true, Errors: [] };
+        });
+
+        const parentResult = await report.ValidateAsync();
+        expect(parentResult.Success).toBe(true);
+        expect(attachedValidationResult?.Success).toBe(true);
+        // Standalone item NOT in report.Items.Items must still fail closed!
+        expect(spoofedValidationResult?.Success).toBe(false);
+        expect(spoofedValidationResult?.Errors[0]?.Message).toMatch(/was not found/i);
+
+        // Once ValidateAsync exits, the scope is torn down so attachedItem alone fails closed against empty DB
+        const afterScopeResult = await attachedItem.ValidateAsync();
+        expect(afterScopeResult.Success).toBe(false);
+        expect(afterScopeResult.Errors[0]?.Message).toMatch(/was not found/i);
+
+        // And if an in-flight parent is non-Draft (e.g. Submitted), the attached item is still refused by policy
+        report.Status = 'Submitted';
+        let nonDraftItemResult: { Success: boolean; Errors: Array<{ Message: string }> } | null = null;
+        vi.spyOn(MockEntityBase.prototype, 'ValidateAsync').mockImplementationOnce(async () => {
+            nonDraftItemResult = await attachedItem.ValidateAsync();
+            return { Success: true, Errors: [] };
+        });
+        await report.ValidateAsync();
+        expect(nonDraftItemResult?.Success).toBe(false);
+        expect(nonDraftItemResult?.Errors[0]?.Message).toMatch(/Cannot create items on a 'Submitted' Work Report/i);
     });
 });
 

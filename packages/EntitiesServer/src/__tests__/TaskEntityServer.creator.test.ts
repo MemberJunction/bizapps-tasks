@@ -22,6 +22,10 @@ const superSave = vi.fn(async () => true);
 vi.mock('@memberjunction/global', () => ({
     RegisterClass: () => () => {},
     IsValidUUID: (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
+    NormalizeUUID: (v: string) => v.trim().toLowerCase(),
+    EscapeSQLString: (v: string) => v.replace(/'/g, "''"),
+    UUIDsEqual: (a?: string | null, b?: string | null) =>
+        Boolean(a && b && a.toLowerCase() === b.toLowerCase()),
 }));
 
 vi.mock('@memberjunction/core', () => {
@@ -36,9 +40,11 @@ vi.mock('@memberjunction/core', () => {
             public ContextCurrentUser: { ID: string; LinkedEntityID?: string; LinkedEntityRecordID?: string } | null = { ID: USER_ID };
             public Fields: Array<{ CodeName: string; Dirty: boolean; Value: unknown; OldValue: unknown }> = [];
             public IsSaved = false;
+            public TransactionGroup: unknown = null;
             public ProviderToUse = provider;
             public RunViewProviderToUse = {};
             private _fieldValues: Record<string, unknown> = {};
+            public DeclareRelatedRecords() { return { Items: [] as unknown[] }; }
             public Get(fieldName: string) { return this._fieldValues[fieldName]; }
             public Set(fieldName: string, value: unknown) { this._fieldValues[fieldName] = value; }
             public GetAll() { return { ...this._fieldValues }; }
