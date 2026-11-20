@@ -6,6 +6,8 @@
   "directoryOrder": [
     "row-level-security-filters",
     "entities",
+    "templates",
+    "notification-types",
     "credential-types",
     "action-categories",
     "actions",
