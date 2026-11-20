@@ -6,6 +6,7 @@ import {
     MEETING_ENTITY,
     MEETING_SERIES_ENTITY,
     VIDEO_PROVIDER_ENTITY,
+    TasksSettings,
     callerAdministersMeetings,
     callerIsOrganizer,
     isMeetingStatus,
@@ -20,7 +21,6 @@ import { BusinessTimeZoneEngine } from '@mj-biz-apps/common-entities';
 import { runAfterCommit } from './after-commit.js';
 import { MeetingCalendarSyncService } from './calendar/MeetingCalendarSyncService.js';
 import { callerOwnsMeeting, meetingCaller, valueBefore } from './meeting-caller.js';
-import { TasksSettings } from './TasksSettings.js';
 import { resolveVideoProviderDriver, type VideoMeetingInput, type VideoProviderBase } from './video/VideoProviderBase.js';
 
 const fail = (result: ValidationResult, field: string, message: string): ValidationResult => {

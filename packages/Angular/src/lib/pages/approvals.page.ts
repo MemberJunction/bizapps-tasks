@@ -4,11 +4,12 @@ import { LogError } from '@memberjunction/core';
 import { ResolveCurrentPersonID, NO_PERSON_MESSAGE, PERSON_LOOKUP_FAILED_MESSAGE } from '../current-person';
 import { ApprovalInboxComponent } from '../components/approval-inbox/approval-inbox.component';
 import { DecisionRecordedEvent } from '../components/approval-decision-panel/approval-decision-panel.component';
+import { RunningTimerChipComponent } from '../components/running-timer-chip/running-timer-chip.component';
 
 @Component({
     selector: 'bizapps-approvals-page',
     standalone: true,
-    imports: [CommonModule, ApprovalInboxComponent],
+    imports: [CommonModule, ApprovalInboxComponent, RunningTimerChipComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         <div class="mjt-page-wrap">
@@ -23,6 +24,7 @@ import { DecisionRecordedEvent } from '../components/approval-decision-panel/app
                             <p class="mjt-subtitle">Review pending task decision requests, approvals, and sign-offs.</p>
                         </div>
                     </div>
+                    <bizapps-running-timer-chip [PersonID]="PersonID"></bizapps-running-timer-chip>
                 </div>
             </div>
 

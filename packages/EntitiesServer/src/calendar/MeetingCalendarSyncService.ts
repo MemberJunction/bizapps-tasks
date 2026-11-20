@@ -19,10 +19,10 @@ import {
     MEETING_ATTENDEE_ENTITY,
     MEETING_ENTITY,
     PEOPLE_ENTITY,
+    TasksSettings,
     VIDEO_PROVIDER_ENTITY,
 } from '@mj-biz-apps/tasks-core';
 import { ResolvePersonIDForUser, ResolveUserIDForPerson } from '@mj-biz-apps/common-entities';
-import { TasksSettings } from '../TasksSettings.js';
 
 export interface MeetingCalendarSyncOptions extends CalendarCredentialSource {
     /** Overrides `TasksSettings.DefaultCalendarProviderName`. */

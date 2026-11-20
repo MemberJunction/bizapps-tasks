@@ -1,0 +1,38 @@
+[
+  {
+    "fields": {
+      "Name": "Tasks",
+      "ParentID": null,
+      "IsActive": true,
+      "UseAuditLog": true,
+      "Description": "Parent authorization for BizApps Tasks administrative and management permissions."
+    },
+    "primaryKey": {
+      "ID": "A1B2C3D4-2222-4A22-8222-222222222201"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Manage Time Entries",
+      "ParentID": "@lookup:MJ: Authorizations.Name=Tasks",
+      "IsActive": true,
+      "UseAuditLog": true,
+      "Description": "Allows logging, editing, or deleting TaskTimeEntry rows and starting or stopping TaskTimer rows on behalf of any person."
+    },
+    "primaryKey": {
+      "ID": "A1B2C3D4-2222-4A22-8222-222222222202"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Manage Timesheets",
+      "ParentID": "@lookup:MJ: Authorizations.Name=Tasks",
+      "IsActive": true,
+      "UseAuditLog": true,
+      "Description": "Allows submitting or withdrawing timesheets on behalf of any person, reopening Approved timesheets, and managing TimeApprover and TimesheetSchedule rules."
+    },
+    "primaryKey": {
+      "ID": "A1B2C3D4-2222-4A22-8222-222222222203"
+    }
+  }
+]

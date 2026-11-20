@@ -13,7 +13,8 @@ const { store, subscribeMock, getEventListenerMock, runViewCalls } = vi.hoisted(
 vi.mock('@mj-biz-apps/tasks-entities', () => ({ mjBizAppsTasksTaskEntity: class {} }));
 vi.mock('../../workflow/workflow-step-completion.js', () => ({ SettleHumanAsksForTask: vi.fn() }));
 
-vi.mock('@memberjunction/core', () => ({
+vi.mock('@memberjunction/core', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@memberjunction/core')>()),
   BaseEntity: class { static BaseEventCode = 'BaseEntity'; },
   CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },
   LogError: vi.fn(),

@@ -386,7 +386,7 @@ All components must work well on mobile — this isn't a separate mobile app, bu
 - **Recurring tasks** — RecurrenceRule field (RRULE format), server-side scheduler
 - **External integrations** — Google Tasks / Microsoft To-Do sync via MJ Actions
 - **Notifications** — event handlers on assignment, status changes, overdue
-- **Time logging** — separate TimeEntry entity for detailed hours tracking
+- **Time logging, AI Agent Effort & Timesheets** — Completed (see [`plans/completed/TIME_TRACKING_PLAN.md`](./completed/TIME_TRACKING_PLAN.md) and [`guides/TIME_TRACKING_GUIDE.md`](../guides/TIME_TRACKING_GUIDE.md))
 - **Workflow triggers** — TaskType-based automation (on assignment, completion, overdue)
 - **Advanced filtering** — saved filters, saved views
 

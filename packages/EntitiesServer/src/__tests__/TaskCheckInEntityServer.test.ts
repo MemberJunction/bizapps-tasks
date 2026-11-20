@@ -51,12 +51,26 @@ vi.mock('@memberjunction/global', async (importOriginal) => {
 
 vi.mock('@memberjunction/core', () => ({
   BaseEntity: class {},
+  BaseEngine: class {
+    public static getInstance() {
+      return {};
+    }
+  },
+  BaseRemotableOperation: class {},
   LogError: vi.fn(),
   Metadata: {
     Provider: {
       GetEntityObject: (...args: unknown[]) => globalGetEntityObjectMock(...args),
     },
   },
+}));
+
+vi.mock('@mj-biz-apps/common-entities', () => ({
+  BusinessTimeZoneEngine: { Instance: {} },
+}));
+
+vi.mock('@memberjunction/core-entities', () => ({
+  ApplicationSettingEngine: { Instance: {} },
 }));
 
 vi.mock('@mj-biz-apps/tasks-entities', () => ({

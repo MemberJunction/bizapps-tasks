@@ -19,7 +19,8 @@ const TYPE_1 = '22222222-2222-4222-8222-222222222222';
 const PERSON_1 = '33333333-3333-4333-8333-333333333331';
 const PERSON_2 = '33333333-3333-4333-8333-333333333332';
 
-vi.mock('@memberjunction/core', () => ({
+vi.mock('@memberjunction/core', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@memberjunction/core')>()),
   BaseEntity: class { static BaseEventCode = 'BaseEntity'; },
   CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },
   LogError: vi.fn(),

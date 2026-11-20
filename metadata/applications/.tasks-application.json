@@ -34,6 +34,13 @@
           "isDefault": false
         },
         {
+          "Label": "My Time",
+          "Icon": "fa-solid fa-clock",
+          "ResourceType": "Custom",
+          "DriverClass": "MyTimeSectionResource",
+          "isDefault": false
+        },
+        {
           "Label": "Approvals",
           "Icon": "fa-solid fa-stamp",
           "ResourceType": "Custom",

@@ -1,6 +1,7 @@
 import { Component, ChangeDetectionStrategy, OnInit, ChangeDetectorRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RunView } from '@memberjunction/core';
+import { RunningTimerChipComponent } from '../components/running-timer-chip/running-timer-chip.component';
 import { TaskTemplateWizardComponent } from '../components/task-template-wizard/task-template-wizard.component';
 
 interface TemplateCard {
@@ -15,7 +16,7 @@ interface TemplateCard {
 @Component({
     selector: 'bizapps-templates-page',
     standalone: true,
-    imports: [CommonModule, TaskTemplateWizardComponent],
+    imports: [CommonModule, RunningTimerChipComponent, TaskTemplateWizardComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         <div class="mjt-page-wrap">
@@ -30,9 +31,12 @@ interface TemplateCard {
                             <p class="mjt-subtitle">Standardized repeatable project task templates and automated workflow generators.</p>
                         </div>
                     </div>
-                    <button type="button" class="mjt-btn-primary" (click)="ShowWizard = true">
-                        <i class="fa-solid fa-wand-magic-sparkles"></i> Instantiate Template
-                    </button>
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <bizapps-running-timer-chip></bizapps-running-timer-chip>
+                        <button type="button" class="mjt-btn-primary" (click)="ShowWizard = true">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Instantiate Template
+                        </button>
+                    </div>
                 </div>
             </div>
 

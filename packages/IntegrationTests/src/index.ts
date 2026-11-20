@@ -13,8 +13,10 @@ LoadTaskEntities();
 // behind an `if`. MJAPI loads the video stub separately via the `./video-stub` package subpath.
 if (process.env.MJ_IT_LOAD_ENTITIES_SERVER === '1') {
     const { LoadBizAppsTasksEntitiesServer } = await import('@mj-biz-apps/tasks-entities-server');
+    const { LoadBizAppsTasksServer } = await import('@mj-biz-apps/tasks-server');
     const { LoadFakeVideoProvider } = await import('./video-stub.js');
     LoadBizAppsTasksEntitiesServer();
+    LoadBizAppsTasksServer();
     LoadFakeVideoProvider();
 }
 
@@ -34,6 +36,11 @@ export * from './checks/task-statuses.checks.js';
 export * from './checks/task-action-hooks.checks.js';
 export * from './checks/task-work-bus-and-reports.checks.js';
 export * from './checks/task-hook-routing.checks.js';
+export * from './checks/time-entries.checks.js';
+export * from './checks/timers.checks.js';
+export * from './checks/agent-effort.checks.js';
+export * from './checks/time-reporting.checks.js';
+export * from './checks/timesheets.checks.js';
 export * from './checks/meetings.checks.js';
 
 export function LoadTasksIntegrationTests(): void {}
