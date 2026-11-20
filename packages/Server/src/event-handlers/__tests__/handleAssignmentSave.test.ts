@@ -185,14 +185,14 @@ describe('handleAssignmentSave', () => {
     expect(capturePostCommitToken).toHaveBeenCalledOnce();
     expect(runAfterCommit).toHaveBeenCalledOnce();
     expect(runAction).not.toHaveBeenCalled();
-    expect(saveNotification).not.toHaveBeenCalled();
+    expect(sendNotification).not.toHaveBeenCalled();
 
     const [queuedTask, description, passedToken] = runAfterCommit.mock.calls[0];
     expect(description).toBe('Task assignment notification and OnAssign hook');
     expect(passedToken).toBe(token);
 
     await (queuedTask as () => Promise<void>)();
-    expect(saveNotification).toHaveBeenCalledOnce();
+    expect(sendNotification).toHaveBeenCalledOnce();
     expect(runAction).toHaveBeenCalledOnce();
   });
 });
