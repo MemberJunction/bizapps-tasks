@@ -20,6 +20,8 @@ vi.mock('@memberjunction/core', () => ({
 }));
 vi.mock('@memberjunction/global', () => ({
   MJEventType: { ComponentEvent: 'ComponentEvent' },
+  IsValidUUID: (v: string | null | undefined) =>
+    !!v && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(v.trim()),
   MJGlobal: {
     Instance: {
       GetGlobalObjectStore: () => ({}),
@@ -60,22 +62,27 @@ vi.mock('@memberjunction/actions', () => ({
 
 import { InitTaskNotificationHandler } from '../TaskNotificationHandler.js';
 
+const TASK_ID = '11111111-1111-1111-1111-111111111111';
+const TYPE_ID = '22222222-2222-2222-2222-222222222222';
+const PERSON_1 = '33333333-3333-3333-3333-333333333331';
+const PERSON_2 = '33333333-3333-3333-3333-333333333332';
+
 const taskFields: Record<string, string | null> = {
-  ID: 'task-1',
+  ID: TASK_ID,
   Name: 'Approve journal batch',
   Status: 'Completed',
-  TypeID: 'type-1',
+  TypeID: TYPE_ID,
 };
 
 function mockViews(): void {
   runView.mockImplementation((params: ViewParams) => {
     switch (params.EntityName) {
       case 'MJ_BizApps_Tasks: Task Assignments':
-        return Promise.resolve({ Success: true, Results: [{ AssigneeRecordID: 'person-1' }, { AssigneeRecordID: 'person-2' }] });
+        return Promise.resolve({ Success: true, Results: [{ AssigneeRecordID: PERSON_1 }, { AssigneeRecordID: PERSON_2 }] });
       case 'MJ_BizApps_Common: People':
         return Promise.resolve({
           Success: true,
-          Results: [{ ID: 'person-1', LinkedUserID: 'user-1' }, { ID: 'person-2', LinkedUserID: 'user-2' }],
+          Results: [{ ID: PERSON_1, LinkedUserID: 'user-1' }, { ID: PERSON_2, LinkedUserID: 'user-2' }],
         });
       case 'MJ_BizApps_Tasks: Task Types':
         return Promise.resolve({ Success: true, Results: [{ OnCompleteActionID: 'complete-action' }] });
@@ -86,11 +93,12 @@ function mockViews(): void {
 }
 
 /** Publishes a task update through the handler's MJGlobal subscription. */
-function publishTaskUpdate(): void {
+function publishTaskUpdate(overrides: Record<string, string | null> = {}): void {
+  const fields = { ...taskFields, ...overrides };
   const baseEntity = {
     ContextCurrentUser: { ID: 'user-ctx' },
     EntityInfo: { Name: 'MJ_BizApps_Tasks: Tasks' },
-    Get: (field: string) => taskFields[field],
+    Get: (field: string) => fields[field],
   };
   for (const listener of listeners) {
     listener({ event: 'ComponentEvent', eventCode: 'BaseEntity', args: { type: 'save', saveSubType: 'update', baseEntity } });
@@ -108,11 +116,10 @@ beforeEach(() => {
 });
 
 describe('task completed notification', () => {
-  it('sends the Task Completed type to every assignee with the existing title and message', async () => {
+  it('sends the Task Completed type to every assignee and does NOT double-dispatch OnComplete', async () => {
     publishTaskUpdate();
 
-    await vi.waitFor(() => expect(runAction).toHaveBeenCalledOnce());
-    expect(sendNotification).toHaveBeenCalledTimes(2);
+    await vi.waitFor(() => expect(sendNotification).toHaveBeenCalledTimes(2));
     for (const userId of ['user-1', 'user-2']) {
       expect(sendNotification).toHaveBeenCalledWith(
         {
@@ -128,13 +135,40 @@ describe('task completed notification', () => {
         expect.anything(),
       );
     }
+    // Lifecycle hooks live solely in TaskEntityServer to prevent double-dispatch and replay.
+    expect(runAction).not.toHaveBeenCalled();
   });
 
-  it('still invokes the OnComplete action when the notification send fails', async () => {
-    sendNotification.mockRejectedValue(new Error('notification store down'));
+  it('does NOT dispatch OnCancel or OnReject on a Cancelled task save', async () => {
+    publishTaskUpdate({ Status: 'Cancelled' });
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    expect(runAction).not.toHaveBeenCalled();
+  });
+
+  it('filters out non-UUID AssigneeRecordID values before calling People lookup', async () => {
+    runView.mockImplementation((params: ViewParams) => {
+      if (params.EntityName === 'MJ_BizApps_Tasks: Task Assignments') {
+        return Promise.resolve({
+          Success: true,
+          Results: [{ AssigneeRecordID: "x' OR 1=1 --" }, { AssigneeRecordID: PERSON_1 }],
+        });
+      }
+      if (params.EntityName === 'MJ_BizApps_Common: People') {
+        return Promise.resolve({
+          Success: true,
+          Results: [{ ID: PERSON_1, LinkedUserID: 'user-1' }],
+        });
+      }
+      return Promise.resolve({ Success: true, Results: [] });
+    });
 
     publishTaskUpdate();
 
-    await vi.waitFor(() => expect(runAction).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(sendNotification).toHaveBeenCalledOnce());
+    const peopleCalls = runView.mock.calls.filter(([p]) => (p as ViewParams).EntityName === 'MJ_BizApps_Common: People');
+    for (const [call] of peopleCalls) {
+      expect((call as ViewParams).ExtraFilter).not.toContain('OR 1=1');
+    }
   });
 });

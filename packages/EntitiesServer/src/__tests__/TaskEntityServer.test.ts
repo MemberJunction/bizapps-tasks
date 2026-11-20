@@ -15,6 +15,8 @@ const H = vi.hoisted(() => {
     globalGetEntityObject: vi.fn(),
     rollupParentProgress: vi.fn(async () => undefined),
     runViewProviders: [] as unknown[],
+    runViewCalls: [] as Array<{ EntityName?: string; ExtraFilter?: string }>,
+    runViewImpl: null as ((params: { EntityName?: string; ExtraFilter?: string }) => Promise<{ Success: boolean; Results: unknown[]; ErrorMessage?: string }>) | null,
   };
 });
 
@@ -87,7 +89,9 @@ vi.mock('@memberjunction/core', () => {
       constructor(provider?: unknown) {
         H.runViewProviders.push(provider);
       }
-      public async RunView() {
+      public async RunView(params: { EntityName?: string; ExtraFilter?: string }) {
+        H.runViewCalls.push(params);
+        if (H.runViewImpl) return H.runViewImpl(params);
         return { Success: true, Results: [] };
       }
     },
@@ -113,16 +117,24 @@ vi.mock('@memberjunction/actions', () => ({
   },
 }));
 
-vi.mock('@mj-biz-apps/tasks-core', () => ({
+vi.mock('@mj-biz-apps/tasks-core', async () => ({
+  ...(await vi.importActual<typeof import('@mj-biz-apps/tasks-core')>('@mj-biz-apps/tasks-core')),
   TaskService: class {
     public rollupParentProgress = H.rollupParentProgress;
   },
 }));
 
+// IDs that reach an ExtraFilter via GuidLiteral must be valid UUIDs.
+const TYPE_UUID = 'E0000000-0000-0000-0000-000000000001';
+const TASK_UUID = 'D0000000-0000-0000-0000-000000000001';
+const OUTCOME_UUID = 'F0000000-0000-0000-0000-000000000001';
+
 describe('TaskEntityServer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     H.runViewProviders.length = 0;
+    H.runViewCalls.length = 0;
+    H.runViewImpl = null;
     resetProvider(true);
   });
 
@@ -290,6 +302,187 @@ describe('TaskEntityServer', () => {
       );
     });
 
+    function cancelledCtx(): TaskLifecycleContext {
+      return {
+        isNew: false,
+        statusChanged: true,
+        typeStatusChanged: false,
+        pctChanged: false,
+        priorityChanged: false,
+        dueChanged: false,
+        oldStatus: 'InProgress',
+        newStatus: 'Cancelled',
+        oldTypeStatusID: null,
+        newTypeStatusID: null,
+        oldPct: 50,
+        newPct: 50,
+        oldPriority: 'Medium',
+        newPriority: 'Medium',
+        oldDue: null,
+        newDue: null,
+        typeID: TYPE_UUID,
+      };
+    }
+
+    it('fires ONLY OnCancel (never OnReject) on a plain cancellation', async () => {
+      const server = new TaskEntityServer();
+      server.ID = TASK_UUID;
+      server.TypeID = TYPE_UUID;
+      server.Status = 'Cancelled';
+
+      vi.spyOn(server as unknown as { loadTaskType: (id: string) => Promise<unknown> }, 'loadTaskType').mockResolvedValue({
+        ID: TYPE_UUID,
+        Code: 'APPROVAL_REQUEST',
+        OnCancelActionID: 'ACTION-CANCEL',
+        OnRejectActionID: 'ACTION-REJECT',
+      });
+      vi.spyOn(server as unknown as { taskHasRejectedDecision: () => Promise<boolean> }, 'taskHasRejectedDecision')
+        .mockResolvedValue(false);
+
+      const invokeSpy = vi.spyOn(server, 'invokeAction').mockResolvedValue({ Invoked: true, Success: true });
+
+      await server.dispatchLifecycleActionHooks(cancelledCtx());
+
+      expect(invokeSpy).toHaveBeenCalledWith('ACTION-CANCEL', 'OnCancel', 'APPROVAL_REQUEST', null, 'InProgress');
+      const hookTypes = invokeSpy.mock.calls.map(c => c[1]);
+      expect(hookTypes).not.toContain('OnReject');
+    });
+
+    it('fires ONLY OnReject (never OnCancel) when a Rejected decision drove the cancellation', async () => {
+      const server = new TaskEntityServer();
+      server.ID = TASK_UUID;
+      server.TypeID = TYPE_UUID;
+      server.Status = 'Cancelled';
+
+      vi.spyOn(server as unknown as { loadTaskType: (id: string) => Promise<unknown> }, 'loadTaskType').mockResolvedValue({
+        ID: TYPE_UUID,
+        Code: 'APPROVAL_REQUEST',
+        OnCancelActionID: 'ACTION-CANCEL',
+        OnRejectActionID: 'ACTION-REJECT',
+      });
+      vi.spyOn(server as unknown as { taskHasRejectedDecision: () => Promise<boolean> }, 'taskHasRejectedDecision')
+        .mockResolvedValue(true);
+
+      const invokeSpy = vi.spyOn(server, 'invokeAction').mockResolvedValue({ Invoked: true, Success: true });
+
+      await server.dispatchLifecycleActionHooks(cancelledCtx());
+
+      expect(invokeSpy).toHaveBeenCalledWith('ACTION-REJECT', 'OnReject', 'APPROVAL_REQUEST', null, 'InProgress');
+      const hookTypes = invokeSpy.mock.calls.map(c => c[1]);
+      expect(hookTypes).not.toContain('OnCancel');
+    });
+
+    it('fires OnReject when the task lands on the REJECTED stage even with no decision row (status-dropdown path)', async () => {
+      const server = new TaskEntityServer();
+      server.ID = TASK_UUID;
+      server.TypeID = TYPE_UUID;
+      server.TaskTypeStatusID = 'STATUS-REJECTED';
+      server.Status = 'Cancelled';
+
+      vi.spyOn(server as unknown as { loadTaskType: (id: string) => Promise<unknown> }, 'loadTaskType').mockResolvedValue({
+        ID: TYPE_UUID,
+        Code: 'APPROVAL_REQUEST',
+        OnCancelActionID: 'ACTION-CANCEL',
+        OnRejectActionID: 'ACTION-REJECT',
+      });
+      vi.spyOn(server as unknown as { loadTaskTypeStatus: (id: string) => Promise<unknown> }, 'loadTaskTypeStatus')
+        .mockResolvedValue({ ID: 'STATUS-REJECTED', Code: 'REJECTED', MacroStatus: 'Cancelled' });
+      const decisionSpy = vi.spyOn(server as unknown as { taskHasRejectedDecision: () => Promise<boolean> }, 'taskHasRejectedDecision')
+        .mockResolvedValue(false);
+
+      const invokeSpy = vi.spyOn(server, 'invokeAction').mockResolvedValue({ Invoked: true, Success: true });
+
+      await server.dispatchLifecycleActionHooks(cancelledCtx());
+
+      expect(invokeSpy).toHaveBeenCalledWith('ACTION-REJECT', 'OnReject', 'APPROVAL_REQUEST', 'REJECTED', 'InProgress');
+      expect(invokeSpy.mock.calls.map(c => c[1])).not.toContain('OnCancel');
+      // The stage signal short-circuits — no decision query needed.
+      expect(decisionSpy).not.toHaveBeenCalled();
+    });
+
+    it('does NOT fall back to OnCancel on a rejection when OnRejectActionID is unwired', async () => {
+      const server = new TaskEntityServer();
+      server.ID = TASK_UUID;
+      server.TypeID = TYPE_UUID;
+      server.Status = 'Cancelled';
+
+      vi.spyOn(server as unknown as { loadTaskType: (id: string) => Promise<unknown> }, 'loadTaskType').mockResolvedValue({
+        ID: TYPE_UUID,
+        Code: 'APPROVAL_REQUEST',
+        OnCancelActionID: 'ACTION-CANCEL',
+        OnRejectActionID: null,
+      });
+      vi.spyOn(server as unknown as { taskHasRejectedDecision: () => Promise<boolean> }, 'taskHasRejectedDecision')
+        .mockResolvedValue(true);
+
+      const invokeSpy = vi.spyOn(server, 'invokeAction').mockResolvedValue({ Invoked: true, Success: true });
+
+      await server.dispatchLifecycleActionHooks(cancelledCtx());
+
+      expect(invokeSpy).not.toHaveBeenCalled();
+    });
+
+    it('skips the rejected-decision query when the type wires neither OnCancel nor OnReject', async () => {
+      const server = new TaskEntityServer();
+      server.ID = TASK_UUID;
+      server.TypeID = TYPE_UUID;
+      server.Status = 'Cancelled';
+
+      vi.spyOn(server as unknown as { loadTaskType: (id: string) => Promise<unknown> }, 'loadTaskType').mockResolvedValue({
+        ID: TYPE_UUID,
+        Code: 'GENERAL',
+        OnCancelActionID: null,
+        OnRejectActionID: null,
+      });
+      const decisionSpy = vi.spyOn(server as unknown as { taskHasRejectedDecision: () => Promise<boolean> }, 'taskHasRejectedDecision')
+        .mockResolvedValue(false);
+      const invokeSpy = vi.spyOn(server, 'invokeAction').mockResolvedValue({ Invoked: true, Success: true });
+
+      await server.dispatchLifecycleActionHooks(cancelledCtx());
+
+      expect(decisionSpy).not.toHaveBeenCalled();
+      expect(invokeSpy).not.toHaveBeenCalled();
+    });
+
+    it('does NOT fire OnReject when a task merely becomes Blocked', async () => {
+      const server = new TaskEntityServer();
+      server.ID = TASK_UUID;
+      server.TypeID = TYPE_UUID;
+      server.Status = 'Blocked';
+
+      vi.spyOn(server as unknown as { loadTaskType: (id: string) => Promise<unknown> }, 'loadTaskType').mockResolvedValue({
+        ID: TYPE_UUID,
+        Code: 'APPROVAL_REQUEST',
+        OnRejectActionID: 'ACTION-REJECT',
+      });
+
+      const invokeSpy = vi.spyOn(server, 'invokeAction').mockResolvedValue({ Invoked: true, Success: true });
+
+      const ctx = cancelledCtx();
+      ctx.newStatus = 'Blocked';
+      await server.dispatchLifecycleActionHooks(ctx);
+
+      const hookTypes = invokeSpy.mock.calls.map(c => c[1]);
+      expect(hookTypes).not.toContain('OnReject');
+      expect(hookTypes).not.toContain('OnCancel');
+    });
+
+    it('routes taskHasRejectedDecision queries through the Task provider and GuidLiteral', async () => {
+      const server = new TaskEntityServer();
+      server.ID = TASK_UUID;
+      H.runViewImpl = async (params) => {
+        if (params.EntityName === 'MJ_BizApps_Tasks: Task Decision Outcomes') {
+          return { Success: true, Results: [{ ID: OUTCOME_UUID }] };
+        }
+        return { Success: true, Results: [{ ID: 'decision-1' }] };
+      };
+
+      const check = server as unknown as { taskHasRejectedDecision: () => Promise<boolean> };
+      expect(await check.taskHasRejectedDecision()).toBe(true);
+      expect(H.runViewProviders).toEqual([H.provider]);
+      expect(H.runViewCalls[1]?.ExtraFilter).toBe(`TaskID = '${TASK_UUID}' AND OutcomeID = '${OUTCOME_UUID}'`);
+    });
+
     it('dispatches OnExitStatus and OnEnterStatus on stage transition', async () => {
       const server = new TaskEntityServer();
       server.ID = 'TASK-3';
@@ -352,7 +545,7 @@ describe('TaskEntityServer', () => {
       );
     });
   });
-  describe('provider routing (#78)', () => {
+  describe('provider routing (#78) and pre-save SQL guards', () => {
     it('loads the task type and statuses through the provider the Task was created on', async () => {
       const server = new TaskEntityServer();
       const loader = server as unknown as {
@@ -361,18 +554,28 @@ describe('TaskEntityServer', () => {
         loadDefaultTaskTypeStatus: (id: string) => Promise<unknown>;
       };
 
-      await loader.loadTaskType('TYPE-1');
+      await loader.loadTaskType(TYPE_UUID);
       await loader.loadTaskTypeStatus('STATUS-1');
-      await loader.loadDefaultTaskTypeStatus('TYPE-1');
+      await loader.loadDefaultTaskTypeStatus(TYPE_UUID);
 
       expect(H.provider.GetEntityObject).toHaveBeenCalledTimes(2);
       expect(H.runViewProviders).toEqual([H.provider]);
       expect(H.globalGetEntityObject).not.toHaveBeenCalled();
     });
 
+    it('refuses a non-UUID TypeID in loadDefaultTaskTypeStatus before any RunView query runs', async () => {
+      const server = new TaskEntityServer();
+      const loader = server as unknown as {
+        loadDefaultTaskTypeStatus: (id: string) => Promise<unknown>;
+      };
+
+      await expect(loader.loadDefaultTaskTypeStatus("x' OR 1=1 --")).rejects.toThrow(/TypeID .* is not a valid ID/);
+      expect(H.runViewCalls).toHaveLength(0);
+    });
+
     it('runs hook actions on the Task\'s provider', async () => {
       const server = new TaskEntityServer();
-      server.ID = 'TASK-1';
+      server.ID = TASK_UUID;
       server.Name = 'Task';
 
       await server.invokeAction('ACTION-CREATE', 'OnCreate', 'TYPE', null, null);
@@ -383,9 +586,9 @@ describe('TaskEntityServer', () => {
 
     it('writes activity rows on the Task\'s provider and queues the hooks until the caller commits', async () => {
       const server = new TaskEntityServer();
-      server.ID = 'TASK-2';
+      server.ID = TASK_UUID;
       server.Name = 'New task';
-      server.TypeID = 'TYPE-1';
+      server.TypeID = TYPE_UUID;
       const dispatchSpy = vi.spyOn(server, 'dispatchLifecycleActionHooks').mockResolvedValue(undefined);
 
       const saved = await server.Save();
@@ -409,7 +612,7 @@ describe('TaskEntityServer', () => {
 
     it('queues the parent rollup after commit and runs it on the Task\'s provider', async () => {
       const server = new TaskEntityServer();
-      server.ID = 'TASK-5';
+      server.ID = TASK_UUID;
       server.ParentID = 'PARENT-1';
       let saveHandler: ((event: { type: string }) => void) | undefined;
       vi.spyOn(server, 'RegisterEventHandler').mockImplementation((handler) => {
@@ -432,22 +635,22 @@ describe('TaskEntityServer', () => {
     it('a failed dispatch is logged and does not reject the post-commit task', async () => {
       const { LogError } = await import('@memberjunction/core');
       const server = new TaskEntityServer();
-      server.ID = 'TASK-3';
-      server.TypeID = 'TYPE-1';
+      server.ID = TASK_UUID;
+      server.TypeID = TYPE_UUID;
       vi.spyOn(server, 'dispatchLifecycleActionHooks').mockRejectedValue(new Error('read failed'));
 
       await server.Save();
       const task = (H.provider.RunAfterCommit as ReturnType<typeof vi.fn>).mock.calls[0][0] as () => Promise<void>;
 
       await expect(task()).resolves.toBeUndefined();
-      expect(LogError).toHaveBeenCalledWith('TaskEntityServer: action hook dispatch error for task TASK-3: read failed');
+      expect(LogError).toHaveBeenCalledWith(`TaskEntityServer: action hook dispatch error for task ${TASK_UUID}: read failed`);
     });
 
     it('starts the hooks right away on a provider without a post-commit scheduler', async () => {
       resetProvider(false);
       const server = new TaskEntityServer();
-      server.ID = 'TASK-4';
-      server.TypeID = 'TYPE-1';
+      server.ID = TASK_UUID;
+      server.TypeID = TYPE_UUID;
       const dispatchSpy = vi.spyOn(server, 'dispatchLifecycleActionHooks').mockResolvedValue(undefined);
 
       await server.Save();
@@ -460,7 +663,7 @@ describe('TaskEntityServer', () => {
       const server = new TaskEntityServer();
       const loader = server as unknown as { loadTaskType: (id: string) => Promise<unknown> };
 
-      await expect(loader.loadTaskType('TYPE-1')).rejects.toThrow(/server-only/);
+      await expect(loader.loadTaskType(TYPE_UUID)).rejects.toThrow(/server-only/);
       expect(H.globalGetEntityObject).not.toHaveBeenCalled();
     });
   });

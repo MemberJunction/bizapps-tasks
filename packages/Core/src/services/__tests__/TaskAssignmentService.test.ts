@@ -12,6 +12,7 @@ vi.mock('@memberjunction/core', () => ({
   },
   CompositeKey: class { constructor(public KeyValuePairs: any[]) {} },
   BaseEntity: class {},
+  LogError: vi.fn(),
 }));
 
 import { TaskAssignmentService } from '../TaskAssignmentService.js';
@@ -152,25 +153,35 @@ describe('TaskAssignmentService.removeAssignment', () => {
   });
 });
 
+// IDs that reach an ExtraFilter must be real UUIDs: anything else is refused before SQL text.
+const TASK_4 = 'D0000000-0000-0000-0000-000000000004';
+const TASK_5 = 'D0000000-0000-0000-0000-000000000005';
+
 describe('TaskAssignmentService.getAssignmentsForTask', () => {
   it('returns the RunView results array', async () => {
     const rows = [makeFakeEntity(), makeFakeEntity()];
     runViewMock.mockResolvedValueOnce({ Results: rows });
 
     const svc = new TaskAssignmentService();
-    const result = await svc.getAssignmentsForTask('task-4');
+    const result = await svc.getAssignmentsForTask(TASK_4);
 
     expect(result).toBe(rows);
     expect(runViewMock).toHaveBeenCalledWith(expect.objectContaining({
       EntityName: 'MJ_BizApps_Tasks: Task Assignments',
-      ExtraFilter: "TaskID = 'task-4'",
+      ExtraFilter: `TaskID = '${TASK_4}'`,
     }), undefined);
   });
 
   it('returns an empty array when RunView yields no results', async () => {
     runViewMock.mockResolvedValueOnce(null);
     const svc = new TaskAssignmentService();
-    const result = await svc.getAssignmentsForTask('task-5');
+    const result = await svc.getAssignmentsForTask(TASK_5);
     expect(result).toEqual([]);
+  });
+
+  it('refuses a task ID that is not a UUID before it reaches a filter', async () => {
+    const svc = new TaskAssignmentService();
+    await expect(svc.getAssignmentsForTask("x' OR 1=1 --")).rejects.toThrow(/is not a valid ID/);
+    expect(runViewMock).not.toHaveBeenCalled();
   });
 });

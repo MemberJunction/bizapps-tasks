@@ -15,5 +15,6 @@ describe('Tasks Integration Test Bundles', () => {
         expect(bundleNames).toContain('task-templates');
         expect(bundleNames).toContain('task-statuses');
         expect(bundleNames).toContain('task-action-hooks');
+        expect(bundleNames).toContain('task-hook-routing');
     });
 });

@@ -20,10 +20,11 @@
  */
 import { Metadata, RunView, UserInfo, ValidationResult } from '@memberjunction/core';
 import { MJScheduledJobEntity } from '@memberjunction/core-entities';
-import { RegisterClass } from '@memberjunction/global';
+import { IsValidUUID, RegisterClass } from '@memberjunction/global';
 import { BaseScheduledJob, ScheduledJobExecutionContext } from '@memberjunction/scheduling-engine';
 import { ScheduledJobResult, NotificationContent } from '@memberjunction/scheduling-base-types';
 import { ResolveUserIDsForPeople } from '@mj-biz-apps/common-entities';
+import { GuidLiteral } from '@mj-biz-apps/tasks-core';
 import { IsRoleEntityID, ResolveUserIDsForRoles } from '../role-assignees.js';
 import { sendTaskNotifications, TASK_OVERDUE_NOTIFICATION_TYPE } from '../notifications/sendTaskNotifications.js';
 
@@ -222,7 +223,7 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
         if (config.NotifyAssignees) {
             const assignments = await rv.RunView<{ AssigneeEntityID: string | null; AssigneeRecordID: string }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Assignments',
-                ExtraFilter: `TaskID='${task.ID}'`,
+                ExtraFilter: `TaskID=${GuidLiteral(task.ID, 'TaskID')}`,
                 ResultType: 'simple',
             }, contextUser);
             const results = assignments?.Results ?? [];
@@ -235,7 +236,17 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
                 this.logError(`Could not resolve the members of task ${task.ID}'s assigned roles`, err);
             }
 
-            personIDs.push(...results.filter(a => !IsRoleEntityID(a.AssigneeEntityID)).map(a => a.AssigneeRecordID));
+            // AssigneeRecordID is free text (NVARCHAR, no FK); only strict UUIDs may enter
+            // person lookups (this job runs under the scheduler's system context).
+            const validPersonAssignees = results
+                .filter(a => !IsRoleEntityID(a.AssigneeEntityID))
+                .map(a => a.AssigneeRecordID)
+                .filter(id => {
+                    if (IsValidUUID(id)) return true;
+                    this.logError(`Skipping non-UUID AssigneeRecordID '${id}' on assignment for task ${task.ID} ("${task.Name}") — excluded from recipient resolution`);
+                    return false;
+                });
+            personIDs.push(...validPersonAssignees);
         }
 
         // Creator
@@ -249,9 +260,15 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
 
     /** The users bound to these Persons: each user's People link, else People.LinkedUserID. */
     private async getLinkedUserIDs(personIDs: string[], taskID: string, contextUser: UserInfo): Promise<string[]> {
-        if (personIDs.length === 0) return [];
+        // Defense in depth: never pass a non-UUID person ID into recipient lookups.
+        const validPersonIDs = personIDs.filter(id => {
+            if (IsValidUUID(id)) return true;
+            this.logError(`Skipping non-UUID person ID '${id}' for task ${taskID} — excluded from linked-user lookup`);
+            return false;
+        });
+        if (validPersonIDs.length === 0) return [];
         try {
-            return [...new Set((await ResolveUserIDsForPeople(personIDs, Metadata.Provider, contextUser)).values())];
+            return [...new Set((await ResolveUserIDsForPeople(validPersonIDs, Metadata.Provider, contextUser)).values())];
         } catch (error) {
             this.logError(`Could not resolve the recipients of task ${taskID}`, error);
             return [];
@@ -310,7 +327,7 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
         const rv = new RunView();
         const typeResult = await rv.RunView<{ OnOverdueActionID: string | null }>({
             EntityName: 'MJ_BizApps_Tasks: Task Types',
-            ExtraFilter: `ID='${task.TypeID}'`,
+            ExtraFilter: `ID=${GuidLiteral(task.TypeID, 'TypeID')}`,
             ResultType: 'simple',
             MaxRows: 1,
         }, contextUser);

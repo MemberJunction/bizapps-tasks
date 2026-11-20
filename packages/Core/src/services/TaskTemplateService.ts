@@ -1,4 +1,5 @@
 import { BaseEntity, CompositeKey, Metadata, RunView } from "@memberjunction/core";
+import { GuidLiteral } from "./sql-guards.js";
 
 /**
  * Service for instantiating tasks from templates.
@@ -28,6 +29,8 @@ export class TaskTemplateService {
         assigneeMap?: Map<string, { entityID: string; recordID: string }>;
     }): Promise<BaseEntity[]> {
         const { templateID, startDate, categoryID, assigneeMap } = params;
+        // Validate templateID up front: it is caller-supplied and reaches SQL filter text below.
+        const templateLiteral = GuidLiteral(templateID, 'TemplateID');
         const rv = new RunView();
 
         // 1. Load the template
@@ -38,7 +41,7 @@ export class TaskTemplateService {
         // 2. Load all template items
         const itemsResult = await rv.RunView<BaseEntity>({
             EntityName: 'MJ_BizApps_Tasks: Task Template Items',
-            ExtraFilter: `TemplateID = '${templateID}'`,
+            ExtraFilter: `TemplateID = ${templateLiteral}`,
             OrderBy: 'Sequence ASC',
             ResultType: 'simple',
         });
@@ -144,7 +147,7 @@ export class TaskTemplateService {
         const rv = new RunView();
         const rolesResult = await rv.RunView<BaseEntity>({
             EntityName: 'MJ_BizApps_Tasks: Task Template Item Roles',
-            ExtraFilter: `ItemID = '${templateItemID}'`,
+            ExtraFilter: `ItemID = ${GuidLiteral(templateItemID, 'ItemID')}`,
             ResultType: 'simple',
         });
 
@@ -173,13 +176,14 @@ export class TaskTemplateService {
     ): Promise<void> {
         const rv = new RunView();
 
-        // Get all template items for this template (we need their IDs to filter deps)
-        const itemsResult = await rv.RunView<BaseEntity>({
+        // Get all template items for this template (we need their IDs to filter deps).
+        // Both templateID and every item ID reach SQL text, so each goes through GuidLiteral.
+        const itemsResult = await rv.RunView<{ ID: string }>({
             EntityName: 'MJ_BizApps_Tasks: Task Template Items',
-            ExtraFilter: `TemplateID = '${templateID}'`,
+            ExtraFilter: `TemplateID = ${GuidLiteral(templateID, 'TemplateID')}`,
             ResultType: 'simple',
         });
-        const itemIDs = (itemsResult?.Results ?? []).map((i: any) => `'${i.ID}'`).join(',');
+        const itemIDs = (itemsResult?.Results ?? []).map((i) => GuidLiteral(i.ID, 'ItemID')).join(',');
         if (!itemIDs) return;
 
         const depsResult = await rv.RunView<BaseEntity>({
