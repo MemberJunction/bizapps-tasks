@@ -5,6 +5,11 @@ const settingGetMock = vi.fn();
 const settingConfigMock = vi.fn();
 
 vi.mock('@memberjunction/global', () => ({
+    BaseSingleton: class {
+        protected static getInstance() {
+            return {};
+        }
+    },
     RegisterClass: () => () => {},
     OptionalKeyedSpecialization: () => () => {},
 }));
