@@ -44,5 +44,109 @@
     "primaryKey": {
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Links"
     }
+  },
+  {
+    "_comments": [
+      "Polymorphic foreign key declaration(s) on MJ_BizApps_Tasks: Time Approvers: ScopeRecordID sets EntityIDFieldName to ScopeEntityID."
+    ],
+    "fields": {
+      "Name": "MJ_BizApps_Tasks: Time Approvers"
+    },
+    "relatedEntities": {
+      "MJ: Entity Fields": [
+        {
+          "fields": {
+            "EntityIDFieldName": "ScopeEntityID"
+          },
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Time Approvers&Name=ScopeRecordID"
+          }
+        }
+      ]
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Time Approvers"
+    }
+  },
+  {
+    "_comments": [
+      "Polymorphic foreign key declaration(s) on MJ_BizApps_Tasks: Timesheet Schedules: ScopeRecordID sets EntityIDFieldName to ScopeEntityID."
+    ],
+    "fields": {
+      "Name": "MJ_BizApps_Tasks: Timesheet Schedules"
+    },
+    "relatedEntities": {
+      "MJ: Entity Fields": [
+        {
+          "fields": {
+            "EntityIDFieldName": "ScopeEntityID"
+          },
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Timesheet Schedules&Name=ScopeRecordID"
+          }
+        }
+      ]
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Timesheet Schedules"
+    }
+  },
+  {
+    "_comments": [
+      "Polymorphic foreign key declaration(s) on MJ_BizApps_Tasks: Timesheet Links: RecordID sets EntityIDFieldName to EntityID."
+    ],
+    "fields": {
+      "Name": "MJ_BizApps_Tasks: Timesheet Links"
+    },
+    "relatedEntities": {
+      "MJ: Entity Fields": [
+        {
+          "fields": {
+            "EntityIDFieldName": "EntityID"
+          },
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Timesheet Links&Name=RecordID"
+          }
+        }
+      ]
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Timesheet Links"
+    }
+  },
+  {
+    "_comments": [
+      "Polymorphic foreign key declaration(s) on MJ_BizApps_Tasks: Task Time Entry Links: RecordID sets EntityIDFieldName to EntityID."
+    ],
+    "fields": {
+      "Name": "MJ_BizApps_Tasks: Task Time Entry Links"
+    },
+    "relatedEntities": {
+      "MJ: Entity Fields": [
+        {
+          "fields": {
+            "EntityIDFieldName": "EntityID"
+          },
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Time Entry Links&Name=RecordID"
+          }
+        }
+      ]
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Time Entry Links"
+    }
+  },
+  {
+    "_comments": [
+      "Task Timers are transient stopwatch rows deleted on stop; TrackRecordChanges is disabled per §5.11."
+    ],
+    "fields": {
+      "Name": "MJ_BizApps_Tasks: Task Timers",
+      "TrackRecordChanges": false
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Timers"
+    }
   }
 ]

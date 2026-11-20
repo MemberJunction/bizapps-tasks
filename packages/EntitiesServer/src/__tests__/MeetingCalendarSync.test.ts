@@ -4,12 +4,8 @@ const runViewMock = vi.fn();
 const settingGetMock = vi.fn();
 const settingConfigMock = vi.fn();
 
-vi.mock('@memberjunction/global', () => ({
-    BaseSingleton: class {
-        protected static getInstance() {
-            return {};
-        }
-    },
+vi.mock('@memberjunction/global', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@memberjunction/global')>()),
     RegisterClass: () => () => {},
     OptionalKeyedSpecialization: () => () => {},
 }));
@@ -17,7 +13,10 @@ vi.mock('@memberjunction/global', () => ({
 const getSystemUserMock = vi.fn().mockResolvedValue({ ID: 'sys-user' });
 const logErrorMock = vi.fn();
 
-vi.mock('@memberjunction/core', () => ({
+// The real module underneath: tasks-core now loads the generated entity classes and the remote
+// operations at import time (the time-tracking services), and they extend classes from here.
+vi.mock('@memberjunction/core', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@memberjunction/core')>()),
     CompositeKey: {
         FromID: (id: string) => ({
             ToCompactURLSegment: () => `ID|${id}`,

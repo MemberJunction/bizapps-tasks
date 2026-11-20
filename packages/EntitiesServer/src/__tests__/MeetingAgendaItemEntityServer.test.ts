@@ -3,17 +3,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const runViewMock = vi.fn();
 const getEntityObjectMock = vi.fn();
 
-vi.mock('@memberjunction/global', () => ({
+vi.mock('@memberjunction/global', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@memberjunction/global')>()),
     RegisterClass: () => () => {},
-    BaseSingleton: class {
-        public static getInstance() {
-            return {};
-        }
-    },
     MJGlobal: { Instance: { ClassFactory: { CreateInstance: () => null } } },
 }));
 
-vi.mock('@memberjunction/core', () => {
+vi.mock('@memberjunction/core', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@memberjunction/core')>();
     class ValidationErrorInfo {
         constructor(public Source: string, public Message: string, public Value: unknown, public Type: string) {}
     }
@@ -46,6 +43,7 @@ vi.mock('@memberjunction/core', () => {
         }
     }
     return {
+        ...actual,
         BaseEntity,
         ValidationErrorInfo,
         ValidationErrorType: { Failure: 'Failure', Warning: 'Warning' },

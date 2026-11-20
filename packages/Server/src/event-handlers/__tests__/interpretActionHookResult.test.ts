@@ -4,7 +4,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 const logStatus = vi.fn();
 const logError = vi.fn();
 
-vi.mock('@memberjunction/core', () => ({
+vi.mock('@memberjunction/core', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@memberjunction/core')>()),
   BaseEntity: class { static BaseEventCode = 'BaseEntity'; },
   CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },
   LogError: (...a: unknown[]) => logError(...a),

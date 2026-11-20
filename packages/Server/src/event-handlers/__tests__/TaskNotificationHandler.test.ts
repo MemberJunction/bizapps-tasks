@@ -9,7 +9,8 @@ const { store, subscribeMock, getEventListenerMock, runViewCalls } = vi.hoisted(
   return { store, subscribeMock, getEventListenerMock, runViewCalls };
 });
 
-vi.mock('@memberjunction/core', () => ({
+vi.mock('@memberjunction/core', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@memberjunction/core')>()),
   BaseEntity: class { static BaseEventCode = 'BaseEntity'; },
   CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },
   LogError: vi.fn(),
