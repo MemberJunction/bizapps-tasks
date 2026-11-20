@@ -195,5 +195,414 @@
         }
       ]
     }
+  },
+  {
+    "fields": {
+      "Name": "Draft Work Report",
+      "CategoryID": "@lookup:MJ: Action Categories.Name=Tasks",
+      "Description": "Reads a person's task and extension activity during [PeriodStart, PeriodEnd] and creates or updates a Draft MJ_BizApps_Tasks: Work Reports record with linked Work Report Items. Returns NO_ACTIVITY without creating a draft when no tasks changed in the window.",
+      "Type": "Custom",
+      "DriverClass": "Tasks.DraftWorkReport",
+      "IconClass": "fa-solid fa-clipboard-list",
+      "UserPrompt": "Draft a daily or periodic 15Five work report from task activity.",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "9F5124A5-64F2-4C06-8D71-60710DCB531B"
+    },
+    "relatedEntities": {
+      "MJ: Action Params": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "PersonID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "People record ID to draft for. Defaults to the Person linked to ContextUser."
+          },
+          "primaryKey": {
+            "ID": "AD6742FE-1201-4E27-8BBA-B6ECCC307159"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "PeriodStart",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "ISO-8601 start timestamp for the report window. Defaults to start of current local calendar day."
+          },
+          "primaryKey": {
+            "ID": "A57F5010-1286-4655-8D8A-50A40E14AC3F"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "PeriodEnd",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "ISO-8601 end timestamp for the report window. Defaults to end of current local calendar day."
+          },
+          "primaryKey": {
+            "ID": "B8A3D426-E158-44C5-B25C-546F50FCE8AD"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Title",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional headline for the work report (e.g., Daily 15Five — 2026-11-09)."
+          },
+          "primaryKey": {
+            "ID": "E3EDA013-309A-48FB-B71A-B42DC7EB35C8"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Body",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional custom markdown body drafted by the agent; when omitted, a concise 5-minute report is synthesized from task activity."
+          },
+          "primaryKey": {
+            "ID": "F514554A-5238-458B-B2B7-0D48C63DB161"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "AuthoredByAgentRunID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional MJ: AI Agent Runs ID that authored the draft."
+          },
+          "primaryKey": {
+            "ID": "046F6373-300D-42DD-8E2C-41F49D3CDB87"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "TimezoneOffsetMinutes",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional caller timezone offset in minutes ( matching Date.prototype.getTimezoneOffset(), e.g., 300 for UTC-5 ) used to bound the default local day window and format the report headline date."
+          },
+          "primaryKey": {
+            "ID": "AF6103FC-AC52-4A3C-9054-74D24C613A25"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "WorkReportID",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "ID of the created or updated Draft WorkReport, or empty when no activity was found."
+          },
+          "primaryKey": {
+            "ID": "11851A6B-FAE6-437D-A51D-D825EF841B72"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "WorkReportItemsCreated",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Count of WorkReportItem rows linked to the drafted report."
+          },
+          "primaryKey": {
+            "ID": "A5C0CF9B-FF25-405E-ADFA-0F7A9C5BDE0A"
+          }
+        }
+      ],
+      "MJ: Action Result Codes": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "SUCCESS",
+            "IsSuccess": true,
+            "Description": "Draft WorkReport and linked WorkReportItems created or updated."
+          },
+          "primaryKey": {
+            "ID": "117F8F05-B955-4B2E-850D-80664AAF3C9E"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "NO_ACTIVITY",
+            "IsSuccess": true,
+            "Description": "Zero task activity in the requested window; no draft created."
+          },
+          "primaryKey": {
+            "ID": "83966F93-F49A-4535-A80F-1EE9B10E33D9"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "ERROR",
+            "IsSuccess": false,
+            "Description": "Validation or persistence error while drafting."
+          },
+          "primaryKey": {
+            "ID": "630C2ADF-D202-4374-B37B-18B4E97385D7"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "fields": {
+      "Name": "Submit Work Report",
+      "CategoryID": "@lookup:MJ: Action Categories.Name=Tasks",
+      "Description": "Marks an author-approved Draft WorkReport as Submitted and creates an MJ: AI Agent Requests review request routed to the supervisor's Chief of Staff via MJ: Employees.SupervisorID.",
+      "Type": "Custom",
+      "DriverClass": "Tasks.SubmitWorkReport",
+      "IconClass": "fa-solid fa-paper-plane",
+      "UserPrompt": "Submit an approved 15Five work report and notify the supervisor's Chief of Staff.",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "856D4E92-79B4-486A-A092-48CF5FC22998"
+    },
+    "relatedEntities": {
+      "MJ: Action Params": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "WorkReportID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": true,
+            "Description": "ID of the Draft WorkReport approved by the author."
+          },
+          "primaryKey": {
+            "ID": "4AE09CBB-A3F9-4C88-BAE9-41195F3DD113"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Body",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional updated markdown body approved by the author."
+          },
+          "primaryKey": {
+            "ID": "D030195B-2167-45BF-91C0-C664D8787E14"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Title",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional updated headline approved by the author."
+          },
+          "primaryKey": {
+            "ID": "06BEE7CB-3D88-4D71-AB47-E0C35F8BA5F7"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "CallerPersonID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional author People record ID. Defaults to the Person linked to ContextUser."
+          },
+          "primaryKey": {
+            "ID": "029FB3D0-05FF-4810-A16C-D78696CFF9D6"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "SupervisorRequestID",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "ID of the MJ: AI Agent Requests record created for the supervisor's Chief of Staff, if a supervisor is mapped."
+          },
+          "primaryKey": {
+            "ID": "1E99F346-8762-45E1-A98A-8700794F7657"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "SupervisorNotified",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "String 'true' when the supervisor's Chief of Staff AI Agent Request was persisted, otherwise 'false'."
+          },
+          "primaryKey": {
+            "ID": "3B020E92-0BE1-4C11-B562-7FD324E78080"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "SupervisorName",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Display name of the resolved supervisor when mapped."
+          },
+          "primaryKey": {
+            "ID": "1A3DA284-E5BE-4B6A-B572-185B49889D39"
+          }
+        }
+      ],
+      "MJ: Action Result Codes": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "SUCCESS",
+            "IsSuccess": true,
+            "Description": "WorkReport marked Submitted and supervisor Chief of Staff notified."
+          },
+          "primaryKey": {
+            "ID": "BAC061D8-7780-4FAA-818C-204DFF41A001"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "ERROR",
+            "IsSuccess": false,
+            "Description": "WorkReport not found, not in Draft status, or caller is not the author."
+          },
+          "primaryKey": {
+            "ID": "BE572342-8B26-4BE8-8129-5D81F02052CD"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "fields": {
+      "Name": "Review Work Report",
+      "CategoryID": "@lookup:MJ: Action Categories.Name=Tasks",
+      "Description": "Records supervisor-approved feedback on a Submitted WorkReport and marks it Reviewed.",
+      "Type": "Custom",
+      "DriverClass": "Tasks.ReviewWorkReport",
+      "IconClass": "fa-solid fa-user-check",
+      "UserPrompt": "Record supervisor feedback on a submitted 15Five work report.",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "B880DABA-0FC1-4012-9C3B-92694D99985E"
+    },
+    "relatedEntities": {
+      "MJ: Action Params": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "WorkReportID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": true,
+            "Description": "ID of the Submitted WorkReport being reviewed."
+          },
+          "primaryKey": {
+            "ID": "CCA6751A-8242-4530-9679-07C8B3039806"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "SupervisorFeedback",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": true,
+            "Description": "Feedback text approved by the supervisor."
+          },
+          "primaryKey": {
+            "ID": "989C471B-899C-4C1B-BADA-87CC05F71F58"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "ReviewerPersonID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional supervisor People record ID. Defaults to the Person linked to ContextUser."
+          },
+          "primaryKey": {
+            "ID": "C73F19D6-B164-4AE4-8B5F-C541D3058F56"
+          }
+        }
+      ],
+      "MJ: Action Result Codes": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "SUCCESS",
+            "IsSuccess": true,
+            "Description": "Supervisor feedback recorded and WorkReport marked Reviewed."
+          },
+          "primaryKey": {
+            "ID": "C8DC18C9-1C24-4762-BA04-68088D867C9D"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "ERROR",
+            "IsSuccess": false,
+            "Description": "WorkReport not found, not in Submitted status, or caller is not the mapped supervisor."
+          },
+          "primaryKey": {
+            "ID": "0879080E-20D3-4918-97B2-998D136DFCE3"
+          }
+        }
+      ]
+    }
   }
 ]

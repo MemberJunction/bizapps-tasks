@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Input, Output, OnInit, ViewChild, ChangeDetectionStrategy, ChangeDetectorRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { LogError, RunView } from '@memberjunction/core';
+import { BaseEntity, LogError, Metadata, RunView, type IMetadataProvider, type IRunViewProvider } from '@memberjunction/core';
 import { ResolveCurrentPersonID } from '../current-person';
 import { OpenTaskRecord } from '../open-task-record';
 import { TaskListComponent } from '../components/task-list/task-list.component';
@@ -12,6 +12,12 @@ import { TaskEditPanelComponent } from '../components/task-edit-panel/task-edit-
 import { TaskTemplateWizardComponent } from '../components/task-template-wizard/task-template-wizard.component';
 import { TaskViewMode } from '../components/task-panel/task-panel.component';
 import { MJViewToggleComponent, ViewToggleOption } from '@memberjunction/ng-ui-components';
+import {
+    BuildPendingSuggestionsSqlFilter,
+    CountTotalPendingSuggestions,
+    TaskFieldSuggestionsHelper,
+    type TaskPendingSuggestionsSummary,
+} from '../task-field-suggestions.helper';
 
 export type { TaskViewMode };
 export type TasksDashboardPanelMode = 'none' | 'detail' | 'edit' | 'template';
@@ -121,6 +127,27 @@ export interface TaskKPIs {
                             <i class="fa-solid fa-xmark"></i> Clear Category
                         </button>
                     }
+
+                    @if (FieldSuggestionsAvailable || TotalPendingSuggestionsCount > 0 || OnlyPendingSuggestions) {
+                        <button type="button"
+                                class="mjt-suggestion-pill"
+                                [class.mjt-suggestion-pill--active]="OnlyPendingSuggestions"
+                                [attr.aria-pressed]="OnlyPendingSuggestions"
+                                [attr.title]="PendingSuggestionsFilterTooltip"
+                                (click)="TogglePendingSuggestions()">
+                            <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+                            <span>Pending Suggestions</span>
+                            @if (TotalPendingSuggestionsCount > 0) {
+                                <span class="mjt-suggestion-pill__count">{{ TotalPendingSuggestionsCount }}</span>
+                            }
+                        </button>
+                    }
+
+                    @if (OnlyPendingSuggestions) {
+                        <button type="button" class="mjt-btn-clear" (click)="OnPendingSuggestionsChanged(false)">
+                            <i class="fa-solid fa-xmark" aria-hidden="true"></i> Clear Suggestions Filter
+                        </button>
+                    }
                 </div>
             </div>
 
@@ -130,6 +157,7 @@ export interface TaskKPIs {
                     <bizapps-task-gantt
                         #taskGantt
                         [CategoryID]="SelectedCategoryID"
+                        [ExtraFilter]="GanttExtraFilter"
                         [Height]="'calc(100vh - 340px)'"
                         (TaskDoubleClicked)="OpenPanel('detail', $event)">
                     </bizapps-task-gantt>
@@ -137,7 +165,9 @@ export interface TaskKPIs {
                 @if (ViewMode === 'kanban') {
                     <bizapps-task-kanban
                         #taskKanban
+                        [Provider]="Provider"
                         [CategoryID]="SelectedCategoryID"
+                        [PendingSuggestionsOnly]="OnlyPendingSuggestions"
                         (TaskClicked)="OpenPanel('detail', $event)"
                         (TaskDoubleClicked)="OpenFullRecord($event)">
                     </bizapps-task-kanban>
@@ -145,7 +175,10 @@ export interface TaskKPIs {
                 @if (ViewMode === 'list') {
                     <bizapps-task-list
                         #taskList
+                        [Provider]="Provider"
                         [CategoryID]="SelectedCategoryID"
+                        [PendingSuggestionsOnly]="OnlyPendingSuggestions"
+                        (PendingSuggestionsOnlyChange)="OnPendingSuggestionsChanged($event)"
                         [ShowCreateButton]="false"
                         (AfterTaskSelected)="OpenPanel('detail', $event.ID)"
                         (TaskDoubleClicked)="OpenFullRecord($event.ID)"
@@ -160,6 +193,7 @@ export interface TaskKPIs {
                 <aside class="mjt-side-panel">
                     @if (PanelMode === 'detail') {
                         <bizapps-task-detail-panel
+                            [Provider]="Provider"
                             [TaskID]="SelectedTaskID"
                             [PersonID]="CurrentPersonID"
                             [ShowDelete]="true"
@@ -315,6 +349,47 @@ export interface TaskKPIs {
             cursor: pointer;
         }
 
+        .mjt-suggestion-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border: 1px solid var(--mj-border-default);
+            border-radius: var(--mj-radius-md);
+            background: var(--mj-bg-surface);
+            color: var(--mj-text-secondary);
+            font-size: 12px;
+            font-weight: var(--mj-font-semibold);
+            font-family: inherit;
+            cursor: pointer;
+            transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+        }
+        .mjt-suggestion-pill:hover {
+            border-color: var(--mj-brand-primary);
+            color: var(--mj-text-primary);
+        }
+        .mjt-suggestion-pill--active {
+            border-color: var(--mj-brand-primary);
+            color: var(--mj-brand-primary);
+            background: color-mix(in srgb, var(--mj-brand-primary) 8%, var(--mj-bg-surface));
+        }
+        .mjt-suggestion-pill__count {
+            font-size: 11px;
+            font-weight: var(--mj-font-bold);
+            padding: 1px 7px;
+            border-radius: var(--mj-radius-md);
+            background: var(--mj-status-info-bg);
+            color: var(--mj-status-info-text);
+        }
+        .mjt-suggestion-pill--active .mjt-suggestion-pill__count {
+            background: color-mix(in srgb, var(--mj-brand-primary) 14%, var(--mj-bg-surface));
+            color: var(--mj-brand-primary);
+        }
+        .mjt-suggestion-pill:focus-visible {
+            outline: 2px solid var(--mj-brand-primary);
+            outline-offset: 2px;
+        }
+
         /* Body Card */
         .mjt-body-card {
             background: var(--mj-bg-surface-card, #ffffff);
@@ -346,6 +421,28 @@ export interface TaskKPIs {
     `]
 })
 export class TasksDashboardPageComponent implements OnInit {
+    @Input() Provider: IMetadataProvider | null = null;
+
+    private _onlyPendingSuggestions = false;
+
+    @Input()
+    public get OnlyPendingSuggestions(): boolean {
+        return this._onlyPendingSuggestions;
+    }
+    public set OnlyPendingSuggestions(value: boolean) {
+        const next = Boolean(value);
+        if (next !== this._onlyPendingSuggestions) {
+            this._onlyPendingSuggestions = next;
+            this.cdr.markForCheck();
+        }
+    }
+
+    @Output() OnlyPendingSuggestionsChange = new EventEmitter<boolean>();
+
+    public get ProviderToUse(): IMetadataProvider {
+        return this.Provider ?? Metadata.Provider;
+    }
+
     public ViewToggleOptions: ViewToggleOption[] = [
         { key: 'gantt', icon: 'fa-solid fa-chart-gantt', label: 'Timeline', title: 'Timeline View' },
         { key: 'kanban', icon: 'fa-solid fa-table-columns', label: 'Board', title: 'Board View' },
@@ -356,6 +453,9 @@ export class TasksDashboardPageComponent implements OnInit {
     public SelectedTaskID: string | null = null;
     public SelectedCategoryID: string | null = null;
     public CurrentPersonID: string | null = null;
+    public FieldSuggestionsAvailable = false;
+    public PendingSuggestionsByTask = new Map<string, TaskPendingSuggestionsSummary>();
+    public TotalPendingSuggestionsCount = 0;
 
     public Categories: TaskCategoryOption[] = [];
     public KPIs: TaskKPIs = {
@@ -371,6 +471,41 @@ export class TasksDashboardPageComponent implements OnInit {
     @ViewChild('taskList') taskList?: TaskListComponent;
 
     private cdr = inject(ChangeDetectorRef);
+
+    public get GanttExtraFilter(): string | null {
+        return BuildPendingSuggestionsSqlFilter(this._onlyPendingSuggestions, this.PendingSuggestionsByTask);
+    }
+
+    public get PendingSuggestionsFilterTooltip(): string {
+        if (this.TotalPendingSuggestionsCount <= 0) {
+            return 'Filter to tasks with pending AI/ambient field suggestions';
+        }
+        const taskCount = this.PendingSuggestionsByTask.size;
+        const suggNoun = this.TotalPendingSuggestionsCount === 1 ? 'pending suggestion' : 'pending suggestions';
+        const taskNoun = taskCount === 1 ? 'task' : 'tasks';
+        return `${this.TotalPendingSuggestionsCount} ${suggNoun} across ${taskCount} ${taskNoun}`;
+    }
+
+    public TogglePendingSuggestions(): void {
+        this.OnPendingSuggestionsChanged(!this._onlyPendingSuggestions);
+    }
+
+    public OnPendingSuggestionsChanged(next: boolean): void {
+        const normalized = Boolean(next);
+        if (normalized !== this._onlyPendingSuggestions) {
+            this._onlyPendingSuggestions = normalized;
+            this.OnlyPendingSuggestionsChange.emit(normalized);
+            this.cdr.markForCheck();
+        }
+    }
+
+    private createRunView(): RunView {
+        const p = this.ProviderToUse;
+        if (p && typeof (p as Partial<IRunViewProvider>).RunView === 'function') {
+            return RunView.FromMetadataProvider(p);
+        }
+        return new RunView();
+    }
 
     public OpenFullRecord(taskID: string | null): void {
         OpenTaskRecord(taskID);
@@ -402,7 +537,7 @@ export class TasksDashboardPageComponent implements OnInit {
 
     public async LoadCategories(): Promise<void> {
         try {
-            const rv = new RunView();
+            const rv = this.createRunView();
             const res = await rv.RunView<TaskCategoryOption>({
                 EntityName: 'MJ_BizApps_Tasks: Task Categories',
                 OrderBy: 'Name ASC',
@@ -418,9 +553,10 @@ export class TasksDashboardPageComponent implements OnInit {
 
     public async LoadKPIs(): Promise<void> {
         try {
-            const rv = new RunView();
+            const rv = this.createRunView();
             const filter = this.SelectedCategoryID ? `CategoryID = '${this.SelectedCategoryID}'` : undefined;
             const res = await rv.RunView<{
+                ID: string;
                 Status: string;
                 DueAt: string | null;
                 PercentComplete: number;
@@ -431,6 +567,7 @@ export class TasksDashboardPageComponent implements OnInit {
                 MaxRows: 1000,
             });
 
+            const rows = res.Success && res.Results ? res.Results : [];
             if (res.Success && res.Results) {
                 const now = new Date();
                 let active = 0;
@@ -439,7 +576,7 @@ export class TasksDashboardPageComponent implements OnInit {
                 let overdue = 0;
                 let totalPct = 0;
 
-                for (const t of res.Results) {
+                for (const t of rows) {
                     if (t.Status !== 'Cancelled' && t.Status !== 'Completed') {
                         active++;
                         totalPct += (t.PercentComplete ?? 0);
@@ -457,6 +594,13 @@ export class TasksDashboardPageComponent implements OnInit {
                     AvgPercentComplete: active > 0 ? Math.round(totalPct / active) : 0,
                 };
             }
+
+            const suggestions = await TaskFieldSuggestionsHelper.LoadPendingSuggestions(this.ProviderToUse, {
+                taskIds: rows.map((t) => t.ID),
+            });
+            this.FieldSuggestionsAvailable = suggestions.available;
+            this.PendingSuggestionsByTask = suggestions.byTaskId;
+            this.TotalPendingSuggestionsCount = CountTotalPendingSuggestions(suggestions.byTaskId);
         } finally {
             this.cdr.markForCheck();
         }
@@ -496,7 +640,7 @@ export class TasksDashboardPageComponent implements OnInit {
         this.RefreshActiveView();
     }
 
-    public async OnTemplateCreated(result: unknown): Promise<void> {
+    public async OnTemplateCreated(_tasks: BaseEntity[]): Promise<void> {
         this.ClosePanel();
         await this.LoadKPIs();
         this.RefreshActiveView();

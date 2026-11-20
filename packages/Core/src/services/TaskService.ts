@@ -49,10 +49,11 @@ export class TaskService {
         contextUser?: UserInfo,
         provider?: IMetadataProvider & IRunViewProvider,
     ): Promise<void> {
+        const parentLiteral = GuidLiteral(parentTaskID, 'ParentTaskID');
         const rv = new RunView(provider);
         const children = await rv.RunView<TaskRollupChildRow>({
             EntityName: 'MJ_BizApps_Tasks: Tasks',
-            ExtraFilter: `ParentID = ${GuidLiteral(parentTaskID, 'ParentTaskID')}`,
+            ExtraFilter: `ParentID = ${parentLiteral}`,
             ResultType: 'simple',
         }, contextUser);
 

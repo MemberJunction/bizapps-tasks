@@ -1,5 +1,5 @@
 import { BaseEntity, RunView, ValidationResult, ValidationErrorInfo, ValidationErrorType } from "@memberjunction/core";
-import { IsValidUUID, RegisterClass } from "@memberjunction/global";
+import { IsValidUUID, RegisterClass, UUIDsEqual } from "@memberjunction/global";
 import { mjBizAppsTasksTaskDependencyEntity } from "../generated/entity_subclasses.js";
 
 /**
@@ -29,7 +29,7 @@ export class TaskDependencyEntity extends mjBizAppsTasksTaskDependencyEntity {
     private validateNoSelfReference(result: ValidationResult): void {
         const taskID = this.TaskID;
         const dependsOnTaskID = this.DependsOnTaskID;
-        if (taskID && dependsOnTaskID && taskID === dependsOnTaskID) {
+        if (taskID && dependsOnTaskID && UUIDsEqual(taskID, dependsOnTaskID)) {
             result.Errors.push(new ValidationErrorInfo(
                 'DependsOnTaskID',
                 'A task cannot depend on itself.',
@@ -79,6 +79,7 @@ export class TaskDependencyEntity extends mjBizAppsTasksTaskDependencyEntity {
 
         const visited = new Set<string>();
         const queue: string[] = [dependsOnTaskID];
+        const rv = new RunView(this.RunViewProviderToUse);
 
         while (queue.length > 0) {
             const current = queue.shift()!;
@@ -92,7 +93,7 @@ export class TaskDependencyEntity extends mjBizAppsTasksTaskDependencyEntity {
                 ));
                 return;
             }
-            if (current === taskID) {
+            if (UUIDsEqual(current, taskID)) {
                 result.Errors.push(new ValidationErrorInfo(
                     'DependsOnTaskID',
                     'This dependency would create a circular reference.',
@@ -101,21 +102,22 @@ export class TaskDependencyEntity extends mjBizAppsTasksTaskDependencyEntity {
                 ));
                 return;
             }
-            if (visited.has(current)) continue;
-            visited.add(current);
+            const normalizedCurrent = current.toLowerCase();
+            if (visited.has(normalizedCurrent)) continue;
+            visited.add(normalizedCurrent);
 
-            // Load all tasks that `current` depends on
-            const rv = new RunView();
+            // Load all tasks that `current` depends on using the entity's own provider & user context
             const upstream = await rv.RunView<{ DependsOnTaskID: string }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Dependencies',
-                ExtraFilter: `TaskID = '${current}'`,
+                ExtraFilter: `TaskID = '${current.trim()}'`,
+                Fields: ['DependsOnTaskID'],
                 ResultType: 'simple',
             }, this.ContextCurrentUser);
 
             if (upstream?.Results) {
                 for (const dep of upstream.Results) {
                     const upstreamID = dep.DependsOnTaskID;
-                    if (upstreamID && !visited.has(upstreamID)) {
+                    if (upstreamID && !visited.has(upstreamID.toLowerCase())) {
                         queue.push(upstreamID);
                     }
                 }

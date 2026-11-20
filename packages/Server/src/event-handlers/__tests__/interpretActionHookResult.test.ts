@@ -6,24 +6,30 @@ const logError = vi.fn();
 
 vi.mock('@memberjunction/core', () => ({
   BaseEntity: class { static BaseEventCode = 'BaseEntity'; },
+  CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },
   LogError: (...a: unknown[]) => logError(...a),
   LogStatus: (...a: unknown[]) => logStatus(...a),
   Metadata: class {},
   RunView: class { RunView() { return Promise.resolve({ Results: [] }); } },
   UserInfo: class {},
 }));
-vi.mock('@memberjunction/global', () => ({
-  MJEventType: { ComponentEvent: 'ComponentEvent' },
-  IsValidUUID: (v: string | null | undefined) =>
-    !!v && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(v.trim()),
-  MJGlobal: { Instance: { GetGlobalObjectStore: () => ({}), GetEventListener: () => ({ subscribe: () => ({ unsubscribe() {} }) }) } },
-}));
+vi.mock('@memberjunction/global', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@memberjunction/global')>();
+  return {
+    ...actual,
+    MJEventType: { ComponentEvent: 'ComponentEvent' },
+    MJGlobal: { Instance: { GetGlobalObjectStore: () => ({}), GetEventListener: () => ({ subscribe: () => ({ unsubscribe() {} }) }) } },
+  };
+});
 vi.mock('@mj-biz-apps/common-entities', () => ({
   ResolveUserIDForPerson: vi.fn(),
   ResolveUserIDsForPeople: vi.fn(),
 }));
 vi.mock('@memberjunction/notifications', () => ({
   NotificationEngine: { Instance: { Config: vi.fn(), SendNotification: vi.fn() } },
+}));
+vi.mock('@memberjunction/actions', () => ({
+  ActionEngineServer: { Instance: { Config: vi.fn(), Actions: [], RunAction: vi.fn() } },
 }));
 
 import { interpretActionHookResult } from '../TaskNotificationHandler.js';

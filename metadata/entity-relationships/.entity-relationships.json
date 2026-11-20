@@ -1,0 +1,182 @@
+[
+  {
+    "_comments": [
+      "Declares Tasks -> Task Assignments as a related-record collection (MJ 6.1+).",
+      "RelatedEntity and RelatedEntityJoinField are read from the EntityRelationship row columns and deliberately omitted from the JSON blob."
+    ],
+    "fields": {
+      "RelatedRecordCollection": "@file:task-assignments-collection.json"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Assignments&RelatedEntityJoinField=TaskID"
+    }
+  },
+  {
+    "_comments": [
+      "Declares Tasks -> Task Tag Links as a related-record collection (MJ 6.1+).",
+      "RelatedEntity and RelatedEntityJoinField are read from the EntityRelationship row columns and deliberately omitted from the JSON blob."
+    ],
+    "fields": {
+      "RelatedRecordCollection": "@file:task-tag-links-collection.json"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Tag Links&RelatedEntityJoinField=TaskID"
+    }
+  },
+  {
+    "_comments": [
+      "Declares Tasks -> Task Links as a related-record collection (MJ 6.1+).",
+      "RelatedEntity and RelatedEntityJoinField are read from the EntityRelationship row columns and deliberately omitted from the JSON blob."
+    ],
+    "fields": {
+      "RelatedRecordCollection": "@file:task-links-collection.json"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Links&RelatedEntityJoinField=TaskID"
+    }
+  },
+  {
+    "_comments": [
+      "Declares Tasks -> Task Dependencies (outgoing TaskID edges) as a related-record collection (MJ 6.1+).",
+      "RelatedEntity and RelatedEntityJoinField are read from the EntityRelationship row columns and deliberately omitted from the JSON blob."
+    ],
+    "fields": {
+      "RelatedRecordCollection": "@file:task-dependencies-collection.json"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Dependencies&RelatedEntityJoinField=TaskID"
+    }
+  },
+  {
+    "_comments": [
+      "Declares Tasks -> Task Decisions as an append-only audit related-record collection (OnRemove: refuse).",
+      "RelatedEntity and RelatedEntityJoinField are read from the EntityRelationship row columns and deliberately omitted from the JSON blob."
+    ],
+    "fields": {
+      "RelatedRecordCollection": "@file:task-decisions-collection.json"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Decisions&RelatedEntityJoinField=TaskID"
+    }
+  },
+  {
+    "_comments": [
+      "Declares Tasks -> Task Comments as a related-record collection (MJ 6.1+).",
+      "RelatedEntity and RelatedEntityJoinField are read from the EntityRelationship row columns and deliberately omitted from the JSON blob."
+    ],
+    "fields": {
+      "RelatedRecordCollection": "@file:task-comments-collection.json"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Comments&RelatedEntityJoinField=TaskID"
+    }
+  },
+  {
+    "_comments": [
+      "Declares Tasks -> Task Check Ins as a related-record collection ordered newest-first by CheckInAt.",
+      "RelatedEntity and RelatedEntityJoinField are read from the EntityRelationship row columns and deliberately omitted from the JSON blob."
+    ],
+    "fields": {
+      "RelatedRecordCollection": "@file:task-check-ins-collection.json"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Check Ins&RelatedEntityJoinField=TaskID"
+    }
+  },
+  {
+    "_comments": [
+      "Declares Tasks -> Task Activities as a related-record collection ordered newest-first.",
+      "RelatedEntity and RelatedEntityJoinField are read from the EntityRelationship row columns and deliberately omitted from the JSON blob."
+    ],
+    "fields": {
+      "RelatedRecordCollection": "@file:task-activities-collection.json"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Activities&RelatedEntityJoinField=TaskID"
+    }
+  },
+  {
+    "_comments": [
+      "Declares Tasks -> Task Notification Logs as a related-record collection ordered newest-first.",
+      "RelatedEntity and RelatedEntityJoinField are read from the EntityRelationship row columns and deliberately omitted from the JSON blob."
+    ],
+    "fields": {
+      "RelatedRecordCollection": "@file:task-notification-logs-collection.json"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Task Notification Logs&RelatedEntityJoinField=TaskID"
+    }
+  },
+  {
+    "_comments": [
+      "Declares Tasks -> SubTasks (ParentID) as a related-record collection; removing a subtask orphans it rather than deleting.",
+      "RelatedEntity and RelatedEntityJoinField are read from the EntityRelationship row columns and deliberately omitted from the JSON blob."
+    ],
+    "fields": {
+      "RelatedRecordCollection": "@file:task-subtasks-collection.json"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Tasks&RelatedEntity=MJ_BizApps_Tasks: Tasks&RelatedEntityJoinField=ParentID"
+    }
+  },
+  {
+    "_comments": [
+      "Declares Task Types -> Task Type Status as a sequenced related-record collection.",
+      "RelatedEntity and RelatedEntityJoinField are read from the EntityRelationship row columns and deliberately omitted from the JSON blob."
+    ],
+    "fields": {
+      "RelatedRecordCollection": "@file:task-type-statuses-collection.json"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Task Types&RelatedEntity=MJ_BizApps_Tasks: Task Type Status&RelatedEntityJoinField=TaskTypeID"
+    }
+  },
+  {
+    "_comments": [
+      "Declares Task Templates -> Task Template Items as a sequenced related-record collection.",
+      "RelatedEntity and RelatedEntityJoinField are read from the EntityRelationship row columns and deliberately omitted from the JSON blob."
+    ],
+    "fields": {
+      "RelatedRecordCollection": "@file:task-template-items-collection.json"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Task Templates&RelatedEntity=MJ_BizApps_Tasks: Task Template Items&RelatedEntityJoinField=TemplateID"
+    }
+  },
+  {
+    "_comments": [
+      "Declares Task Template Items -> Task Template Item Roles as a related-record collection.",
+      "RelatedEntity and RelatedEntityJoinField are read from the EntityRelationship row columns and deliberately omitted from the JSON blob."
+    ],
+    "fields": {
+      "RelatedRecordCollection": "@file:task-template-item-roles-collection.json"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Task Template Items&RelatedEntity=MJ_BizApps_Tasks: Task Template Item Roles&RelatedEntityJoinField=ItemID"
+    }
+  },
+  {
+    "_comments": [
+      "Declares Task Template Items -> Task Template Item Dependencies (ItemID) as a related-record collection.",
+      "RelatedEntity and RelatedEntityJoinField are read from the EntityRelationship row columns and deliberately omitted from the JSON blob."
+    ],
+    "fields": {
+      "RelatedRecordCollection": "@file:task-template-item-dependencies-collection.json"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Task Template Items&RelatedEntity=MJ_BizApps_Tasks: Task Template Item Dependencies&RelatedEntityJoinField=ItemID"
+    }
+  },
+  {
+    "_comments": [
+      "Declares Work Reports -> Work Report Items as a sequenced related-record collection so DraftWorkReport saves atomically.",
+      "RelatedEntity and RelatedEntityJoinField are read from the EntityRelationship row columns and deliberately omitted from the JSON blob."
+    ],
+    "fields": {
+      "RelatedRecordCollection": "@file:work-report-items-collection.json"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entity Relationships.Entity=MJ_BizApps_Tasks: Work Reports&RelatedEntity=MJ_BizApps_Tasks: Work Report Items&RelatedEntityJoinField=WorkReportID"
+    }
+  }
+]

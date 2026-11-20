@@ -5,27 +5,31 @@ const getEntityObjectMock = vi.fn();
 
 vi.mock('@memberjunction/core', () => ({
   RunView: class {
-    RunView(...args: any[]) { return runViewMock(...args); }
+    RunView(...args: unknown[]) { return runViewMock(...args); }
   },
   Metadata: {
-    Provider: { GetEntityObject: (...args: any[]) => getEntityObjectMock(...args) },
+    Provider: { GetEntityObject: (...args: unknown[]) => getEntityObjectMock(...args) },
   },
-  CompositeKey: class { constructor(public KeyValuePairs: any[]) {} },
+  CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },
   BaseEntity: class {},
   LogError: vi.fn(),
 }));
 
 import { TaskAssignmentService } from '../TaskAssignmentService.js';
 
-function makeFakeEntity(initial: Record<string, any> = {}) {
-  const data: Record<string, any> = { ...initial };
+const TASK_4 = '44444444-4444-4444-8444-444444444444';
+const TASK_5 = '55555555-5555-4555-8555-555555555555';
+
+function makeFakeEntity(initial: Record<string, unknown> = {}) {
+  const data: Record<string, unknown> = { ...initial };
   const base = {
     data,
     NewRecord: vi.fn(),
     InnerLoad: vi.fn(async () => true),
     Save: vi.fn(async () => true),
     Delete: vi.fn(async () => true),
-    Set: vi.fn((f: string, v: any) => { data[f] = v; }),
+    LatestResult: { CompleteMessage: '' },
+    Set: vi.fn((f: string, v: unknown) => { data[f] = v; }),
     Get: vi.fn((f: string) => data[f]),
   };
   return new Proxy(base, {
@@ -90,7 +94,7 @@ describe('TaskAssignmentService.assignToTask', () => {
       assigneeRecordID: 'person-2',
     });
 
-    const fields = assignment.Set.mock.calls.map((c: any[]) => c[0]);
+    const fields = assignment.Set.mock.calls.map((c: unknown[]) => c[0]);
     expect(fields).not.toContain('RoleID');
     expect(fields).not.toContain('RoleNotes');
     expect(fields).not.toContain('AssignedByPersonID');
@@ -151,11 +155,19 @@ describe('TaskAssignmentService.removeAssignment', () => {
     expect(activity.Set).toHaveBeenCalledWith('TaskID', 'task-3');
     expect(activity.Set).toHaveBeenCalledWith('PreviousValue', 'person-3');
   });
-});
 
-// IDs that reach an ExtraFilter must be real UUIDs: anything else is refused before SQL text.
-const TASK_4 = 'D0000000-0000-0000-0000-000000000004';
-const TASK_5 = 'D0000000-0000-0000-0000-000000000005';
+  it('throws and skips activity logging when Delete() is refused', async () => {
+    const assignment = makeFakeEntity({ TaskID: 'task-3', AssigneeRecordID: 'person-3' });
+    assignment.Delete.mockResolvedValueOnce(false);
+    assignment.LatestResult = { CompleteMessage: 'Delete refused by permission policy' };
+    getEntityObjectMock.mockResolvedValueOnce(assignment);
+
+    const svc = new TaskAssignmentService();
+    await expect(svc.removeAssignment('assignment-1', 'person-9'))
+      .rejects.toThrow("Failed to remove assignment 'assignment-1' from task task-3: Delete refused by permission policy");
+    expect(getEntityObjectMock).toHaveBeenCalledOnce();
+  });
+});
 
 describe('TaskAssignmentService.getAssignmentsForTask', () => {
   it('returns the RunView results array', async () => {

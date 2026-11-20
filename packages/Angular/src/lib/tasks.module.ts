@@ -1,6 +1,7 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { SharedGenericModule } from '@memberjunction/ng-shared-generic';
 
 // Standalone components — imported into the module for re-export convenience
 import { TaskPriorityBadgeComponent } from './components/task-priority-badge/task-priority-badge.component';
@@ -36,11 +37,13 @@ import {
     TemplatesSectionResource,
     LoadTasksSectionResources,
 } from './sections/tasks-sections.component';
+import { ChiefOfStaffWorkReportsResource } from './chief-of-staff/chief-of-staff-work-reports.component';
 
 @NgModule({
     imports: [
         CommonModule,
         FormsModule,
+        SharedGenericModule,
         // Standalone components
         TaskPriorityBadgeComponent,
         TaskAssigneeListComponent,
@@ -64,6 +67,7 @@ import {
         MyTasksSectionResource,
         ApprovalsSectionResource,
         TemplatesSectionResource,
+        ChiefOfStaffWorkReportsResource,
         MyMeetingsPageComponent,
         MeetingsPageComponent,
         MeetingSeriesPageComponent,
@@ -94,6 +98,7 @@ import {
         MyTasksSectionResource,
         ApprovalsSectionResource,
         TemplatesSectionResource,
+        ChiefOfStaffWorkReportsResource,
         MyMeetingsPageComponent,
         MeetingsPageComponent,
         MeetingSeriesPageComponent,
@@ -107,5 +112,6 @@ export class BizAppsTasksModule { }
 /** Tree-shaking prevention — call from consuming app bootstrap */
 export function LoadBizAppsTasksClient() {
     LoadTasksSectionResources();
+    void ChiefOfStaffWorkReportsResource;
     LoadMeetingsSectionResources();
 }

@@ -11,6 +11,7 @@ const { store, subscribeMock, getEventListenerMock, runViewCalls } = vi.hoisted(
 
 vi.mock('@memberjunction/core', () => ({
   BaseEntity: class { static BaseEventCode = 'BaseEntity'; },
+  CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },
   LogError: vi.fn(),
   LogStatus: vi.fn(),
   Metadata: class {},
@@ -23,17 +24,19 @@ vi.mock('@memberjunction/core', () => ({
   UserInfo: class {},
 }));
 
-vi.mock('@memberjunction/global', () => ({
-  MJEventType: { ComponentEvent: 'ComponentEvent' },
-  IsValidUUID: (v: string | null | undefined) =>
-    !!v && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(v.trim()),
-  MJGlobal: {
-    Instance: {
-      GetGlobalObjectStore: () => store,
-      GetEventListener: (...args: unknown[]) => getEventListenerMock(...args),
+vi.mock('@memberjunction/global', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@memberjunction/global')>();
+  return {
+    ...actual,
+    MJEventType: { ComponentEvent: 'ComponentEvent' },
+    MJGlobal: {
+      Instance: {
+        GetGlobalObjectStore: () => store,
+        GetEventListener: (...args: unknown[]) => getEventListenerMock(...args),
+      },
     },
-  },
-}));
+  };
+});
 
 vi.mock('@mj-biz-apps/common-entities', () => ({
   ResolveUserIDForPerson: vi.fn(),
@@ -42,6 +45,10 @@ vi.mock('@mj-biz-apps/common-entities', () => ({
 
 vi.mock('@memberjunction/notifications', () => ({
   NotificationEngine: { Instance: { Config: vi.fn(), SendNotification: vi.fn() } },
+}));
+
+vi.mock('@memberjunction/actions', () => ({
+  ActionEngineServer: { Instance: { Config: vi.fn(), Actions: [], RunAction: vi.fn() } },
 }));
 
 import { InitTaskNotificationHandler } from '../TaskNotificationHandler.js';
@@ -65,7 +72,7 @@ async function dispatchSave(entityName: string, fields: Record<string, unknown>,
       baseEntity: {
         EntityInfo: { Name: entityName },
         ContextCurrentUser: { ID: 'user-1', Email: 'u@example.test' },
-        Get: (f: string) => fields[f],
+        ...fields,
       },
     },
   });

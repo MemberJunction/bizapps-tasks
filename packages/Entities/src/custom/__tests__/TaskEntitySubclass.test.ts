@@ -15,9 +15,13 @@ const { runViewMock, getEntityObjectMock } = vi.hoisted(() => ({
   getEntityObjectMock: vi.fn(),
 }));
 
-vi.mock('@memberjunction/global', () => ({
-  RegisterClass: () => () => {},
-}));
+vi.mock('@memberjunction/global', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@memberjunction/global')>();
+  return {
+    ...actual,
+    RegisterClass: () => () => {},
+  };
+});
 
 vi.mock('@memberjunction/core', () => {
   class FakeValidationResult {
@@ -43,6 +47,7 @@ vi.mock('@memberjunction/core', () => {
     Validate() { return new FakeValidationResult(); }
     async ValidateAsync() { return new FakeValidationResult(); }
     async Save(_options?: any) { return true; }
+    DeclareRelatedRecords(options: unknown) { return { Options: options }; }
   }
   return {
     BaseEntity: FakeBaseEntity,

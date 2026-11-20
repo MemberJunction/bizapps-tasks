@@ -1,8 +1,15 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, inject, Input, Output, OnChanges, OnInit, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { CompositeKey, Metadata, RunView } from '@memberjunction/core';
+import { CompositeKey, Metadata, RunView, type IMetadataProvider, type IRunViewProvider } from '@memberjunction/core';
+import { NormalizeUUID } from '@memberjunction/global';
 import { MjKanbanBoardComponent, KanbanCardData, KanbanColumnDef, KanbanCardMovedEvent } from '@memberjunction/ng-kanban';
 import type { mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
+import {
+    FilterTasksByPendingSuggestions,
+    FormatPendingSuggestionTooltip,
+    TaskFieldSuggestionsHelper,
+    type TaskPendingSuggestionsSummary,
+} from '../../task-field-suggestions.helper';
 
 /**
  * Cancellable event emitted before a drag-and-drop status change on the Kanban board.
@@ -29,6 +36,9 @@ export interface KanbanTaskData {
     PercentComplete: number | null;
     HoursEstimated: number | null;
     ParentID: string | null;
+    PendingSuggestionCount?: number;
+    PendingSuggestionFields?: string[];
+    PendingSuggestionTooltip?: string;
 }
 
 /**
@@ -97,9 +107,32 @@ const PRIORITY_BADGE_COLORS: Record<string, string> = {
     styles: [`.move-error { color: var(--mj-status-error); font-size: 12px; margin-bottom: 8px; }`]
 })
 export class TaskKanbanComponent implements OnInit, OnChanges {
+    @Input() Provider: IMetadataProvider | null = null;
     @Input() CategoryID: string | null = null;
     @Input() ExtraFilter: string | null = null;
     @Input() ReadOnly = false;
+
+    private _pendingSuggestionsOnly = false;
+    private isInitialized = false;
+
+    @Input()
+    get PendingSuggestionsOnly(): boolean {
+        return this._pendingSuggestionsOnly;
+    }
+    set PendingSuggestionsOnly(value: boolean) {
+        const next = Boolean(value);
+        if (next !== this._pendingSuggestionsOnly) {
+            this._pendingSuggestionsOnly = next;
+            if (this.isInitialized) {
+                this.rebuildCards();
+                this.cdr.markForCheck();
+            }
+        }
+    }
+
+    public get ProviderToUse(): IMetadataProvider {
+        return this.Provider ?? Metadata.Provider;
+    }
 
     @Output() BeforeStatusChange = new EventEmitter<BeforeKanbanStatusChangeEvent>();
     @Output() AfterStatusChange = new EventEmitter<AfterKanbanStatusChangeEvent>();
@@ -116,12 +149,21 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
     ];
 
     cards: KanbanCardData[] = [];
+    /** @internal Unfiltered task rows loaded from the server. */
+    rawTasks: KanbanTaskData[] = [];
+    /** @internal True when `MJ: Field Suggestions` is available on the host. */
+    fieldSuggestionsAvailable = false;
+    /** @internal Per-task pending suggestion summaries keyed by normalized task UUID. */
+    pendingSuggestionsByTask = new Map<string, TaskPendingSuggestionsSummary>();
     /** @internal Shown when a drag's status save is refused. The card snaps back. */
     moveError = '';
 
     private cdr = inject(ChangeDetectorRef);
 
-    ngOnInit(): void { this.LoadTasks(); }
+    ngOnInit(): void {
+        this.isInitialized = true;
+        this.LoadTasks();
+    }
 
     ngOnChanges(changes: SimpleChanges): void {
         const filterChanged = (changes['ExtraFilter'] && !changes['ExtraFilter'].firstChange)
@@ -131,8 +173,16 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
 
     Refresh(): void { this.LoadTasks(); }
 
+    private createRunView(): RunView {
+        const p = this.ProviderToUse;
+        if (p && typeof (p as Partial<IRunViewProvider>).RunView === 'function') {
+            return RunView.FromMetadataProvider(p);
+        }
+        return new RunView();
+    }
+
     async LoadTasks(bypassCache: boolean = false): Promise<void> {
-        const rv = new RunView();
+        const rv = this.createRunView();
         const filters: string[] = ["Status <> 'Cancelled'"];
         if (this.CategoryID) filters.push(`CategoryID = '${this.CategoryID}'`);
         if (this.ExtraFilter) filters.push(this.ExtraFilter);
@@ -147,18 +197,58 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
             BypassCache: bypassCache,
         });
 
-        this.cards = (result?.Results ?? []).map((r) => ({
-            ID: r.ID,
-            Title: r.Name,
-            Subtitle: r.Description || undefined,
-            ColumnKey: r.Status,
-            Color: PRIORITY_COLORS[r.Priority] || undefined,
-            BadgeText: r.Priority,
-            BadgeColor: PRIORITY_BADGE_COLORS[r.Priority] || undefined,
-            FooterText: r.DueAt ? new Date(r.DueAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : undefined,
-            Data: r,
-        }));
+        this.rawTasks = result?.Results ?? [];
+        const suggestions = await TaskFieldSuggestionsHelper.LoadPendingSuggestions(this.ProviderToUse, {
+            taskIds: this.rawTasks.map((r) => r.ID),
+        });
+        this.fieldSuggestionsAvailable = suggestions.available;
+        this.pendingSuggestionsByTask = suggestions.byTaskId;
+
+        this.rebuildCards();
         this.cdr.markForCheck();
+    }
+
+    rebuildCards(): void {
+        const mapToUse = this.pendingSuggestionsByTask.size > 0 ? this.pendingSuggestionsByTask : undefined;
+        const visibleTasks = FilterTasksByPendingSuggestions(
+            this.rawTasks,
+            this._pendingSuggestionsOnly,
+            mapToUse ?? this.pendingSuggestionsByTask,
+        );
+
+        this.cards = visibleTasks.map((r) => {
+            const summary = this.pendingSuggestionsByTask.get(NormalizeUUID(r.ID));
+            const pendingCount = summary?.pendingCount ?? 0;
+            const suggestionTooltip = summary ? FormatPendingSuggestionTooltip(summary) : '';
+            const dueLabel = r.DueAt
+                ? new Date(r.DueAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                : '';
+            const footerParts: string[] = [];
+            if (dueLabel) {
+                footerParts.push(dueLabel);
+            }
+            if (pendingCount > 0 && suggestionTooltip) {
+                footerParts.push(suggestionTooltip);
+            }
+            const enriched: KanbanTaskData = {
+                ...r,
+                PendingSuggestionCount: pendingCount,
+                PendingSuggestionFields: summary ? [...summary.fieldNames] : [],
+                PendingSuggestionTooltip: suggestionTooltip,
+            };
+
+            return {
+                ID: r.ID,
+                Title: r.Name,
+                Subtitle: r.Description || undefined,
+                ColumnKey: r.Status,
+                Color: PRIORITY_COLORS[r.Priority] || undefined,
+                BadgeText: r.Priority,
+                BadgeColor: PRIORITY_BADGE_COLORS[r.Priority] || undefined,
+                FooterText: footerParts.length > 0 ? footerParts.join(' · ') : undefined,
+                Data: enriched,
+            };
+        });
     }
 
     async onCardMoved(event: KanbanCardMovedEvent): Promise<void> {
@@ -166,7 +256,7 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
         this.BeforeStatusChange.emit(before);
         if (before.Cancel) return;
 
-        const entity = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
+        const entity = await this.ProviderToUse.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
         const pk = new CompositeKey([{ FieldName: 'ID', Value: event.Card.ID }]);
         await entity.InnerLoad(pk);
         entity.Status = event.ToColumn as mjBizAppsTasksTaskEntity['Status'];

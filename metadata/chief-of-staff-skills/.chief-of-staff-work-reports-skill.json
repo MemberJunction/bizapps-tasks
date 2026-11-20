@@ -1,0 +1,31 @@
+[
+  {
+    "fields": {
+      "Name": "Work reports",
+      "Description": "Draft daily 15Five work reports from BizApps Tasks and extension activity, route author approval, and coordinate supervisor review via MJ: Employees.SupervisorID. Installed by the BizApps Tasks app.",
+      "Instructions": "@file:templates/work-reports.skill.md",
+      "Status": "Active",
+      "ActivationMode": "Auto",
+      "Category": "Productivity",
+      "IconClass": "fa-solid fa-clipboard-check",
+      "CreatedByUserID": "@lookup:MJ: Users.Name=System"
+    },
+    "relatedEntities": {
+      "MJ: AI Agent Skills": [
+        {
+          "fields": {
+            "AgentID": "@lookup:MJ: AI Agents.Name=Chief of Staff",
+            "SkillID": "@parent:ID",
+            "Status": "Active"
+          },
+          "primaryKey": {
+            "ID": "A4E5A956-6837-4361-AD54-B8862F7850C6"
+          }
+        }
+      ]
+    },
+    "primaryKey": {
+      "ID": "235CA346-1759-481C-AEAD-1F2123D4E331"
+    }
+  }
+]
