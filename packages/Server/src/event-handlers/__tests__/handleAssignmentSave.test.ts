@@ -25,10 +25,11 @@ vi.mock('@memberjunction/core', () => ({
   UserInfo: class {},
 }));
 vi.mock('@memberjunction/global', () => ({
-  IsValidUUID: (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
   EscapeSQLString: (v: string) => v.replace(/'/g, "''"),
   UUIDsEqual: (a?: string | null, b?: string | null) => Boolean(a && b && a.toLowerCase() === b.toLowerCase()),
   MJEventType: { ComponentEvent: 'ComponentEvent' },
+  IsValidUUID: (v: string | null | undefined) =>
+    !!v && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(v.trim()),
   MJGlobal: { Instance: { GetGlobalObjectStore: () => ({}), GetEventListener: () => ({ subscribe: () => ({ unsubscribe() {} }) }) } },
 }));
 vi.mock('@mj-biz-apps/common-entities', () => {
@@ -89,14 +90,14 @@ function mockViews(linkedUserID: string | null): void {
   });
 }
 
-function assignmentCreated() {
+function assignmentCreated(assigneeRecordID = PERSON_1) {
   return {
     type: 'save',
     saveSubType: 'create',
     baseEntity: {
       ContextCurrentUser: { ID: 'user-ctx' },
       AssigneeEntityID: null,
-      AssigneeRecordID: PERSON_1,
+      AssigneeRecordID: assigneeRecordID,
       TaskID: TASK_1,
       RoleID: null,
     },
@@ -152,6 +153,20 @@ describe('handleAssignmentSave', () => {
     expect(sendNotification).not.toHaveBeenCalled();
     expect(runAction).toHaveBeenCalledOnce();
     expect(paramsPassed().AssigneePersonID).toBe(PERSON_1);
+  });
+
+  it('skips People SQL lookups for a non-UUID AssigneeRecordID while still invoking OnAssign', async () => {
+    mockViews('user-1');
+
+    await handleAssignmentSave(assignmentCreated("x' OR 1=1 --"));
+
+    expect(runView.mock.calls.some(([p]) => (p as ViewParams).EntityName === 'MJ_BizApps_Common: People')).toBe(false);
+    expect(sendNotification).not.toHaveBeenCalled();
+    expect(runAction).toHaveBeenCalledOnce();
+    expect(paramsPassed()).toMatchObject({
+      AssigneePersonID: "x' OR 1=1 --",
+      AssigneeName: null,
+    });
   });
 
   it('still invokes the OnAssign action when the notification throws', async () => {

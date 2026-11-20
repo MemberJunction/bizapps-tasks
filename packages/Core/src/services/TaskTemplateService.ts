@@ -8,12 +8,12 @@ import {
     RunView,
     UserInfo,
 } from "@memberjunction/core";
-import { EscapeSQLString, IsValidUUID } from "@memberjunction/global";
 import type {
     mjBizAppsTasksTaskEntity,
     mjBizAppsTasksTaskTemplateEntity,
     mjBizAppsTasksTaskTemplateItemEntity,
 } from "@mj-biz-apps/tasks-entities";
+import { GuidLiteral } from "./sql-guards.js";
 
 /** A provider that can instantiate entities and run views. */
 export type TaskTemplateProvider = IMetadataProvider & IRunViewProvider;
@@ -60,9 +60,8 @@ export class TaskTemplateService {
         provider?: TaskTemplateProvider,
     ): Promise<mjBizAppsTasksTaskEntity[]> {
         const { templateID, startDate, categoryID, assigneeMap } = params;
-        if (!IsValidUUID(templateID)) {
-            throw new Error(`Invalid templateID '${templateID}'`);
-        }
+        // Validate templateID up front: it is caller-supplied and reaches SQL filter text below.
+        const templateLiteral = GuidLiteral(templateID, 'TemplateID');
 
         const md: IMetadataProvider = provider ?? Metadata.Provider;
         const rv = new RunView(provider);
@@ -81,7 +80,7 @@ export class TaskTemplateService {
         // 2. Load all template items with their Roles and Dependencies batched in one 1+2 RunView call
         const itemsResult = await rv.RunView<mjBizAppsTasksTaskTemplateItemEntity>({
             EntityName: 'MJ_BizApps_Tasks: Task Template Items',
-            ExtraFilter: `TemplateID = '${EscapeSQLString(templateID)}'`,
+            ExtraFilter: `TemplateID = ${templateLiteral}`,
             OrderBy: 'Sequence ASC',
             ResultType: 'entity_object',
             IncludeRelatedRecords: ['Roles', 'Dependencies'],

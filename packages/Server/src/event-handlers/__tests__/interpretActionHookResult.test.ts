@@ -13,10 +13,11 @@ vi.mock('@memberjunction/core', () => ({
   UserInfo: class {},
 }));
 vi.mock('@memberjunction/global', () => ({
-  IsValidUUID: (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
   EscapeSQLString: (v: string) => v.replace(/'/g, "''"),
   UUIDsEqual: (a?: string | null, b?: string | null) => Boolean(a && b && a.toLowerCase() === b.toLowerCase()),
   MJEventType: { ComponentEvent: 'ComponentEvent' },
+  IsValidUUID: (v: string | null | undefined) =>
+    !!v && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(v.trim()),
   MJGlobal: { Instance: { GetGlobalObjectStore: () => ({}), GetEventListener: () => ({ subscribe: () => ({ unsubscribe() {} }) }) } },
 }));
 vi.mock('@mj-biz-apps/common-entities', () => ({

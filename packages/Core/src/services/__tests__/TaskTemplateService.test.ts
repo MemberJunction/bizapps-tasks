@@ -86,16 +86,6 @@ beforeEach(() => {
 });
 
 describe('TaskTemplateService.instantiateTemplate', () => {
-  it('rejects a non-UUID templateID before querying', async () => {
-    const svc = new TaskTemplateService();
-    await expect(svc.instantiateTemplate({
-      templateID: "tmpl-1' OR 1=1--",
-      startDate: new Date('2026-06-01T00:00:00Z'),
-    })).rejects.toThrow(/Invalid templateID/);
-    expect(getEntityObjectMock).not.toHaveBeenCalled();
-    expect(runViewMock).not.toHaveBeenCalled();
-  });
-
   it('returns empty array when the template has no items', async () => {
     const template = makeFakeTask(TMPL_1, { TypeID: TYPE_1 });
     getEntityObjectMock.mockResolvedValueOnce(template);
@@ -318,5 +308,16 @@ describe('TaskTemplateService.instantiateTemplate', () => {
 
     expect(rollbackMock).toHaveBeenCalledOnce();
     expect(commitMock).toHaveBeenCalledOnce(); // still only 1 commit from the first run
+  });
+
+  it('refuses a template ID that is not a UUID before any DB lookup', async () => {
+    const svc = new TaskTemplateService();
+    await expect(svc.instantiateTemplate({
+      templateID: "x' OR 1=1 --",
+      startDate: new Date('2026-06-01T00:00:00Z'),
+    })).rejects.toThrow(/is not a valid ID/);
+
+    expect(getEntityObjectMock).not.toHaveBeenCalled();
+    expect(runViewMock).not.toHaveBeenCalled();
   });
 });

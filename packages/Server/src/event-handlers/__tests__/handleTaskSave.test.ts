@@ -29,10 +29,11 @@ vi.mock('@memberjunction/core', () => ({
   UserInfo: class {},
 }));
 vi.mock('@memberjunction/global', () => ({
-  IsValidUUID: (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
   EscapeSQLString: (v: string) => v.replace(/'/g, "''"),
   UUIDsEqual: (a?: string | null, b?: string | null) => Boolean(a && b && a.toLowerCase() === b.toLowerCase()),
   MJEventType: { ComponentEvent: 'ComponentEvent' },
+  IsValidUUID: (v: string | null | undefined) =>
+    !!v && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(v.trim()),
   MJGlobal: {
     Instance: {
       GetGlobalObjectStore: () => ({}),
@@ -155,5 +156,38 @@ describe('task status notifications & single-owner hook dispatch', () => {
     expect(savedNotifications.map((n) => n.UserID)).toEqual(['user-1', 'user-2']);
     expect(savedNotifications[0].Title).toBe('Task Blocked: Approve journal batch');
     expect(runAction).not.toHaveBeenCalled();
+  });
+
+  it('does NOT dispatch OnCancel or OnReject on a Cancelled task save', async () => {
+    publishTaskUpdate('Cancelled');
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    expect(runAction).not.toHaveBeenCalled();
+  });
+
+  it('filters out non-UUID AssigneeRecordID values before calling People lookup', async () => {
+    runView.mockImplementation((params: ViewParams) => {
+      if (params.EntityName === 'MJ_BizApps_Tasks: Task Assignments') {
+        return Promise.resolve({
+          Success: true,
+          Results: [{ AssigneeRecordID: "x' OR 1=1 --" }, { AssigneeRecordID: PERSON_1 }],
+        });
+      }
+      if (params.EntityName === 'MJ_BizApps_Common: People') {
+        return Promise.resolve({
+          Success: true,
+          Results: [{ ID: PERSON_1, LinkedUserID: 'user-1' }],
+        });
+      }
+      return Promise.resolve({ Success: true, Results: [] });
+    });
+
+    publishTaskUpdate('Completed');
+
+    await vi.waitFor(() => expect(sendNotification).toHaveBeenCalledOnce());
+    const peopleCalls = runView.mock.calls.filter(([p]) => (p as ViewParams).EntityName === 'MJ_BizApps_Common: People');
+    for (const [call] of peopleCalls) {
+      expect((call as ViewParams).ExtraFilter).not.toContain('OR 1=1');
+    }
   });
 });

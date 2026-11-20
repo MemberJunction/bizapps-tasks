@@ -24,7 +24,7 @@ import { registerMeetingServerAIRuntime } from './ai/meeting-ai-runtime.js';
 
 registerMeetingServerAIRuntime();
 
-export { TaskEntityServer } from './TaskEntityServer.js';
+export { TaskEntityServer, REJECTED_STAGE_CODE } from './TaskEntityServer.js';
 export { TaskCheckInEntityServer } from './TaskCheckInEntityServer.js';
 export { TaskDecisionEntityServer, TASK_DECISION_ENTITY } from './TaskDecisionEntityServer.js';
 export { TaskAssignmentEntityServer, TASK_ASSIGNMENT_ENTITY } from './TaskAssignmentEntityServer.js';

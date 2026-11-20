@@ -172,4 +172,30 @@ describe('TaskDependencyEntity.ValidateAsync — cycle detection, provider/user 
 
     expect(result.Success).toBe(true);
   });
+
+  it('refuses an ID that is not a UUID before it reaches a filter', async () => {
+    const d = makeDep(TASK_1, "x' OR 1=1 --");
+    const result = await d.ValidateAsync();
+
+    expect(result.Success).toBe(false);
+    expect(result.Errors.some((e: { Message: string }) => /is not a valid ID/.test(e.Message))).toBe(true);
+    expect(runViewMock).not.toHaveBeenCalled();
+  });
+
+  it('refuses a walked dependency row whose ID is not a UUID (defense in depth)', async () => {
+    runViewMock.mockImplementation((opts: { ExtraFilter?: string }) => {
+      if (opts.ExtraFilter === `TaskID = '${TASK_2}'`) {
+        return Promise.resolve({ Results: [{ DependsOnTaskID: "y'; DROP TABLE Task --" }] });
+      }
+      return Promise.resolve({ Results: [] });
+    });
+
+    const d = makeDep(TASK_1, TASK_2);
+    const result = await d.ValidateAsync();
+
+    expect(result.Success).toBe(false);
+    expect(result.Errors.some((e: { Message: string }) => /is not a valid ID/.test(e.Message))).toBe(true);
+    // Only the valid starting ID was ever queried; the poisoned row never reached a filter.
+    expect(runViewMock).toHaveBeenCalledTimes(1);
+  });
 });

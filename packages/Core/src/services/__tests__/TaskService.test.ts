@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 const runViewMock = vi.fn();
 const getEntityObjectMock = vi.fn();
+const logErrorMock = vi.fn();
 const runViewProviders: unknown[] = [];
 
 vi.mock('@memberjunction/core', () => {
@@ -23,10 +24,16 @@ vi.mock('@memberjunction/core', () => {
       constructor(public KeyValuePairs: unknown[]) {}
     },
     BaseEntity: class {},
+    LogError: (...args: unknown[]) => logErrorMock(...args),
   };
 });
 
 import { TaskService } from '../TaskService.js';
+
+// IDs that reach an ExtraFilter must be real UUIDs: anything else is refused before SQL text.
+const PARENT_ID = 'B0000000-0000-0000-0000-000000000001';
+const GRANDPARENT_ID = 'B0000000-0000-0000-0000-000000000002';
+const OBJECTIVE_ID = 'B0000000-0000-0000-0000-000000000003';
 
 /**
  * Builds a fake entity object that records Set() / Get() calls and also exposes
@@ -65,26 +72,15 @@ function makeFakeEntity(initial: Record<string, unknown> = {}) {
   });
 }
 
-const PARENT_1 = '11111111-1111-4111-8111-111111111111';
-const GRAND_1 = '22222222-2222-4222-8222-222222222222';
-const OBJECTIVE_1 = '33333333-3333-4333-8333-333333333333';
-const GRANDPARENT_1 = '44444444-4444-4444-8444-444444444444';
-
 beforeEach(() => {
   vi.clearAllMocks();
   runViewProviders.length = 0;
 });
 
 describe('TaskService.rollupParentProgress', () => {
-  it('rejects a non-UUID parentTaskID before querying', async () => {
-    const svc = new TaskService();
-    await expect(svc.rollupParentProgress("parent-1' OR 1=1--")).rejects.toThrow(/Invalid parentTaskID/);
-    expect(runViewMock).not.toHaveBeenCalled();
-  });
-
   it('reads and writes on a supplied provider, including up the tree', async () => {
     const provider = { GetEntityObject: vi.fn(), RunView: vi.fn() };
-    const parent = makeFakeEntity({ PercentComplete: 0, Status: 'InProgress', ParentID: GRAND_1 });
+    const parent = makeFakeEntity({ PercentComplete: 0, Status: 'InProgress', ParentID: GRANDPARENT_ID });
     const grandParent = makeFakeEntity({ PercentComplete: 50, Status: 'InProgress', ParentID: null });
     provider.GetEntityObject.mockResolvedValueOnce(parent).mockResolvedValueOnce(grandParent);
     runViewMock
@@ -92,7 +88,7 @@ describe('TaskService.rollupParentProgress', () => {
       .mockResolvedValueOnce({ Results: [{ PercentComplete: 100, Status: 'Completed' }] });
     const svc = new TaskService();
 
-    await svc.rollupParentProgress(PARENT_1, undefined, provider as never);
+    await svc.rollupParentProgress(PARENT_ID, undefined, provider as never);
 
     expect(runViewProviders).toEqual([provider, provider]);
     expect(provider.GetEntityObject).toHaveBeenCalledTimes(2);
@@ -103,7 +99,7 @@ describe('TaskService.rollupParentProgress', () => {
     runViewMock.mockResolvedValueOnce({ Results: [] });
     const svc = new TaskService();
 
-    await svc.rollupParentProgress(PARENT_1);
+    await svc.rollupParentProgress(PARENT_ID);
 
     expect(getEntityObjectMock).not.toHaveBeenCalled();
   });
@@ -120,7 +116,7 @@ describe('TaskService.rollupParentProgress', () => {
     getEntityObjectMock.mockResolvedValueOnce(parent);
 
     const svc = new TaskService();
-    await svc.rollupParentProgress(PARENT_1);
+    await svc.rollupParentProgress(PARENT_ID);
 
     expect(parent.Set).toHaveBeenCalledWith('PercentComplete', 50);
     expect(parent.Save).toHaveBeenCalledOnce();
@@ -137,7 +133,7 @@ describe('TaskService.rollupParentProgress', () => {
     getEntityObjectMock.mockResolvedValueOnce(parent);
 
     const svc = new TaskService();
-    await svc.rollupParentProgress(PARENT_1);
+    await svc.rollupParentProgress(PARENT_ID);
 
     expect(parent.Set).toHaveBeenCalledWith('PercentComplete', 25);
   });
@@ -172,7 +168,7 @@ describe('TaskService.rollupParentProgress', () => {
     getEntityObjectMock.mockResolvedValueOnce(parent);
 
     const svc = new TaskService();
-    await svc.rollupParentProgress(OBJECTIVE_1);
+    await svc.rollupParentProgress(OBJECTIVE_ID);
 
     expect(parent.Set).toHaveBeenCalledWith('PercentComplete', 65);
     expect(parent.Set).toHaveBeenCalledWith('HealthStatus', 'AtRisk');
@@ -191,7 +187,7 @@ describe('TaskService.rollupParentProgress', () => {
     getEntityObjectMock.mockResolvedValueOnce(parent);
 
     const svc = new TaskService();
-    await svc.rollupParentProgress(PARENT_1);
+    await svc.rollupParentProgress(PARENT_ID);
 
     expect(parent.Set).toHaveBeenCalledWith('PercentComplete', 100);
     expect(parent.Set).toHaveBeenCalledWith('Status', 'Completed');
@@ -208,7 +204,7 @@ describe('TaskService.rollupParentProgress', () => {
     getEntityObjectMock.mockResolvedValueOnce(parent);
 
     const svc = new TaskService();
-    await svc.rollupParentProgress(PARENT_1);
+    await svc.rollupParentProgress(PARENT_ID);
 
     const statusCalls = parent.Set.mock.calls.filter((c: unknown[]) => c[0] === 'Status');
     expect(statusCalls).toHaveLength(0);
@@ -219,18 +215,39 @@ describe('TaskService.rollupParentProgress', () => {
       .mockResolvedValueOnce({ Results: [{ PercentComplete: 100, HoursEstimated: null, Status: 'Completed' }] })
       .mockResolvedValueOnce({ Results: [{ PercentComplete: 50, HoursEstimated: null, Status: 'InProgress' }] });
 
-    const parent = makeFakeEntity({ Status: 'InProgress', ParentID: GRANDPARENT_1 });
+    const parent = makeFakeEntity({ Status: 'InProgress', ParentID: GRANDPARENT_ID });
     const grandparent = makeFakeEntity({ Status: 'InProgress', ParentID: null });
     getEntityObjectMock
       .mockResolvedValueOnce(parent)
       .mockResolvedValueOnce(grandparent);
 
     const svc = new TaskService();
-    await svc.rollupParentProgress(PARENT_1);
+    await svc.rollupParentProgress(PARENT_ID);
 
     expect(parent.Save).toHaveBeenCalledOnce();
     expect(grandparent.Save).toHaveBeenCalledOnce();
     expect(grandparent.Set).toHaveBeenCalledWith('PercentComplete', 50);
+  });
+
+  it('logs an error and stops recursing when saving the parent fails', async () => {
+    runViewMock.mockResolvedValueOnce({ Results: [{ PercentComplete: 100, HoursEstimated: null, Status: 'Completed' }] });
+    const parent = makeFakeEntity({ Status: 'InProgress', ParentID: GRANDPARENT_ID });
+    parent.Save.mockResolvedValueOnce(false);
+    (parent as Record<string, unknown>).LatestResult = { CompleteMessage: 'DB constraint failed' };
+    getEntityObjectMock.mockResolvedValueOnce(parent);
+
+    const svc = new TaskService();
+    await svc.rollupParentProgress(PARENT_ID);
+
+    expect(logErrorMock).toHaveBeenCalledWith(expect.stringContaining('DB constraint failed'));
+    expect(getEntityObjectMock).toHaveBeenCalledOnce();
+  });
+
+  it('refuses a parent ID that is not a UUID before it reaches a filter', async () => {
+    const svc = new TaskService();
+
+    await expect(svc.rollupParentProgress("x' OR 1=1 --")).rejects.toThrow(/is not a valid ID/);
+    expect(runViewMock).not.toHaveBeenCalled();
   });
 });
 
@@ -308,5 +325,21 @@ describe('TaskService.logActivity', () => {
     expect(provider.GetEntityObject).toHaveBeenCalledWith('MJ_BizApps_Tasks: Task Activities', undefined);
     expect(getEntityObjectMock).not.toHaveBeenCalled();
     expect(activity.Save).toHaveBeenCalledOnce();
+  });
+
+  it('logs an error when saving the activity fails', async () => {
+    const activity = makeFakeEntity();
+    activity.Save.mockResolvedValueOnce(false);
+    (activity as Record<string, unknown>).LatestResult = { CompleteMessage: 'activity write refused' };
+    getEntityObjectMock.mockResolvedValueOnce(activity);
+
+    const svc = new TaskService();
+    await svc.logActivity({
+      taskID: 'task-err',
+      activityType: 'Created',
+      description: 'Task created',
+    });
+
+    expect(logErrorMock).toHaveBeenCalledWith(expect.stringContaining('activity write refused'));
   });
 });

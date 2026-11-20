@@ -12,6 +12,7 @@ vi.mock('@memberjunction/core', () => ({
   },
   CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },
   BaseEntity: class {},
+  LogError: vi.fn(),
 }));
 
 import { TaskAssignmentService } from '../TaskAssignmentService.js';
@@ -169,12 +170,6 @@ describe('TaskAssignmentService.removeAssignment', () => {
 });
 
 describe('TaskAssignmentService.getAssignmentsForTask', () => {
-  it('rejects a non-UUID taskID before running a view', async () => {
-    const svc = new TaskAssignmentService();
-    await expect(svc.getAssignmentsForTask("task-4' OR 1=1--")).rejects.toThrow(/Invalid taskID/);
-    expect(runViewMock).not.toHaveBeenCalled();
-  });
-
   it('returns the RunView results array', async () => {
     const rows = [makeFakeEntity(), makeFakeEntity()];
     runViewMock.mockResolvedValueOnce({ Results: rows });
@@ -194,5 +189,11 @@ describe('TaskAssignmentService.getAssignmentsForTask', () => {
     const svc = new TaskAssignmentService();
     const result = await svc.getAssignmentsForTask(TASK_5);
     expect(result).toEqual([]);
+  });
+
+  it('refuses a task ID that is not a UUID before it reaches a filter', async () => {
+    const svc = new TaskAssignmentService();
+    await expect(svc.getAssignmentsForTask("x' OR 1=1 --")).rejects.toThrow(/is not a valid ID/);
+    expect(runViewMock).not.toHaveBeenCalled();
   });
 });

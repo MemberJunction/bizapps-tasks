@@ -19,8 +19,8 @@ const PERSON_1 = '33333333-3333-4333-8333-333333333333';
 
 vi.mock('@memberjunction/global', () => ({
   RegisterClass: () => () => {},
-  IsValidUUID: (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
-  EscapeSQLString: (v: string) => v.replace(/'/g, "''"),
+  IsValidUUID: (v: string | null | undefined) =>
+    !!v && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(v.trim()),
   UUIDsEqual: (a?: string | null, b?: string | null) => Boolean(a && b && a.toLowerCase() === b.toLowerCase()),
 }));
 
@@ -265,6 +265,22 @@ describe('OverdueTaskNotificationJob.Execute — grace period & repeat filtering
     const job = new OverdueTaskNotificationJob();
     const result = await job.Execute(makeContext());
     expect(result.Details?.tasksNotified).toBe(0);
+  });
+
+  it('filters out non-UUID assignee record IDs so they never reach a SQL filter', async () => {
+    wireRunView({
+      configs: [globalConfig()],
+      tasks: [{ ...baseTask, CreatedByPersonID: null }],
+      assignments: [{ AssigneeRecordID: `x' OR 1=1 --` }],
+      people: [{ ID: PERSON_1, LinkedUserID: 'user-1' }],
+    });
+    const job = new OverdueTaskNotificationJob();
+    const result = await job.Execute(makeContext());
+    expect(result.Details?.tasksNotified).toBe(0);
+    const peopleCalls = runViewMock.mock.calls.filter(
+      (c: unknown[]) => (c[0] as { EntityName?: string })?.EntityName === 'MJ_BizApps_Common: People',
+    );
+    expect(peopleCalls).toHaveLength(0);
   });
 
   it('skips a task with no resolvable recipients', async () => {

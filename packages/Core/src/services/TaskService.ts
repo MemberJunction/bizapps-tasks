@@ -1,5 +1,5 @@
-import { CompositeKey, IMetadataProvider, IRunViewProvider, Metadata, RunView, UserInfo } from "@memberjunction/core";
-import { EscapeSQLString, IsValidUUID } from "@memberjunction/global";
+import { CompositeKey, IMetadataProvider, IRunViewProvider, LogError, Metadata, RunView, UserInfo } from "@memberjunction/core";
+import { GuidLiteral } from "./sql-guards.js";
 import type {
     mjBizAppsTasksTaskActivityEntity,
     mjBizAppsTasksTaskEntity,
@@ -49,13 +49,11 @@ export class TaskService {
         contextUser?: UserInfo,
         provider?: IMetadataProvider & IRunViewProvider,
     ): Promise<void> {
-        if (!IsValidUUID(parentTaskID)) {
-            throw new Error(`Invalid parentTaskID '${parentTaskID}'`);
-        }
+        const parentLiteral = GuidLiteral(parentTaskID, 'ParentTaskID');
         const rv = new RunView(provider);
         const children = await rv.RunView<TaskRollupChildRow>({
             EntityName: 'MJ_BizApps_Tasks: Tasks',
-            ExtraFilter: `ParentID = '${EscapeSQLString(parentTaskID)}'`,
+            ExtraFilter: `ParentID = ${parentLiteral}`,
             ResultType: 'simple',
         }, contextUser);
 
@@ -128,7 +126,11 @@ export class TaskService {
             parentTask.ConfidenceScore = aggregatedConfidence;
         }
 
-        await parentTask.Save();
+        const saved = await parentTask.Save();
+        if (!saved) {
+            LogError(`TaskService.rollupParentProgress: failed to save parent task ${parentTaskID}: ${parentTask.LatestResult?.CompleteMessage ?? 'unknown error'}`);
+            return; // parent unchanged — recursing on stale data would be misleading
+        }
 
         // Recurse up the tree
         const grandParentID = parentTask.ParentID;
@@ -278,6 +280,9 @@ export class TaskService {
         if (params.previousValue) activity.PreviousValue = params.previousValue;
         if (params.newValue) activity.NewValue = params.newValue;
         activity.Description = params.description;
-        await activity.Save();
+        const saved = await activity.Save();
+        if (!saved) {
+            LogError(`TaskService.logActivity: failed to save '${params.activityType}' activity for task ${params.taskID}: ${activity.LatestResult?.CompleteMessage ?? 'unknown error'}`);
+        }
     }
 }

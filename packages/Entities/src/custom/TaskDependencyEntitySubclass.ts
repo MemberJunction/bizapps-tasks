@@ -1,5 +1,5 @@
 import { BaseEntity, RunView, ValidationResult, ValidationErrorInfo, ValidationErrorType } from "@memberjunction/core";
-import { EscapeSQLString, IsValidUUID, RegisterClass, UUIDsEqual } from "@memberjunction/global";
+import { IsValidUUID, RegisterClass, UUIDsEqual } from "@memberjunction/global";
 import { mjBizAppsTasksTaskDependencyEntity } from "../generated/entity_subclasses.js";
 
 /**
@@ -63,24 +63,19 @@ export class TaskDependencyEntity extends mjBizAppsTasksTaskDependencyEntity {
         const dependsOnTaskID = this.DependsOnTaskID;
         if (!taskID || !dependsOnTaskID) return;
 
-        if (!IsValidUUID(taskID)) {
-            result.Errors.push(new ValidationErrorInfo(
-                'TaskID',
-                'TaskID must be a valid UUID.',
-                taskID,
-                ValidationErrorType.Failure,
-            ));
-            return;
+        // Every ID walked here is interpolated into an ExtraFilter, so refuse anything that is not
+        // a UUID before it can reach SQL text (the first walked value is caller-supplied).
+        for (const [field, value] of [['TaskID', taskID], ['DependsOnTaskID', dependsOnTaskID]] as const) {
+            if (!IsValidUUID(value)) {
+                result.Errors.push(new ValidationErrorInfo(
+                    field,
+                    `${field} '${value}' is not a valid ID.`,
+                    value,
+                    ValidationErrorType.Failure,
+                ));
+            }
         }
-        if (!IsValidUUID(dependsOnTaskID)) {
-            result.Errors.push(new ValidationErrorInfo(
-                'DependsOnTaskID',
-                'DependsOnTaskID must be a valid UUID.',
-                dependsOnTaskID,
-                ValidationErrorType.Failure,
-            ));
-            return;
-        }
+        if (result.Errors.length > 0) return;
 
         const visited = new Set<string>();
         const queue: string[] = [dependsOnTaskID];
@@ -88,6 +83,16 @@ export class TaskDependencyEntity extends mjBizAppsTasksTaskDependencyEntity {
 
         while (queue.length > 0) {
             const current = queue.shift()!;
+            if (!IsValidUUID(current)) {
+                // Defense in depth: a walked dependency row carried a non-UUID TaskID.
+                result.Errors.push(new ValidationErrorInfo(
+                    'DependsOnTaskID',
+                    `A walked dependency ID '${current}' is not a valid ID.`,
+                    current,
+                    ValidationErrorType.Failure,
+                ));
+                return;
+            }
             if (UUIDsEqual(current, taskID)) {
                 result.Errors.push(new ValidationErrorInfo(
                     'DependsOnTaskID',
@@ -101,12 +106,10 @@ export class TaskDependencyEntity extends mjBizAppsTasksTaskDependencyEntity {
             if (visited.has(normalizedCurrent)) continue;
             visited.add(normalizedCurrent);
 
-            if (!IsValidUUID(current)) continue;
-
             // Load all tasks that `current` depends on using the entity's own provider & user context
             const upstream = await rv.RunView<{ DependsOnTaskID: string }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Dependencies',
-                ExtraFilter: `TaskID = '${EscapeSQLString(current)}'`,
+                ExtraFilter: `TaskID = '${current.trim()}'`,
                 Fields: ['DependsOnTaskID'],
                 ResultType: 'simple',
             }, this.ContextCurrentUser);

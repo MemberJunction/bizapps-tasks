@@ -3,9 +3,9 @@ import '../index.js';
 import { IntegrationCheckRegistry } from '@memberjunction/testing-integration/registry';
 
 describe('Tasks Integration Test Bundles', () => {
-    it('registers all 9 task integration check bundles', () => {
+    it('registers all 10 task integration check bundles', () => {
         const bundleNames = IntegrationCheckRegistry.Instance.GetBundleNames();
-        expect(bundleNames.length).toBeGreaterThanOrEqual(9);
+        expect(bundleNames.length).toBeGreaterThanOrEqual(10);
 
         expect(bundleNames).toContain('task-world');
         expect(bundleNames).toContain('task-hierarchy');
@@ -16,5 +16,6 @@ describe('Tasks Integration Test Bundles', () => {
         expect(bundleNames).toContain('task-statuses');
         expect(bundleNames).toContain('task-action-hooks');
         expect(bundleNames).toContain('task-work-bus-and-reports');
+        expect(bundleNames).toContain('task-hook-routing');
     });
 });

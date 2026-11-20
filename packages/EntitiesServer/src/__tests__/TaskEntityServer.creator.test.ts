@@ -77,7 +77,8 @@ vi.mock('@memberjunction/actions', () => ({
     ActionEngineServer: { Instance: { Config: vi.fn().mockResolvedValue(undefined), Actions: [], RunAction: vi.fn() } },
 }));
 
-vi.mock('@mj-biz-apps/tasks-core', () => ({
+vi.mock('@mj-biz-apps/tasks-core', async () => ({
+    ...(await vi.importActual<typeof import('@mj-biz-apps/tasks-core')>('@mj-biz-apps/tasks-core')),
     TaskService: class { public async rollupParentProgress() { return true; } },
 }));
 
