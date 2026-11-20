@@ -72,6 +72,9 @@ importers:
       '@mj-biz-apps/tasks-entities':
         specifier: ^1.13.0
         version: link:../Entities
+      '@mj-biz-apps/tasks-ng-widgets':
+        specifier: ^1.13.0
+        version: link:../AngularWidgets
       dhtmlx-gantt:
         specifier: ^9.1.2
         version: 9.1.4
@@ -152,11 +155,63 @@ importers:
         specifier: 1.6.1
         version: 1.6.1(@types/node@26.2.0)(jsdom@26.1.0)
 
+  packages/AngularWidgets:
+    dependencies:
+      '@mj-biz-apps/tasks-core':
+        specifier: ^1.13.0
+        version: link:../Core
+      '@mj-biz-apps/tasks-entities':
+        specifier: ^1.13.0
+        version: link:../Entities
+    devDependencies:
+      '@angular/common':
+        specifier: 21.1.3
+        version: 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/compiler':
+        specifier: 21.1.3
+        version: 21.1.3
+      '@angular/compiler-cli':
+        specifier: 21.1.3
+        version: 21.1.3(@angular/compiler@21.1.3)(typescript@5.9.3)
+      '@angular/core':
+        specifier: 21.1.3
+        version: 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@angular/forms':
+        specifier: 21.1.3
+        version: 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/animations@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@memberjunction/core':
+        specifier: 6.2.1
+        version: 6.2.1
+      '@memberjunction/global':
+        specifier: 6.2.1
+        version: 6.2.1
+      '@memberjunction/ng-base-types':
+        specifier: 6.2.1
+        version: 6.2.1(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@memberjunction/ng-ui-components':
+        specifier: 6.2.1
+        version: 6.2.1(f555aaaffc2013cbecd9ce8e8e312d81)
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 1.6.1
+        version: 1.6.1(@types/node@26.2.0)(jsdom@26.1.0)
+
   packages/Core:
     dependencies:
       '@mj-biz-apps/tasks-entities':
         specifier: ^1.13.0
         version: link:../Entities
+      luxon:
+        specifier: ^3.7.2
+        version: 3.7.2
+      rrule:
+        specifier: ^2.8.1
+        version: 2.8.1
     devDependencies:
       '@memberjunction/core':
         specifier: 6.2.1
@@ -164,6 +219,12 @@ importers:
       '@memberjunction/global':
         specifier: 6.2.1
         version: 6.2.1
+      '@mj-biz-apps/common-entities':
+        specifier: 5.63.0
+        version: 5.63.0(@memberjunction/core@6.2.1)(@memberjunction/global@6.2.1)
+      '@types/luxon':
+        specifier: 3.7.6
+        version: 3.7.6
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -202,15 +263,39 @@ importers:
       '@memberjunction/actions':
         specifier: 6.2.1
         version: 6.2.1
+      '@memberjunction/ai-core-plus':
+        specifier: 6.2.1
+        version: 6.2.1
+      '@memberjunction/ai-prompts':
+        specifier: 6.2.1
+        version: 6.2.1(@aws-sdk/credential-provider-node@3.972.95)(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))(@smithy/signature-v4@5.7.5)(@types/node@26.2.0)(axios@1.19.0)(chokidar@3.6.0)(encoding@0.1.13)(typescript@5.9.3)(ws@8.22.2)(zod@3.25.76)
+      '@memberjunction/aiengine':
+        specifier: 6.2.1
+        version: 6.2.1(encoding@0.1.13)(typescript@5.9.3)
+      '@memberjunction/communication-engine':
+        specifier: 6.2.1
+        version: 6.2.1(@aws-sdk/credential-provider-node@3.972.95)(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))(@smithy/signature-v4@5.7.5)(@types/node@26.2.0)(axios@1.19.0)(chokidar@3.6.0)(encoding@0.1.13)(typescript@5.9.3)(ws@8.22.2)(zod@3.25.76)
+      '@memberjunction/communication-types':
+        specifier: 6.2.1
+        version: 6.2.1
       '@memberjunction/core':
         specifier: 6.2.1
         version: 6.2.1
       '@memberjunction/core-entities':
         specifier: 6.2.1
         version: 6.2.1
+      '@memberjunction/credentials':
+        specifier: 6.2.1
+        version: 6.2.1
       '@memberjunction/global':
         specifier: 6.2.1
         version: 6.2.1
+      '@memberjunction/storage':
+        specifier: 6.2.1
+        version: 6.2.1(encoding@0.1.13)(typescript@5.9.3)
+      '@mj-biz-apps/common-entities':
+        specifier: 5.63.0
+        version: 5.63.0(@memberjunction/core@6.2.1)(@memberjunction/global@6.2.1)
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -220,18 +305,30 @@ importers:
 
   packages/IntegrationTests:
     dependencies:
+      '@memberjunction/api-keys':
+        specifier: ^6.2.1
+        version: 6.2.1(typescript@5.9.3)
       '@memberjunction/core':
+        specifier: ^6.2.1
+        version: 6.2.1
+      '@memberjunction/core-entities':
         specifier: ^6.2.1
         version: 6.2.1
       '@memberjunction/global':
         specifier: ^6.2.1
         version: 6.2.1
+      '@memberjunction/graphql-dataprovider':
+        specifier: ^6.2.1
+        version: 6.2.1(ws@8.22.2)
       '@memberjunction/testing-integration':
         specifier: ^6.2.1
         version: 6.2.1(@aws-sdk/credential-provider-node@3.972.95)(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))(@smithy/signature-v4@5.7.5)(@types/node@22.20.1)(axios@1.19.0)(chokidar@3.6.0)(encoding@0.1.13)(typescript@5.9.3)(vitest@4.1.10(@types/node@22.20.1)(@vitest/coverage-v8@1.6.1(vitest@1.6.1(@types/node@26.2.0)(jsdom@26.1.0)))(jsdom@26.1.0)(vite@7.3.6(@types/node@22.20.1)))(ws@8.22.2)(zod@3.25.76)
       '@mj-biz-apps/common-entities':
-        specifier: '>=5.37.0'
-        version: 5.37.0(@memberjunction/core@6.2.1)(@memberjunction/global@6.2.1)
+        specifier: ^5.37.0
+        version: 5.63.0(@memberjunction/core@6.2.1)(@memberjunction/global@6.2.1)
+      '@mj-biz-apps/tasks-core':
+        specifier: ^1.13.0
+        version: link:../Core
       '@mj-biz-apps/tasks-entities':
         specifier: ^1.13.0
         version: link:../Entities
@@ -377,6 +474,17 @@ packages:
       '@angular/core': 21.1.3
       '@angular/platform-browser': 21.1.3
       rxjs: ^6.5.3 || ^7.4.0
+
+  '@angular/platform-browser@21.1.3':
+    resolution: {integrity: sha512-W+ZMXAioaP7CsACafBCHsIxiiKrRTPOlQ+hcC7XNBwy+bn5mjGONoCgLreQs76M8HNWLtr/OAUAr6h26OguOuA==}
+    engines: {node: ^20.19.0 || ^22.12.0 || >=24.0.0}
+    peerDependencies:
+      '@angular/animations': 21.1.3
+      '@angular/common': 21.1.3
+      '@angular/core': 21.1.3
+    peerDependenciesMeta:
+      '@angular/animations':
+        optional: true
 
   '@angular/platform-browser@21.2.19':
     resolution: {integrity: sha512-YMguYVhdkV8tr9MvbN+VpMjbdmsYq6g12M9WPvAYM51BkL2iREbWeoXDGmfCw9G0it6+0pMdgrSPFFUFuOqpAQ==}
@@ -659,10 +767,6 @@ packages:
 
   '@aws-sdk/s3-request-presigner@3.1107.0':
     resolution: {integrity: sha512-/jlRXrrYLlVYmF33+ppCFMi8G+vYkt3LQZtwyVifDXBx66U1j1KqKstoGq6GXOQfb4I/gmojzACrrPU8eL37hw==}
-    engines: {node: '>=20.0.0'}
-
-  '@aws-sdk/signature-v4-multi-region@3.996.43':
-    resolution: {integrity: sha512-lKekx8bLBXSv4O+cslk9Zfnw2XKSkWBs3uWL5QGhH2ZAQfNS7FE0vcSSN2vD/AhxX54ZTywWxR4STThoeOXlBA==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/signature-v4-multi-region@3.996.52':
@@ -3148,12 +3252,6 @@ packages:
   '@mixmark-io/domino@2.2.0':
     resolution: {integrity: sha512-Y28PR25bHXUg88kCV7nivXrP2Nj2RueZ3/l/jdx6J9f8J4nsEGcgX0Qe6lt7Pa+J79+kPiJU3LguR6O/6zrLOw==}
 
-  '@mj-biz-apps/common-entities@5.37.0':
-    resolution: {integrity: sha512-BlwCC1qhihLg/IiERe+4U2HfoD6bneaP6AkpYceSzMIPHTJpBdgVrQUfOQM73OoCZRGG6sRAvww4Tph/f4wNmA==}
-    peerDependencies:
-      '@memberjunction/core': ^6.1.0-edge.3
-      '@memberjunction/global': ^6.1.0-edge.3
-
   '@mj-biz-apps/common-entities@5.63.0':
     resolution: {integrity: sha512-O+f1gTOvcfVIhVjVXCYAGMZVIXD8HOnMhDW9sAZCmVvgVip4HkAHkA+bLNgGPkLIjkjBr2PeLguptR9ji5JD2w==}
     peerDependencies:
@@ -3907,6 +4005,9 @@ packages:
 
   '@types/long@4.0.2':
     resolution: {integrity: sha512-MqTGEo5bj5t157U6fA/BiDynNkn0YknVdh48CMPkTSpFTVmvao5UQmm7uEF6xBEo7qIMAlY/JSleYaE6VOdpaA==}
+
+  '@types/luxon@3.7.6':
+    resolution: {integrity: sha512-6KSjliQAXK8ZLgFQO4B7iE4Rpf/B3rItzCFuXezBY/XIAGxOdLd7vRNK9/StRPwiS/yJsVbB7HKpW46B8tcEuQ==}
 
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
@@ -7587,6 +7688,9 @@ packages:
     resolution: {integrity: sha512-nLTrUKm2UyiL7rlhapu/Zl45FwNgkZGaCpZbIHajDYgwlJCOzLSk+cIPAnsEqV955GjILJnKbdQC1nVPz+gAYQ==}
     engines: {node: '>= 18'}
 
+  rrule@2.8.1:
+    resolution: {integrity: sha512-hM3dHSBMeaJ0Ktp7W38BJZ7O1zOgaFEsn41PDk+yHoEtfLV+PoJt9E9xAlZiWgf/iqEqionN0ebHFZIDAp+iGw==}
+
   rrweb-cssom@0.8.0:
     resolution: {integrity: sha512-guoltQEx+9aMf2gDZ0s62EcV8lsXR+0w8915TC3ITdn2YueuNjdAYh/levpU9nFaoChh9RUS5ZdQMrKfVEN9tw==}
 
@@ -8655,6 +8759,15 @@ snapshots:
       '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
       tslib: 2.8.1
 
+  '@angular/cdk@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/animations@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@angular/platform-browser': 21.1.3(@angular/animations@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      parse5: 8.0.1
+      rxjs: 7.8.2
+      tslib: 2.8.1
+
   '@angular/cdk@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/animations@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)':
     dependencies:
       '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
@@ -8697,6 +8810,15 @@ snapshots:
     optionalDependencies:
       '@angular/compiler': 21.1.3
 
+  '@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/animations@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@angular/platform-browser': 21.1.3(@angular/animations@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
+      '@standard-schema/spec': 1.1.0
+      rxjs: 7.8.2
+      tslib: 2.8.1
+
   '@angular/forms@21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/animations@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)':
     dependencies:
       '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
@@ -8705,6 +8827,14 @@ snapshots:
       '@standard-schema/spec': 1.1.0
       rxjs: 7.8.2
       tslib: 2.8.1
+
+  '@angular/platform-browser@21.1.3(@angular/animations@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))':
+    dependencies:
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      tslib: 2.8.1
+    optionalDependencies:
+      '@angular/animations': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))
 
   '@angular/platform-browser@21.2.19(@angular/animations@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))':
     dependencies:
@@ -8873,21 +9003,21 @@ snapshots:
   '@aws-crypto/sha256-js@5.2.0':
     dependencies:
       '@aws-crypto/util': 5.2.0
-      '@aws-sdk/types': 3.974.2
+      '@aws-sdk/types': 3.975.1
       tslib: 2.8.1
 
   '@aws-crypto/util@5.2.0':
     dependencies:
-      '@aws-sdk/types': 3.974.2
+      '@aws-sdk/types': 3.975.1
       '@smithy/util-utf8': 2.3.0
       tslib: 2.8.1
 
   '@aws-sdk/checksums@3.1000.26':
     dependencies:
-      '@aws-sdk/core': 3.977.6
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
-      '@smithy/types': 4.16.1
+      '@aws-sdk/core': 3.980.2
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.39.0
+      '@smithy/types': 4.20.0
       tslib: 2.8.1
 
   '@aws-sdk/client-bedrock-runtime@3.1107.0':
@@ -8920,26 +9050,26 @@ snapshots:
   '@aws-sdk/client-s3@3.1107.0':
     dependencies:
       '@aws-sdk/checksums': 3.1000.26
-      '@aws-sdk/core': 3.977.6
-      '@aws-sdk/credential-provider-node': 3.972.78
+      '@aws-sdk/core': 3.980.2
+      '@aws-sdk/credential-provider-node': 3.972.95
       '@aws-sdk/middleware-sdk-s3': 3.972.72
-      '@aws-sdk/signature-v4-multi-region': 3.996.43
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
-      '@smithy/fetch-http-handler': 5.6.13
-      '@smithy/node-http-handler': 4.9.13
-      '@smithy/types': 4.16.1
+      '@aws-sdk/signature-v4-multi-region': 3.996.52
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.39.0
+      '@smithy/fetch-http-handler': 5.8.1
+      '@smithy/node-http-handler': 4.14.2
+      '@smithy/types': 4.20.0
       tslib: 2.8.1
 
   '@aws-sdk/client-sagemaker@3.1107.0':
     dependencies:
-      '@aws-sdk/core': 3.977.6
-      '@aws-sdk/credential-provider-node': 3.972.78
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
-      '@smithy/fetch-http-handler': 5.6.13
-      '@smithy/node-http-handler': 4.9.13
-      '@smithy/types': 4.16.1
+      '@aws-sdk/core': 3.980.2
+      '@aws-sdk/credential-provider-node': 3.972.95
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.39.0
+      '@smithy/fetch-http-handler': 5.8.1
+      '@smithy/node-http-handler': 4.14.2
+      '@smithy/types': 4.20.0
       tslib: 2.8.1
 
   '@aws-sdk/client-sns@3.1165.0':
@@ -8967,12 +9097,12 @@ snapshots:
 
   '@aws-sdk/core@3.977.6':
     dependencies:
-      '@aws-sdk/types': 3.974.2
+      '@aws-sdk/types': 3.975.1
       '@aws-sdk/xml-builder': 3.972.37
       '@aws/lambda-invoke-store': 0.3.0
-      '@smithy/core': 3.31.1
+      '@smithy/core': 3.39.0
       '@smithy/signature-v4': 5.6.12
-      '@smithy/types': 4.16.1
+      '@smithy/types': 4.20.0
       bowser: 2.14.1
       tslib: 2.8.1
 
@@ -8990,17 +9120,17 @@ snapshots:
   '@aws-sdk/credential-provider-cognito-identity@3.972.66':
     dependencies:
       '@aws-sdk/nested-clients': 3.997.41
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
-      '@smithy/types': 4.16.1
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.39.0
+      '@smithy/types': 4.20.0
       tslib: 2.8.1
 
   '@aws-sdk/credential-provider-env@3.972.67':
     dependencies:
-      '@aws-sdk/core': 3.977.6
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
-      '@smithy/types': 4.16.1
+      '@aws-sdk/core': 3.980.2
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.39.0
+      '@smithy/types': 4.20.0
       tslib: 2.8.1
 
   '@aws-sdk/credential-provider-env@3.972.83':
@@ -9013,12 +9143,12 @@ snapshots:
 
   '@aws-sdk/credential-provider-http@3.972.69':
     dependencies:
-      '@aws-sdk/core': 3.977.6
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
+      '@aws-sdk/core': 3.980.2
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.39.0
       '@smithy/fetch-http-handler': 5.6.13
       '@smithy/node-http-handler': 4.9.13
-      '@smithy/types': 4.16.1
+      '@smithy/types': 4.20.0
       tslib: 2.8.1
 
   '@aws-sdk/credential-provider-http@3.972.85':
@@ -9033,7 +9163,7 @@ snapshots:
 
   '@aws-sdk/credential-provider-ini@3.973.12':
     dependencies:
-      '@aws-sdk/core': 3.977.6
+      '@aws-sdk/core': 3.980.2
       '@aws-sdk/credential-provider-env': 3.972.67
       '@aws-sdk/credential-provider-http': 3.972.69
       '@aws-sdk/credential-provider-login': 3.972.74
@@ -9041,10 +9171,10 @@ snapshots:
       '@aws-sdk/credential-provider-sso': 3.973.11
       '@aws-sdk/credential-provider-web-identity': 3.972.73
       '@aws-sdk/nested-clients': 3.997.41
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.39.0
       '@smithy/credential-provider-imds': 4.4.16
-      '@smithy/types': 4.16.1
+      '@smithy/types': 4.20.0
       tslib: 2.8.1
 
   '@aws-sdk/credential-provider-ini@3.973.28':
@@ -9065,11 +9195,11 @@ snapshots:
 
   '@aws-sdk/credential-provider-login@3.972.74':
     dependencies:
-      '@aws-sdk/core': 3.977.6
+      '@aws-sdk/core': 3.980.2
       '@aws-sdk/nested-clients': 3.997.41
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
-      '@smithy/types': 4.16.1
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.39.0
+      '@smithy/types': 4.20.0
       tslib: 2.8.1
 
   '@aws-sdk/credential-provider-login@3.972.90':
@@ -9089,10 +9219,10 @@ snapshots:
       '@aws-sdk/credential-provider-process': 3.972.67
       '@aws-sdk/credential-provider-sso': 3.973.11
       '@aws-sdk/credential-provider-web-identity': 3.972.73
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.39.0
       '@smithy/credential-provider-imds': 4.4.16
-      '@smithy/types': 4.16.1
+      '@smithy/types': 4.20.0
       tslib: 2.8.1
 
   '@aws-sdk/credential-provider-node@3.972.95':
@@ -9111,10 +9241,10 @@ snapshots:
 
   '@aws-sdk/credential-provider-process@3.972.67':
     dependencies:
-      '@aws-sdk/core': 3.977.6
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
-      '@smithy/types': 4.16.1
+      '@aws-sdk/core': 3.980.2
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.39.0
+      '@smithy/types': 4.20.0
       tslib: 2.8.1
 
   '@aws-sdk/credential-provider-process@3.972.83':
@@ -9127,12 +9257,12 @@ snapshots:
 
   '@aws-sdk/credential-provider-sso@3.973.11':
     dependencies:
-      '@aws-sdk/core': 3.977.6
+      '@aws-sdk/core': 3.980.2
       '@aws-sdk/nested-clients': 3.997.41
       '@aws-sdk/token-providers': 3.1103.0
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
-      '@smithy/types': 4.16.1
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.39.0
+      '@smithy/types': 4.20.0
       tslib: 2.8.1
 
   '@aws-sdk/credential-provider-sso@3.973.27':
@@ -9147,11 +9277,11 @@ snapshots:
 
   '@aws-sdk/credential-provider-web-identity@3.972.73':
     dependencies:
-      '@aws-sdk/core': 3.977.6
+      '@aws-sdk/core': 3.980.2
       '@aws-sdk/nested-clients': 3.997.41
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
-      '@smithy/types': 4.16.1
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.39.0
+      '@smithy/types': 4.20.0
       tslib: 2.8.1
 
   '@aws-sdk/credential-provider-web-identity@3.972.89':
@@ -9184,25 +9314,25 @@ snapshots:
 
   '@aws-sdk/eventstream-handler-node@3.972.31':
     dependencies:
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
-      '@smithy/types': 4.16.1
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.39.0
+      '@smithy/types': 4.20.0
       tslib: 2.8.1
 
   '@aws-sdk/middleware-eventstream@3.972.26':
     dependencies:
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
-      '@smithy/types': 4.16.1
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.39.0
+      '@smithy/types': 4.20.0
       tslib: 2.8.1
 
   '@aws-sdk/middleware-sdk-s3@3.972.72':
     dependencies:
-      '@aws-sdk/core': 3.977.6
-      '@aws-sdk/signature-v4-multi-region': 3.996.43
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
-      '@smithy/types': 4.16.1
+      '@aws-sdk/core': 3.980.2
+      '@aws-sdk/signature-v4-multi-region': 3.996.52
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.39.0
+      '@smithy/types': 4.20.0
       tslib: 2.8.1
 
   '@aws-sdk/middleware-sdk-sqs@3.972.49':
@@ -9214,23 +9344,23 @@ snapshots:
 
   '@aws-sdk/middleware-websocket@3.972.49':
     dependencies:
-      '@aws-sdk/core': 3.977.6
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
-      '@smithy/fetch-http-handler': 5.6.13
+      '@aws-sdk/core': 3.980.2
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.39.0
+      '@smithy/fetch-http-handler': 5.8.1
       '@smithy/signature-v4': 5.6.12
-      '@smithy/types': 4.16.1
+      '@smithy/types': 4.20.0
       tslib: 2.8.1
 
   '@aws-sdk/nested-clients@3.997.41':
     dependencies:
-      '@aws-sdk/core': 3.977.6
-      '@aws-sdk/signature-v4-multi-region': 3.996.43
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
+      '@aws-sdk/core': 3.980.2
+      '@aws-sdk/signature-v4-multi-region': 3.996.52
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.39.0
       '@smithy/fetch-http-handler': 5.6.13
       '@smithy/node-http-handler': 4.9.13
-      '@smithy/types': 4.16.1
+      '@smithy/types': 4.20.0
       tslib: 2.8.1
 
   '@aws-sdk/nested-clients@3.998.2':
@@ -9246,18 +9376,11 @@ snapshots:
 
   '@aws-sdk/s3-request-presigner@3.1107.0':
     dependencies:
-      '@aws-sdk/core': 3.977.6
-      '@aws-sdk/signature-v4-multi-region': 3.996.43
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
-      '@smithy/types': 4.16.1
-      tslib: 2.8.1
-
-  '@aws-sdk/signature-v4-multi-region@3.996.43':
-    dependencies:
-      '@aws-sdk/types': 3.974.2
-      '@smithy/signature-v4': 5.6.12
-      '@smithy/types': 4.16.1
+      '@aws-sdk/core': 3.980.2
+      '@aws-sdk/signature-v4-multi-region': 3.996.52
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.39.0
+      '@smithy/types': 4.20.0
       tslib: 2.8.1
 
   '@aws-sdk/signature-v4-multi-region@3.996.52':
@@ -9269,20 +9392,20 @@ snapshots:
 
   '@aws-sdk/token-providers@3.1103.0':
     dependencies:
-      '@aws-sdk/core': 3.977.6
+      '@aws-sdk/core': 3.980.2
       '@aws-sdk/nested-clients': 3.997.41
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
-      '@smithy/types': 4.16.1
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.39.0
+      '@smithy/types': 4.20.0
       tslib: 2.8.1
 
   '@aws-sdk/token-providers@3.1107.0':
     dependencies:
-      '@aws-sdk/core': 3.977.6
+      '@aws-sdk/core': 3.980.2
       '@aws-sdk/nested-clients': 3.997.41
-      '@aws-sdk/types': 3.974.2
-      '@smithy/core': 3.31.1
-      '@smithy/types': 4.16.1
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.39.0
+      '@smithy/types': 4.20.0
       tslib: 2.8.1
 
   '@aws-sdk/token-providers@3.1165.0':
@@ -9296,7 +9419,7 @@ snapshots:
 
   '@aws-sdk/types@3.974.2':
     dependencies:
-      '@smithy/types': 4.16.1
+      '@smithy/types': 4.20.0
       tslib: 2.8.1
 
   '@aws-sdk/types@3.975.1':
@@ -9306,7 +9429,7 @@ snapshots:
 
   '@aws-sdk/xml-builder@3.972.37':
     dependencies:
-      '@smithy/types': 4.16.1
+      '@smithy/types': 4.20.0
       tslib: 2.8.1
 
   '@aws-sdk/xml-builder@3.972.43':
@@ -18479,6 +18602,16 @@ snapshots:
       rxjs: 7.8.2
       tslib: 2.8.1
 
+  '@memberjunction/ng-ui-components@6.2.1(f555aaaffc2013cbecd9ce8e8e312d81)':
+    dependencies:
+      '@angular/cdk': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/animations@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core': 21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)
+      '@angular/forms': 21.1.3(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(@angular/platform-browser@21.1.3(@angular/animations@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2)))(rxjs@7.8.2)
+      angular-split: 20.0.0(@angular/common@21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      rxjs: 7.8.2
+      tslib: 2.8.1
+
   '@memberjunction/ng-versions@6.2.1(c9788b0486ba763166c671fe9b23644a)':
     dependencies:
       '@angular/common': 21.1.3(@angular/core@21.1.3(@angular/compiler@21.1.3)(rxjs@7.8.2))(rxjs@7.8.2)
@@ -23200,12 +23333,6 @@ snapshots:
 
   '@mixmark-io/domino@2.2.0': {}
 
-  '@mj-biz-apps/common-entities@5.37.0(@memberjunction/core@6.2.1)(@memberjunction/global@6.2.1)':
-    dependencies:
-      '@memberjunction/core': 6.2.1
-      '@memberjunction/global': 6.2.1
-      zod: 3.25.76
-
   '@mj-biz-apps/common-entities@5.63.0(@memberjunction/core@6.2.1)(@memberjunction/global@6.2.1)':
     dependencies:
       '@memberjunction/core': 6.2.1
@@ -23671,7 +23798,7 @@ snapshots:
 
   '@smithy/core@3.31.1':
     dependencies:
-      '@smithy/types': 4.16.1
+      '@smithy/types': 4.20.0
       tslib: 2.8.1
 
   '@smithy/core@3.39.0':
@@ -23681,8 +23808,8 @@ snapshots:
 
   '@smithy/credential-provider-imds@4.4.16':
     dependencies:
-      '@smithy/core': 3.31.1
-      '@smithy/types': 4.16.1
+      '@smithy/core': 3.39.0
+      '@smithy/types': 4.20.0
       tslib: 2.8.1
 
   '@smithy/credential-provider-imds@4.5.2':
@@ -23693,8 +23820,8 @@ snapshots:
 
   '@smithy/fetch-http-handler@5.6.13':
     dependencies:
-      '@smithy/core': 3.31.1
-      '@smithy/types': 4.16.1
+      '@smithy/core': 3.39.0
+      '@smithy/types': 4.20.0
       tslib: 2.8.1
 
   '@smithy/fetch-http-handler@5.8.1':
@@ -23715,19 +23842,19 @@ snapshots:
 
   '@smithy/node-http-handler@4.9.13':
     dependencies:
-      '@smithy/core': 3.31.1
-      '@smithy/types': 4.16.1
+      '@smithy/core': 3.39.0
+      '@smithy/types': 4.20.0
       tslib: 2.8.1
 
   '@smithy/protocol-http@5.5.16':
     dependencies:
-      '@smithy/core': 3.31.1
+      '@smithy/core': 3.39.0
       tslib: 2.8.1
 
   '@smithy/signature-v4@5.6.12':
     dependencies:
-      '@smithy/core': 3.31.1
-      '@smithy/types': 4.16.1
+      '@smithy/core': 3.39.0
+      '@smithy/types': 4.20.0
       tslib: 2.8.1
 
   '@smithy/signature-v4@5.7.5':
@@ -23995,6 +24122,8 @@ snapshots:
       '@types/geojson': 7946.0.16
 
   '@types/long@4.0.2': {}
+
+  '@types/luxon@3.7.6': {}
 
   '@types/ms@2.1.0': {}
 
@@ -28269,6 +28398,10 @@ snapshots:
       path-to-regexp: 8.4.2
     transitivePeerDependencies:
       - supports-color
+
+  rrule@2.8.1:
+    dependencies:
+      tslib: 2.8.1
 
   rrweb-cssom@0.8.0: {}
 

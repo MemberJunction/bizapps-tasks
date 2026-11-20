@@ -1,0 +1,87 @@
+# A PR that adds a publishable package must prove, before it merges, that publish.yml can
+# publish that package.
+#
+# `rr: packages on npm` (release-readiness.yml) and the same check inside publish.yml only ask
+# whether each package EXISTS on npm. A hand-published placeholder passes that and still fails
+# the release, because existing is not the same as having this repo's publish.yml attached as its
+# trusted publisher — and that setting cannot be read without a write-scoped npm token. So this
+# check reads the public provenance attestation of a seed version published THROUGH the trusted
+# publisher (publish.yml dispatched with `seed_package`; see the seed-package job there). The
+# attestation exists only if the configuration works. The reasoning is at the top of
+# .github/scripts/check-new-npm-packages.mjs, and the human-run helper that does the setup is
+# .github/scripts/seed-new-npm-package.sh.
+#
+# It runs here, on the PR into `next`, rather than on the release PR: the setup needs an npm
+# scope owner and a 2FA prompt, and this is where finding that out blocks one PR instead of a
+# release. The release-side existence checks stay as the backstop.
+#
+# No `paths:` filter, on purpose. A workflow filtered out at the `on:` level creates NO check
+# run, so if this context is made required, a PR that touches no package.json would wait on it
+# forever. The check costs a few seconds and exits early when no package was added.
+#
+# Nothing here is specific to one repo: the script takes the repository from GITHUB_REPOSITORY
+# and assumes no scope, so this file and the script copy to any app in the family unchanged.
+name: New package gate
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    # `ready_for_review` is not in the default type set, and the job skips while the PR is a
+    # draft — without it, marking a PR ready would not re-trigger anything.
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [next]
+
+concurrency:
+  group: new-package-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  new-package-seeded:
+    name: 'new package seeded'
+    # The template repo carries this pipeline for the apps made from it, but never publishes itself.
+    if: github.event.pull_request.draft == false && github.repository != 'MemberJunction/open-app-template'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+
+      # The merge base of the freshly-fetched base and HEAD, not `pull_request.base.sha`: the
+      # payload value can disagree with the merge ref's own base parent (see changes.yml), and a
+      # package added on `next` since this PR opened would then read as added by this PR.
+      - name: Resolve the merge base
+        id: mb
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch --no-tags origin "$BASE_REF"
+          echo "sha=$(git merge-base FETCH_HEAD HEAD)" >> "$GITHUB_OUTPUT"
+
+      # No install: the script uses only Node's standard library and git, so this stays a
+      # seconds-long check. After seeding a package, re-run this job; nothing needs pushing.
+      - name: Every package new in this PR must be seeded on npm
+        env:
+          MERGE_BASE: ${{ steps.mb.outputs.sha }}
+        run: |
+          set -o pipefail
+          node .github/scripts/check-new-npm-packages.mjs "$MERGE_BASE" 2>&1 | tee /tmp/new-package-gate.log
+
+      # The instructions go in the PR's Checks summary, so an author never has to expand a log
+      # to learn what to do.
+      - name: Publish result to job summary
+        if: ${{ !cancelled() }}
+        run: |
+          {
+            echo '## New package gate'
+            echo ''
+            echo '```'
+            cat /tmp/new-package-gate.log 2>/dev/null || echo 'The gate produced no output.'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
