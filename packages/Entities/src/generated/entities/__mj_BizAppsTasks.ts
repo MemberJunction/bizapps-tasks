@@ -7820,6 +7820,41 @@ export class mjBizAppsTasksTaskTemplateItemRoleEntity extends BaseEntity<mjBizAp
  */
 @RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Task Template Items')
 export class mjBizAppsTasksTaskTemplateItemEntity extends BaseEntity<mjBizAppsTasksTaskTemplateItemEntityType> {
+
+    /**
+    * Related records: MJ_BizApps_Tasks: Task Template Item Roles
+    *
+    * Loads, validates and persists as one unit with this MJ_BizApps_Tasks: Task Template Items record — see
+    * guides/TRANSACTIONS_AND_BATCHING_GUIDE.md. Declared by the RelatedRecordCollection metadata on
+    * the 'MJ_BizApps_Tasks: Task Template Items → MJ_BizApps_Tasks: Task Template Item Roles' relationship; edit that row, not this file.
+    */
+    public readonly Roles = this.DeclareRelatedRecords<mjBizAppsTasksTaskTemplateItemRoleEntity>({
+        Name: 'Roles',
+        RelatedEntity: 'MJ_BizApps_Tasks: Task Template Item Roles',
+        RelatedEntityJoinField: 'ItemID',
+        OrderBy: '__mj_CreatedAt ASC',
+        Load: 'explicit',
+        OnRemove: 'delete',
+        Source: 'database',
+    });
+
+    /**
+    * Related records: MJ_BizApps_Tasks: Task Template Item Dependencies
+    *
+    * Loads, validates and persists as one unit with this MJ_BizApps_Tasks: Task Template Items record — see
+    * guides/TRANSACTIONS_AND_BATCHING_GUIDE.md. Declared by the RelatedRecordCollection metadata on
+    * the 'MJ_BizApps_Tasks: Task Template Items → MJ_BizApps_Tasks: Task Template Item Dependencies' relationship; edit that row, not this file.
+    */
+    public readonly Dependencies = this.DeclareRelatedRecords<mjBizAppsTasksTaskTemplateItemDependencyEntity>({
+        Name: 'Dependencies',
+        RelatedEntity: 'MJ_BizApps_Tasks: Task Template Item Dependencies',
+        RelatedEntityJoinField: 'ItemID',
+        OrderBy: '__mj_CreatedAt ASC',
+        Load: 'explicit',
+        OnRemove: 'delete',
+        Source: 'database',
+    });
+
     /**
     * Loads the MJ_BizApps_Tasks: Task Template Items record from the database
     * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Task Template Items record.
@@ -8053,6 +8088,25 @@ export class mjBizAppsTasksTaskTemplateItemEntity extends BaseEntity<mjBizAppsTa
  */
 @RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Task Templates')
 export class mjBizAppsTasksTaskTemplateEntity extends BaseEntity<mjBizAppsTasksTaskTemplateEntityType> {
+
+    /**
+    * Related records: MJ_BizApps_Tasks: Task Template Items
+    *
+    * Loads, validates and persists as one unit with this MJ_BizApps_Tasks: Task Templates record — see
+    * guides/TRANSACTIONS_AND_BATCHING_GUIDE.md. Declared by the RelatedRecordCollection metadata on
+    * the 'MJ_BizApps_Tasks: Task Templates → MJ_BizApps_Tasks: Task Template Items' relationship; edit that row, not this file.
+    */
+    public readonly Items = this.DeclareRelatedRecords<mjBizAppsTasksTaskTemplateItemEntity>({
+        Name: 'Items',
+        RelatedEntity: 'MJ_BizApps_Tasks: Task Template Items',
+        RelatedEntityJoinField: 'TemplateID',
+        OrderBy: 'Sequence ASC',
+        Load: 'explicit',
+        OnRemove: 'delete',
+        Source: 'database',
+        Sequence: { Field: 'Sequence', From: 1 },
+    });
+
     /**
     * Loads the MJ_BizApps_Tasks: Task Templates record from the database
     * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Task Templates record.
@@ -8470,6 +8524,25 @@ export class mjBizAppsTasksTaskTypeStatusEntity extends BaseEntity<mjBizAppsTask
  */
 @RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Task Types')
 export class mjBizAppsTasksTaskTypeEntity extends BaseEntity<mjBizAppsTasksTaskTypeEntityType> {
+
+    /**
+    * Related records: MJ_BizApps_Tasks: Task Type Status
+    *
+    * Loads, validates and persists as one unit with this MJ_BizApps_Tasks: Task Types record — see
+    * guides/TRANSACTIONS_AND_BATCHING_GUIDE.md. Declared by the RelatedRecordCollection metadata on
+    * the 'MJ_BizApps_Tasks: Task Types → MJ_BizApps_Tasks: Task Type Status' relationship; edit that row, not this file.
+    */
+    public readonly Statuses = this.DeclareRelatedRecords<mjBizAppsTasksTaskTypeStatusEntity>({
+        Name: 'Statuses',
+        RelatedEntity: 'MJ_BizApps_Tasks: Task Type Status',
+        RelatedEntityJoinField: 'TaskTypeID',
+        OrderBy: 'Sequence ASC',
+        Load: 'explicit',
+        OnRemove: 'delete',
+        Source: 'database',
+        Sequence: { Field: 'Sequence', From: 1 },
+    });
+
     /**
     * Loads the MJ_BizApps_Tasks: Task Types record from the database
     * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Task Types record.
@@ -8822,6 +8895,177 @@ export class mjBizAppsTasksTaskTypeEntity extends BaseEntity<mjBizAppsTasksTaskT
  */
 @RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Tasks')
 export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntityType> {
+
+    /**
+    * Related records: MJ_BizApps_Tasks: Task Assignments
+    *
+    * Loads, validates and persists as one unit with this MJ_BizApps_Tasks: Tasks record — see
+    * guides/TRANSACTIONS_AND_BATCHING_GUIDE.md. Declared by the RelatedRecordCollection metadata on
+    * the 'MJ_BizApps_Tasks: Tasks → MJ_BizApps_Tasks: Task Assignments' relationship; edit that row, not this file.
+    */
+    public readonly Assignments = this.DeclareRelatedRecords<mjBizAppsTasksTaskAssignmentEntity>({
+        Name: 'Assignments',
+        RelatedEntity: 'MJ_BizApps_Tasks: Task Assignments',
+        RelatedEntityJoinField: 'TaskID',
+        OrderBy: '__mj_CreatedAt ASC',
+        Load: 'explicit',
+        OnRemove: 'delete',
+        Source: 'database',
+    });
+
+    /**
+    * Related records: MJ_BizApps_Tasks: Task Tag Links
+    *
+    * Loads, validates and persists as one unit with this MJ_BizApps_Tasks: Tasks record — see
+    * guides/TRANSACTIONS_AND_BATCHING_GUIDE.md. Declared by the RelatedRecordCollection metadata on
+    * the 'MJ_BizApps_Tasks: Tasks → MJ_BizApps_Tasks: Task Tag Links' relationship; edit that row, not this file.
+    */
+    public readonly TagLinks = this.DeclareRelatedRecords<mjBizAppsTasksTaskTagLinkEntity>({
+        Name: 'TagLinks',
+        RelatedEntity: 'MJ_BizApps_Tasks: Task Tag Links',
+        RelatedEntityJoinField: 'TaskID',
+        OrderBy: '__mj_CreatedAt ASC',
+        Load: 'explicit',
+        OnRemove: 'delete',
+        Source: 'database',
+    });
+
+    /**
+    * Related records: MJ_BizApps_Tasks: Task Links
+    *
+    * Loads, validates and persists as one unit with this MJ_BizApps_Tasks: Tasks record — see
+    * guides/TRANSACTIONS_AND_BATCHING_GUIDE.md. Declared by the RelatedRecordCollection metadata on
+    * the 'MJ_BizApps_Tasks: Tasks → MJ_BizApps_Tasks: Task Links' relationship; edit that row, not this file.
+    */
+    public readonly Links = this.DeclareRelatedRecords<mjBizAppsTasksTaskLinkEntity>({
+        Name: 'Links',
+        RelatedEntity: 'MJ_BizApps_Tasks: Task Links',
+        RelatedEntityJoinField: 'TaskID',
+        OrderBy: '__mj_CreatedAt ASC',
+        Load: 'explicit',
+        OnRemove: 'delete',
+        Source: 'database',
+    });
+
+    /**
+    * Related records: MJ_BizApps_Tasks: Task Dependencies
+    *
+    * Loads, validates and persists as one unit with this MJ_BizApps_Tasks: Tasks record — see
+    * guides/TRANSACTIONS_AND_BATCHING_GUIDE.md. Declared by the RelatedRecordCollection metadata on
+    * the 'MJ_BizApps_Tasks: Tasks → MJ_BizApps_Tasks: Task Dependencies' relationship; edit that row, not this file.
+    */
+    public readonly Dependencies = this.DeclareRelatedRecords<mjBizAppsTasksTaskDependencyEntity>({
+        Name: 'Dependencies',
+        RelatedEntity: 'MJ_BizApps_Tasks: Task Dependencies',
+        RelatedEntityJoinField: 'TaskID',
+        OrderBy: '__mj_CreatedAt ASC',
+        Load: 'explicit',
+        OnRemove: 'delete',
+        Source: 'database',
+    });
+
+    /**
+    * Related records: MJ_BizApps_Tasks: Task Decisions
+    *
+    * Loads, validates and persists as one unit with this MJ_BizApps_Tasks: Tasks record — see
+    * guides/TRANSACTIONS_AND_BATCHING_GUIDE.md. Declared by the RelatedRecordCollection metadata on
+    * the 'MJ_BizApps_Tasks: Tasks → MJ_BizApps_Tasks: Task Decisions' relationship; edit that row, not this file.
+    */
+    public readonly Decisions = this.DeclareRelatedRecords<mjBizAppsTasksTaskDecisionEntity>({
+        Name: 'Decisions',
+        RelatedEntity: 'MJ_BizApps_Tasks: Task Decisions',
+        RelatedEntityJoinField: 'TaskID',
+        OrderBy: '__mj_CreatedAt ASC',
+        Load: 'explicit',
+        OnRemove: 'refuse',
+        Source: 'database',
+    });
+
+    /**
+    * Related records: MJ_BizApps_Tasks: Task Comments
+    *
+    * Loads, validates and persists as one unit with this MJ_BizApps_Tasks: Tasks record — see
+    * guides/TRANSACTIONS_AND_BATCHING_GUIDE.md. Declared by the RelatedRecordCollection metadata on
+    * the 'MJ_BizApps_Tasks: Tasks → MJ_BizApps_Tasks: Task Comments' relationship; edit that row, not this file.
+    */
+    public readonly Comments = this.DeclareRelatedRecords<mjBizAppsTasksTaskCommentEntity>({
+        Name: 'Comments',
+        RelatedEntity: 'MJ_BizApps_Tasks: Task Comments',
+        RelatedEntityJoinField: 'TaskID',
+        OrderBy: '__mj_CreatedAt ASC',
+        Load: 'explicit',
+        OnRemove: 'delete',
+        Source: 'database',
+    });
+
+    /**
+    * Related records: MJ_BizApps_Tasks: Task Check Ins
+    *
+    * Loads, validates and persists as one unit with this MJ_BizApps_Tasks: Tasks record — see
+    * guides/TRANSACTIONS_AND_BATCHING_GUIDE.md. Declared by the RelatedRecordCollection metadata on
+    * the 'MJ_BizApps_Tasks: Tasks → MJ_BizApps_Tasks: Task Check Ins' relationship; edit that row, not this file.
+    */
+    public readonly CheckIns = this.DeclareRelatedRecords<mjBizAppsTasksTaskCheckInEntity>({
+        Name: 'CheckIns',
+        RelatedEntity: 'MJ_BizApps_Tasks: Task Check Ins',
+        RelatedEntityJoinField: 'TaskID',
+        OrderBy: 'CheckInAt DESC',
+        Load: 'explicit',
+        OnRemove: 'delete',
+        Source: 'database',
+    });
+
+    /**
+    * Related records: MJ_BizApps_Tasks: Task Activities
+    *
+    * Loads, validates and persists as one unit with this MJ_BizApps_Tasks: Tasks record — see
+    * guides/TRANSACTIONS_AND_BATCHING_GUIDE.md. Declared by the RelatedRecordCollection metadata on
+    * the 'MJ_BizApps_Tasks: Tasks → MJ_BizApps_Tasks: Task Activities' relationship; edit that row, not this file.
+    */
+    public readonly Activities = this.DeclareRelatedRecords<mjBizAppsTasksTaskActivityEntity>({
+        Name: 'Activities',
+        RelatedEntity: 'MJ_BizApps_Tasks: Task Activities',
+        RelatedEntityJoinField: 'TaskID',
+        OrderBy: '__mj_CreatedAt DESC',
+        Load: 'explicit',
+        OnRemove: 'delete',
+        Source: 'database',
+    });
+
+    /**
+    * Related records: MJ_BizApps_Tasks: Task Notification Logs
+    *
+    * Loads, validates and persists as one unit with this MJ_BizApps_Tasks: Tasks record — see
+    * guides/TRANSACTIONS_AND_BATCHING_GUIDE.md. Declared by the RelatedRecordCollection metadata on
+    * the 'MJ_BizApps_Tasks: Tasks → MJ_BizApps_Tasks: Task Notification Logs' relationship; edit that row, not this file.
+    */
+    public readonly NotificationLogs = this.DeclareRelatedRecords<mjBizAppsTasksTaskNotificationLogEntity>({
+        Name: 'NotificationLogs',
+        RelatedEntity: 'MJ_BizApps_Tasks: Task Notification Logs',
+        RelatedEntityJoinField: 'TaskID',
+        OrderBy: '__mj_CreatedAt DESC',
+        Load: 'explicit',
+        OnRemove: 'delete',
+        Source: 'database',
+    });
+
+    /**
+    * Related records: MJ_BizApps_Tasks: Tasks
+    *
+    * Loads, validates and persists as one unit with this MJ_BizApps_Tasks: Tasks record — see
+    * guides/TRANSACTIONS_AND_BATCHING_GUIDE.md. Declared by the RelatedRecordCollection metadata on
+    * the 'MJ_BizApps_Tasks: Tasks → MJ_BizApps_Tasks: Tasks' relationship; edit that row, not this file.
+    */
+    public readonly SubTasks = this.DeclareRelatedRecords<mjBizAppsTasksTaskEntity>({
+        Name: 'SubTasks',
+        RelatedEntity: 'MJ_BizApps_Tasks: Tasks',
+        RelatedEntityJoinField: 'ParentID',
+        OrderBy: 'Sequence ASC, __mj_CreatedAt ASC',
+        Load: 'explicit',
+        OnRemove: 'orphan',
+        Source: 'database',
+    });
+
     /**
     * Loads the MJ_BizApps_Tasks: Tasks record from the database
     * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Tasks record.
@@ -9860,6 +10104,25 @@ export class mjBizAppsTasksWorkReportItemEntity extends BaseEntity<mjBizAppsTask
  */
 @RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Work Reports')
 export class mjBizAppsTasksWorkReportEntity extends BaseEntity<mjBizAppsTasksWorkReportEntityType> {
+
+    /**
+    * Related records: MJ_BizApps_Tasks: Work Report Items
+    *
+    * Loads, validates and persists as one unit with this MJ_BizApps_Tasks: Work Reports record — see
+    * guides/TRANSACTIONS_AND_BATCHING_GUIDE.md. Declared by the RelatedRecordCollection metadata on
+    * the 'MJ_BizApps_Tasks: Work Reports → MJ_BizApps_Tasks: Work Report Items' relationship; edit that row, not this file.
+    */
+    public readonly Items = this.DeclareRelatedRecords<mjBizAppsTasksWorkReportItemEntity>({
+        Name: 'Items',
+        RelatedEntity: 'MJ_BizApps_Tasks: Work Report Items',
+        RelatedEntityJoinField: 'WorkReportID',
+        OrderBy: 'Sequence ASC',
+        Load: 'explicit',
+        OnRemove: 'delete',
+        Source: 'database',
+        Sequence: { Field: 'Sequence', From: 1 },
+    });
+
     /**
     * Loads the MJ_BizApps_Tasks: Work Reports record from the database
     * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Work Reports record.

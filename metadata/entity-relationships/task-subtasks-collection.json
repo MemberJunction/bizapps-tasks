@@ -1,0 +1,8 @@
+{
+  "Name": "SubTasks",
+  "Source": "database",
+  "Load": "explicit",
+  "OnRemove": "orphan",
+  "OrderBy": "Sequence ASC, __mj_CreatedAt ASC",
+  "ClearAfterSave": false
+}
