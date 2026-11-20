@@ -27,7 +27,9 @@
     "meeting-types",
     "video-providers",
     "scheduled-job-types",
-    "scheduled-jobs"
+    "scheduled-jobs",
+    "chief-of-staff-skills",
+    "chief-of-staff-nav-items"
   ],
   "emitSyncNotes": false,
   "sqlLogging": {

@@ -3,39 +3,50 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 type ViewParams = { EntityName: string; ExtraFilter?: string; Fields?: string[] };
 type EntityEventListener = (event: { event: string; eventCode: string; args: unknown }) => void;
 
-const { runView, runAction, sendNotification, listeners } = vi.hoisted(() => ({
+const { runView, runAction, sendNotification, getEntityObject, listeners } = vi.hoisted(() => ({
   runView: vi.fn(),
   runAction: vi.fn(),
   sendNotification: vi.fn(),
+  getEntityObject: vi.fn(),
   listeners: [] as EntityEventListener[],
 }));
 
+const TASK_1 = '11111111-1111-4111-8111-111111111111';
+const TYPE_1 = '22222222-2222-4222-8222-222222222222';
+const PERSON_1 = '33333333-3333-4333-8333-333333333331';
+const PERSON_2 = '33333333-3333-4333-8333-333333333332';
+
 vi.mock('@memberjunction/core', () => ({
   BaseEntity: class { static BaseEventCode = 'BaseEntity'; },
+  CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },
   LogError: vi.fn(),
   LogStatus: vi.fn(),
-  Metadata: class {},
+  Metadata: class {
+    GetEntityObject(...args: unknown[]) {
+      return getEntityObject(...args);
+    }
+  },
   RunView: class { RunView = runView; },
   UserInfo: class {},
 }));
-vi.mock('@memberjunction/global', () => ({
-  MJEventType: { ComponentEvent: 'ComponentEvent' },
-  IsValidUUID: (v: string | null | undefined) =>
-    !!v && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(v.trim()),
-  MJGlobal: {
-    Instance: {
-      GetGlobalObjectStore: () => ({}),
-      GetEventListener: () => ({
-        subscribe: (listener: EntityEventListener) => {
-          listeners.push(listener);
-          return { unsubscribe() {} };
-        },
-      }),
+vi.mock('@memberjunction/global', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@memberjunction/global')>();
+  return {
+    ...actual,
+    MJEventType: { ComponentEvent: 'ComponentEvent' },
+    MJGlobal: {
+      Instance: {
+        GetGlobalObjectStore: () => ({}),
+        GetEventListener: () => ({
+          subscribe: (listener: EntityEventListener) => {
+            listeners.push(listener);
+            return { unsubscribe() {} };
+          },
+        }),
+      },
     },
-  },
-}));
-// The resolver answers from the mocked People rows' LinkedUserID here; its own rules are covered
-// by @mj-biz-apps/common-entities' own tests.
+  };
+});
 vi.mock('@mj-biz-apps/common-entities', () => ({
   ResolveUserIDsForPeople: async (personIDs: string[]): Promise<Map<string, string>> => {
     const res = await runView({ EntityName: 'MJ_BizApps_Common: People', ExtraFilter: personIDs.join(','), Fields: ['ID', 'LinkedUserID'] });
@@ -62,18 +73,6 @@ vi.mock('@memberjunction/actions', () => ({
 
 import { InitTaskNotificationHandler } from '../TaskNotificationHandler.js';
 
-const TASK_ID = '11111111-1111-1111-1111-111111111111';
-const TYPE_ID = '22222222-2222-2222-2222-222222222222';
-const PERSON_1 = '33333333-3333-3333-3333-333333333331';
-const PERSON_2 = '33333333-3333-3333-3333-333333333332';
-
-const taskFields: Record<string, string | null> = {
-  ID: TASK_ID,
-  Name: 'Approve journal batch',
-  Status: 'Completed',
-  TypeID: TYPE_ID,
-};
-
 function mockViews(): void {
   runView.mockImplementation((params: ViewParams) => {
     switch (params.EntityName) {
@@ -93,12 +92,14 @@ function mockViews(): void {
 }
 
 /** Publishes a task update through the handler's MJGlobal subscription. */
-function publishTaskUpdate(overrides: Record<string, string | null> = {}): void {
-  const fields = { ...taskFields, ...overrides };
+function publishTaskUpdate(status: 'Completed' | 'Blocked' | 'Cancelled' = 'Completed'): void {
   const baseEntity = {
     ContextCurrentUser: { ID: 'user-ctx' },
     EntityInfo: { Name: 'MJ_BizApps_Tasks: Tasks' },
-    Get: (field: string) => fields[field],
+    ID: TASK_1,
+    Name: 'Approve journal batch',
+    Status: status,
+    TypeID: TYPE_1,
   };
   for (const listener of listeners) {
     listener({ event: 'ComponentEvent', eventCode: 'BaseEntity', args: { type: 'save', saveSubType: 'update', baseEntity } });
@@ -115,9 +116,9 @@ beforeEach(() => {
   }
 });
 
-describe('task completed notification', () => {
-  it('sends the Task Completed type to every assignee and does NOT double-dispatch OnComplete', async () => {
-    publishTaskUpdate();
+describe('task status notifications & single-owner hook dispatch', () => {
+  it('sends the Task Completed notification to every assignee and does NOT duplicate TaskEntityServer OnComplete action hooks', async () => {
+    publishTaskUpdate('Completed');
 
     await vi.waitFor(() => expect(sendNotification).toHaveBeenCalledTimes(2));
     for (const userId of ['user-1', 'user-2']) {
@@ -135,12 +136,31 @@ describe('task completed notification', () => {
         expect.anything(),
       );
     }
-    // Lifecycle hooks live solely in TaskEntityServer to prevent double-dispatch and replay.
+    // Lifecycle action hooks (OnComplete/OnCancel/OnReject) are owned exclusively by TaskEntityServer.
+    expect(runAction).not.toHaveBeenCalled();
+  });
+
+  it('sends Task Blocked notifications to every assignee and does NOT fire OnReject', async () => {
+    const savedNotifications: Array<Record<string, unknown>> = [];
+    getEntityObject.mockImplementation(async () => {
+      const notif: Record<string, unknown> = {
+        NewRecord: vi.fn(),
+        Save: vi.fn(async () => true),
+      };
+      savedNotifications.push(notif);
+      return notif;
+    });
+
+    publishTaskUpdate('Blocked');
+
+    await vi.waitFor(() => expect(savedNotifications).toHaveLength(2));
+    expect(savedNotifications.map((n) => n.UserID)).toEqual(['user-1', 'user-2']);
+    expect(savedNotifications[0].Title).toBe('Task Blocked: Approve journal batch');
     expect(runAction).not.toHaveBeenCalled();
   });
 
   it('does NOT dispatch OnCancel or OnReject on a Cancelled task save', async () => {
-    publishTaskUpdate({ Status: 'Cancelled' });
+    publishTaskUpdate('Cancelled');
     await new Promise(resolve => setTimeout(resolve, 10));
 
     expect(runAction).not.toHaveBeenCalled();
@@ -163,7 +183,7 @@ describe('task completed notification', () => {
       return Promise.resolve({ Success: true, Results: [] });
     });
 
-    publishTaskUpdate();
+    publishTaskUpdate('Completed');
 
     await vi.waitFor(() => expect(sendNotification).toHaveBeenCalledOnce());
     const peopleCalls = runView.mock.calls.filter(([p]) => (p as ViewParams).EntityName === 'MJ_BizApps_Common: People');

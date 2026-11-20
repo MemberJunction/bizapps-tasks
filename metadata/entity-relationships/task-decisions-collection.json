@@ -1,0 +1,8 @@
+{
+  "Name": "Decisions",
+  "Source": "database",
+  "Load": "explicit",
+  "OnRemove": "refuse",
+  "OrderBy": "__mj_CreatedAt ASC",
+  "ClearAfterSave": false
+}

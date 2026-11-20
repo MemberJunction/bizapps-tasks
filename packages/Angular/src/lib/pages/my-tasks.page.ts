@@ -1,6 +1,6 @@
-import { Component, ChangeDetectionStrategy, inject, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, Input, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { LogError } from '@memberjunction/core';
+import { LogError, type IMetadataProvider } from '@memberjunction/core';
 import { ResolveCurrentPersonID, NO_PERSON_MESSAGE, PERSON_LOOKUP_FAILED_MESSAGE } from '../current-person';
 import { OpenTaskRecord } from '../open-task-record';
 import { MyTasksComponent } from '../components/my-tasks/my-tasks.component';
@@ -32,6 +32,7 @@ import { TaskRow } from '../components/task-list/task-list.component';
             <div class="mjt-body-card">
                 @if (PersonID) {
                     <bizapps-my-tasks
+                        [Provider]="Provider"
                         [PersonID]="PersonID"
                         (AfterTaskSelected)="OnTaskSelected($event)"
                         (TaskDoubleClicked)="OpenFullRecord($event.ID)">
@@ -48,6 +49,7 @@ import { TaskRow } from '../components/task-list/task-list.component';
                 <aside class="mjt-side-panel">
                     @if (PanelMode === 'detail') {
                         <bizapps-task-detail-panel
+                            [Provider]="Provider"
                             [TaskID]="SelectedTaskID"
                             [PersonID]="PersonID"
                             (EditRequested)="PanelMode = 'edit'"
@@ -98,6 +100,7 @@ import { TaskRow } from '../components/task-list/task-list.component';
     `]
 })
 export class MyTasksPageComponent implements OnInit {
+    @Input() Provider: IMetadataProvider | null = null;
     public PersonID: string | null = null;
     public PersonResolved = false;
     public PersonLookupFailed = false;

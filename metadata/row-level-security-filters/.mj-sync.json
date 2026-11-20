@@ -6,7 +6,7 @@
     "newFileName": ".row-level-security-filters.json",
     "appendRecordsToExistingFile": true,
     "updateExistingRecords": true,
-    "filter": "Name LIKE 'Tasks:%'",
+    "filter": "Name LIKE 'Tasks:%' OR Name LIKE 'UI: Work Report%'",
     "ignoreNullFields": true,
     "ignoreVirtualFields": true
   }

@@ -18,12 +18,14 @@ import { ActionEngineServer } from '@memberjunction/actions';
 import {
     TaskEntity,
     mjBizAppsTasksTaskActivityEntity,
+    mjBizAppsTasksTaskCheckInEntity,
     mjBizAppsTasksTaskEntity,
     mjBizAppsTasksTaskTypeEntity,
     mjBizAppsTasksTaskTypeStatusEntity,
 } from '@mj-biz-apps/tasks-entities';
 import { GuidLiteral, TaskService } from '@mj-biz-apps/tasks-core';
 import { PrimaryPersonIDForUser } from './UserPeople.js';
+import { EnterTaskCheckInGraphScope } from './composite-graph-scope.js';
 
 /**
  * Action hook trigger types supported on TaskType and TaskTypeStatus.
@@ -140,11 +142,22 @@ export class TaskEntityServer extends TaskEntity {
         // 1. Pre-Save Sync: Synchronize TaskTypeStatusID <-> Status and defaults
         await this.syncTaskTypeStatusPreSave();
 
+        // 1b. Pre-Save CheckIn Sync: if CheckIns are attached on the composite Task graph,
+        // apply their derived values and propagate the latest check-in onto this Task before saving
+        // so TaskCheckInEntityServer does not trigger a redundant recursive Task.Save().
+        const pendingCheckIns = this.prepareCompositeCheckInsPreSave();
+
         // 2. Snapshot dirty flags and old values BEFORE super.Save resets them
         const lifecycleContext = this.captureLifecycleContext();
 
-        // 3. Persist record
-        const result = await super.Save(options);
+        // 3. Persist record (with composite check-in scope active so child CheckIn saves skip recursive Task.Save)
+        const exitCheckInScope = EnterTaskCheckInGraphScope(this.ID, pendingCheckIns);
+        let result: boolean;
+        try {
+            result = await super.Save(options);
+        } finally {
+            exitCheckInScope();
+        }
         if (!result) return false;
 
         // 4. Activity logging — server-only audit trail
@@ -351,7 +364,16 @@ export class TaskEntityServer extends TaskEntity {
         activity.Description = description;
         if (previousValue != null) activity.PreviousValue = previousValue;
         if (newValue != null) activity.NewValue = newValue;
-        await activity.Save();
+        // When this Task is queued inside a caller's TransactionGroup, attach the activity
+        // to the SAME TransactionGroup so both INSERTs commit atomically in order (preventing
+        // FK_TaskActivity_Task violations against a not-yet-submitted Task row).
+        if (this.TransactionGroup) {
+            activity.TransactionGroup = this.TransactionGroup;
+        }
+        const saved = await activity.Save();
+        if (!saved) {
+            LogError(`TaskEntityServer: failed to save TaskActivity (${activityType}) for task ${taskID}: ${activity.LatestResult?.CompleteMessage ?? 'unknown error'}`);
+        }
     }
 
     /**
@@ -618,16 +640,82 @@ export class TaskEntityServer extends TaskEntity {
     }
 
     /**
+     * Prepares any new or dirty check-ins attached via `this.CheckIns` before the parent Task saves:
+     * backfills PreviousValue / quantitative PercentComplete on each check-in and applies the newest
+     * check-in's progress/health/timestamps directly onto this Task so everything persists in one pass.
+     */
+    private prepareCompositeCheckInsPreSave(): mjBizAppsTasksTaskCheckInEntity[] {
+        const items = this.CheckIns?.Items;
+        if (!Array.isArray(items) || items.length === 0) {
+            return [];
+        }
+        const pending = items.filter(ci => !ci.IsSaved || ci.Dirty);
+        if (pending.length === 0) {
+            return [];
+        }
+
+        // Apply derived defaults in chronological order, tracking CurrentValue progression
+        const ordered = [...pending].sort((a, b) => {
+            const ta = a.CheckInAt ? new Date(a.CheckInAt).getTime() : 0;
+            const tb = b.CheckInAt ? new Date(b.CheckInAt).getTime() : 0;
+            return ta - tb;
+        });
+
+        let runningValue = this.CurrentValue;
+        for (const ci of ordered) {
+            if (ci.PreviousValue == null && runningValue != null) {
+                ci.PreviousValue = runningValue;
+            }
+            if (ci.PercentComplete == null && ci.NewValue != null && this.TargetValue != null) {
+                const computedPct = TaskService.computeQuantitativePercentComplete(
+                    this.BaselineValue,
+                    this.TargetValue,
+                    ci.NewValue,
+                    this.MetricDirection,
+                );
+                if (computedPct != null) {
+                    ci.PercentComplete = computedPct;
+                }
+            }
+            if (ci.NewValue != null) {
+                runningValue = ci.NewValue;
+            }
+        }
+
+        const latest = ordered[ordered.length - 1];
+        const checkInTime = latest.CheckInAt ?? new Date();
+        this.HealthStatus = latest.HealthStatus;
+        if (latest.ConfidenceScore != null) {
+            this.ConfidenceScore = latest.ConfidenceScore;
+        }
+        if (latest.NewValue != null) {
+            this.CurrentValue = latest.NewValue;
+        }
+        if (latest.PercentComplete != null) {
+            this.PercentComplete = latest.PercentComplete;
+        }
+        this.LastCheckInAt = checkInTime;
+        if (this.CheckInCadence) {
+            const nextDue = TaskService.computeNextCheckInDueAt(checkInTime, this.CheckInCadence);
+            if (nextDue) {
+                this.NextCheckInDueAt = nextDue;
+            }
+        }
+        return pending;
+    }
+
+    /**
      * Loads the default TaskTypeStatus for a given TaskType.
      *
      * @throws when `typeID` is not a UUID — on a new, unsaved task it is caller-supplied and reaches
      * SQL text before `super.Save()` FK validation, so an invalid value fails the save loudly.
      */
     protected async loadDefaultTaskTypeStatus(typeID: string): Promise<mjBizAppsTasksTaskTypeStatusEntity | null> {
+        const typeLiteral = GuidLiteral(typeID, 'TypeID');
         const rv = new RunView(this.RunViewProviderToUse);
         const result = await rv.RunView<mjBizAppsTasksTaskTypeStatusEntity>({
             EntityName: 'MJ_BizApps_Tasks: Task Type Status',
-            ExtraFilter: `TaskTypeID=${GuidLiteral(typeID, 'TypeID')} AND IsDefault=1 AND IsActive=1`,
+            ExtraFilter: `TaskTypeID=${typeLiteral} AND IsDefault=1 AND IsActive=1`,
             ResultType: 'entity_object',
             MaxRows: 1,
         }, this.ContextCurrentUser);

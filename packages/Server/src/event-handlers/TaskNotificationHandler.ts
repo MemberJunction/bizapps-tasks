@@ -4,16 +4,17 @@
  * Subscribes to MJGlobal entity events and creates notifications
  * (MJ: User Notifications) for key task events:
  *
- * - Task assigned → notify the assignee, or every active holder when the assignee is an MJ role ('Task Assignment' type, through NotificationEngine)
+ * - Task assigned → notify the assignee, or every active holder when the assignee is an MJ role ('Task Assignment' type, through NotificationEngine), plus invoke TaskType.OnAssignActionID
  * - Task completed → notify all assignees ('Task Completed' type, through NotificationEngine)
  * - Task status changed to Blocked → notify all assignees
  * - Task comment created → notify all assignees except the commenter
  * - OnAssign TaskType action hook → invoked when a new assignment is created
  *
- * NOTE: Lifecycle action hooks (OnComplete, OnCancel, OnReject, OnStatusChange,
- * etc.) are dispatched SOLELY by TaskEntityServer on the status TRANSITION —
- * they must NOT be invoked here, or a single approval fires the privileged
- * callback twice and any later edit of a terminal task replays it.
+ * NOTE: Task-level lifecycle action hooks (OnCreate, OnStatusChange, OnEnterStatus, OnExitStatus,
+ * OnComplete, OnCancel, OnReject, OnPercentChange) are dispatched SOLELY by `TaskEntityServer`
+ * (post-commit via `RunAfterCommit`) on the status TRANSITION — they must NOT be invoked here,
+ * or a single approval fires the privileged callback twice and any later edit of a terminal task
+ * replays it.
  */
 import {
     BaseEntity,
@@ -26,10 +27,16 @@ import {
     UserInfo,
 } from '@memberjunction/core';
 import type { MJUserNotificationEntity } from '@memberjunction/core-entities';
+import { ActionEngineServer } from '@memberjunction/actions';
 import { IsValidUUID, MJEventType, MJGlobal, MJEvent, UUIDsEqual } from '@memberjunction/global';
 import { Subscription } from 'rxjs';
 import { ResolveUserIDForPerson, ResolveUserIDsForPeople } from '@mj-biz-apps/common-entities';
 import { GuidLiteral } from '@mj-biz-apps/tasks-core';
+import type {
+    mjBizAppsTasksTaskAssignmentEntity,
+    mjBizAppsTasksTaskCommentEntity,
+    mjBizAppsTasksTaskEntity,
+} from '@mj-biz-apps/tasks-entities';
 import { IsRoleEntityID, ResolveUserIDsForRoles, RoleName } from '../role-assignees.js';
 import {
     sendTaskNotifications,
@@ -165,8 +172,8 @@ function logHandlerError(handler: string): (err: unknown) => void {
 
 /**
  * When a task is saved:
- * - If completed → notify all assignees: "Task completed: {name}"
- * - If blocked → notify all assignees: "Task blocked: {name}"
+ * - If completed → notify all assignees: "Task Completed: {name}"
+ * - If blocked → notify all assignees: "Task Blocked: {name}"
  * - If newly created → no notification (assignment creation handles that)
  *
  * Notification-only: lifecycle action hook dispatch (OnComplete/OnCancel/OnReject)
@@ -174,18 +181,20 @@ function logHandlerError(handler: string): (err: unknown) => void {
  * here as well would double-fire them and replay them on later edits.
  */
 async function handleTaskSave(event: BaseEntityEvent): Promise<void> {
-    const task = event.baseEntity!;
+    const task = event.baseEntity as mjBizAppsTasksTaskEntity | undefined;
+    if (!task) return;
     const contextUser = task.ContextCurrentUser;
     if (!contextUser) return;
-
-    const taskID = task.Get('ID') as string;
-    const taskName = task.Get('Name') as string;
-    const status = task.Get('Status') as string;
 
     // Only notify on specific status values, and only on update (not create)
     if (event.saveSubType === 'create') {
         return;
     }
+
+    const taskID = task.ID;
+    const taskName = task.Name;
+    const status = task.Status;
+    if (!taskID || !IsValidUUID(taskID)) return;
 
     if (status === 'Completed') {
         const userIDs = await getTaskAssigneeUserIDs(taskID, contextUser);
@@ -203,7 +212,7 @@ async function handleTaskSave(event: BaseEntityEvent): Promise<void> {
     }
 
     if (status === 'Blocked') {
-        const blockedReason = task.Get('BlockedReason') as string | null;
+        const blockedReason = task.BlockedReason;
         const userIDs = await getTaskAssigneeUserIDs(taskID, contextUser);
         if (userIDs.length > 0) {
             const reasonStr = blockedReason ? ` Reason: ${blockedReason}` : '';
@@ -239,14 +248,17 @@ export async function handleAssignmentSave(event: BaseEntityEvent): Promise<void
         return;
     }
 
-    const assignment = event.baseEntity!;
+    const assignment = event.baseEntity as mjBizAppsTasksTaskAssignmentEntity | undefined;
+    if (!assignment) return;
     const contextUser = assignment.ContextCurrentUser;
     if (!contextUser) return;
 
-    const assigneeEntityID = assignment.Get('AssigneeEntityID') as string | null;
-    const assigneeRecordID = assignment.Get('AssigneeRecordID') as string;
-    const taskID = assignment.Get('TaskID') as string;
-    const roleID = assignment.Get('RoleID') as string | null;
+    const assigneeEntityID = assignment.AssigneeEntityID;
+    const assigneeRecordID = assignment.AssigneeRecordID;
+    const taskID = assignment.TaskID;
+    const roleID = assignment.RoleID;
+
+    if (!taskID || !IsValidUUID(taskID)) return;
 
     if (IsRoleEntityID(assigneeEntityID)) {
         await handleRoleAssignment(assigneeRecordID, taskID, roleID, contextUser);
@@ -262,7 +274,7 @@ export async function handleAssignmentSave(event: BaseEntityEvent): Promise<void
         LogError(`[BizAppsTasks] Assignment notification error: ${err instanceof Error ? err.message : String(err)}`);
     }
 
-    const hookParams = await buildAssignHookParams(assigneeRecordID, taskID, contextUser);
+    const hookParams = await buildAssignHookParams(assigneeRecordID, contextUser);
     await invokeTaskTypeActionByTaskID(taskID, 'OnAssignActionID', contextUser, hookParams);
 }
 
@@ -271,7 +283,6 @@ export async function handleAssignmentSave(event: BaseEntityEvent): Promise<void
  * Skips assignees that have no linked user.
  */
 async function notifyAssignee(assigneeRecordID: string, taskID: string, roleID: string | null, contextUser: UserInfo): Promise<void> {
-    // Resolve the assignee's linked MJ UserID
     const userID = await getPersonUserID(assigneeRecordID, contextUser);
     if (!userID) {
         LogStatus(`[Tasks] Assignee ${assigneeRecordID} of task ${taskID} has no linked user; no in-app notification sent`);
@@ -314,9 +325,10 @@ async function sendAssignmentNotification(
     viaRoleName: string | null,
     contextUser: UserInfo,
 ): Promise<void> {
-    // Load the task to get its name and details
+    if (!IsValidUUID(taskID)) return;
+
     const rv = new RunView();
-    const taskResult = await rv.RunView<{ Name: string; Priority: string; DueAt: string | null }>({
+    const taskResult = await rv.RunView<{ Name: string; Priority: mjBizAppsTasksTaskEntity['Priority']; DueAt: string | null }>({
         EntityName: TASKS_ENTITY,
         ExtraFilter: `ID=${GuidLiteral(taskID, 'TaskID')}`,
         ResultType: 'simple',
@@ -331,9 +343,8 @@ async function sendAssignmentNotification(
     const dueAt = task.DueAt ? formatDate(new Date(task.DueAt)) : null;
     const dueStr = dueAt ? ` Due: ${dueAt}.` : '';
 
-    // Resolve role name if present
     let roleStr = '';
-    if (roleID) {
+    if (roleID && IsValidUUID(roleID)) {
         const roleResult = await new RunView().RunView<{ Name: string }>({
             EntityName: 'MJ_BizApps_Tasks: Task Roles',
             ExtraFilter: `ID=${GuidLiteral(roleID, 'RoleID')}`,
@@ -361,7 +372,7 @@ async function sendAssignmentNotification(
  * Inputs an OnAssign action receives beyond the task's own: who was assigned, so an action
  * such as a Teams post can name them.
  */
-async function buildAssignHookParams(assigneeRecordID: string, taskID: string, contextUser: UserInfo): Promise<ActionHookInput[]> {
+async function buildAssignHookParams(assigneeRecordID: string, contextUser: UserInfo): Promise<ActionHookInput[]> {
     const assigneeName = await getPersonName(assigneeRecordID, contextUser);
     return [
         { Name: 'AssigneePersonID', Value: assigneeRecordID },
@@ -382,16 +393,18 @@ async function handleCommentSave(event: BaseEntityEvent): Promise<void> {
         return;
     }
 
-    const comment = event.baseEntity!;
+    const comment = event.baseEntity as mjBizAppsTasksTaskCommentEntity | undefined;
+    if (!comment) return;
     const contextUser = comment.ContextCurrentUser;
     if (!contextUser) return;
 
-    const taskID = comment.Get('TaskID') as string;
-    const authorPersonID = comment.Get('PersonID') as string;
-    const content = comment.Get('Content') as string;
+    const taskID = comment.TaskID;
+    const authorPersonID = comment.PersonID;
+    const content = comment.Content ?? '';
+    if (!taskID || !IsValidUUID(taskID)) return;
+
     const preview = content.length > 100 ? content.substring(0, 100) + '...' : content;
 
-    // Get task name
     const rv = new RunView();
     const taskResult = await rv.RunView<{ Name: string }>({
         EntityName: TASKS_ENTITY,
@@ -401,12 +414,10 @@ async function handleCommentSave(event: BaseEntityEvent): Promise<void> {
     }, contextUser);
     const taskName = taskResult?.Results?.[0]?.Name ?? 'a task';
 
-    // Get author name
-    const authorName = await getPersonName(authorPersonID, contextUser) ?? 'Someone';
+    const authorName = (authorPersonID ? await getPersonName(authorPersonID, contextUser) : null) ?? 'Someone';
 
-    // Get all assignee UserIDs except the author
     const allUserIDs = await getTaskAssigneeUserIDs(taskID, contextUser);
-    const authorUserID = await getPersonUserID(authorPersonID, contextUser);
+    const authorUserID = authorPersonID ? await getPersonUserID(authorPersonID, contextUser) : null;
     const notifyUserIDs = allUserIDs.filter(id => !UUIDsEqual(id, authorUserID));
 
     if (notifyUserIDs.length === 0) return;
@@ -421,25 +432,24 @@ async function handleCommentSave(event: BaseEntityEvent): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// TaskType Action Invocation
+// TaskType Action Invocation (OnAssign)
 // ---------------------------------------------------------------------------
 
 /**
  * Looks up the TaskType for a task entity and invokes the specified action
  * FK column if it has a value.
  *
- * Post-commit and non-blocking: the action's result is consumed (captured and
- * recorded as a TaskActivity, logged on failure) but a failed action does NOT
- * roll back the task save that triggered it.
+ * Post-commit and non-blocking: the action's result is consumed and logged on
+ * failure, and a failed action does NOT roll back the assignment that triggered it.
  */
 async function invokeTaskTypeAction(
-    task: BaseEntity,
+    task: mjBizAppsTasksTaskEntity,
     actionColumn: TaskTypeActionColumn,
     contextUser: UserInfo,
     extraParams: ActionHookInput[] = [],
 ): Promise<ActionHookResult> {
-    const typeID = task.Get('TypeID') as string | null;
-    if (!typeID) return { Invoked: false };
+    const typeID = task.TypeID;
+    if (!typeID || !IsValidUUID(typeID)) return { Invoked: false };
 
     const rv = new RunView();
     const typeResult = await rv.RunView<Record<TaskTypeActionColumn, string | null>>({
@@ -455,12 +465,10 @@ async function invokeTaskTypeAction(
     const actionID = taskType[actionColumn];
     if (!actionID) return { Invoked: false };
 
-    const taskName = task.Get('Name') as string;
+    const taskName = task.Name;
     try {
-        // Dynamic import to avoid hard dependency on @memberjunction/actions
-        const { ActionEngineServer } = await import('@memberjunction/actions');
         await ActionEngineServer.Instance.Config(false, contextUser);
-        const action = ActionEngineServer.Instance.Actions.find((a: any) => a.ID === actionID);
+        const action = ActionEngineServer.Instance.Actions.find(a => UUIDsEqual(a.ID, actionID));
         if (!action) {
             const msg = `Action ${actionID} not found for TaskType ${actionColumn}`;
             LogError(`[BizAppsTasks] ${msg}`);
@@ -471,9 +479,9 @@ async function invokeTaskTypeAction(
             Action: action,
             ContextUser: contextUser,
             Params: [
-                { Name: 'TaskID', Value: task.Get('ID'), Type: 'Input' },
+                { Name: 'TaskID', Value: task.ID, Type: 'Input' },
                 { Name: 'TaskName', Value: taskName, Type: 'Input' },
-                { Name: 'Status', Value: task.Get('Status'), Type: 'Input' },
+                { Name: 'Status', Value: task.Status, Type: 'Input' },
                 { Name: 'TaskTypeID', Value: typeID, Type: 'Input' },
                 ...extraParams.map((p) => ({ ...p, Type: 'Input' as const })),
             ],
@@ -506,8 +514,6 @@ export function interpretActionHookResult(
     if (success) {
         LogStatus(`[BizAppsTasks] Invoked ${actionColumn} action for task "${taskName}"`);
     } else {
-        // Loud, non-blocking: downstream failure (e.g. "return Order to Draft" failed)
-        // is surfaced for operators but does not roll back the task transition.
         LogError(`[BizAppsTasks] ${actionColumn} action for task "${taskName}" reported failure: ${message ?? 'no message'}`);
     }
     return { Invoked: true, Success: success, Message: message };
@@ -522,8 +528,9 @@ async function invokeTaskTypeActionByTaskID(
     contextUser: UserInfo,
     extraParams: ActionHookInput[] = [],
 ): Promise<void> {
+    if (!IsValidUUID(taskID)) return;
     const rv = new RunView();
-    const result = await rv.RunView<BaseEntity>({
+    const result = await rv.RunView<mjBizAppsTasksTaskEntity>({
         EntityName: TASKS_ENTITY,
         ExtraFilter: `ID=${GuidLiteral(taskID, 'TaskID')}`,
         ResultType: 'entity_object',
@@ -544,6 +551,7 @@ async function invokeTaskTypeActionByTaskID(
  * MJ role, and the linked users of assigned people.
  */
 async function getTaskAssigneeUserIDs(taskID: string, contextUser: UserInfo): Promise<string[]> {
+    if (!IsValidUUID(taskID)) return [];
     const rv = new RunView();
 
     const assignments = await rv.RunView<{ AssigneeEntityID: string | null; AssigneeRecordID: string }>({
@@ -605,7 +613,7 @@ async function getPersonAssigneeUserIDs(taskID: string, personIDs: string[], con
  */
 async function getPersonUserID(personID: string, contextUser: UserInfo): Promise<string | null> {
     // personID may originate from free-text AssigneeRecordID — validate before lookup.
-    if (!IsValidUUID(personID)) {
+    if (!personID || !IsValidUUID(personID)) {
         LogError(`[BizAppsTasks] Skipping non-UUID person ID '${personID}' — excluded from linked-user lookup`);
         return null;
     }
@@ -627,7 +635,7 @@ function errorText(error: unknown): string {
  * touching SQL so callers such as OnAssign hook dispatch can proceed safely.
  */
 async function getPersonName(personID: string, contextUser: UserInfo): Promise<string | null> {
-    if (!IsValidUUID(personID)) {
+    if (!personID || !IsValidUUID(personID)) {
         LogError(`[BizAppsTasks] Skipping non-UUID person ID '${personID}' — excluded from person name lookup`);
         return null;
     }
