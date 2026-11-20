@@ -27,8 +27,6 @@ vi.mock('@memberjunction/core-entities', () => ({
 }));
 vi.mock('@memberjunction/ai-core-plus', () => ({
     TypedActionPolicyGuard: { CheckEntityAccess: vi.fn(), MaskRecord: vi.fn(), MaskRows: vi.fn() },
-    TranscriptSourceBase: class {},
-    ResolveTranscriptSource: vi.fn(),
 }));
 vi.mock('@memberjunction/ai-agents', () => ({
     AgentRunner: class {},

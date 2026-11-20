@@ -1,18 +1,16 @@
 import { Metadata, type IMetadataProvider, type UserInfo } from '@memberjunction/core';
 import type { MJFileEntity } from '@memberjunction/core-entities';
-import {
-    TranscriptSourceBase,
-    type FetchedTranscript,
-    type TranscriptMeetingContext,
-    type TranscriptReference,
-    type TranscriptSourceContext,
-} from '@memberjunction/ai-core-plus';
 import { FileStorageEngine } from '@memberjunction/storage';
 import { RegisterClass } from '@memberjunction/global';
 import {
     FILES_ENTITY,
     normalizeTranscriptText,
     readMeetingTranscriptFile,
+    TranscriptSourceBase,
+    type FetchedTranscript,
+    type TranscriptMeetingContext,
+    type TranscriptReference,
+    type TranscriptSourceContext,
 } from '@mj-biz-apps/tasks-core';
 
 interface AttachedFileSourceConfig {

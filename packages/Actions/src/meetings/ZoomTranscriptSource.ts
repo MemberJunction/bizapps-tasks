@@ -1,14 +1,14 @@
 import type { UserInfo } from '@memberjunction/core';
+import { CredentialEngine } from '@memberjunction/credentials';
+import { RegisterClass } from '@memberjunction/global';
 import {
+    parseWebVttTranscript,
     TranscriptSourceBase,
     type FetchedTranscript,
     type TranscriptMeetingContext,
     type TranscriptReference,
     type TranscriptSourceContext,
-} from '@memberjunction/ai-core-plus';
-import { CredentialEngine } from '@memberjunction/credentials';
-import { RegisterClass } from '@memberjunction/global';
-import { parseWebVttTranscript } from '@mj-biz-apps/tasks-core';
+} from '@mj-biz-apps/tasks-core';
 
 interface ZoomTokenResponse {
     access_token: string;

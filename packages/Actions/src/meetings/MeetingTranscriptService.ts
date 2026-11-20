@@ -1,11 +1,4 @@
 import { Metadata, RunView, type IMetadataProvider, type UserInfo } from '@memberjunction/core';
-import {
-    ResolveTranscriptSource,
-    type FetchedTranscript,
-    type TranscriptMeetingContext,
-    type TranscriptSourceBase,
-    type TranscriptSourceContext,
-} from '@memberjunction/ai-core-plus';
 import { EscapeSQLString, IsValidUUID } from '@memberjunction/global';
 import {
     defaultMeetingNotesPromptRunner,
@@ -14,11 +7,16 @@ import {
     MeetingNotesService,
     normalizeTranscriptText,
     parseProposedTasks,
+    ResolveTranscriptSource,
     type CommitmentCandidate,
     type DeduplicatedMatchedCommitment,
     type DeduplicatedNewCommitment,
+    type FetchedTranscript,
     type MeetingNotesPromptRunner,
     type TaskSimilarityCandidate,
+    type TranscriptMeetingContext,
+    type TranscriptSourceBase,
+    type TranscriptSourceContext,
 } from '@mj-biz-apps/tasks-core';
 import type {
     mjBizAppsTasksMeetingAttendeeEntity,

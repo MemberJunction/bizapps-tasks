@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { ActionParam, ActionResultSimple, RunActionParams } from '@memberjunction/actions-base';
 import type { IMetadataProvider, UserInfo } from '@memberjunction/core';
-import type { TranscriptSourceBase } from '@memberjunction/ai-core-plus';
+import type { TranscriptSourceBase } from '@mj-biz-apps/tasks-core';
 
 const {
     checkEntityAccessMock,
@@ -77,8 +77,6 @@ vi.mock('@memberjunction/ai-core-plus', () => ({
         MaskRecord: maskRecordMock,
         MaskRows: maskRowsMock,
     },
-    TranscriptSourceBase: class {},
-    ResolveTranscriptSource: resolveTranscriptSourceMock,
 }));
 vi.mock('@memberjunction/ai-agents', () => ({
     AgentWakeTriggerService: { Instance: { TriggerWakeForWorkstream: vi.fn() } },
@@ -111,6 +109,7 @@ vi.mock('@mj-biz-apps/tasks-core', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@mj-biz-apps/tasks-core')>();
     return {
         ...actual,
+        ResolveTranscriptSource: resolveTranscriptSourceMock,
         readMeetingTranscriptFile: readMeetingTranscriptFileMock,
         WorkReportService: {
             Instance: {

@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import type { UserInfo } from '@memberjunction/core';
+import { RegisterClass } from '@memberjunction/global';
 import {
     computeTaskTextSimilarity,
     deduplicateCommitmentsAgainstTasks,
@@ -7,8 +9,37 @@ import {
     parseSrtTranscript,
     parseWebVttTranscript,
     rankSimilarTasks,
+    ResolveTranscriptSource,
     tokenizeTaskText,
+    TranscriptSourceBase,
+    type FetchedTranscript,
+    type TranscriptMeetingContext,
+    type TranscriptReference,
+    type TranscriptSourceContext,
 } from '../meetings/index.js';
+
+@RegisterClass(TranscriptSourceBase, 'UnitTestMockTranscriptSource')
+class MockTranscriptSource extends TranscriptSourceBase {
+    private configured = false;
+    public async Initialize(_ctx: TranscriptSourceContext, _user: UserInfo): Promise<void> {
+        this.configured = true;
+    }
+    public get IsConfigured(): boolean {
+        return this.configured;
+    }
+    public async FindTranscript(meeting: TranscriptMeetingContext): Promise<TranscriptReference | null> {
+        return meeting.ProviderMeetingID
+            ? { SourceKey: 'UnitTestMockTranscriptSource', ExternalTranscriptID: meeting.ProviderMeetingID }
+            : null;
+    }
+    public async FetchTranscript(reference: TranscriptReference): Promise<FetchedTranscript> {
+        return {
+            Reference: reference,
+            PlainText: 'Alice: Let us ship the release Friday.',
+            Speakers: ['Alice'],
+        };
+    }
+}
 
 describe('Transcript Parsing', () => {
     it('parses WebVTT with voice tags, speaker prefixes, NOTE blocks, and consecutive speaker merging', () => {
@@ -178,5 +209,30 @@ describe('Task Text Similarity & Commitment Deduplication', () => {
         );
         expect(result.ProposedNewCommitments).toHaveLength(1);
         expect(result.ProposedNewCommitments[0].ProposalID).toBe('proposal-2');
+    });
+});
+
+describe('TranscriptSourceBase & ResolveTranscriptSource', () => {
+    it('resolves registered TranscriptSourceBase plugins via ClassFactory', async () => {
+        expect(MockTranscriptSource).toBeDefined();
+        const alice = { ID: 'user-alice', Name: 'Alice', Email: 'alice@example.com' } as unknown as UserInfo;
+        const src = ResolveTranscriptSource('UnitTestMockTranscriptSource');
+        expect(src).not.toBeNull();
+        await src!.Initialize({}, alice);
+        expect(src!.IsConfigured).toBe(true);
+
+        const ref = await src!.FindTranscript(
+            {
+                Title: 'Weekly Sync',
+                StartsAt: new Date(),
+                EndsAt: new Date(),
+                ProviderMeetingID: 'zoom-123',
+            },
+            alice,
+        );
+        expect(ref?.ExternalTranscriptID).toBe('zoom-123');
+
+        const fetched = await src!.FetchTranscript(ref!, alice);
+        expect(fetched.PlainText).toContain('ship the release Friday');
     });
 });
