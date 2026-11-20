@@ -18,6 +18,7 @@ const PERSON_2 = '33333333-3333-4333-8333-333333333332';
 
 vi.mock('@memberjunction/core', () => ({
   BaseEntity: class { static BaseEventCode = 'BaseEntity'; },
+  CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },
   LogError: vi.fn(),
   LogStatus: vi.fn(),
   Metadata: class {
@@ -28,24 +29,24 @@ vi.mock('@memberjunction/core', () => ({
   RunView: class { RunView = runView; },
   UserInfo: class {},
 }));
-vi.mock('@memberjunction/global', () => ({
-  EscapeSQLString: (v: string) => v.replace(/'/g, "''"),
-  UUIDsEqual: (a?: string | null, b?: string | null) => Boolean(a && b && a.toLowerCase() === b.toLowerCase()),
-  MJEventType: { ComponentEvent: 'ComponentEvent' },
-  IsValidUUID: (v: string | null | undefined) =>
-    !!v && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(v.trim()),
-  MJGlobal: {
-    Instance: {
-      GetGlobalObjectStore: () => ({}),
-      GetEventListener: () => ({
-        subscribe: (listener: EntityEventListener) => {
-          listeners.push(listener);
-          return { unsubscribe() {} };
-        },
-      }),
+vi.mock('@memberjunction/global', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@memberjunction/global')>();
+  return {
+    ...actual,
+    MJEventType: { ComponentEvent: 'ComponentEvent' },
+    MJGlobal: {
+      Instance: {
+        GetGlobalObjectStore: () => ({}),
+        GetEventListener: () => ({
+          subscribe: (listener: EntityEventListener) => {
+            listeners.push(listener);
+            return { unsubscribe() {} };
+          },
+        }),
+      },
     },
-  },
-}));
+  };
+});
 vi.mock('@mj-biz-apps/common-entities', () => ({
   ResolveUserIDsForPeople: async (personIDs: string[]): Promise<Map<string, string>> => {
     const res = await runView({ EntityName: 'MJ_BizApps_Common: People', ExtraFilter: personIDs.join(','), Fields: ['ID', 'LinkedUserID'] });

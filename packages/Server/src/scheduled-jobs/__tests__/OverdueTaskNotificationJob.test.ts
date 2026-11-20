@@ -17,18 +17,21 @@ const TASK_R = '11111111-1111-4111-8111-111111111112';
 const TYPE_1 = '22222222-2222-4222-8222-222222222222';
 const PERSON_1 = '33333333-3333-4333-8333-333333333333';
 
-vi.mock('@memberjunction/global', () => ({
-  RegisterClass: () => () => {},
-  IsValidUUID: (v: string | null | undefined) =>
-    !!v && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(v.trim()),
-  UUIDsEqual: (a?: string | null, b?: string | null) => Boolean(a && b && a.toLowerCase() === b.toLowerCase()),
-}));
+vi.mock('@memberjunction/global', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@memberjunction/global')>();
+  return {
+    ...actual,
+    RegisterClass: () => () => {},
+  };
+});
 
 vi.mock('@memberjunction/core', () => {
   class FakeValidationResult { Success = true; Errors: unknown[] = []; }
   return {
+    BaseEntity: class {},
     ValidationResult: FakeValidationResult,
     LogError: vi.fn(),
+    LogStatus: vi.fn(),
     Metadata: class {
       GetEntityObject(...args: unknown[]) { return getEntityObjectMock(...args); }
     },
