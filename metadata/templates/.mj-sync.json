@@ -1,0 +1,30 @@
+{
+  "entity": "MJ: Templates",
+  "filePattern": "**/.*.json",
+  "ignoreDirectories": [
+    "templates"
+  ],
+  "defaults": {
+    "IsActive": true
+  },
+  "pull": {
+    "createNewFileIfNotFound": true,
+    "newFileName": ".task-notification-email-templates.json",
+    "appendRecordsToExistingFile": true,
+    "updateExistingRecords": true,
+    "preserveFields": [],
+    "excludeFields": [],
+    "mergeStrategy": "merge",
+    "backupBeforeUpdate": true,
+    "backupDirectory": ".backups",
+    "filter": "Name LIKE 'MJ_BizApps_Tasks:%'",
+    "ignoreNullFields": true,
+    "ignoreVirtualFields": true,
+    "relatedEntities": {
+      "MJ: Template Contents": {
+        "entity": "MJ: Template Contents",
+        "foreignKey": "TemplateID"
+      }
+    }
+  }
+}

@@ -20,6 +20,13 @@ vi.mock('@memberjunction/global', () => ({
   MJEventType: { ComponentEvent: 'ComponentEvent' },
   MJGlobal: { Instance: { GetGlobalObjectStore: () => ({}), GetEventListener: () => ({ subscribe: () => ({ unsubscribe() {} }) }) } },
 }));
+vi.mock('@mj-biz-apps/common-entities', () => ({
+  ResolveUserIDForPerson: vi.fn(),
+  ResolveUserIDsForPeople: vi.fn(),
+}));
+vi.mock('@memberjunction/notifications', () => ({
+  NotificationEngine: { Instance: { Config: vi.fn(), SendNotification: vi.fn() } },
+}));
 
 import { interpretActionHookResult } from '../TaskNotificationHandler.js';
 

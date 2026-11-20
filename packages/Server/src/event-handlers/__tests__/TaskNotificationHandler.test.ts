@@ -31,6 +31,15 @@ vi.mock('@memberjunction/global', () => ({
   },
 }));
 
+vi.mock('@mj-biz-apps/common-entities', () => ({
+  ResolveUserIDForPerson: vi.fn(),
+  ResolveUserIDsForPeople: vi.fn(),
+}));
+
+vi.mock('@memberjunction/notifications', () => ({
+  NotificationEngine: { Instance: { Config: vi.fn(), SendNotification: vi.fn() } },
+}));
+
 import { InitTaskNotificationHandler } from '../TaskNotificationHandler.js';
 
 beforeEach(() => {
