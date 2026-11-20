@@ -26,8 +26,10 @@ export const TASKS_SETTING = {
      */
     PreventSelfApproval: 'PreventSelfApproval',
     /**
-     * The NAME of the MJ role whose holders may decide an approval task they created themselves while
-     * `PreventSelfApproval` is on. They must still be an assignee. Empty exempts nobody.
+     * Comma-separated NAMES of the MJ roles whose holders may decide an approval task they created
+     * themselves while `PreventSelfApproval` is on (bc-aidp-next-golive#450). They must still be an
+     * assignee. A single name, the original format, still works. Empty exempts nobody. The key keeps
+     * its singular name so hosts that already set it keep their value.
      */
     SelfApprovalExemptRole: 'SelfApprovalExemptRole',
     /**
@@ -60,6 +62,11 @@ function asBoolean(raw: string | undefined, fallback: boolean): boolean {
     return fallback;
 }
 
+/** A comma-separated list of role names, trimmed, blanks dropped. One name is a list of one. */
+function asRoleList(raw: string | undefined): string[] {
+    return (raw ?? '').split(',').map((r) => r.trim()).filter((r) => r.length > 0);
+}
+
 /**
  * Deliberately read-only: there is no in-process override. These settings switch a security control,
  * so the only way to change one is the audited `ApplicationSetting` row; tests mock the engine instead.
@@ -81,16 +88,14 @@ export class TasksSettings {
         return asBoolean(this.raw(TASKS_SETTING.PreventSelfApproval, provider), false);
     }
 
-    /** The role exempt from the self-approval refusal, or null when none is configured. */
-    public static SelfApprovalExemptRole(provider: IMetadataProvider): string | null {
-        const value = this.raw(TASKS_SETTING.SelfApprovalExemptRole, provider)?.trim();
-        return value ? value : null;
+    /** The roles exempt from the self-approval refusal; empty when none is configured. */
+    public static SelfApprovalExemptRoles(provider: IMetadataProvider): string[] {
+        return asRoleList(this.raw(TASKS_SETTING.SelfApprovalExemptRole, provider));
     }
 
     /** The roles that may reassign or remove an approval assignment; empty switches the rule off. */
     public static ApprovalReassignRoles(provider: IMetadataProvider): string[] {
-        const raw = this.raw(TASKS_SETTING.ApprovalReassignRoles, provider) ?? '';
-        return raw.split(',').map((r) => r.trim()).filter((r) => r.length > 0);
+        return asRoleList(this.raw(TASKS_SETTING.ApprovalReassignRoles, provider));
     }
 
     /** The default `MJ: Communication Providers` name for meeting calendar sync, or null when unconfigured. */

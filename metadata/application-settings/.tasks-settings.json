@@ -15,7 +15,7 @@
       "ApplicationID": "@lookup:MJ: Applications.Name=Tasks",
       "Name": "SelfApprovalExemptRole",
       "Value": "",
-      "Comments": "The NAME of the MJ role whose holders may decide an approval task they created themselves while PreventSelfApproval is true. They must still be one of its assignees. Empty exempts nobody. A name that is not a role exempts nobody and is logged."
+      "Comments": "Comma-separated NAMES of the MJ roles whose holders may decide an approval task they created themselves while PreventSelfApproval is true (bc-aidp-next-golive#450); a single name also works. They must still be one of its assignees. Names match trimmed and case-insensitively. Empty exempts nobody. A name that is not a role exempts nobody and is logged."
     },
     "primaryKey": {
       "ID": "17CC9998-9382-447B-A7DF-682A06837953"

@@ -19,8 +19,10 @@ const db = {
     isApproval: true,
     assignments: [{ ID: 'asg-1', AssigneeEntityID: PEOPLE_ID, AssigneeRecordID: PERSON_ID, Status: 'Pending' as 'Pending' | 'InProgress' | 'Completed' }],
     people: [{ ID: PERSON_ID }],
-    roles: [{ ID: ROLE_ID }],
-    userRoles: [] as Array<{ ID: string }>,
+    /** Every role that exists, by name. */
+    roles: [{ ID: ROLE_ID, Name: 'Exempt Approver' }] as Array<{ ID: string; Name: string }>,
+    /** The roles the deciding user holds, by name (the User Roles view's `Role` column). */
+    userRoles: [] as Array<{ Role: string }>,
     failTaskLookup: false,
 };
 const filtersSeen: string[] = [];
@@ -99,6 +101,7 @@ vi.mock('@mj-biz-apps/tasks-entities', () => ({
 
 const { TaskDecisionEntityServer } = await import('../TaskDecisionEntityServer.js');
 const { TasksSettings } = await import('../TasksSettings.js');
+const { LogError } = await import('@memberjunction/core');
 
 function decision(): InstanceType<typeof TaskDecisionEntityServer> {
     return new TaskDecisionEntityServer();
@@ -111,8 +114,9 @@ describe('TaskDecisionEntityServer', () => {
         db.isApproval = true;
         db.assignments = [{ ID: 'asg-1', AssigneeEntityID: PEOPLE_ID, AssigneeRecordID: PERSON_ID, Status: 'Pending' }];
         db.people = [{ ID: PERSON_ID }];
-        db.roles = [{ ID: ROLE_ID }];
+        db.roles = [{ ID: ROLE_ID, Name: 'Exempt Approver' }, { ID: FINANCE_ROLE, Name: 'CFO' }];
         db.userRoles = [];
+        vi.mocked(LogError).mockClear();
         db.failTaskLookup = false;
         filtersSeen.length = 0;
         fieldsSeen.clear();
@@ -141,21 +145,55 @@ describe('TaskDecisionEntityServer', () => {
         expect(result.Errors[0].Message).toMatch(/Nobody may approve their own request/);
     });
 
-    it('lets the creator decide when they hold the SelfApprovalExemptRole role', async () => {
+    it('lets the creator decide when they hold the role a single-name SelfApprovalExemptRole names (the original format)', async () => {
         db.task.CreatedByPersonID = PERSON_ID;
         db.settings.set('SelfApprovalExemptRole', 'Exempt Approver');
-        db.userRoles = [{ ID: 'ur-1' }];
+        db.userRoles = [{ Role: 'Exempt Approver' }];
         const result = await decision().ValidateAsync();
         expect(result.Success).toBe(true);
-        expect(filtersSeen.some((f) => f.startsWith("MJ: Roles: Name = 'Exempt Approver'"))).toBe(true);
+        expect(filtersSeen.some((f) => f.startsWith(`MJ: User Roles: UserID = '${USER_ID}'`))).toBe(true);
     });
 
-    it('exempts nobody when the named exempt role does not exist', async () => {
+    it('still refuses the creator under a single-name setting when they do not hold that role', async () => {
         db.task.CreatedByPersonID = PERSON_ID;
-        db.settings.set('SelfApprovalExemptRole', 'No Such Role');
-        db.roles = [];
+        db.settings.set('SelfApprovalExemptRole', 'Exempt Approver');
+        db.userRoles = [{ Role: 'CFO' }];
         const result = await decision().ValidateAsync();
         expect(result.Success).toBe(false);
+        expect(result.Errors[0].Message).toMatch(/Nobody may approve their own request/);
+        expect(LogError).not.toHaveBeenCalled();
+    });
+
+    it('lets the creator decide when the list includes a role they hold, matched trimmed and case-insensitively', async () => {
+        db.task.CreatedByPersonID = PERSON_ID;
+        db.settings.set('SelfApprovalExemptRole', 'Exempt Approver, cfo ');
+        db.userRoles = [{ Role: 'CFO' }];
+        const result = await decision().ValidateAsync();
+        expect(result.Success).toBe(true);
+    });
+
+    it('refuses the creator when the list does not include any role they hold', async () => {
+        db.task.CreatedByPersonID = PERSON_ID;
+        db.settings.set('SelfApprovalExemptRole', 'Exempt Approver,CFO');
+        db.userRoles = [{ Role: 'Finance' }];
+        const result = await decision().ValidateAsync();
+        expect(result.Success).toBe(false);
+        expect(result.Errors[0].Message).toMatch(/Nobody may approve their own request/);
+    });
+
+    it('exempts nobody when the named exempt role does not exist, and logs it', async () => {
+        db.task.CreatedByPersonID = PERSON_ID;
+        db.settings.set('SelfApprovalExemptRole', 'No Such Role');
+        const result = await decision().ValidateAsync();
+        expect(result.Success).toBe(false);
+        expect(vi.mocked(LogError).mock.calls.some(([m]) => String(m).includes("'No Such Role', which is not a role"))).toBe(true);
+    });
+
+    it('reads no roles when a non-creator decides', async () => {
+        db.settings.set('SelfApprovalExemptRole', 'Exempt Approver');
+        const result = await decision().ValidateAsync();
+        expect(result.Success).toBe(true);
+        expect(filtersSeen.some((f) => f.startsWith('MJ: User Roles') || f.startsWith('MJ: Roles'))).toBe(false);
     });
 
     it('refuses someone who is not assigned', async () => {

@@ -133,25 +133,31 @@ export class TaskDecisionEntityServer extends mjBizAppsTasksTaskDecisionEntity {
         return res.Results?.[0]?.IsApproval === true;
     }
 
-    /** Whether the user holds the role `SelfApprovalExemptRole` names. A named role that does not exist exempts nobody. */
+    /**
+     * Whether the user holds one of the roles `SelfApprovalExemptRole` lists, matched trimmed and
+     * case-insensitively in code (as `ApprovalReassignRoles` is), so the database collation cannot
+     * change the answer. A listed name that is not a role exempts nobody and is logged.
+     */
     private async holdsExemptRole(rv: RunView, provider: IMetadataProvider, user: UserInfo): Promise<boolean> {
-        const roleName = TasksSettings.SelfApprovalExemptRole(provider);
-        if (!roleName) return false;
-        const roleRes = await rv.RunView<{ ID: string }>(
-            { EntityName: ROLES_ENTITY, ExtraFilter: `Name = '${roleName.replace(/'/g, "''")}'`, Fields: ['ID'], MaxRows: 1, ResultType: 'simple', BypassCache: true },
-            user,
-        );
-        if (!roleRes?.Success) throw new Error(roleRes?.ErrorMessage ?? 'the role lookup returned no result');
-        const role = roleRes.Results?.[0];
-        if (!role) {
-            LogError(`TaskDecisionEntityServer: the SelfApprovalExemptRole setting names '${roleName}', which is not a role; nobody is exempt.`);
-            return false;
+        const exempt = TasksSettings.SelfApprovalExemptRoles(provider);
+        if (exempt.length === 0) return false;
+        const held = await this.roleNames(rv, USER_ROLES_ENTITY, `UserID = ${guid(user.ID, 'UserID')}`, 'Role', user);
+        if (exempt.some((role) => held.has(role.toLowerCase()))) return true;
+        const known = await this.roleNames(rv, ROLES_ENTITY, '', 'Name', user);
+        const unknown = exempt.filter((role) => !known.has(role.toLowerCase()));
+        if (unknown.length > 0) {
+            LogError(`TaskDecisionEntityServer: the SelfApprovalExemptRole setting names ${unknown.map((r) => `'${r}'`).join(', ')}, which ${unknown.length === 1 ? 'is not a role' : 'are not roles'}; nobody is exempt through ${unknown.length === 1 ? 'it' : 'them'}.`);
         }
-        const heldRes = await rv.RunView<{ ID: string }>(
-            { EntityName: USER_ROLES_ENTITY, ExtraFilter: `UserID = ${guid(user.ID, 'UserID')} AND RoleID = ${guid(role.ID, 'RoleID')}`, Fields: ['ID'], MaxRows: 1, ResultType: 'simple', BypassCache: true },
+        return false;
+    }
+
+    /** One name column of a role view, trimmed and lower-cased, read fresh so a role just granted counts. */
+    private async roleNames(rv: RunView, entityName: string, filter: string, field: 'Role' | 'Name', user: UserInfo): Promise<Set<string>> {
+        const res = await rv.RunView<Record<typeof field, string | null>>(
+            { EntityName: entityName, ExtraFilter: filter, Fields: [field], ResultType: 'simple', BypassCache: true },
             user,
         );
-        if (!heldRes?.Success) throw new Error(heldRes?.ErrorMessage ?? 'the user role lookup returned no result');
-        return (heldRes.Results?.length ?? 0) > 0;
+        if (!res?.Success) throw new Error(res?.ErrorMessage ?? `the ${entityName} lookup returned no result`);
+        return new Set((res.Results ?? []).map((r) => String(r[field] ?? '').trim().toLowerCase()));
     }
 }
