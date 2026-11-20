@@ -34,6 +34,7 @@ import {
     TaskCommandPaletteComponent,
     type TaskCommandPaletteItem,
 } from '@mj-biz-apps/tasks-ng-widgets';
+import type { TaskDueDateFilterKey } from '@mj-biz-apps/tasks-core';
 import { ResolveCurrentPersonID } from '../current-person';
 import { OpenTaskRecord } from '../open-task-record';
 import { TaskDetailPanelComponent } from '../components/task-detail-panel/task-detail-panel.component';
@@ -216,6 +217,10 @@ const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
                                 [StatusFilter]="StatusFilterValue"
                                 [PriorityFilter]="PriorityFilterValue"
                                 [TypeIDFilter]="TypeFilterValue"
+                                [AssigneeFilter]="AssigneeFilterValue"
+                                [DueDateFilter]="DueDateFilterValue"
+                                [OrganizationIDFilter]="OrganizationFilterValue"
+                                [CurrentPersonID]="CurrentPersonID"
                                 [PendingSuggestionsOnly]="OnlyPendingSuggestions"
                                 (PendingSuggestionsOnlyChange)="OnPendingSuggestionsChanged($event)"
                                 [HideToolbar]="true"
@@ -224,6 +229,7 @@ const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
                                 (AfterTaskSelected)="OpenPanel('detail', $event.ID)"
                                 (TaskDoubleClicked)="OpenFullRecord($event.ID)"
                                 (AfterTaskCreated)="LoadKPIs()"
+                                (AfterStatusChange)="LoadKPIs()"
                                 (CreateTask)="OpenPanel('edit', null)">
                             </bizapps-task-list>
                         }
@@ -235,6 +241,10 @@ const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
                                 [SearchText]="SearchText"
                                 [PriorityFilter]="PriorityFilterValue"
                                 [TypeIDFilter]="TypeFilterValue"
+                                [AssigneeFilter]="AssigneeFilterValue"
+                                [DueDateFilter]="DueDateFilterValue"
+                                [OrganizationIDFilter]="OrganizationFilterValue"
+                                [CurrentPersonID]="CurrentPersonID"
                                 [PendingSuggestionsOnly]="OnlyPendingSuggestions"
                                 (TaskClicked)="OpenPanel('detail', $event)"
                                 (TaskDoubleClicked)="OpenFullRecord($event)"
@@ -249,6 +259,10 @@ const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
                                 [SearchText]="SearchText"
                                 [PriorityFilter]="PriorityFilterValue"
                                 [TypeIDFilter]="TypeFilterValue"
+                                [AssigneeFilter]="AssigneeFilterValue"
+                                [DueDateFilter]="DueDateFilterValue"
+                                [OrganizationIDFilter]="OrganizationFilterValue"
+                                [CurrentPersonID]="CurrentPersonID"
                                 [Height]="'calc(100vh - 250px)'"
                                 (TaskClicked)="OpenPanel('detail', $event)"
                                 (TaskDoubleClicked)="OpenFullRecord($event)">
@@ -281,6 +295,7 @@ const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
                 <bizapps-task-edit-panel
                     [TaskID]="SelectedTaskID"
                     [DefaultCategoryID]="SelectedCategoryID"
+                    [DefaultOrganizationID]="ActiveOrganizationDefaultID"
                     (Saved)="OnTaskSaved($event)"
                     (Cancel)="ClosePanel()">
                 </bizapps-task-edit-panel>
@@ -288,6 +303,7 @@ const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
             @if (PanelMode === 'template') {
                 <bizapps-task-template-wizard
                     [DefaultCategoryID]="SelectedCategoryID"
+                    [DefaultOrganizationID]="ActiveOrganizationDefaultID"
                     (Created)="OnTemplateCreated($event)"
                     (Cancelled)="ClosePanel()">
                 </bizapps-task-template-wizard>
@@ -391,7 +407,16 @@ export class TasksDashboardPageComponent implements OnInit {
     public Categories: TaskCategoryOption[] = [];
     public CategoryNavSections: MJLeftNavSection[] = [];
     public TaskTypes: { ID: string; Name: string }[] = [];
-    public FilterValues: Record<string, unknown> = { status: null, priority: null, typeId: null };
+    public PeopleOptions: { ID: string; Name: string }[] = [];
+    public OrganizationOptions: { ID: string; Name: string; LinkedCompanyID: string | null }[] = [];
+    public FilterValues: Record<string, unknown> = {
+        assignee: null,
+        dueDate: null,
+        organizationId: null,
+        status: null,
+        priority: null,
+        typeId: null,
+    };
     public FilterFields: FilterFieldConfig[] = [];
     public KPIs: TaskKPIs = {
         TotalActive: 0,
@@ -435,8 +460,28 @@ export class TasksDashboardPageComponent implements OnInit {
         return (this.FilterValues['typeId'] as string | null) ?? null;
     }
 
+    public get AssigneeFilterValue(): string | null {
+        return (this.FilterValues['assignee'] as string | null) ?? null;
+    }
+
+    public get DueDateFilterValue(): TaskDueDateFilterKey | null {
+        return (this.FilterValues['dueDate'] as TaskDueDateFilterKey | null) ?? null;
+    }
+
+    public get OrganizationFilterValue(): string | null {
+        return (this.FilterValues['organizationId'] as string | null) ?? null;
+    }
+
+    public get ActiveOrganizationDefaultID(): string | null {
+        const val = this.OrganizationFilterValue;
+        return val && val !== '__none__' ? val : null;
+    }
+
     public get ActiveFilterCount(): number {
         let count = 0;
+        if (this.FilterValues['assignee']) count++;
+        if (this.FilterValues['dueDate']) count++;
+        if (this.FilterValues['organizationId']) count++;
         if (this.FilterValues['status']) count++;
         if (this.FilterValues['priority']) count++;
         if (this.FilterValues['typeId']) count++;
@@ -544,7 +589,14 @@ export class TasksDashboardPageComponent implements OnInit {
     }
 
     public ResetFilters(): void {
-        this.FilterValues = { status: null, priority: null, typeId: null };
+        this.FilterValues = {
+            assignee: null,
+            dueDate: null,
+            organizationId: null,
+            status: null,
+            priority: null,
+            typeId: null,
+        };
         this.SearchText = '';
         this.OnPendingSuggestionsChanged(false);
         this.cdr.markForCheck();
@@ -553,12 +605,13 @@ export class TasksDashboardPageComponent implements OnInit {
     public async RefreshAll(): Promise<void> {
         await Promise.all([this.LoadCategoriesAndTypes(), this.LoadKPIs()]);
         this.buildCategoryNav();
+        this.buildFilterFields();
         this.RefreshActiveView();
     }
 
     private async LoadCategoriesAndTypes(): Promise<void> {
         const rv = this.createRunView();
-        const [catsRes, typesRes] = await Promise.all([
+        const [catsRes, typesRes, peopleRes, orgsRes] = await Promise.all([
             rv.RunView<TaskCategoryOption>({
                 EntityName: 'MJ_BizApps_Tasks: Task Categories',
                 ExtraFilter: 'IsActive = 1',
@@ -571,9 +624,32 @@ export class TasksDashboardPageComponent implements OnInit {
                 OrderBy: 'Name ASC',
                 ResultType: 'simple',
             }),
+            rv.RunView<{ ID: string; FirstName: string | null; LastName: string | null }>({
+                EntityName: 'MJ_BizApps_Common: People',
+                Fields: ['ID', 'FirstName', 'LastName'],
+                OrderBy: 'FirstName ASC, LastName ASC',
+                ResultType: 'simple',
+            }),
+            rv.RunView<{ ID: string; Name: string; LinkedCompanyID: string | null }>({
+                EntityName: 'MJ_BizApps_Common: Organizations',
+                ExtraFilter: "Status = 'Active'",
+                Fields: ['ID', 'Name', 'LinkedCompanyID'],
+                OrderBy: 'Name ASC',
+                ResultType: 'simple',
+            }),
         ]);
         this.Categories = catsRes?.Results ?? [];
         this.TaskTypes = typesRes?.Results ?? [];
+        this.PeopleOptions = (peopleRes?.Results ?? []).map((p) => ({
+            ID: p.ID,
+            Name: `${p.FirstName ?? ''} ${p.LastName ?? ''}`.trim(),
+        }));
+        this.OrganizationOptions = [...(orgsRes?.Results ?? [])].sort((a, b) => {
+            if (Boolean(a.LinkedCompanyID) !== Boolean(b.LinkedCompanyID)) {
+                return a.LinkedCompanyID ? -1 : 1;
+            }
+            return a.Name.localeCompare(b.Name);
+        });
     }
 
     public async LoadKPIs(): Promise<void> {
@@ -675,7 +751,55 @@ export class TasksDashboardPageComponent implements OnInit {
     }
 
     private buildFilterFields(): void {
+        const mjRoles = (this.ProviderToUse.Roles ?? []).map((r) => ({
+            text: `${r.Name} (Role)`,
+            value: `role:${r.ID}`,
+        }));
         this.FilterFields = [
+            {
+                key: 'assignee',
+                type: 'dropdown',
+                label: 'Assignee',
+                icon: 'fa-solid fa-user',
+                placeholder: 'All assignees',
+                options: [
+                    { text: 'All assignees', value: null },
+                    { text: 'Assigned to Me', value: '__me__' },
+                    { text: 'Unassigned', value: '__unassigned__' },
+                    ...this.PeopleOptions.map((p) => ({ text: p.Name, value: `person:${p.ID}` })),
+                    ...mjRoles,
+                ],
+            },
+            {
+                key: 'dueDate',
+                type: 'dropdown',
+                label: 'Due Date',
+                icon: 'fa-regular fa-calendar',
+                placeholder: 'Any due date',
+                options: [
+                    { text: 'Any due date', value: null },
+                    { text: 'Overdue', value: 'overdue' },
+                    { text: 'Due Today', value: 'today' },
+                    { text: 'Next 7 Days', value: 'week' },
+                    { text: 'Next 30 Days', value: 'month' },
+                    { text: 'No Due Date', value: 'none' },
+                ],
+            },
+            {
+                key: 'organizationId',
+                type: 'dropdown',
+                label: 'Organization / Company',
+                icon: 'fa-solid fa-building',
+                placeholder: 'All organizations',
+                options: [
+                    { text: 'All organizations', value: null },
+                    { text: 'No organization', value: '__none__' },
+                    ...this.OrganizationOptions.map((o) => ({
+                        text: o.LinkedCompanyID ? `★ ${o.Name} (Company)` : o.Name,
+                        value: o.ID,
+                    })),
+                ],
+            },
             {
                 key: 'status',
                 type: 'dropdown',

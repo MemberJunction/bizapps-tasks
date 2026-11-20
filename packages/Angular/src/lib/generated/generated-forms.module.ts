@@ -61,6 +61,7 @@ import { mjBizAppsTasksWorkReportItemFormComponent } from "./Entities/mjBizAppsT
 
 @NgModule({
 declarations: [
+    mjBizAppsTasksMeetingSeriesAttendeeFormComponent,
     mjBizAppsTasksTaskDependencyFormComponent
 ],
 imports: [
@@ -79,6 +80,7 @@ export class GeneratedForms_SubModule_0 { }
 
 @NgModule({
 declarations: [
+    mjBizAppsTasksMeetingTypeFormComponent,
     mjBizAppsTasksTaskDecisionOutcomeFormComponent,
     mjBizAppsTasksTaskTypeStatusFormComponent,
     mjBizAppsTasksTimesheetScheduleFormComponent,
@@ -195,6 +197,24 @@ export class GeneratedForms_SubModule_8 { }
 
 @NgModule({
 declarations: [
+    mjBizAppsTasksMeetingFormComponent
+],
+imports: [
+    CommonModule,
+    FormsModule,
+    BaseFormsModule,
+    EntityViewerModule,
+    LinkDirectivesModule
+],
+exports: [
+]
+})
+export class GeneratedForms_SubModule_9 { }
+    
+
+
+@NgModule({
+declarations: [
     mjBizAppsTasksTaskFormComponent,
     mjBizAppsTasksTaskRoleFormComponent,
     mjBizAppsTasksTaskTagLinkFormComponent,
@@ -211,6 +231,24 @@ exports: [
 ]
 })
 export class GeneratedForms_SubModule_11 { }
+    
+
+
+@NgModule({
+declarations: [
+    mjBizAppsTasksMeetingNoteFormComponent
+],
+imports: [
+    CommonModule,
+    FormsModule,
+    BaseFormsModule,
+    EntityViewerModule,
+    LinkDirectivesModule
+],
+exports: [
+]
+})
+export class GeneratedForms_SubModule_13 { }
     
 
 
@@ -271,6 +309,7 @@ export class GeneratedForms_SubModule_18 { }
 
 @NgModule({
 declarations: [
+    mjBizAppsTasksMeetingAttendeeFormComponent,
     mjBizAppsTasksTaskTagFormComponent
 ],
 imports: [
@@ -289,6 +328,7 @@ export class GeneratedForms_SubModule_19 { }
 
 @NgModule({
 declarations: [
+    mjBizAppsTasksMeetingAgendaItemTypeFormComponent,
     mjBizAppsTasksTaskTimerFormComponent
 ],
 imports: [
@@ -361,6 +401,7 @@ export class GeneratedForms_SubModule_24 { }
 
 @NgModule({
 declarations: [
+    mjBizAppsTasksMeetingLinkFormComponent,
     mjBizAppsTasksTaskTemplateFormComponent
 ],
 imports: [
@@ -397,7 +438,9 @@ export class GeneratedForms_SubModule_26 { }
 
 @NgModule({
 declarations: [
-    mjBizAppsTasksTaskTemplateItemFormComponent
+    mjBizAppsTasksMeetingAgendaItemFormComponent,
+    mjBizAppsTasksTaskTemplateItemFormComponent,
+    mjBizAppsTasksVideoProviderFormComponent
 ],
 imports: [
     CommonModule,
@@ -433,16 +476,7 @@ export class GeneratedForms_SubModule_29 { }
 
 @NgModule({
 declarations: [
-    mjBizAppsTasksMeetingAgendaItemFormComponent,
-    mjBizAppsTasksMeetingAgendaItemTypeFormComponent,
-    mjBizAppsTasksMeetingAttendeeFormComponent,
-    mjBizAppsTasksMeetingFormComponent,
-    mjBizAppsTasksMeetingLinkFormComponent,
-    mjBizAppsTasksMeetingNoteFormComponent,
-    mjBizAppsTasksMeetingSeriesAttendeeFormComponent,
-    mjBizAppsTasksMeetingSeriesFormComponent,
-    mjBizAppsTasksMeetingTypeFormComponent,
-    mjBizAppsTasksVideoProviderFormComponent
+    mjBizAppsTasksMeetingSeriesFormComponent
 ],
 imports: [
     CommonModule,
@@ -469,7 +503,9 @@ imports: [
     GeneratedForms_SubModule_4,
     GeneratedForms_SubModule_6,
     GeneratedForms_SubModule_8,
+    GeneratedForms_SubModule_9,
     GeneratedForms_SubModule_11,
+    GeneratedForms_SubModule_13,
     GeneratedForms_SubModule_14,
     GeneratedForms_SubModule_15,
     GeneratedForms_SubModule_18,

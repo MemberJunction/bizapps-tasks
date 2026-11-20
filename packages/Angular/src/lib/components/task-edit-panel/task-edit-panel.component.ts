@@ -66,6 +66,12 @@ interface TagOption {
     ColorCode: string | null;
 }
 
+interface OrgOption {
+    ID: string;
+    Name: string;
+    LinkedCompanyID: string | null;
+}
+
 export interface TaskEditFormData {
     Name: string;
     Description: string;
@@ -81,6 +87,7 @@ export interface TaskEditFormData {
     TypeID: string;
     TaskTypeStatusID: string | null;
     CategoryID: string | null;
+    OrganizationID: string | null;
     ParentID: string | null;
     BaselineValue: number | null;
     TargetValue: number | null;
@@ -196,6 +203,17 @@ export class BeforeTaskSaveEvent {
                                     <option value="Cancelled">Cancelled</option>
                                 </select>
                             </div>
+                            @if (organizations.length > 0) {
+                                <div class="mjt-ep-field mjt-span-2">
+                                    <label>Organization / Company</label>
+                                    <select name="organization" class="mjt-ep-input" [(ngModel)]="form.OrganizationID" [disabled]="ReadOnly">
+                                        <option [ngValue]="null">None (Global / Unscoped)</option>
+                                        @for (org of organizations; track org.ID) {
+                                            <option [value]="org.ID">{{ org.LinkedCompanyID ? '★ ' + org.Name + ' (Company)' : org.Name }}</option>
+                                        }
+                                    </select>
+                                </div>
+                            }
                         </div>
 
                         <!-- 4. Connected Business Records (Task Links) -->
@@ -866,6 +884,7 @@ export class BeforeTaskSaveEvent {
 export class TaskEditPanelComponent implements OnChanges {
     @Input() TaskID: string | null = null;
     @Input() DefaultCategoryID: string | null = null;
+    @Input() DefaultOrganizationID: string | null = null;
     @Input() DefaultTypeID: string | null = null;
     @Input() DefaultParentID: string | null = null;
     @Input() AssigneeScope: string | string[] | null = null;
@@ -885,6 +904,7 @@ export class TaskEditPanelComponent implements OnChanges {
     public taskTypes: TaskTypeOption[] = [];
     public allTypeStatuses: TaskWidgetTypeStatus[] = [];
     public categories: { ID: string; Name: string }[] = [];
+    public organizations: OrgOption[] = [];
     public people: PersonRow[] = [];
     public mjRoles: { ID: string; Name: string }[] = [];
     public roles: { ID: string; Name: string }[] = [];
@@ -938,7 +958,13 @@ export class TaskEditPanelComponent implements OnChanges {
     }
 
     public ngOnChanges(changes: SimpleChanges): void {
-        if (changes['TaskID'] || changes['DefaultCategoryID'] || changes['DefaultTypeID'] || changes['DefaultParentID']) {
+        if (
+            changes['TaskID'] ||
+            changes['DefaultCategoryID'] ||
+            changes['DefaultOrganizationID'] ||
+            changes['DefaultTypeID'] ||
+            changes['DefaultParentID']
+        ) {
             void this.init();
         }
     }
@@ -959,6 +985,7 @@ export class TaskEditPanelComponent implements OnChanges {
             TypeID: this.DefaultTypeID ?? '',
             TaskTypeStatusID: null,
             CategoryID: this.DefaultCategoryID ?? null,
+            OrganizationID: this.DefaultOrganizationID ?? null,
             ParentID: this.DefaultParentID ?? null,
             BaselineValue: null,
             TargetValue: null,
@@ -1041,7 +1068,7 @@ export class TaskEditPanelComponent implements OnChanges {
 
     private async loadLookups(): Promise<void> {
         const rv = new RunView();
-        const [types, typeStatuses, cats, ppl, rls, tasks, tags] = await Promise.all([
+        const [types, typeStatuses, cats, orgs, ppl, rls, tasks, tags] = await Promise.all([
             rv.RunView<TaskTypeOption>({
                 EntityName: 'MJ_BizApps_Tasks: Task Types',
                 ExtraFilter: 'IsActive = 1',
@@ -1058,6 +1085,13 @@ export class TaskEditPanelComponent implements OnChanges {
                 EntityName: 'MJ_BizApps_Tasks: Task Categories',
                 ExtraFilter: 'IsActive = 1',
                 OrderBy: 'Sequence ASC',
+                ResultType: 'simple',
+            }),
+            new RunView().RunView<OrgOption>({
+                EntityName: 'MJ_BizApps_Common: Organizations',
+                ExtraFilter: "Status = 'Active'",
+                Fields: ['ID', 'Name', 'LinkedCompanyID'],
+                OrderBy: 'Name ASC',
                 ResultType: 'simple',
             }),
             new RunView().RunView<PersonRow>({
@@ -1096,6 +1130,12 @@ export class TaskEditPanelComponent implements OnChanges {
         });
         this.allTypeStatuses = typeStatuses?.Results ?? [];
         this.categories = cats?.Results ?? [];
+        this.organizations = [...(orgs?.Results ?? [])].sort((a, b) => {
+            if (Boolean(a.LinkedCompanyID) !== Boolean(b.LinkedCompanyID)) {
+                return a.LinkedCompanyID ? -1 : 1;
+            }
+            return a.Name.localeCompare(b.Name);
+        });
         this.people = ppl?.Results ?? [];
         this.roles = rls?.Results ?? [];
         this.mjRoles = (Metadata.Provider.Roles ?? []).map((r) => ({ ID: r.ID, Name: r.Name }));
@@ -1134,6 +1174,7 @@ export class TaskEditPanelComponent implements OnChanges {
                 TypeID: entity.TypeID,
                 TaskTypeStatusID: entity.TaskTypeStatusID,
                 CategoryID: entity.CategoryID,
+                OrganizationID: entity.OrganizationID,
                 ParentID: entity.ParentID,
                 BaselineValue: entity.BaselineValue,
                 TargetValue: entity.TargetValue,
@@ -1347,6 +1388,7 @@ export class TaskEditPanelComponent implements OnChanges {
             if (this.form.TypeID) entity.TypeID = this.form.TypeID;
             entity.TaskTypeStatusID = this.form.TaskTypeStatusID;
             entity.CategoryID = this.form.CategoryID;
+            entity.OrganizationID = this.form.OrganizationID;
 
             if (this.ActiveArchetype === 'key-result') {
                 entity.BaselineValue = this.form.BaselineValue;

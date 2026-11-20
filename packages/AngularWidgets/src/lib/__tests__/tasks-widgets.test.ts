@@ -4,12 +4,14 @@ import {
     ConnectedTasksWidgetComponent,
     TaskAdaptiveSpotlightComponent,
     TaskApprovalCardComponent,
+    TaskBulkActionDockComponent,
     TaskCommandPaletteComponent,
     TaskCompletionRingComponent,
     TaskOkrCheckInComponent,
     TaskQuickCaptureComponent,
     TaskUrgencyStripComponent,
     TaskWorkflowStepperComponent,
+    type TaskBulkActionRequest,
     type TaskWidgetItem,
 } from '../tasks/index';
 
@@ -190,5 +192,68 @@ describe('tasks-ng-widgets L1 contracts', () => {
         palette.select(palette.FilteredItems[0]);
         expect(selected).toEqual(['c2']);
         expect(palette.Query).toBe('');
+    });
+
+    it('TaskBulkActionDockComponent emits typed patches for reassign, redate shift, organization, and more fields', () => {
+        const dock = new TaskBulkActionDockComponent();
+        dock.SelectedCount = 3;
+        const events: TaskBulkActionRequest[] = [];
+        dock.ActionRequested.subscribe((e) => events.push(e));
+
+        // 1. Reassign to MJ Role (replace)
+        dock.togglePopover('reassign');
+        dock.assigneeMode = 'replace';
+        dock.assigneeChoice = 'role:role-finance';
+        dock.applyReassign();
+        expect(events[0]).toEqual({
+            Kind: 'apply',
+            Patch: {
+                AssigneeMode: 'replace',
+                AssigneeEntityName: 'MJ: Roles',
+                AssigneeRecordID: 'role-finance',
+                AssigneeRoleID: null,
+            },
+        });
+        expect(dock.activePopover).toBe('none');
+
+        // 2. Redate shift +3d
+        dock.togglePopover('redate');
+        dock.dueDateMode = 'shift';
+        dock.shiftDays = 3;
+        dock.applyRedate();
+        expect(events[1]).toEqual({
+            Kind: 'apply',
+            Patch: { DueDateMode: 'shift', ShiftDays: 3 },
+        });
+
+        // 3. Organization set
+        dock.togglePopover('org');
+        dock.orgMode = 'set';
+        dock.orgID = 'org-us';
+        dock.applyOrganization();
+        expect(events[2]).toEqual({
+            Kind: 'apply',
+            Patch: { OrganizationMode: 'set', OrganizationID: 'org-us' },
+        });
+
+        // 4. More fields combined patch
+        dock.togglePopover('more');
+        dock.morePriority = 'Critical';
+        dock.moreCategoryChoice = 'cat-close';
+        dock.moreStartDate = '2026-12-01';
+        dock.moreAddTagID = 'tag-q4';
+        expect(dock.hasMoreChanges).toBe(true);
+        dock.applyMoreFields();
+        expect(events[3]).toEqual({
+            Kind: 'apply',
+            Patch: {
+                Priority: 'Critical',
+                CategoryMode: 'set',
+                CategoryID: 'cat-close',
+                StartDateMode: 'set',
+                StartedAt: '2026-12-01',
+                AddTagID: 'tag-q4',
+            },
+        });
     });
 });

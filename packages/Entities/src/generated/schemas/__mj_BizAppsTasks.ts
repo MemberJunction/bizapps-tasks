@@ -382,7 +382,7 @@ export const mjBizAppsTasksMeetingLinkSchema = z.object({
         * * Field Name: Series
         * * Display Name: Series
         * * SQL Data Type: nvarchar(255)`),
-    Entity: z.string().describe(`
+    Entity: z.string().nullable().describe(`
         * * Field Name: Entity
         * * Display Name: Entity
         * * SQL Data Type: nvarchar(255)`),
@@ -1083,6 +1083,68 @@ export const mjBizAppsTasksTaskActivitySchema = z.object({
 export type mjBizAppsTasksTaskActivityEntityType = z.infer<typeof mjBizAppsTasksTaskActivitySchema>;
 
 /**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Task Agent Runs
+ */
+export const mjBizAppsTasksTaskAgentRunSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key for the task agent run link.`),
+    TaskID: z.string().describe(`
+        * * Field Name: TaskID
+        * * Display Name: Task ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
+        * * Description: The task the AI agent run contributed to.`),
+    AIAgentRunID: z.string().describe(`
+        * * Field Name: AIAgentRunID
+        * * Display Name: AI Agent Run ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: AI Agent Runs (vwAIAgentRuns.ID)
+        * * Description: The MemberJunction AI Agent Run linked to the task.`),
+    Role: z.union([z.literal('Assisted'), z.literal('Executed'), z.literal('Planned'), z.literal('Reviewed'), z.literal('Triaged')]).describe(`
+        * * Field Name: Role
+        * * Display Name: Role
+        * * SQL Data Type: nvarchar(30)
+        * * Default Value: Executed
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Assisted
+    *   * Executed
+    *   * Planned
+    *   * Reviewed
+    *   * Triaged
+        * * Description: How the agent run contributed to the task: Executed, Assisted, Reviewed, Planned, or Triaged.`),
+    Notes: z.string().nullable().describe(`
+        * * Field Name: Notes
+        * * Display Name: Notes
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: Optional notes describing what the agent run did for the task.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Task: z.string().describe(`
+        * * Field Name: Task
+        * * Display Name: Task
+        * * SQL Data Type: nvarchar(255)`),
+    AIAgentRun: z.string().nullable().describe(`
+        * * Field Name: AIAgentRun
+        * * Display Name: AI Agent Run
+        * * SQL Data Type: nvarchar(255)`),
+});
+
+export type mjBizAppsTasksTaskAgentRunEntityType = z.infer<typeof mjBizAppsTasksTaskAgentRunSchema>;
+
+/**
  * zod schema definition for the entity MJ_BizApps_Tasks: Task Assignments
  */
 export const mjBizAppsTasksTaskAssignmentSchema = z.object({
@@ -1408,11 +1470,11 @@ export const mjBizAppsTasksTaskCommentSchema = z.object({
         * * Display Name: Updated At
         * * SQL Data Type: datetimeoffset
         * * Default Value: getutcdate()`),
-    Task: z.string().describe(`
+    Task: z.string().nullable().describe(`
         * * Field Name: Task
         * * Display Name: Task
         * * SQL Data Type: nvarchar(255)`),
-    Person: z.string().describe(`
+    Person: z.string().nullable().describe(`
         * * Field Name: Person
         * * Display Name: Person
         * * SQL Data Type: nvarchar(250)`),
@@ -1549,11 +1611,11 @@ export const mjBizAppsTasksTaskDecisionSchema = z.object({
         * * Display Name: Updated At
         * * SQL Data Type: datetimeoffset
         * * Default Value: getutcdate()`),
-    Task: z.string().describe(`
+    Task: z.string().nullable().describe(`
         * * Field Name: Task
         * * Display Name: Task
         * * SQL Data Type: nvarchar(255)`),
-    Outcome: z.string().describe(`
+    Outcome: z.string().nullable().describe(`
         * * Field Name: Outcome
         * * Display Name: Outcome
         * * SQL Data Type: nvarchar(100)`),
@@ -1654,11 +1716,11 @@ export const mjBizAppsTasksTaskLinkSchema = z.object({
         * * Display Name: Updated At
         * * SQL Data Type: datetimeoffset
         * * Default Value: getutcdate()`),
-    Task: z.string().describe(`
+    Task: z.string().nullable().describe(`
         * * Field Name: Task
         * * Display Name: Task
         * * SQL Data Type: nvarchar(255)`),
-    Entity: z.string().describe(`
+    Entity: z.string().nullable().describe(`
         * * Field Name: Entity
         * * Display Name: Entity
         * * SQL Data Type: nvarchar(255)`),
@@ -1850,11 +1912,11 @@ export const mjBizAppsTasksTaskTagLinkSchema = z.object({
         * * Display Name: Updated At
         * * SQL Data Type: datetimeoffset
         * * Default Value: getutcdate()`),
-    Task: z.string().describe(`
+    Task: z.string().nullable().describe(`
         * * Field Name: Task
         * * Display Name: Task
         * * SQL Data Type: nvarchar(255)`),
-    Tag: z.string().describe(`
+    Tag: z.string().nullable().describe(`
         * * Field Name: Tag
         * * Display Name: Tag
         * * SQL Data Type: nvarchar(100)`),
@@ -1978,11 +2040,11 @@ export const mjBizAppsTasksTaskTemplateItemRoleSchema = z.object({
         * * Display Name: Updated At
         * * SQL Data Type: datetimeoffset
         * * Default Value: getutcdate()`),
-    Item: z.string().describe(`
+    Item: z.string().nullable().describe(`
         * * Field Name: Item
         * * Display Name: Item
         * * SQL Data Type: nvarchar(255)`),
-    Role: z.string().describe(`
+    Role: z.string().nullable().describe(`
         * * Field Name: Role
         * * Display Name: Role
         * * SQL Data Type: nvarchar(100)`),
@@ -2146,6 +2208,218 @@ export const mjBizAppsTasksTaskTemplateSchema = z.object({
 });
 
 export type mjBizAppsTasksTaskTemplateEntityType = z.infer<typeof mjBizAppsTasksTaskTemplateSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Task Time Entries
+ */
+export const mjBizAppsTasksTaskTimeEntrySchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key for the task time entry.`),
+    TaskID: z.string().describe(`
+        * * Field Name: TaskID
+        * * Display Name: Task ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
+        * * Description: The task this time entry is logged against.`),
+    PersonID: z.string().describe(`
+        * * Field Name: PersonID
+        * * Display Name: Person ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: The Person who performed the work.`),
+    WorkDate: z.date().describe(`
+        * * Field Name: WorkDate
+        * * Display Name: Work Date
+        * * SQL Data Type: date
+        * * Description: Business calendar date the work was performed on.`),
+    Minutes: z.number().describe(`
+        * * Field Name: Minutes
+        * * Display Name: Minutes
+        * * SQL Data Type: int
+        * * Description: Duration of work in whole minutes (1 to 1440).`),
+    StartedAt: z.date().nullable().describe(`
+        * * Field Name: StartedAt
+        * * Display Name: Started At
+        * * SQL Data Type: datetimeoffset
+        * * Description: Optional timestamp when the work interval started (populated for timer-backed entries).`),
+    EndedAt: z.date().nullable().describe(`
+        * * Field Name: EndedAt
+        * * Display Name: Ended At
+        * * SQL Data Type: datetimeoffset
+        * * Description: Optional timestamp when the work interval ended (populated for timer-backed entries).`),
+    Notes: z.string().nullable().describe(`
+        * * Field Name: Notes
+        * * Display Name: Notes
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: Narrative description of what was accomplished during this time entry.`),
+    Source: z.union([z.literal('Agent'), z.literal('Imported'), z.literal('Manual'), z.literal('Timer')]).describe(`
+        * * Field Name: Source
+        * * Display Name: Source
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: Manual
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Agent
+    *   * Imported
+    *   * Manual
+    *   * Timer
+        * * Description: How the time entry was created: Manual, Timer, Imported, or Agent.`),
+    IsBillable: z.boolean().describe(`
+        * * Field Name: IsBillable
+        * * Display Name: Is Billable
+        * * SQL Data Type: bit
+        * * Default Value: 0
+        * * Description: Whether this time entry is billable to a client or external party.`),
+    TimesheetID: z.string().nullable().describe(`
+        * * Field Name: TimesheetID
+        * * Display Name: Timesheet ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Timesheets (vwTimesheets.ID)
+        * * Description: Optional Timesheet this time entry has been attached to.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Task: z.string().describe(`
+        * * Field Name: Task
+        * * Display Name: Task
+        * * SQL Data Type: nvarchar(255)`),
+    Person: z.string().describe(`
+        * * Field Name: Person
+        * * Display Name: Person
+        * * SQL Data Type: nvarchar(250)`),
+});
+
+export type mjBizAppsTasksTaskTimeEntryEntityType = z.infer<typeof mjBizAppsTasksTaskTimeEntrySchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Task Time Entry Links
+ */
+export const mjBizAppsTasksTaskTimeEntryLinkSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key for the task time entry link.`),
+    TaskTimeEntryID: z.string().describe(`
+        * * Field Name: TaskTimeEntryID
+        * * Display Name: Task Time Entry ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Task Time Entries (vwTaskTimeEntries.ID)
+        * * Description: The TaskTimeEntry being linked.`),
+    EntityID: z.string().describe(`
+        * * Field Name: EntityID
+        * * Display Name: Entity ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: Entities (vwEntities.ID)
+        * * Description: Target MemberJunction Entity ID for the linked external record.`),
+    RecordID: z.string().describe(`
+        * * Field Name: RecordID
+        * * Display Name: Record ID
+        * * SQL Data Type: nvarchar(450)
+        * * Description: Primary key value of the linked record in EntityID.`),
+    Relationship: z.union([z.literal('Commit'), z.literal('InvoiceLine'), z.literal('JournalEntryLine'), z.literal('PullRequest'), z.literal('Related')]).describe(`
+        * * Field Name: Relationship
+        * * Display Name: Relationship
+        * * SQL Data Type: nvarchar(30)
+        * * Default Value: Related
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Commit
+    *   * InvoiceLine
+    *   * JournalEntryLine
+    *   * PullRequest
+    *   * Related
+        * * Description: Semantic relationship of the linked record to the time entry: InvoiceLine, JournalEntryLine, Commit, PullRequest, or Related.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Entity: z.string().describe(`
+        * * Field Name: Entity
+        * * Display Name: Entity
+        * * SQL Data Type: nvarchar(255)`),
+});
+
+export type mjBizAppsTasksTaskTimeEntryLinkEntityType = z.infer<typeof mjBizAppsTasksTaskTimeEntryLinkSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Task Timers
+ */
+export const mjBizAppsTasksTaskTimerSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key for the running timer.`),
+    TaskID: z.string().describe(`
+        * * Field Name: TaskID
+        * * Display Name: Task ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
+        * * Description: The task currently being timed.`),
+    PersonID: z.string().describe(`
+        * * Field Name: PersonID
+        * * Display Name: Person ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: The Person whose stopwatch is running (unique across TaskTimer).`),
+    StartedAt: z.date().describe(`
+        * * Field Name: StartedAt
+        * * Display Name: Started At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: sysdatetimeoffset()
+        * * Description: Timestamp when the timer was started.`),
+    Notes: z.string().nullable().describe(`
+        * * Field Name: Notes
+        * * Display Name: Notes
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: Draft work notes carried over into the resulting TaskTimeEntry rows when the timer stops.`),
+    IsBillable: z.boolean().describe(`
+        * * Field Name: IsBillable
+        * * Display Name: Is Billable
+        * * SQL Data Type: bit
+        * * Default Value: 0
+        * * Description: Billable flag carried over into the resulting TaskTimeEntry rows when the timer stops.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Task: z.string().describe(`
+        * * Field Name: Task
+        * * Display Name: Task
+        * * SQL Data Type: nvarchar(255)`),
+    Person: z.string().describe(`
+        * * Field Name: Person
+        * * Display Name: Person
+        * * SQL Data Type: nvarchar(250)`),
+});
+
+export type mjBizAppsTasksTaskTimerEntityType = z.infer<typeof mjBizAppsTasksTaskTimerSchema>;
 
 /**
  * zod schema definition for the entity MJ_BizApps_Tasks: Task Type Status
@@ -2360,6 +2634,17 @@ export const mjBizAppsTasksTaskTypeSchema = z.object({
         * * SQL Data Type: bit
         * * Default Value: 0
         * * Description: When true, tasks of this type are approvals: they appear in the approvals inbox of each assignee, who records a decision on them.`),
+    ExtensionEntity: z.string().nullable().describe(`
+        * * Field Name: ExtensionEntity
+        * * Display Name: Extension Entity
+        * * SQL Data Type: nvarchar(255)
+        * * Description: Optional MemberJunction Entity name (e.g. MJ_BizApps_Tasks_GitHub: GitHub Issue Tasks) of the disjoint IS-A child of MJ_BizApps_Tasks: Tasks provisioned for tasks of this type. Read declaratively by Task SubtypeSelector (TypeID.ExtensionEntity).`),
+    RequiresAssigneeDecision: z.boolean().describe(`
+        * * Field Name: RequiresAssigneeDecision
+        * * Display Name: Requires Assignee Decision
+        * * SQL Data Type: bit
+        * * Default Value: 0
+        * * Description: When true on an approval task type, only an assigned approver (and never the task creator unless exempt) may record a decision on tasks of this type, regardless of the global PreventSelfApproval setting.`),
     OnAssignAction: z.string().nullable().describe(`
         * * Field Name: OnAssignAction
         * * Display Name: On Assign Action
@@ -2622,7 +2907,7 @@ export const mjBizAppsTasksTaskSchema = z.object({
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Common: Organizations (vwOrganizations.ID)
         * * Description: Optional owning or scoping Organization for this task (supports both internal legal entities mirrored from MJ: Companies via Organization.LinkedCompanyID and external client/partner organizations). Child sub-tasks inherit their parent OrganizationID by default.`),
-    Type: z.string().nullable().describe(`
+    Type: z.string().describe(`
         * * Field Name: Type
         * * Display Name: Type
         * * SQL Data Type: nvarchar(100)`),
@@ -2666,9 +2951,469 @@ export const mjBizAppsTasksTaskSchema = z.object({
         * * Field Name: CommentsCount
         * * Display Name: Comments Count
         * * SQL Data Type: int`),
+    LoggedMinutes: z.number().describe(`
+        * * Field Name: LoggedMinutes
+        * * Display Name: Logged Minutes
+        * * SQL Data Type: int`),
+    AgentRunCount: z.number().describe(`
+        * * Field Name: AgentRunCount
+        * * Display Name: Agent Run Count
+        * * SQL Data Type: int`),
+    AgentCost: z.number().describe(`
+        * * Field Name: AgentCost
+        * * Display Name: Agent Cost
+        * * SQL Data Type: decimal(38, 8)`),
+    AgentTokens: z.number().describe(`
+        * * Field Name: AgentTokens
+        * * Display Name: Agent Tokens
+        * * SQL Data Type: int`),
 });
 
 export type mjBizAppsTasksTaskEntityType = z.infer<typeof mjBizAppsTasksTaskSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Time Approvers
+ */
+export const mjBizAppsTasksTimeApproverSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key for the time approver rule.`),
+    ApproverPersonID: z.string().describe(`
+        * * Field Name: ApproverPersonID
+        * * Display Name: Approver Person ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: The Person who is granted time approval authority by this rule.`),
+    WorkerPersonID: z.string().nullable().describe(`
+        * * Field Name: WorkerPersonID
+        * * Display Name: Worker Person ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: Optional Worker Person whose time this rule applies to (NULL matches any worker).`),
+    ScopeTaskID: z.string().nullable().describe(`
+        * * Field Name: ScopeTaskID
+        * * Display Name: Scope Task ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
+        * * Description: Optional project/parent Task this rule scopes approval to (NULL matches any task).`),
+    IncludeDescendants: z.boolean().describe(`
+        * * Field Name: IncludeDescendants
+        * * Display Name: Include Descendants
+        * * SQL Data Type: bit
+        * * Default Value: 1
+        * * Description: When ScopeTaskID is set, whether sub-tasks beneath ScopeTaskID also match this rule.`),
+    ScopeEntityID: z.string().nullable().describe(`
+        * * Field Name: ScopeEntityID
+        * * Display Name: Scope Entity ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: Entities (vwEntities.ID)
+        * * Description: Optional MJ Entity ID when scoping approval to tasks linked to an external record via TaskLink.`),
+    ScopeRecordID: z.string().nullable().describe(`
+        * * Field Name: ScopeRecordID
+        * * Display Name: Scope Record ID
+        * * SQL Data Type: nvarchar(450)
+        * * Description: Companion record ID in ScopeEntityID when scoping approval to tasks linked via TaskLink.`),
+    EffectiveFrom: z.date().nullable().describe(`
+        * * Field Name: EffectiveFrom
+        * * Display Name: Effective From
+        * * SQL Data Type: date
+        * * Description: Optional start date from which this approver rule is effective.`),
+    EffectiveTo: z.date().nullable().describe(`
+        * * Field Name: EffectiveTo
+        * * Display Name: Effective To
+        * * SQL Data Type: date
+        * * Description: Optional end date through which this approver rule is effective.`),
+    IsActive: z.boolean().describe(`
+        * * Field Name: IsActive
+        * * Display Name: Is Active
+        * * SQL Data Type: bit
+        * * Default Value: 1
+        * * Description: Whether this approver rule is currently active.`),
+    Notes: z.string().nullable().describe(`
+        * * Field Name: Notes
+        * * Display Name: Notes
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: Optional administrative notes about this approver rule.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    ApproverPerson: z.string().describe(`
+        * * Field Name: ApproverPerson
+        * * Display Name: Approver Person
+        * * SQL Data Type: nvarchar(250)`),
+    WorkerPerson: z.string().nullable().describe(`
+        * * Field Name: WorkerPerson
+        * * Display Name: Worker Person
+        * * SQL Data Type: nvarchar(250)`),
+    ScopeTask: z.string().nullable().describe(`
+        * * Field Name: ScopeTask
+        * * Display Name: Scope Task
+        * * SQL Data Type: nvarchar(255)`),
+    ScopeEntity: z.string().nullable().describe(`
+        * * Field Name: ScopeEntity
+        * * Display Name: Scope Entity
+        * * SQL Data Type: nvarchar(255)`),
+});
+
+export type mjBizAppsTasksTimeApproverEntityType = z.infer<typeof mjBizAppsTasksTimeApproverSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Timesheet Approvals
+ */
+export const mjBizAppsTasksTimesheetApprovalSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key for the timesheet approval part.`),
+    TimesheetID: z.string().describe(`
+        * * Field Name: TimesheetID
+        * * Display Name: Timesheet ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Timesheets (vwTimesheets.ID)
+        * * Description: The Timesheet this approval slice belongs to.`),
+    SubmissionRound: z.number().describe(`
+        * * Field Name: SubmissionRound
+        * * Display Name: Submission Round
+        * * SQL Data Type: int
+        * * Default Value: 1
+        * * Description: Submission round number (1 on initial submit, incremented on each resubmit).`),
+    ScopeTaskID: z.string().nullable().describe(`
+        * * Field Name: ScopeTaskID
+        * * Display Name: Scope Task ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
+        * * Description: Root project task for this approval slice, or NULL for the whole-timesheet / unassigned slice.`),
+    ApprovalTaskID: z.string().describe(`
+        * * Field Name: ApprovalTaskID
+        * * Display Name: Approval Task ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
+        * * Description: The approval Task created in the Tasks inbox for this slice.`),
+    Minutes: z.number().describe(`
+        * * Field Name: Minutes
+        * * Display Name: Minutes
+        * * SQL Data Type: int
+        * * Default Value: 0
+        * * Description: Total minutes in this approval slice at submission time.`),
+    BillableMinutes: z.number().describe(`
+        * * Field Name: BillableMinutes
+        * * Display Name: Billable Minutes
+        * * SQL Data Type: int
+        * * Default Value: 0
+        * * Description: Total billable minutes in this approval slice at submission time.`),
+    EntryCount: z.number().describe(`
+        * * Field Name: EntryCount
+        * * Display Name: Entry Count
+        * * SQL Data Type: int
+        * * Default Value: 0
+        * * Description: Number of TaskTimeEntry rows included in this approval slice.`),
+    SnapshotHash: z.string().describe(`
+        * * Field Name: SnapshotHash
+        * * Display Name: Snapshot Hash
+        * * SQL Data Type: nvarchar(64)
+        * * Description: Deterministic SHA-256 hex digest of the slice time entries, used to carry forward unchanged Approved parts across resubmissions.`),
+    Status: z.union([z.literal('Approved'), z.literal('Canceled'), z.literal('Pending'), z.literal('Rejected')]).describe(`
+        * * Field Name: Status
+        * * Display Name: Status
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: Pending
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Approved
+    *   * Canceled
+    *   * Pending
+    *   * Rejected
+        * * Description: Current status of this approval slice: Pending, Approved, Rejected, or Canceled.`),
+    DecidedByPersonID: z.string().nullable().describe(`
+        * * Field Name: DecidedByPersonID
+        * * Display Name: Decided By Person ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: The Person who recorded the approval or rejection decision.`),
+    DecidedAt: z.date().nullable().describe(`
+        * * Field Name: DecidedAt
+        * * Display Name: Decided At
+        * * SQL Data Type: datetimeoffset
+        * * Description: Timestamp when the decision on this slice was recorded.`),
+    DecisionNotes: z.string().nullable().describe(`
+        * * Field Name: DecisionNotes
+        * * Display Name: Decision Notes
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: Notes or feedback provided by the approver when deciding this slice.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    ScopeTask: z.string().nullable().describe(`
+        * * Field Name: ScopeTask
+        * * Display Name: Scope Task
+        * * SQL Data Type: nvarchar(255)`),
+    ApprovalTask: z.string().describe(`
+        * * Field Name: ApprovalTask
+        * * Display Name: Approval Task
+        * * SQL Data Type: nvarchar(255)`),
+    DecidedByPerson: z.string().nullable().describe(`
+        * * Field Name: DecidedByPerson
+        * * Display Name: Decided By Person
+        * * SQL Data Type: nvarchar(250)`),
+});
+
+export type mjBizAppsTasksTimesheetApprovalEntityType = z.infer<typeof mjBizAppsTasksTimesheetApprovalSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Timesheet Links
+ */
+export const mjBizAppsTasksTimesheetLinkSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key for the timesheet link.`),
+    TimesheetID: z.string().describe(`
+        * * Field Name: TimesheetID
+        * * Display Name: Timesheet ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Timesheets (vwTimesheets.ID)
+        * * Description: The Timesheet being linked.`),
+    EntityID: z.string().describe(`
+        * * Field Name: EntityID
+        * * Display Name: Entity ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: Entities (vwEntities.ID)
+        * * Description: Target MemberJunction Entity ID for the linked external record.`),
+    RecordID: z.string().describe(`
+        * * Field Name: RecordID
+        * * Display Name: Record ID
+        * * SQL Data Type: nvarchar(450)
+        * * Description: Primary key value of the linked record in EntityID.`),
+    Relationship: z.union([z.literal('ExpenseReport'), z.literal('Invoice'), z.literal('PayrollBatch'), z.literal('Related')]).describe(`
+        * * Field Name: Relationship
+        * * Display Name: Relationship
+        * * SQL Data Type: nvarchar(30)
+        * * Default Value: Related
+    * * Value List Type: List
+    * * Possible Values 
+    *   * ExpenseReport
+    *   * Invoice
+    *   * PayrollBatch
+    *   * Related
+        * * Description: Semantic relationship of the linked record to the timesheet: PayrollBatch, Invoice, ExpenseReport, or Related.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Entity: z.string().describe(`
+        * * Field Name: Entity
+        * * Display Name: Entity
+        * * SQL Data Type: nvarchar(255)`),
+});
+
+export type mjBizAppsTasksTimesheetLinkEntityType = z.infer<typeof mjBizAppsTasksTimesheetLinkSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Timesheet Schedules
+ */
+export const mjBizAppsTasksTimesheetScheduleSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key for the timesheet schedule.`),
+    PersonID: z.string().nullable().describe(`
+        * * Field Name: PersonID
+        * * Display Name: Person ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: Optional Person this schedule applies to (NULL for organization/entity-scoped or global schedules).`),
+    ScopeEntityID: z.string().nullable().describe(`
+        * * Field Name: ScopeEntityID
+        * * Display Name: Scope Entity ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: Entities (vwEntities.ID)
+        * * Description: Optional MJ Entity ID when scoping the schedule to an organization or department record.`),
+    ScopeRecordID: z.string().nullable().describe(`
+        * * Field Name: ScopeRecordID
+        * * Display Name: Scope Record ID
+        * * SQL Data Type: nvarchar(450)
+        * * Description: Companion record ID in ScopeEntityID for entity-scoped schedules.`),
+    Cadence: z.union([z.literal('BiWeekly'), z.literal('Monthly'), z.literal('SemiMonthly'), z.literal('Weekly')]).describe(`
+        * * Field Name: Cadence
+        * * Display Name: Cadence
+        * * SQL Data Type: nvarchar(20)
+    * * Value List Type: List
+    * * Possible Values 
+    *   * BiWeekly
+    *   * Monthly
+    *   * SemiMonthly
+    *   * Weekly
+        * * Description: Timesheet period cadence: Weekly, BiWeekly, SemiMonthly, or Monthly.`),
+    WeekStartDay: z.union([z.literal('Monday'), z.literal('Saturday'), z.literal('Sunday')]).describe(`
+        * * Field Name: WeekStartDay
+        * * Display Name: Week Start Day
+        * * SQL Data Type: nvarchar(10)
+        * * Default Value: Monday
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Monday
+    *   * Saturday
+    *   * Sunday
+        * * Description: First day of the work week for Weekly and BiWeekly cadences: Monday, Sunday, or Saturday.`),
+    BiWeeklyAnchorDate: z.date().describe(`
+        * * Field Name: BiWeeklyAnchorDate
+        * * Display Name: Bi Weekly Anchor Date
+        * * SQL Data Type: date
+        * * Default Value: 2026-01-05
+        * * Description: Anchor date (which must fall on WeekStartDay) defining the 14-day boundary for BiWeekly cadences.`),
+    EffectiveFrom: z.date().describe(`
+        * * Field Name: EffectiveFrom
+        * * Display Name: Effective From
+        * * SQL Data Type: date
+        * * Description: Inclusive start date from which this schedule is effective (must fall on a period boundary).`),
+    EffectiveTo: z.date().nullable().describe(`
+        * * Field Name: EffectiveTo
+        * * Display Name: Effective To
+        * * SQL Data Type: date
+        * * Description: Optional inclusive end date through which this schedule is effective.`),
+    Notes: z.string().nullable().describe(`
+        * * Field Name: Notes
+        * * Display Name: Notes
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: Optional notes explaining this schedule or cadence change.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Person: z.string().nullable().describe(`
+        * * Field Name: Person
+        * * Display Name: Person
+        * * SQL Data Type: nvarchar(250)`),
+    ScopeEntity: z.string().nullable().describe(`
+        * * Field Name: ScopeEntity
+        * * Display Name: Scope Entity
+        * * SQL Data Type: nvarchar(255)`),
+});
+
+export type mjBizAppsTasksTimesheetScheduleEntityType = z.infer<typeof mjBizAppsTasksTimesheetScheduleSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Timesheets
+ */
+export const mjBizAppsTasksTimesheetSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key for the timesheet.`),
+    PersonID: z.string().describe(`
+        * * Field Name: PersonID
+        * * Display Name: Person ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: The Person whose time entries are covered by this timesheet.`),
+    PeriodStart: z.date().describe(`
+        * * Field Name: PeriodStart
+        * * Display Name: Period Start
+        * * SQL Data Type: date
+        * * Description: Inclusive start date of the timesheet period.`),
+    PeriodEnd: z.date().describe(`
+        * * Field Name: PeriodEnd
+        * * Display Name: Period End
+        * * SQL Data Type: date
+        * * Description: Inclusive end date of the timesheet period.`),
+    Status: z.union([z.literal('Approved'), z.literal('Draft'), z.literal('Rejected'), z.literal('Submitted')]).describe(`
+        * * Field Name: Status
+        * * Display Name: Status
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: Draft
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Approved
+    *   * Draft
+    *   * Rejected
+    *   * Submitted
+        * * Description: Lifecycle status of the timesheet: Draft, Submitted, Approved, or Rejected.`),
+    SubmittedAt: z.date().nullable().describe(`
+        * * Field Name: SubmittedAt
+        * * Display Name: Submitted At
+        * * SQL Data Type: datetimeoffset
+        * * Description: Timestamp when the timesheet was most recently submitted.`),
+    SubmittedByUserID: z.string().nullable().describe(`
+        * * Field Name: SubmittedByUserID
+        * * Display Name: Submitted By User ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: Users (vwUsers.ID)
+        * * Description: The MemberJunction User who submitted the timesheet.`),
+    TotalMinutes: z.number().describe(`
+        * * Field Name: TotalMinutes
+        * * Display Name: Total Minutes
+        * * SQL Data Type: int
+        * * Default Value: 0
+        * * Description: Total minutes across all time entries attached to this timesheet.`),
+    BillableMinutes: z.number().describe(`
+        * * Field Name: BillableMinutes
+        * * Display Name: Billable Minutes
+        * * SQL Data Type: int
+        * * Default Value: 0
+        * * Description: Total billable minutes across all time entries attached to this timesheet.`),
+    Notes: z.string().nullable().describe(`
+        * * Field Name: Notes
+        * * Display Name: Notes
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: Worker notes or comments submitted with the timesheet.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Person: z.string().describe(`
+        * * Field Name: Person
+        * * Display Name: Person
+        * * SQL Data Type: nvarchar(250)`),
+    SubmittedByUser: z.string().nullable().describe(`
+        * * Field Name: SubmittedByUser
+        * * Display Name: Submitted By User
+        * * SQL Data Type: nvarchar(100)`),
+});
+
+export type mjBizAppsTasksTimesheetEntityType = z.infer<typeof mjBizAppsTasksTimesheetSchema>;
 
 /**
  * zod schema definition for the entity MJ_BizApps_Tasks: Video Providers
@@ -2751,3 +3496,160 @@ export const mjBizAppsTasksVideoProviderSchema = z.object({
 });
 
 export type mjBizAppsTasksVideoProviderEntityType = z.infer<typeof mjBizAppsTasksVideoProviderSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Work Report Items
+ */
+export const mjBizAppsTasksWorkReportItemSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()`),
+    WorkReportID: z.string().describe(`
+        * * Field Name: WorkReportID
+        * * Display Name: Work Report
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Work Reports (vwWorkReports.ID)
+        * * Description: Parent WorkReport that owns this line item.`),
+    TaskID: z.string().nullable().describe(`
+        * * Field Name: TaskID
+        * * Display Name: Task ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
+        * * Description: Optional Task referenced by this report item.`),
+    Section: z.union([z.literal('AtRisk'), z.literal('Blockers'), z.literal('Completed'), z.literal('InProgress'), z.literal('Next')]).describe(`
+        * * Field Name: Section
+        * * Display Name: Section
+        * * SQL Data Type: nvarchar(50)
+        * * Default Value: Completed
+    * * Value List Type: List
+    * * Possible Values 
+    *   * AtRisk
+    *   * Blockers
+    *   * Completed
+    *   * InProgress
+    *   * Next
+        * * Description: Report section this line belongs to: Completed, InProgress, Next, Blockers, or AtRisk.`),
+    Summary: z.string().describe(`
+        * * Field Name: Summary
+        * * Display Name: Summary
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: Concise description of the progress, next step, blocker, or risk for this line item.`),
+    Sequence: z.number().describe(`
+        * * Field Name: Sequence
+        * * Display Name: Sequence
+        * * SQL Data Type: int
+        * * Default Value: 0
+        * * Description: Display order within the parent WorkReport (ascending).`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Task: z.string().nullable().describe(`
+        * * Field Name: Task
+        * * Display Name: Task Description
+        * * SQL Data Type: nvarchar(255)`),
+});
+
+export type mjBizAppsTasksWorkReportItemEntityType = z.infer<typeof mjBizAppsTasksWorkReportItemSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Work Reports
+ */
+export const mjBizAppsTasksWorkReportSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()`),
+    PersonID: z.string().describe(`
+        * * Field Name: PersonID
+        * * Display Name: Person
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: The Person record whose work is summarized in this report.`),
+    PeriodStart: z.date().describe(`
+        * * Field Name: PeriodStart
+        * * Display Name: Period Start
+        * * SQL Data Type: date
+        * * Description: Inclusive start date of the reporting window.`),
+    PeriodEnd: z.date().describe(`
+        * * Field Name: PeriodEnd
+        * * Display Name: Period End
+        * * SQL Data Type: date
+        * * Description: Inclusive end date of the reporting window.`),
+    Title: z.string().nullable().describe(`
+        * * Field Name: Title
+        * * Display Name: Title
+        * * SQL Data Type: nvarchar(255)
+        * * Description: Optional concise headline for the report (e.g., Daily 15Five — 2026-11-09).`),
+    Body: z.string().describe(`
+        * * Field Name: Body
+        * * Display Name: Body
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: Markdown body of the work report covering accomplishments, next priorities, blockers, and at-risk objectives.`),
+    Status: z.union([z.literal('Draft'), z.literal('Reviewed'), z.literal('Submitted')]).describe(`
+        * * Field Name: Status
+        * * Display Name: Status
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: Draft
+    * * Value List Type: List
+    * * Possible Values 
+    *   * Draft
+    *   * Reviewed
+    *   * Submitted
+        * * Description: Lifecycle status of the report: Draft (awaiting author approval), Submitted (approved by author, awaiting supervisor review), or Reviewed (supervisor feedback recorded).`),
+    AuthoredByAgentRunID: z.string().nullable().describe(`
+        * * Field Name: AuthoredByAgentRunID
+        * * Display Name: Authored By Agent Run
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: AI Agent Runs (vwAIAgentRuns.ID)
+        * * Description: Optional AI Agent Run that drafted this work report.`),
+    SupervisorFeedback: z.string().nullable().describe(`
+        * * Field Name: SupervisorFeedback
+        * * Display Name: Supervisor Feedback
+        * * SQL Data Type: nvarchar(MAX)
+        * * Description: Feedback drafted by the supervisor Chief of Staff and approved/edited by the supervisor.`),
+    ReviewedByPersonID: z.string().nullable().describe(`
+        * * Field Name: ReviewedByPersonID
+        * * Display Name: Reviewed By Person
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Common: People (vwPeople.ID)
+        * * Description: The supervisor Person record who reviewed and approved feedback on this report.`),
+    ReviewedAt: z.date().nullable().describe(`
+        * * Field Name: ReviewedAt
+        * * Display Name: Reviewed At
+        * * SQL Data Type: datetimeoffset
+        * * Description: Timestamp when supervisor feedback was approved and recorded on this report.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Person: z.string().nullable().describe(`
+        * * Field Name: Person
+        * * Display Name: Person Name
+        * * SQL Data Type: nvarchar(250)`),
+    AuthoredByAgentRun: z.string().nullable().describe(`
+        * * Field Name: AuthoredByAgentRun
+        * * Display Name: Authored By Agent Run Name
+        * * SQL Data Type: nvarchar(255)`),
+    ReviewedByPerson: z.string().nullable().describe(`
+        * * Field Name: ReviewedByPerson
+        * * Display Name: Reviewed By Person Name
+        * * SQL Data Type: nvarchar(250)`),
+});
+
+export type mjBizAppsTasksWorkReportEntityType = z.infer<typeof mjBizAppsTasksWorkReportSchema>;

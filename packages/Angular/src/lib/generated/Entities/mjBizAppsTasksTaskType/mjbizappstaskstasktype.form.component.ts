@@ -18,6 +18,7 @@ export class mjBizAppsTasksTaskTypeFormComponent extends BaseFormComponent {
         this.initSections([
             { sectionKey: 'taskTypeDefinition', sectionName: 'Task Type Definition', isExpanded: true },
             { sectionKey: 'workflowActions', sectionName: 'Workflow Actions', isExpanded: true },
+            { sectionKey: 'details', sectionName: 'Details', isExpanded: true },
             { sectionKey: 'systemMetadata', sectionName: 'System Metadata', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskNotificationConfigs', sectionName: 'Task Notification Configs', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTasks', sectionName: 'Tasks', isExpanded: false },

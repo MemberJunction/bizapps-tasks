@@ -22,7 +22,7 @@ export type TaskBulkAssigneeMode = 'unchanged' | 'replace' | 'add' | 'clear';
 export type TaskBulkNullableRefMode = 'unchanged' | 'set' | 'clear';
 
 export interface TasksBulkUpdateInput {
-    /** Task primary keys to update (1–500). */
+    /** Task primary keys (UUIDs) to update (1–500 unique IDs per invocation). */
     TaskIDs: string[];
 
     /** Update macro status when provided. */
@@ -69,16 +69,25 @@ export interface TasksBulkUpdateInput {
     AddTagID?: string | null;
 }
 
+/** Per-task failure detail emitted when a task cannot be loaded or saved during a bulk update. */
 export interface TasksBulkUpdateFailure {
+    /** Primary key of the task that failed. */
     TaskID: string;
+    /** Human-readable server error message for this task. */
     Error: string;
 }
 
+/** Aggregate result summary returned by `BizAppsTasks.BulkUpdateTasks`. */
 export interface TasksBulkUpdateOutput {
+    /** Number of unique task IDs requested after deduplication. */
     TotalRequested: number;
+    /** Number of tasks updated successfully. */
     UpdatedCount: number;
+    /** Number of tasks that encountered an error. */
     FailedCount: number;
+    /** Primary keys of every task updated successfully. */
     UpdatedTaskIDs: string[];
+    /** Granular per-task failure details for any partial failures. */
     Failures: TasksBulkUpdateFailure[];
 }
 

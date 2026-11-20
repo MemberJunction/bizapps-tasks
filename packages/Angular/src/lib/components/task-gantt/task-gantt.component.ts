@@ -34,7 +34,14 @@ import {
     MJEmptyStateComponent,
     WatchPhoneViewport,
 } from '@memberjunction/ng-ui-components';
-import { ComputeCriticalPathTaskIds, type TaskDependencyEdge } from '@mj-biz-apps/tasks-core';
+import {
+    ComputeCriticalPathTaskIds,
+    MatchesAssigneeFilter,
+    MatchesDueDateFilter,
+    type TaskAssigneeFilterRef,
+    type TaskDependencyEdge,
+    type TaskDueDateFilterKey,
+} from '@mj-biz-apps/tasks-core';
 import type { mjBizAppsTasksTaskDependencyEntity, mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
 import {
     TaskMobileMilestoneStackComponent,
@@ -42,6 +49,7 @@ import {
     type TaskStatusValue,
     type TaskWidgetItem,
 } from '@mj-biz-apps/tasks-ng-widgets';
+import { CurrentUserRoleIDs, RoleAssigneeName } from '../../role-assignees';
 import {
     DefaultTasksGanttPref,
     ParseTasksGanttPref,
@@ -67,7 +75,17 @@ interface GanttTaskRow {
     Status: TaskStatusValue;
     Priority: TaskPriorityValue;
     TaskTypeStatus: string | null;
+    OrganizationID: string | null;
+    Organization: string | null;
     Sequence: number;
+}
+
+function escapeGanttHtml(raw: string): string {
+    return raw
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }
 
 /**
@@ -160,7 +178,7 @@ interface GanttTaskRow {
                     #chart
                     [Items]="items"
                     [Links]="links"
-                    [Columns]="Columns"
+                    [Columns]="EffectiveColumns"
                     [Height]="Height"
                     [ReadOnly]="ReadOnly"
                     [ShowProgress]="true"
@@ -169,7 +187,7 @@ interface GanttTaskRow {
                     [EnableGridResize]="true"
                     [EnableColumnResize]="true"
                     [ZoomLevel]="ZoomLevel"
-                    [GridWidth]="Pref.gridWidth"
+                    [GridWidth]="EffectiveGridWidth"
                     [ColumnWidths]="Pref.columnWidths"
                     (ItemClicked)="onItemClicked($event)"
                     (ItemDoubleClicked)="onItemDoubleClicked($event)"
@@ -223,6 +241,10 @@ export class TaskGanttComponent implements OnInit, OnChanges, OnDestroy {
     @Input() SearchText = '';
     @Input() PriorityFilter: string | null = null;
     @Input() TypeIDFilter: string | null = null;
+    @Input() AssigneeFilter: string | null = null;
+    @Input() DueDateFilter: TaskDueDateFilterKey | null = null;
+    @Input() OrganizationIDFilter: string | null = null;
+    @Input() CurrentPersonID: string | null = null;
     @Input() Height = '500px';
     @Input() ReadOnly = true;
     @Input() ShowToolbar = true;
@@ -248,8 +270,69 @@ export class TaskGanttComponent implements OnInit, OnChanges, OnDestroy {
 
     private rawTasks: GanttTaskRow[] = [];
     private rawDeps: { ID: string; TaskID: string; DependsOnTaskID: string; DependencyType: mjBizAppsTasksTaskDependencyEntity['DependencyType'] }[] = [];
+    private assigneesByTask = new Map<string, Array<TaskAssigneeFilterRef & { DisplayName: string; IsRole: boolean }>>();
+    private orgNameByTask = new Map<string, string>();
     private stopWatchingPhone: (() => void) | null = null;
+    private hasCustomGridWidth = false;
     private cdr = inject(ChangeDetectorRef);
+
+    private readonly defaultColumns: GanttColumnDef[] = [
+        { Name: 'text', Label: 'Name', Tree: true, Width: 205 },
+        {
+            Name: 'assignee',
+            Label: 'Assignee',
+            Align: 'left',
+            Width: 126,
+            Template: (obj: { id?: string | number }) => this.renderAssigneeCell(obj),
+        },
+        {
+            Name: 'organization',
+            Label: 'Organization',
+            Align: 'left',
+            Width: 145,
+            Template: (obj: { id?: string | number }) => this.renderOrgCell(obj),
+        },
+        { Name: 'start_date', Label: 'Start', Align: 'center', Width: 88 },
+        { Name: 'duration', Label: 'Days', Align: 'center', Width: 50 },
+        {
+            Name: 'progress',
+            Label: '%',
+            Align: 'center',
+            Width: 46,
+            Template: (obj: { progress?: number }) => `${Math.round((obj.progress || 0) * 100)}%`,
+        },
+    ];
+
+    public get EffectiveColumns(): GanttColumnDef[] {
+        return this.Columns && this.Columns.length > 0 ? this.Columns : this.defaultColumns;
+    }
+
+    public get EffectiveGridWidth(): number {
+        // Ensure Name + Assignee + Organization columns are cleanly visible by default
+        // unless the user explicitly persisted a custom resized grid width.
+        return this.hasCustomGridWidth ? this.Pref.gridWidth : Math.max(this.Pref.gridWidth, 485);
+    }
+
+    private renderAssigneeCell(obj: { id?: string | number }): string {
+        const key = String(obj?.id ?? '').toLowerCase();
+        const list = this.assigneesByTask.get(key) ?? [];
+        if (list.length === 0) {
+            return '<span style="color:var(--mj-text-muted);font-style:italic">Unassigned</span>';
+        }
+        const first = escapeGanttHtml(list[0].DisplayName);
+        const extra = list.length > 1 ? ` <span style="opacity:0.75">+${list.length - 1}</span>` : '';
+        const icon = list[0].IsRole ? '<i class="fa-solid fa-users" style="margin-right:4px;opacity:0.75"></i>' : '';
+        return `${icon}${first}${extra}`;
+    }
+
+    private renderOrgCell(obj: { id?: string | number }): string {
+        const key = String(obj?.id ?? '').toLowerCase();
+        const org = this.orgNameByTask.get(key);
+        if (!org) {
+            return '<span style="color:var(--mj-text-muted)">—</span>';
+        }
+        return `<span title="${escapeGanttHtml(org)}">${escapeGanttHtml(org)}</span>`;
+    }
 
     public get ZoomPercent(): number {
         return this.chart?.CurrentZoomPercent ?? GanttZoomPercent(this.ZoomLevel);
@@ -288,6 +371,7 @@ export class TaskGanttComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     public OnAfterGridResize(event: AfterGridResizeEventArgs): void {
+        this.hasCustomGridWidth = true;
         this.persistPref({ gridWidth: event.Width });
     }
 
@@ -331,10 +415,15 @@ export class TaskGanttComponent implements OnInit, OnChanges, OnDestroy {
             changes['ParentTaskID'] ||
             changes['ExtraFilter'] ||
             changes['PriorityFilter'] ||
-            changes['TypeIDFilter']
+            changes['TypeIDFilter'] ||
+            changes['OrganizationIDFilter']
         ) {
             void this.LoadData();
-        } else if (changes['SearchText'] && !changes['SearchText'].firstChange) {
+        } else if (
+            (changes['SearchText'] && !changes['SearchText'].firstChange) ||
+            (changes['AssigneeFilter'] && !changes['AssigneeFilter'].firstChange) ||
+            (changes['DueDateFilter'] && !changes['DueDateFilter'].firstChange)
+        ) {
             this.rebuildViewModels();
         }
     }
@@ -361,34 +450,86 @@ export class TaskGanttComponent implements OnInit, OnChanges, OnDestroy {
                 if (this.CategoryID) filters.push(`CategoryID = '${EscapeSQLString(this.CategoryID)}'`);
                 if (this.PriorityFilter) filters.push(`Priority = '${EscapeSQLString(this.PriorityFilter)}'`);
                 if (this.TypeIDFilter) filters.push(`TypeID = '${EscapeSQLString(this.TypeIDFilter)}'`);
+                if (this.OrganizationIDFilter === '__none__') {
+                    filters.push('OrganizationID IS NULL');
+                } else if (this.OrganizationIDFilter) {
+                    filters.push(`OrganizationID = '${EscapeSQLString(this.OrganizationIDFilter)}'`);
+                }
                 if (this.ExtraFilter) filters.push(this.ExtraFilter);
             }
 
-            const tasksResult = await rv.RunView<GanttTaskRow>({
-                EntityName: 'MJ_BizApps_Tasks: Tasks',
-                ExtraFilter: filters.join(' AND '),
-                OrderBy: 'Sequence ASC',
-                ResultType: 'simple',
-                MaxRows: 500,
-            });
+            const [tasksResult, peopleResult] = await Promise.all([
+                rv.RunView<GanttTaskRow>({
+                    EntityName: 'MJ_BizApps_Tasks: Tasks',
+                    ExtraFilter: filters.join(' AND '),
+                    OrderBy: 'Sequence ASC',
+                    ResultType: 'simple',
+                    MaxRows: 500,
+                }),
+                new RunView().RunView<{ ID: string; FirstName: string; LastName: string }>({
+                    EntityName: 'MJ_BizApps_Common: People',
+                    Fields: ['ID', 'FirstName', 'LastName'],
+                    ResultType: 'simple',
+                }),
+            ]);
 
             this.rawTasks = tasksResult?.Results ?? [];
             const taskIds = this.rawTasks.map((t) => t.ID).filter((id) => TASK_ID_RE.test(id));
-            const depsResult =
+            const [depsResult, assignResult] =
                 taskIds.length === 0
-                    ? null
-                    : await new RunView().RunView<{
-                          ID: string;
-                          TaskID: string;
-                          DependsOnTaskID: string;
-                          DependencyType: mjBizAppsTasksTaskDependencyEntity['DependencyType'];
-                      }>({
-                          EntityName: 'MJ_BizApps_Tasks: Task Dependencies',
-                          ExtraFilter: `TaskID IN (${taskIds.map((id) => `'${id}'`).join(',')}) OR DependsOnTaskID IN (${taskIds.map((id) => `'${id}'`).join(',')})`,
-                          ResultType: 'simple',
-                          MaxRows: 500,
-                      });
+                    ? [null, null]
+                    : await Promise.all([
+                          new RunView().RunView<{
+                              ID: string;
+                              TaskID: string;
+                              DependsOnTaskID: string;
+                              DependencyType: mjBizAppsTasksTaskDependencyEntity['DependencyType'];
+                          }>({
+                              EntityName: 'MJ_BizApps_Tasks: Task Dependencies',
+                              ExtraFilter: `TaskID IN (${taskIds.map((id) => `'${id}'`).join(',')}) OR DependsOnTaskID IN (${taskIds.map((id) => `'${id}'`).join(',')})`,
+                              ResultType: 'simple',
+                              MaxRows: 500,
+                          }),
+                          new RunView().RunView<{ TaskID: string; AssigneeEntityID: string; AssigneeRecordID: string }>({
+                              EntityName: 'MJ_BizApps_Tasks: Task Assignments',
+                              ExtraFilter: `TaskID IN (${taskIds.map((id) => `'${id}'`).join(',')})`,
+                              Fields: ['TaskID', 'AssigneeEntityID', 'AssigneeRecordID'],
+                              ResultType: 'simple',
+                              MaxRows: 1000,
+                          }),
+                      ]);
             this.rawDeps = depsResult?.Results ?? [];
+
+            const personMap = new Map<string, string>();
+            for (const p of peopleResult?.Results ?? []) {
+                personMap.set(p.ID.toLowerCase(), `${p.FirstName ?? ''} ${p.LastName ?? ''}`.trim());
+            }
+            const rolesEntityID = Metadata.Provider.EntityByName('MJ: Roles')?.ID?.toLowerCase() ?? null;
+
+            this.assigneesByTask.clear();
+            for (const a of assignResult?.Results ?? []) {
+                const tKey = a.TaskID.toLowerCase();
+                const list = this.assigneesByTask.get(tKey) ?? [];
+                const isRole = Boolean(rolesEntityID && a.AssigneeEntityID.toLowerCase() === rolesEntityID);
+                const displayName =
+                    personMap.get(a.AssigneeRecordID.toLowerCase()) ??
+                    RoleAssigneeName(a.AssigneeEntityID, a.AssigneeRecordID) ??
+                    'Assigned';
+                list.push({
+                    EntityName: isRole ? 'MJ: Roles' : 'MJ_BizApps_Common: People',
+                    RecordID: a.AssigneeRecordID,
+                    DisplayName: displayName,
+                    IsRole: isRole,
+                });
+                this.assigneesByTask.set(tKey, list);
+            }
+
+            this.orgNameByTask.clear();
+            for (const t of this.rawTasks) {
+                if (t.Organization) {
+                    this.orgNameByTask.set(t.ID.toLowerCase(), t.Organization);
+                }
+            }
 
             this.rebuildViewModels();
         } finally {
@@ -399,13 +540,24 @@ export class TaskGanttComponent implements OnInit, OnChanges, OnDestroy {
 
     private rebuildViewModels(): void {
         const q = this.SearchText.trim().toLowerCase();
-        const tasks = q
-            ? this.rawTasks.filter(
-                  (t) =>
-                      t.Name.toLowerCase().includes(q) ||
-                      (t.Description?.toLowerCase().includes(q) ?? false),
-              )
-            : this.rawTasks;
+        const currentRoles = CurrentUserRoleIDs();
+        const tasks = this.rawTasks.filter((t) => {
+            if (
+                q &&
+                !t.Name.toLowerCase().includes(q) &&
+                !(t.Description?.toLowerCase().includes(q) ?? false) &&
+                !(t.Organization?.toLowerCase().includes(q) ?? false)
+            ) {
+                return false;
+            }
+            if (!MatchesDueDateFilter(t.DueAt, t.Status, this.DueDateFilter)) {
+                return false;
+            }
+            if (!MatchesAssigneeFilter(this.assigneesByTask.get(t.ID.toLowerCase()), this.AssigneeFilter, this.CurrentPersonID, currentRoles)) {
+                return false;
+            }
+            return true;
+        });
 
         const edges: TaskDependencyEdge[] = this.rawDeps.map((d) => ({
             TaskID: d.TaskID,
@@ -473,6 +625,15 @@ export class TaskGanttComponent implements OnInit, OnChanges, OnDestroy {
             DueAt: t.DueAt,
             PercentComplete: t.PercentComplete ?? 0,
             HoursEstimated: t.HoursEstimated,
+            OrganizationID: t.OrganizationID,
+            OrganizationName: t.Organization,
+            Assignees: (this.assigneesByTask.get(t.ID.toLowerCase()) ?? []).map((a) => ({
+                DisplayName: a.DisplayName,
+                RecordID: a.RecordID,
+                EntityName: a.EntityName,
+                IsRole: a.IsRole,
+                Status: 'Pending' as const,
+            })),
             TaskTypeStatusName: t.TaskTypeStatus,
             IsCriticalPath: this.CriticalPathIds.has(t.ID.toLowerCase()),
             DependencyCount: depCountByTask.get(t.ID.toLowerCase()) ?? 0,

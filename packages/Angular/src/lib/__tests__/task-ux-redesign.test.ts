@@ -3,8 +3,15 @@ import { describe, expect, it, vi } from 'vitest';
 import { ChangeDetectorRef, Injector, runInInjectionContext } from '@angular/core';
 import { UserInfoEngine } from '@memberjunction/core-entities';
 import { TaskKanbanComponent } from '../components/task-kanban/task-kanban.component';
+import { TaskListComponent } from '../components/task-list/task-list.component';
+import { TaskGanttComponent } from '../components/task-gantt/task-gantt.component';
 import { TaskHeaderPanel } from '../form-panels/task-header.panel';
 import { TaskEditPanelComponent } from '../components/task-edit-panel/task-edit-panel.component';
+import { TaskTemplateWizardComponent } from '../components/task-template-wizard/task-template-wizard.component';
+import {
+    TasksBulkUpdateOperation,
+    TasksInstantiateTemplateOperation,
+} from '@mj-biz-apps/tasks-core';
 
 function createCdr(): ChangeDetectorRef {
     return {
@@ -88,5 +95,252 @@ describe('Task UX Redesign L3 Components', () => {
 
         edit.form.TypeID = 't-del';
         expect(edit.ActiveArchetype).toBe('deliverable');
+    });
+
+    it('TaskKanbanComponent groups cards by Organization / Company with crisp badge colors and non-redundant footers', () => {
+        const setSpy = vi.spyOn(UserInfoEngine.Instance, 'SetSettingDebounced').mockImplementation(() => {});
+        const injector = Injector.create({
+            providers: [{ provide: ChangeDetectorRef, useValue: createCdr() }],
+        });
+        const comp = runInInjectionContext(injector, () => new TaskKanbanComponent());
+        comp.rawTasks = [
+            {
+                ID: 't1',
+                Name: 'US Close',
+                Description: null,
+                Status: 'InProgress',
+                Priority: 'Critical',
+                DueAt: null,
+                PercentComplete: 50,
+                HoursEstimated: 4,
+                ParentID: null,
+                OrganizationID: 'org-us',
+                Organization: 'Blue Cypress US LLC',
+            },
+            {
+                ID: 't2',
+                Name: 'Global Policy',
+                Description: null,
+                Status: 'Open',
+                Priority: 'Medium',
+                DueAt: null,
+                PercentComplete: 0,
+                HoursEstimated: 2,
+                ParentID: null,
+                OrganizationID: null,
+                Organization: null,
+            },
+        ];
+
+        comp.onGroupByChange('organization');
+        expect(comp.columns.map((c) => c.Key)).toEqual(['Blue Cypress US LLC', 'No Organization']);
+        const usCard = comp.cards.find((c) => c.ID === 't1');
+        expect(usCard?.ColumnKey).toBe('Blue Cypress US LLC');
+        // Solid status color (not pale -bg tint) for high-contrast white badge text
+        expect(usCard?.BadgeColor).toBe('var(--mj-status-error)');
+        // Does not repeat Organization name in card footer when already grouped by Organization
+        expect(usCard?.FooterText ?? '').not.toContain('Blue Cypress US LLC');
+        expect(comp.cards.find((c) => c.ID === 't2')?.ColumnKey).toBe('No Organization');
+
+        // When grouped by status, Organization IS shown in footer
+        comp.onGroupByChange('status');
+        expect(comp.cards.find((c) => c.ID === 't1')?.FooterText).toContain('Blue Cypress US LLC');
+        setSpy.mockRestore();
+    });
+
+    it('TaskListComponent dispatches Asana-grade bulk patches via server-side TasksBulkUpdateOperation', async () => {
+        const injector = Injector.create({
+            providers: [{ provide: ChangeDetectorRef, useValue: createCdr() }],
+        });
+        const list = runInInjectionContext(injector, () => new TaskListComponent());
+        list.selectedIDs = ['11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222'];
+        vi.spyOn(list, 'loadTasks').mockResolvedValue();
+
+        const execSpy = vi.spyOn(TasksBulkUpdateOperation.prototype, 'Execute').mockResolvedValue({
+            Success: true,
+            Output: {
+                TotalRequested: 2,
+                UpdatedCount: 2,
+                FailedCount: 0,
+                UpdatedTaskIDs: [...list.selectedIDs],
+                Failures: [],
+            },
+        });
+
+        await list.onBulkDockAction({
+            Kind: 'apply',
+            Patch: {
+                DueDateMode: 'shift',
+                ShiftDays: 2,
+                OrganizationMode: 'set',
+                OrganizationID: '33333333-3333-3333-3333-333333333333',
+            },
+        });
+
+        expect(execSpy).toHaveBeenCalledTimes(1);
+        expect(execSpy).toHaveBeenCalledWith({
+            TaskIDs: ['11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222'],
+            DueDateMode: 'shift',
+            ShiftDays: 2,
+            OrganizationMode: 'set',
+            OrganizationID: '33333333-3333-3333-3333-333333333333',
+        });
+        expect(list.selectedIDs).toEqual([]);
+        expect(list.bulkSuccess).toBe('Updated 2 tasks.');
+        execSpy.mockRestore();
+    });
+
+    it('TaskListComponent supports Shift+click range selection and Select All visible', () => {
+        const injector = Injector.create({
+            providers: [{ provide: ChangeDetectorRef, useValue: createCdr() }],
+        });
+        const list = runInInjectionContext(injector, () => new TaskListComponent());
+        list.tasks = [
+            { ID: 't1', Name: 'Task 1', Description: null, Status: 'Open', Priority: 'High', DueAt: null, PercentComplete: 0, HoursEstimated: null, ParentID: null, Depth: 0, IsOverdue: false, IsDueSoon: false },
+            { ID: 't2', Name: 'Task 2', Description: null, Status: 'Open', Priority: 'High', DueAt: null, PercentComplete: 0, HoursEstimated: null, ParentID: null, Depth: 0, IsOverdue: false, IsDueSoon: false },
+            { ID: 't3', Name: 'Task 3', Description: null, Status: 'Open', Priority: 'High', DueAt: null, PercentComplete: 0, HoursEstimated: null, ParentID: null, Depth: 0, IsOverdue: false, IsDueSoon: false },
+        ];
+        list.applyFilters();
+
+        const stop = vi.fn();
+        list.onCheckboxClick({ shiftKey: false, stopPropagation: stop } as unknown as MouseEvent, 't1');
+        expect(list.selectedIDs).toEqual(['t1']);
+
+        // Shift+click t3 selects t1, t2, t3
+        list.onCheckboxClick({ shiftKey: true, stopPropagation: stop } as unknown as MouseEvent, 't3');
+        expect(list.selectedIDs).toEqual(['t1', 't2', 't3']);
+        expect(list.allVisibleSelected).toBe(true);
+
+        // Toggle Select All clears when all selected
+        list.toggleSelectAllVisible();
+        expect(list.selectedIDs).toEqual([]);
+    });
+
+    it('TaskListComponent filters uniformly by Organization, Assignee, and Due Date', () => {
+        const injector = Injector.create({
+            providers: [{ provide: ChangeDetectorRef, useValue: createCdr() }],
+        });
+        const list = runInInjectionContext(injector, () => new TaskListComponent());
+        list.tasks = [
+            {
+                ID: 't-us',
+                Name: 'US Close',
+                Description: null,
+                Status: 'InProgress',
+                Priority: 'High',
+                DueAt: null,
+                PercentComplete: 25,
+                HoursEstimated: null,
+                ParentID: null,
+                Depth: 0,
+                IsOverdue: false,
+                IsDueSoon: false,
+                OrganizationID: 'org-us',
+                OrganizationName: 'Blue Cypress US LLC',
+                Assignees: [{ Name: 'Elena Vance', Role: 'Primary', Status: 'InProgress', EntityName: 'MJ_BizApps_Common: People', RecordID: 'p-elena' }],
+            },
+            {
+                ID: 't-uk',
+                Name: 'UK VAT Filing',
+                Description: null,
+                Status: 'Open',
+                Priority: 'Medium',
+                DueAt: new Date(Date.now() - 3 * 86_400_000),
+                PercentComplete: 0,
+                HoursEstimated: null,
+                ParentID: null,
+                Depth: 0,
+                IsOverdue: true,
+                IsDueSoon: false,
+                OrganizationID: 'org-uk',
+                OrganizationName: 'Blue Cypress UK Ltd',
+                Assignees: [],
+            },
+        ];
+
+        list.OrganizationIDFilter = 'org-us';
+        list.applyFilters();
+        expect(list.filteredTasks.map((t) => t.ID)).toEqual(['t-us']);
+
+        list.OrganizationIDFilter = null;
+        list.AssigneeFilter = '__unassigned__';
+        list.applyFilters();
+        expect(list.filteredTasks.map((t) => t.ID)).toEqual(['t-uk']);
+
+        list.AssigneeFilter = null;
+        list.DueDateFilter = 'overdue';
+        list.applyFilters();
+        expect(list.filteredTasks.map((t) => t.ID)).toEqual(['t-uk']);
+    });
+
+    it('TaskGanttComponent exposes Assignee & Organization columns with HTML-escaped cell templates and expanded default GridWidth', () => {
+        const injector = Injector.create({
+            providers: [{ provide: ChangeDetectorRef, useValue: createCdr() }],
+        });
+        const gantt = runInInjectionContext(injector, () => new TaskGanttComponent());
+
+        const colNames = gantt.EffectiveColumns.map((c) => c.Name);
+        expect(colNames).toContain('assignee');
+        expect(colNames).toContain('organization');
+        expect(gantt.EffectiveGridWidth).toBeGreaterThanOrEqual(480);
+
+        // Verify HTML-escaping against XSS in Assignee & Organization cell renderers
+        const ganttInternal = gantt as unknown as {
+            assigneesByTask: Map<string, Array<{ RecordID: string; EntityName: string; DisplayName: string; IsRole: boolean }>>;
+            orgNameByTask: Map<string, string>;
+        };
+        ganttInternal.assigneesByTask.set('t-xss', [
+            { RecordID: 'p1', EntityName: 'MJ_BizApps_Common: People', DisplayName: '<script>alert(1)</script>', IsRole: false },
+        ]);
+        ganttInternal.orgNameByTask.set('t-xss', 'Acme & <Corp>');
+
+        const assigneeCol = gantt.EffectiveColumns.find((c) => c.Name === 'assignee');
+        const orgCol = gantt.EffectiveColumns.find((c) => c.Name === 'organization');
+        const renderedAssignee = assigneeCol?.Template?.({ id: 't-xss' }) ?? '';
+        const renderedOrg = orgCol?.Template?.({ id: 't-xss' }) ?? '';
+
+        expect(renderedAssignee).not.toContain('<script>');
+        expect(renderedAssignee).toContain('&lt;script&gt;');
+        expect(renderedOrg).not.toContain('<Corp>');
+        expect(renderedOrg).toContain('Acme &amp; &lt;Corp&gt;');
+    });
+
+    it('TaskTemplateWizardComponent dispatches server-side TasksInstantiateTemplateOperation with OrganizationID', async () => {
+        const injector = Injector.create({
+            providers: [{ provide: ChangeDetectorRef, useValue: createCdr() }],
+        });
+        const wizard = runInInjectionContext(injector, () => new TaskTemplateWizardComponent());
+        wizard.selectedTemplateID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+        wizard.startDateStr = '2026-12-01';
+        wizard.categoryID = '44444444-4444-4444-8444-444444444444';
+        wizard.organizationID = '33333333-3333-4333-8333-333333333333';
+
+        const createdSpy = vi.fn();
+        wizard.Created.subscribe(createdSpy);
+
+        const execSpy = vi.spyOn(TasksInstantiateTemplateOperation.prototype, 'Execute').mockResolvedValue({
+            Success: true,
+            Output: {
+                TemplateID: wizard.selectedTemplateID,
+                CreatedCount: 3,
+                CreatedTaskIDs: ['t1', 't2', 't3'],
+                OrganizationID: wizard.organizationID,
+            },
+        });
+
+        try {
+            await wizard.onCreate();
+            expect(execSpy).toHaveBeenCalledWith({
+                TemplateID: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+                StartDate: '2026-12-01',
+                CategoryID: '44444444-4444-4444-8444-444444444444',
+                OrganizationID: '33333333-3333-4333-8333-333333333333',
+                RoleAssignments: undefined,
+            });
+            expect(createdSpy).toHaveBeenCalledTimes(1);
+            expect(createdSpy.mock.calls[0][0].CreatedCount).toBe(3);
+        } finally {
+            execSpy.mockRestore();
+        }
     });
 });

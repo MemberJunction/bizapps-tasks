@@ -50,6 +50,19 @@
                     }
                 </div>
                 <div class="mjt-hero__meta">
+                    @if (Record.OrganizationID && Record.Organization) {
+                        <span>Organization: <strong
+                            [mjRecordLink]="Record"
+                            FieldName="OrganizationID"
+                            [EntityName]="'MJ_BizApps_Common: Organizations'"
+                            [RecordID]="Record.OrganizationID"
+                            [DisplayName]="Record.Organization"
+                            (Navigate)="FormComponent.OnFormNavigate($event)">
+                            <i class="fa-solid fa-building" aria-hidden="true"></i>
+                            {{ Record.Organization }}
+                        </strong></span>
+                        <span>&bull;</span>
+                    }
                     @if (Record.Category) {
                         <span>Category: <strong
                             [mjRecordLink]="Record"

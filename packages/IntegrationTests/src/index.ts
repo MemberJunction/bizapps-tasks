@@ -42,5 +42,6 @@ export * from './checks/agent-effort.checks.js';
 export * from './checks/time-reporting.checks.js';
 export * from './checks/timesheets.checks.js';
 export * from './checks/meetings.checks.js';
+export * from './checks/task-org-bulk-ops.checks.js';
 
 export function LoadTasksIntegrationTests(): void {}

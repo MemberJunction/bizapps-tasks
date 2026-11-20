@@ -1,23 +1,28 @@
 import { describe, expect, it, vi } from 'vitest';
-import { RunView, type IMetadataProvider, type RunViewParams, type RunViewResult, type UserInfo } from '@memberjunction/core';
+import { BaseEntity, RunView, type IMetadataProvider, type RunViewParams, type RunViewResult, type UserInfo } from '@memberjunction/core';
 import {
     TasksBulkUpdateServerOperation,
     TasksInstantiateTemplateServerOperation,
 } from '../TasksRemoteOperationsServer.js';
+import { TaskEntityServer } from '../TaskEntityServer.js';
 
-const TASK_1 = '11111111-1111-1111-1111-111111111111';
-const TASK_2 = '22222222-2222-2222-2222-222222222222';
-const ORG_1 = '33333333-3333-3333-3333-333333333333';
-const CAT_1 = '44444444-4444-4444-4444-444444444444';
-const ROLE_PRIMARY = '55555555-5555-5555-5555-555555555555';
-const PERSON_ENTITY_ID = '66666666-6666-6666-6666-666666666666';
-const PERSON_1 = '77777777-7777-7777-7777-777777777777';
-const PERSON_OLD = '88888888-8888-8888-8888-888888888888';
-const TAG_1 = '99999999-9999-9999-9999-999999999999';
-const TEMPLATE_1 = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
-const ITEM_PARENT = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
-const ITEM_CHILD = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
-const TYPE_1 = 'dddddddd-dddd-dddd-dddd-dddddddddddd';
+const TASK_1 = '11111111-1111-4111-8111-111111111111';
+const TASK_2 = '22222222-2222-4222-8222-222222222222';
+const ORG_1 = '33333333-3333-4333-8333-333333333333';
+const ORG_2 = '33333333-3333-4333-8333-333333333334';
+const CAT_1 = '44444444-4444-4444-8444-444444444444';
+const ROLE_PRIMARY = '55555555-5555-4555-8555-555555555555';
+const PERSON_ENTITY_ID = '66666666-6666-4666-8666-666666666666';
+const ROLE_ENTITY_ID = '66666666-6666-4666-8666-666666666667';
+const PERSON_1 = '77777777-7777-4777-8777-777777777777';
+const PERSON_OLD = '88888888-8888-4888-8888-888888888888';
+const MJ_ROLE_1 = '88888888-8888-4888-8888-888888888889';
+const TAG_1 = '99999999-9999-4999-8999-999999999999';
+const TEMPLATE_1 = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const ITEM_PARENT = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const ITEM_CHILD = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+const TYPE_1 = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+const STAGE_1 = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
 
 const TEST_USER = { ID: 'user-1', Name: 'Tester', Email: 'tester@example.com' } as unknown as UserInfo;
 
@@ -25,7 +30,7 @@ interface MockTaskRecord {
     ID: string;
     Name: string;
     Description: string | null;
-    Status: 'Pending' | 'InProgress' | 'Blocked' | 'Completed' | 'Cancelled';
+    Status: 'Pending' | 'Open' | 'InProgress' | 'Blocked' | 'Completed' | 'Cancelled';
     Priority: 'Low' | 'Medium' | 'High' | 'Critical';
     PercentComplete: number;
     CompletedAt: Date | null;
@@ -40,6 +45,7 @@ interface MockTaskRecord {
     Sequence: number;
     Dirty: boolean;
     saved: boolean;
+    LatestResult?: { CompleteMessage?: string };
     InnerLoad: (key: { KeyValuePairs: Array<{ Value: unknown }> }) => Promise<boolean>;
     NewRecord: () => boolean;
     Save: () => Promise<boolean>;
@@ -80,7 +86,7 @@ function makeMockTask(id: string, seed?: Partial<MockTaskRecord>): MockTaskRecor
         ID: id,
         Name: 'Sample Task',
         Description: null,
-        Status: 'Pending',
+        Status: 'Open',
         Priority: 'Medium',
         PercentComplete: 0,
         CompletedAt: null,
@@ -115,6 +121,112 @@ function makeMockTask(id: string, seed?: Partial<MockTaskRecord>): MockTaskRecor
     });
 }
 
+function makeBulkHarness(tasks: MockTaskRecord[], options?: {
+    existingAssignments?: Map<string, MockAssignmentRecord[]>;
+    existingTagTaskIDs?: Set<string>;
+}) {
+    const tasksById = new Map(tasks.map((t) => [t.ID.toLowerCase(), t]));
+    const createdAssignments: MockAssignmentRecord[] = [];
+    const createdTagLinks: MockTagLinkRecord[] = [];
+    const existingAssignments = options?.existingAssignments ?? new Map<string, MockAssignmentRecord[]>();
+    const existingTagTaskIDs = options?.existingTagTaskIDs ?? new Set<string>();
+
+    const provider = {
+        EntityByName: vi.fn((name: string) => {
+            if (name === 'MJ_BizApps_Common: People') return { ID: PERSON_ENTITY_ID, Name: name };
+            if (name === 'MJ: Roles') return { ID: ROLE_ENTITY_ID, Name: name };
+            return undefined;
+        }),
+        GetEntityObject: vi.fn(async (entityName: string) => {
+            if (entityName === 'MJ_BizApps_Tasks: Tasks') {
+                let loaded: MockTaskRecord | undefined;
+                const shell = {
+                    InnerLoad: async (ck: { KeyValuePairs: Array<{ Value: string }> }) => {
+                        loaded = tasksById.get(String(ck.KeyValuePairs[0].Value).toLowerCase());
+                        return Boolean(loaded);
+                    },
+                };
+                return new Proxy(shell, {
+                    get(_t, prop) {
+                        if (prop === 'InnerLoad') return shell.InnerLoad;
+                        return loaded ? Reflect.get(loaded, prop) : undefined;
+                    },
+                    set(_t, prop, value) {
+                        if (loaded) Reflect.set(loaded, prop, value);
+                        return true;
+                    },
+                });
+            }
+            if (entityName === 'MJ_BizApps_Tasks: Task Assignments') {
+                const rec: MockAssignmentRecord = {
+                    ID: `assign-${createdAssignments.length + 1}`,
+                    TaskID: '',
+                    AssigneeEntityID: '',
+                    AssigneeRecordID: '',
+                    RoleID: null,
+                    deleted: false,
+                    saved: false,
+                    NewRecord: () => true,
+                    Save: async () => {
+                        rec.saved = true;
+                        createdAssignments.push(rec);
+                        return true;
+                    },
+                    Delete: async () => {
+                        rec.deleted = true;
+                        return true;
+                    },
+                };
+                return rec;
+            }
+            if (entityName === 'MJ_BizApps_Tasks: Task Tag Links') {
+                const rec: MockTagLinkRecord = {
+                    TaskID: '',
+                    TagID: '',
+                    saved: false,
+                    NewRecord: () => true,
+                    Save: async () => {
+                        rec.saved = true;
+                        createdTagLinks.push(rec);
+                        return true;
+                    },
+                };
+                return rec;
+            }
+            throw new Error(`Unexpected entity ${entityName}`);
+        }),
+    } as unknown as IMetadataProvider;
+
+    const runViewFn = vi.fn(async (params: RunViewParams): Promise<RunViewResult> => {
+        if (params.EntityName === 'MJ_BizApps_Tasks: Task Roles') {
+            return { Success: true, Results: [{ ID: ROLE_PRIMARY, Name: 'Primary' }] } as unknown as RunViewResult;
+        }
+        if (params.EntityName === 'MJ_BizApps_Tasks: Task Assignments') {
+            for (const [tid, list] of existingAssignments.entries()) {
+                if (params.ExtraFilter?.toLowerCase().includes(tid.toLowerCase())) {
+                    return { Success: true, Results: list } as unknown as RunViewResult;
+                }
+            }
+            return { Success: true, Results: [] } as unknown as RunViewResult;
+        }
+        if (params.EntityName === 'MJ_BizApps_Tasks: Task Tag Links') {
+            for (const tid of existingTagTaskIDs) {
+                if (params.ExtraFilter?.toLowerCase().includes(tid.toLowerCase())) {
+                    return { Success: true, Results: [{ ID: 'existing-tag-link' }] } as unknown as RunViewResult;
+                }
+            }
+            return { Success: true, Results: [] } as unknown as RunViewResult;
+        }
+        return { Success: true, Results: [] } as unknown as RunViewResult;
+    });
+
+    const runViewSpy = vi.spyOn(RunView, 'FromMetadataProvider').mockReturnValue({
+        RunView: runViewFn,
+    } as unknown as RunView);
+
+    return { provider, runViewSpy, createdAssignments, createdTagLinks };
+}
+
 describe('TasksBulkUpdateServerOperation', () => {
     it('updates scalar fields, shifts DueAt & StartedAt, replaces assignees, and attaches tags in one server RPC', async () => {
         const task1 = makeMockTask(TASK_1);
@@ -122,11 +234,6 @@ describe('TasksBulkUpdateServerOperation', () => {
             DueAt: new Date('2026-11-25T12:00:00.000Z'),
             StartedAt: null,
         });
-        const tasksById = new Map<string, MockTaskRecord>([
-            [TASK_1, task1],
-            [TASK_2, task2],
-        ]);
-
         const oldAssignment: MockAssignmentRecord = {
             ID: 'assign-old',
             TaskID: TASK_1,
@@ -142,142 +249,207 @@ describe('TasksBulkUpdateServerOperation', () => {
                 return true;
             },
         };
-        const createdAssignments: MockAssignmentRecord[] = [];
-        const createdTagLinks: MockTagLinkRecord[] = [];
-
-        const provider = {
-            EntityByName: vi.fn((name: string) =>
-                name === 'MJ_BizApps_Common: People' ? { ID: PERSON_ENTITY_ID, Name: name } : undefined,
-            ),
-            GetEntityObject: vi.fn(async (entityName: string) => {
-                if (entityName === 'MJ_BizApps_Tasks: Tasks') {
-                    let loaded: MockTaskRecord | undefined;
-                    const shell = {
-                        InnerLoad: async (ck: { KeyValuePairs: Array<{ Value: string }> }) => {
-                            loaded = tasksById.get(ck.KeyValuePairs[0].Value);
-                            return Boolean(loaded);
-                        },
-                    };
-                    return new Proxy(shell, {
-                        get(_t, prop) {
-                            if (prop === 'InnerLoad') return shell.InnerLoad;
-                            return loaded ? Reflect.get(loaded, prop) : undefined;
-                        },
-                        set(_t, prop, value) {
-                            if (loaded) Reflect.set(loaded, prop, value);
-                            return true;
-                        },
-                    });
-                }
-                if (entityName === 'MJ_BizApps_Tasks: Task Assignments') {
-                    const rec: MockAssignmentRecord = {
-                        ID: `assign-${createdAssignments.length + 1}`,
-                        TaskID: '',
-                        AssigneeEntityID: '',
-                        AssigneeRecordID: '',
-                        RoleID: null,
-                        deleted: false,
-                        saved: false,
-                        NewRecord: () => true,
-                        Save: async () => {
-                            rec.saved = true;
-                            createdAssignments.push(rec);
-                            return true;
-                        },
-                        Delete: async () => true,
-                    };
-                    return rec;
-                }
-                if (entityName === 'MJ_BizApps_Tasks: Task Tag Links') {
-                    const rec: MockTagLinkRecord = {
-                        TaskID: '',
-                        TagID: '',
-                        saved: false,
-                        NewRecord: () => true,
-                        Save: async () => {
-                            rec.saved = true;
-                            createdTagLinks.push(rec);
-                            return true;
-                        },
-                    };
-                    return rec;
-                }
-                throw new Error(`Unexpected entity ${entityName}`);
-            }),
-        } as unknown as IMetadataProvider;
-
-        const runViewFn = vi.fn(async (params: RunViewParams): Promise<RunViewResult> => {
-            if (params.EntityName === 'MJ_BizApps_Tasks: Task Roles') {
-                return {
-                    Success: true,
-                    Results: [{ ID: ROLE_PRIMARY, Name: 'Primary' }],
-                } as unknown as RunViewResult;
-            }
-            if (params.EntityName === 'MJ_BizApps_Tasks: Task Assignments') {
-                const list = params.ExtraFilter?.includes(TASK_1) ? [oldAssignment] : [];
-                return { Success: true, Results: list } as unknown as RunViewResult;
-            }
-            if (params.EntityName === 'MJ_BizApps_Tasks: Task Tag Links') {
-                return { Success: true, Results: [] } as unknown as RunViewResult;
-            }
-            return { Success: true, Results: [] } as unknown as RunViewResult;
-        });
-        const runViewSpy = vi.spyOn(RunView, 'FromMetadataProvider').mockReturnValue({
-            RunView: runViewFn,
-        } as unknown as RunView);
-
-        const op = new TasksBulkUpdateServerOperation();
-        const envelope = await op.ExecuteServer(
-            {
-                TaskIDs: [TASK_1, TASK_2],
-                Status: 'Completed',
-                Priority: 'High',
-                DueDateMode: 'shift',
-                ShiftDays: 3,
-                OrganizationMode: 'set',
-                OrganizationID: ORG_1,
-                CategoryMode: 'set',
-                CategoryID: CAT_1,
-                AssigneeMode: 'replace',
-                AssigneeEntityName: 'MJ_BizApps_Common: People',
-                AssigneeRecordID: PERSON_1,
-                AddTagID: TAG_1,
-            },
-            { provider, user: TEST_USER, emitProgress: () => {} },
+        const { provider, runViewSpy, createdAssignments, createdTagLinks } = makeBulkHarness(
+            [task1, task2],
+            { existingAssignments: new Map([[TASK_1, [oldAssignment]]]) },
         );
-        runViewSpy.mockRestore();
 
-        expect(envelope.Success).toBe(true);
-        const result = envelope.Output!;
-        expect(result.TotalRequested).toBe(2);
-        expect(result.UpdatedCount).toBe(2);
-        expect(result.FailedCount).toBe(0);
+        try {
+            const op = new TasksBulkUpdateServerOperation();
+            const envelope = await op.ExecuteServer(
+                {
+                    TaskIDs: [TASK_1, TASK_2],
+                    Status: 'Completed',
+                    Priority: 'High',
+                    DueDateMode: 'shift',
+                    ShiftDays: 3,
+                    OrganizationMode: 'set',
+                    OrganizationID: ORG_1,
+                    CategoryMode: 'set',
+                    CategoryID: CAT_1,
+                    AssigneeMode: 'replace',
+                    AssigneeEntityName: 'MJ_BizApps_Common: People',
+                    AssigneeRecordID: PERSON_1,
+                    AddTagID: TAG_1,
+                },
+                { provider, user: TEST_USER, emitProgress: () => {} },
+            );
 
-        expect(task1.Status).toBe('Completed');
-        expect(task1.PercentComplete).toBe(100);
-        expect(task1.CompletedAt).toBeInstanceOf(Date);
-        expect(task1.Priority).toBe('High');
-        expect(task1.OrganizationID).toBe(ORG_1);
-        expect(task1.CategoryID).toBe(CAT_1);
-        expect(task1.DueAt?.toISOString().slice(0, 10)).toBe('2026-11-23');
-        expect(task1.StartedAt?.toISOString().slice(0, 10)).toBe('2026-11-21');
+            expect(envelope.Success).toBe(true);
+            const result = envelope.Output!;
+            expect(result.TotalRequested).toBe(2);
+            expect(result.UpdatedCount).toBe(2);
+            expect(result.FailedCount).toBe(0);
 
-        expect(task2.DueAt?.toISOString().slice(0, 10)).toBe('2026-11-28');
-        expect(task2.StartedAt).toBeNull();
+            expect(task1.Status).toBe('Completed');
+            expect(task1.PercentComplete).toBe(100);
+            expect(task1.CompletedAt).toBeInstanceOf(Date);
+            expect(task1.Priority).toBe('High');
+            expect(task1.OrganizationID).toBe(ORG_1);
+            expect(task1.CategoryID).toBe(CAT_1);
+            expect(task1.DueAt?.toISOString().slice(0, 10)).toBe('2026-11-23');
+            expect(task1.StartedAt?.toISOString().slice(0, 10)).toBe('2026-11-21');
 
-        expect(oldAssignment.deleted).toBe(true);
-        expect(createdAssignments).toHaveLength(2);
-        expect(createdAssignments.every((a) => a.AssigneeRecordID === PERSON_1 && a.RoleID === ROLE_PRIMARY)).toBe(true);
-        expect(createdTagLinks).toHaveLength(2);
+            expect(task2.DueAt?.toISOString().slice(0, 10)).toBe('2026-11-28');
+            expect(task2.StartedAt).toBeNull();
+
+            expect(oldAssignment.deleted).toBe(true);
+            expect(createdAssignments).toHaveLength(2);
+            expect(createdAssignments.every((a) => a.AssigneeRecordID === PERSON_1 && a.RoleID === ROLE_PRIMARY)).toBe(true);
+            expect(createdTagLinks).toHaveLength(2);
+        } finally {
+            runViewSpy.mockRestore();
+        }
     });
 
-    it('rejects empty TaskIDs and invalid ShiftDays', async () => {
-        const provider = {} as unknown as IMetadataProvider;
+    it('supports DueDateMode set/clear, StartDateMode set/clear, OrganizationMode clear, CategoryMode clear, TypeID, and TaskTypeStatusID', async () => {
+        const task1 = makeMockTask(TASK_1, { OrganizationID: ORG_1, CategoryID: CAT_1 });
+        const { provider, runViewSpy } = makeBulkHarness([task1]);
+
+        try {
+            const op = new TasksBulkUpdateServerOperation();
+            const setRes = await op.ExecuteServer(
+                {
+                    TaskIDs: [TASK_1],
+                    DueDateMode: 'set',
+                    DueAt: '2026-12-15',
+                    StartDateMode: 'set',
+                    StartedAt: '2026-12-01',
+                    TypeID: TYPE_1,
+                    TaskTypeStatusID: STAGE_1,
+                },
+                { provider, user: TEST_USER, emitProgress: () => {} },
+            );
+            expect(setRes.Success).toBe(true);
+            expect(task1.DueAt?.toISOString().slice(0, 10)).toBe('2026-12-15');
+            expect(task1.StartedAt?.toISOString().slice(0, 10)).toBe('2026-12-01');
+            expect(task1.TypeID).toBe(TYPE_1);
+            expect(task1.TaskTypeStatusID).toBe(STAGE_1);
+
+            const clearRes = await op.ExecuteServer(
+                {
+                    TaskIDs: [TASK_1],
+                    DueDateMode: 'clear',
+                    StartDateMode: 'clear',
+                    OrganizationMode: 'clear',
+                    CategoryMode: 'clear',
+                },
+                { provider, user: TEST_USER, emitProgress: () => {} },
+            );
+            expect(clearRes.Success).toBe(true);
+            expect(task1.DueAt).toBeNull();
+            expect(task1.StartedAt).toBeNull();
+            expect(task1.OrganizationID).toBeNull();
+            expect(task1.CategoryID).toBeNull();
+        } finally {
+            runViewSpy.mockRestore();
+        }
+    });
+
+    it('supports idempotent AssigneeMode add (including MJ: Roles), AssigneeMode clear, and idempotent AddTagID', async () => {
+        const task1 = makeMockTask(TASK_1);
+        const existingRoleAssignment: MockAssignmentRecord = {
+            ID: 'assign-role-existing',
+            TaskID: TASK_1,
+            AssigneeEntityID: ROLE_ENTITY_ID,
+            AssigneeRecordID: MJ_ROLE_1,
+            RoleID: ROLE_PRIMARY,
+            deleted: false,
+            saved: true,
+            NewRecord: () => true,
+            Save: async () => true,
+            Delete: async () => {
+                existingRoleAssignment.deleted = true;
+                return true;
+            },
+        };
+        const { provider, runViewSpy, createdAssignments, createdTagLinks } = makeBulkHarness([task1], {
+            existingAssignments: new Map([[TASK_1, [existingRoleAssignment]]]),
+            existingTagTaskIDs: new Set([TASK_1]),
+        });
+
+        try {
+            const op = new TasksBulkUpdateServerOperation();
+            // Adding the exact same MJ Role + already-linked Tag is a no-op (no duplicate rows)
+            const addDup = await op.ExecuteServer(
+                {
+                    TaskIDs: [TASK_1],
+                    AssigneeMode: 'add',
+                    AssigneeEntityName: 'MJ: Roles',
+                    AssigneeRecordID: MJ_ROLE_1,
+                    AddTagID: TAG_1,
+                },
+                { provider, user: TEST_USER, emitProgress: () => {} },
+            );
+            expect(addDup.Success).toBe(true);
+            expect(createdAssignments).toHaveLength(0);
+            expect(createdTagLinks).toHaveLength(0);
+            expect(existingRoleAssignment.deleted).toBe(false);
+
+            // Clear deletes all assignments without creating new ones
+            const clearRes = await op.ExecuteServer(
+                {
+                    TaskIDs: [TASK_1],
+                    AssigneeMode: 'clear',
+                },
+                { provider, user: TEST_USER, emitProgress: () => {} },
+            );
+            expect(clearRes.Success).toBe(true);
+            expect(existingRoleAssignment.deleted).toBe(true);
+            expect(createdAssignments).toHaveLength(0);
+        } finally {
+            runViewSpy.mockRestore();
+        }
+    });
+
+    it('deduplicates TaskIDs case-insensitively and reports partial failures without aborting remaining tasks', async () => {
+        const task1 = makeMockTask(TASK_1);
+        const missingTaskID = '99999999-9999-4999-8999-999999999900';
+        const { provider, runViewSpy } = makeBulkHarness([task1]);
+
+        try {
+            const op = new TasksBulkUpdateServerOperation();
+            const res = await op.ExecuteServer(
+                {
+                    TaskIDs: [TASK_1, TASK_1.toUpperCase(), missingTaskID],
+                    Priority: 'Critical',
+                },
+                { provider, user: TEST_USER, emitProgress: () => {} },
+            );
+            expect(res.Success).toBe(true);
+            expect(res.Output?.TotalRequested).toBe(2);
+            expect(res.Output?.UpdatedCount).toBe(1);
+            expect(res.Output?.FailedCount).toBe(1);
+            expect(res.Output?.UpdatedTaskIDs).toEqual([TASK_1]);
+            expect(res.Output?.Failures).toHaveLength(1);
+            expect(res.Output?.Failures[0].TaskID).toBe(missingTaskID);
+            expect(task1.Priority).toBe('Critical');
+        } finally {
+            runViewSpy.mockRestore();
+        }
+    });
+
+    it('enforces input validation guards (empty list, SQL-injection UUID, >200 cap, missing mode payloads)', async () => {
+        const provider = {
+            EntityByName: vi.fn(() => undefined),
+        } as unknown as IMetadataProvider;
         const op = new TasksBulkUpdateServerOperation();
 
         const emptyRes = await op.ExecuteServer({ TaskIDs: [] }, { provider, user: TEST_USER, emitProgress: () => {} });
         expect(emptyRes.Success).toBe(false);
         expect(emptyRes.ErrorMessage).toMatch(/at least one/i);
+
+        const badUuidRes = await op.ExecuteServer(
+            { TaskIDs: ["bad' OR 1=1 --"] },
+            { provider, user: TEST_USER, emitProgress: () => {} },
+        );
+        expect(badUuidRes.Success).toBe(false);
+        expect(badUuidRes.ErrorMessage).toMatch(/Invalid TaskID/i);
+
+        const tooMany = Array.from({ length: 501 }, (_, i) => `11111111-1111-4111-8111-${String(i).padStart(12, '0')}`);
+        const capRes = await op.ExecuteServer({ TaskIDs: tooMany }, { provider, user: TEST_USER, emitProgress: () => {} });
+        expect(capRes.Success).toBe(false);
+        expect(capRes.ErrorMessage).toMatch(/500/);
 
         const badShiftRes = await op.ExecuteServer(
             { TaskIDs: [TASK_1], DueDateMode: 'shift', ShiftDays: 1.5 },
@@ -285,6 +457,25 @@ describe('TasksBulkUpdateServerOperation', () => {
         );
         expect(badShiftRes.Success).toBe(false);
         expect(badShiftRes.ErrorMessage).toMatch(/finite integer/i);
+
+        const missingOrgRes = await op.ExecuteServer(
+            { TaskIDs: [TASK_1], OrganizationMode: 'set' },
+            { provider, user: TEST_USER, emitProgress: () => {} },
+        );
+        expect(missingOrgRes.Success).toBe(false);
+        expect(missingOrgRes.ErrorMessage).toMatch(/OrganizationID is required/i);
+
+        const unknownAssigneeEntity = await op.ExecuteServer(
+            {
+                TaskIDs: [TASK_1],
+                AssigneeMode: 'replace',
+                AssigneeEntityName: 'Nonexistent: Entity',
+                AssigneeRecordID: PERSON_1,
+            },
+            { provider, user: TEST_USER, emitProgress: () => {} },
+        );
+        expect(unknownAssigneeEntity.Success).toBe(false);
+        expect(unknownAssigneeEntity.ErrorMessage).toMatch(/Unknown AssigneeEntityName/i);
     });
 });
 
@@ -311,7 +502,7 @@ describe('TasksInstantiateTemplateServerOperation', () => {
                     };
                 }
                 if (entityName === 'MJ_BizApps_Tasks: Tasks') {
-                    const id = `00000000-0000-0000-0000-00000000000${++taskSeq}`;
+                    const id = `00000000-0000-4000-8000-00000000000${++taskSeq}`;
                     const rec = makeMockTask(id, { DueAt: null, StartedAt: null });
                     rec.Save = async () => {
                         rec.saved = true;
@@ -411,44 +602,155 @@ describe('TasksInstantiateTemplateServerOperation', () => {
             RunView: runViewFn,
         } as unknown as RunView);
 
-        const op = new TasksInstantiateTemplateServerOperation();
-        const envelope = await op.ExecuteServer(
-            {
-                TemplateID: TEMPLATE_1,
-                StartDate: '2026-12-01',
-                OrganizationID: ORG_1,
-                RoleAssignments: [
-                    {
-                        RoleID: ROLE_PRIMARY,
-                        EntityName: 'MJ_BizApps_Common: People',
-                        RecordID: PERSON_1,
-                    },
-                ],
-            },
-            { provider, user: TEST_USER, emitProgress: () => {} },
-        );
-        runViewSpy.mockRestore();
+        try {
+            const op = new TasksInstantiateTemplateServerOperation();
+            const envelope = await op.ExecuteServer(
+                {
+                    TemplateID: TEMPLATE_1,
+                    StartDate: '2026-12-01',
+                    OrganizationID: ORG_1,
+                    RoleAssignments: [
+                        {
+                            RoleID: ROLE_PRIMARY,
+                            EntityName: 'MJ_BizApps_Common: People',
+                            RecordID: PERSON_1,
+                        },
+                    ],
+                },
+                { provider, user: TEST_USER, emitProgress: () => {} },
+            );
 
-        expect(envelope.Success).toBe(true);
-        const result = envelope.Output!;
-        expect(result.CreatedCount).toBe(2);
-        expect(result.OrganizationID).toBe(ORG_1);
-        expect(createdTasks[0].Name).toBe('Close Package');
-        expect(createdTasks[0].ParentID).toBeNull();
-        expect(createdTasks[0].OrganizationID).toBe(ORG_1);
-        expect(createdTasks[0].DueAt?.toISOString().slice(0, 10)).toBe('2026-12-02');
+            expect(envelope.Success).toBe(true);
+            const result = envelope.Output!;
+            expect(result.CreatedCount).toBe(2);
+            expect(result.OrganizationID).toBe(ORG_1);
+            expect(createdTasks[0].Name).toBe('Close Package');
+            expect(createdTasks[0].ParentID).toBeNull();
+            expect(createdTasks[0].OrganizationID).toBe(ORG_1);
+            expect(createdTasks[0].DueAt?.toISOString().slice(0, 10)).toBe('2026-12-02');
 
-        expect(createdTasks[1].Name).toBe('Reconcile AR');
-        expect(createdTasks[1].ParentID).toBe(createdTasks[0].ID);
-        expect(createdTasks[1].OrganizationID).toBe(ORG_1);
-        expect(createdTasks[1].DueAt?.toISOString().slice(0, 10)).toBe('2026-12-06');
+            expect(createdTasks[1].Name).toBe('Reconcile AR');
+            expect(createdTasks[1].ParentID).toBe(createdTasks[0].ID);
+            expect(createdTasks[1].OrganizationID).toBe(ORG_1);
+            expect(createdTasks[1].DueAt?.toISOString().slice(0, 10)).toBe('2026-12-06');
 
-        expect(createdAssignments).toHaveLength(1);
-        expect(createdAssignments[0].TaskID).toBe(createdTasks[1].ID);
-        expect(createdAssignments[0].AssigneeRecordID).toBe(PERSON_1);
+            expect(createdAssignments).toHaveLength(1);
+            expect(createdAssignments[0].TaskID).toBe(createdTasks[1].ID);
+            expect(createdAssignments[0].AssigneeRecordID).toBe(PERSON_1);
 
-        expect(createdDeps).toHaveLength(1);
-        expect(createdDeps[0].TaskID).toBe(createdTasks[1].ID);
-        expect(createdDeps[0].DependsOnTaskID).toBe(createdTasks[0].ID);
+            expect(createdDeps).toHaveLength(1);
+            expect(createdDeps[0].TaskID).toBe(createdTasks[1].ID);
+            expect(createdDeps[0].DependsOnTaskID).toBe(createdTasks[0].ID);
+        } finally {
+            runViewSpy.mockRestore();
+        }
+    });
+
+    it('falls back to template OrganizationID & CategoryID when caller omits them and rejects invalid TemplateID', async () => {
+        const createdTasks: MockTaskRecord[] = [];
+        const provider = {
+            EntityByName: vi.fn(() => undefined),
+            GetEntityObject: vi.fn(async (entityName: string) => {
+                if (entityName === 'MJ_BizApps_Tasks: Task Templates') {
+                    return {
+                        ID: TEMPLATE_1,
+                        Name: 'UK Statutory Close',
+                        TypeID: TYPE_1,
+                        CategoryID: CAT_1,
+                        OrganizationID: ORG_2,
+                        InnerLoad: async () => true,
+                    };
+                }
+                const rec = makeMockTask('00000000-0000-4000-8000-000000000099', { DueAt: null, StartedAt: null });
+                rec.Save = async () => {
+                    createdTasks.push(rec);
+                    return true;
+                };
+                return rec;
+            }),
+        } as unknown as IMetadataProvider;
+
+        const runViewSpy = vi.spyOn(RunView, 'FromMetadataProvider').mockReturnValue({
+            RunView: vi.fn(async (params: RunViewParams) => {
+                if (params.EntityName === 'MJ_BizApps_Tasks: Task Template Items') {
+                    return {
+                        Success: true,
+                        Results: [
+                            { ID: ITEM_PARENT, Name: 'File VAT Return', Description: null, ParentItemID: null, Priority: 'High', DaysFromStart: 0, HoursEstimated: 3, Sequence: 10 },
+                        ],
+                    } as unknown as RunViewResult;
+                }
+                return { Success: true, Results: [] } as unknown as RunViewResult;
+            }),
+        } as unknown as RunView);
+
+        try {
+            const op = new TasksInstantiateTemplateServerOperation();
+            const ok = await op.ExecuteServer(
+                { TemplateID: TEMPLATE_1, StartDate: '2026-12-01' },
+                { provider, user: TEST_USER, emitProgress: () => {} },
+            );
+            expect(ok.Success).toBe(true);
+            expect(ok.Output?.OrganizationID).toBe(ORG_2);
+            expect(createdTasks[0].OrganizationID).toBe(ORG_2);
+            expect(createdTasks[0].CategoryID).toBe(CAT_1);
+
+            const bad = await op.ExecuteServer(
+                { TemplateID: 'not-a-uuid', StartDate: '2026-12-01' },
+                { provider, user: TEST_USER, emitProgress: () => {} },
+            );
+            expect(bad.Success).toBe(false);
+            expect(bad.ErrorMessage).toMatch(/Invalid TemplateID/i);
+        } finally {
+            runViewSpy.mockRestore();
+        }
+    });
+});
+
+describe('TaskEntityServer parent OrganizationID inheritance', () => {
+    it('inherits parent OrganizationID on new sub-task when unset and respects explicit overrides', async () => {
+        const mockRunView = vi.fn().mockResolvedValue({
+            Success: true,
+            Results: [{ OrganizationID: ORG_1 }],
+        });
+        const runViewProtoSpy = vi.spyOn(RunView.prototype, 'RunView').mockImplementation(mockRunView);
+
+        try {
+            const child = Object.create(TaskEntityServer.prototype) as TaskEntityServer & {
+                inheritParentOrganizationPreSave: () => Promise<void>;
+            };
+            Object.defineProperty(child, 'IsSaved', { value: false, configurable: true });
+            Object.defineProperty(child, 'ParentID', { value: TASK_1, configurable: true });
+            let orgVal: string | null = null;
+            Object.defineProperty(child, 'OrganizationID', {
+                get: () => orgVal,
+                set: (v: string | null) => { orgVal = v; },
+                configurable: true,
+            });
+            Object.defineProperty(child, 'ContextCurrentUser', { value: TEST_USER, configurable: true });
+            Object.defineProperty(child, 'RunViewProviderToUse', { value: undefined, configurable: true });
+
+            // 1. Unset OrganizationID on new child -> inherits parent ORG_1
+            await child.inheritParentOrganizationPreSave();
+            expect(orgVal).toBe(ORG_1);
+            expect(mockRunView).toHaveBeenCalledTimes(1);
+
+            // 2. Explicit OrganizationID already set -> does NOT overwrite
+            mockRunView.mockClear();
+            orgVal = ORG_2;
+            await child.inheritParentOrganizationPreSave();
+            expect(orgVal).toBe(ORG_2);
+            expect(mockRunView).not.toHaveBeenCalled();
+
+            // 3. Already-saved task with OrganizationID intentionally cleared -> does NOT re-inherit
+            Object.defineProperty(child, 'IsSaved', { value: true, configurable: true });
+            orgVal = null;
+            await child.inheritParentOrganizationPreSave();
+            expect(orgVal).toBeNull();
+            expect(mockRunView).not.toHaveBeenCalled();
+            expect(typeof BaseEntity).toBe('function');
+        } finally {
+            runViewProtoSpy.mockRestore();
+        }
     });
 });

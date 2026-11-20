@@ -12,10 +12,14 @@ import {
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { BaseEntity, Metadata, RunView } from '@memberjunction/core';
+import { Metadata, RunView } from '@memberjunction/core';
 import { EscapeSQLString } from '@memberjunction/global';
 import { MJButtonDirective, MJEmptyStateComponent } from '@memberjunction/ng-ui-components';
-import { TaskTemplateService } from '@mj-biz-apps/tasks-core';
+import {
+    TasksInstantiateTemplateOperation,
+    type TasksInstantiateTemplateOutput,
+    type TemplateRoleAssignmentInput,
+} from '@mj-biz-apps/tasks-core';
 import { TaskPriorityBadgeComponent } from '../task-priority-badge/task-priority-badge.component';
 import { ROLES_ENTITY } from '../../role-assignees';
 
@@ -24,6 +28,13 @@ interface TemplateOption {
     Name: string;
     Description: string | null;
     CategoryID: string | null;
+    OrganizationID: string | null;
+}
+
+interface OrgOption {
+    ID: string;
+    Name: string;
+    LinkedCompanyID: string | null;
 }
 
 interface PreviewItem {
@@ -114,6 +125,18 @@ interface PersonOption {
                             </select>
                         </div>
                     </div>
+
+                    @if (organizations.length > 0) {
+                        <div class="mjt-tpl-field">
+                            <label>Organization / Company Scope</label>
+                            <select class="mjt-tpl-input" [(ngModel)]="organizationID">
+                                <option [ngValue]="null">None (Global / Unscoped)</option>
+                                @for (org of organizations; track org.ID) {
+                                    <option [value]="org.ID">{{ org.LinkedCompanyID ? '★ ' + org.Name + ' (Company)' : org.Name }}</option>
+                                }
+                            </select>
+                        </div>
+                    }
 
                     @if (rolePlaceholders.length > 0) {
                         <div class="mjt-tpl-section">
@@ -360,19 +383,22 @@ interface PersonOption {
 })
 export class TaskTemplateWizardComponent implements OnInit, OnChanges {
     @Input() DefaultCategoryID: string | null = null;
+    @Input() DefaultOrganizationID: string | null = null;
     @Input() PersonEntityID: string | null = null;
     @Input() SelectedTemplateID: string | null = null;
 
-    @Output() Created = new EventEmitter<BaseEntity[]>();
+    @Output() Created = new EventEmitter<TasksInstantiateTemplateOutput>();
     @Output() Cancelled = new EventEmitter<void>();
 
     public templates: TemplateOption[] = [];
     public categories: { ID: string; Name: string }[] = [];
+    public organizations: OrgOption[] = [];
     public people: PersonOption[] = [];
     public mjRoles: { ID: string; Name: string }[] = [];
     public selectedTemplateID: string | null = null;
     public startDateStr = new Date().toISOString().split('T')[0];
     public categoryID: string | null = null;
+    public organizationID: string | null = null;
     public previewItems: PreviewItem[] = [];
     public rolePlaceholders: RolePlaceholder[] = [];
     public loadingTemplates = false;
@@ -381,7 +407,6 @@ export class TaskTemplateWizardComponent implements OnInit, OnChanges {
     public errorMessage = '';
 
     private rawItems: TaskTemplateItemRow[] = [];
-    private templateService = new TaskTemplateService();
     private cdr = inject(ChangeDetectorRef);
 
     public get activeTemplate(): TemplateOption | undefined {
@@ -394,6 +419,7 @@ export class TaskTemplateWizardComponent implements OnInit, OnChanges {
 
     public ngOnInit(): void {
         this.categoryID = this.DefaultCategoryID;
+        this.organizationID = this.DefaultOrganizationID;
         this.selectedTemplateID = this.SelectedTemplateID;
         void this.loadInitialData();
     }
@@ -409,10 +435,11 @@ export class TaskTemplateWizardComponent implements OnInit, OnChanges {
         this.loadingTemplates = true;
         this.cdr.markForCheck();
         try {
-            const [tpls, cats, ppl] = await Promise.all([
+            const [tpls, cats, orgs, ppl] = await Promise.all([
                 new RunView().RunView<TemplateOption>({
                     EntityName: 'MJ_BizApps_Tasks: Task Templates',
                     ExtraFilter: 'IsActive = 1',
+                    Fields: ['ID', 'Name', 'Description', 'CategoryID', 'OrganizationID'],
                     OrderBy: 'Name ASC',
                     ResultType: 'simple',
                 }),
@@ -420,6 +447,13 @@ export class TaskTemplateWizardComponent implements OnInit, OnChanges {
                     EntityName: 'MJ_BizApps_Tasks: Task Categories',
                     ExtraFilter: 'IsActive = 1',
                     OrderBy: 'Sequence ASC',
+                    ResultType: 'simple',
+                }),
+                new RunView().RunView<OrgOption>({
+                    EntityName: 'MJ_BizApps_Common: Organizations',
+                    ExtraFilter: "Status = 'Active'",
+                    Fields: ['ID', 'Name', 'LinkedCompanyID'],
+                    OrderBy: 'Name ASC',
                     ResultType: 'simple',
                 }),
                 new RunView().RunView<PersonOption>({
@@ -430,6 +464,12 @@ export class TaskTemplateWizardComponent implements OnInit, OnChanges {
             ]);
             this.templates = tpls?.Results ?? [];
             this.categories = cats?.Results ?? [];
+            this.organizations = [...(orgs?.Results ?? [])].sort((a, b) => {
+                if (Boolean(a.LinkedCompanyID) !== Boolean(b.LinkedCompanyID)) {
+                    return a.LinkedCompanyID ? -1 : 1;
+                }
+                return a.Name.localeCompare(b.Name);
+            });
             this.people = ppl?.Results ?? [];
             this.mjRoles = (Metadata.Provider.Roles ?? []).map((r) => ({ ID: r.ID, Name: r.Name }));
 
@@ -455,6 +495,9 @@ export class TaskTemplateWizardComponent implements OnInit, OnChanges {
         const tpl = this.activeTemplate;
         if (tpl?.CategoryID && !this.DefaultCategoryID) {
             this.categoryID = tpl.CategoryID;
+        }
+        if (tpl?.OrganizationID && !this.DefaultOrganizationID) {
+            this.organizationID = tpl.OrganizationID;
         }
 
         this.loadingPreview = true;
@@ -536,26 +579,36 @@ export class TaskTemplateWizardComponent implements OnInit, OnChanges {
         this.errorMessage = '';
         this.cdr.markForCheck();
         try {
-            const personEntityID = this.PersonEntityID || Metadata.Provider.EntityByName('MJ_BizApps_Common: People')?.ID || '';
-            const roleEntityID = Metadata.Provider.EntityByName(ROLES_ENTITY)?.ID || '';
-            const assigneeMap = new Map<string, { entityID: string; recordID: string }>();
-
+            const roleAssignments: TemplateRoleAssignmentInput[] = [];
             for (const rp of this.rolePlaceholders) {
                 if (!rp.AssigneeChoice) continue;
-                if (rp.AssigneeChoice.startsWith('person:') && personEntityID) {
-                    assigneeMap.set(rp.RoleID, { entityID: personEntityID, recordID: rp.AssigneeChoice.slice(7) });
-                } else if (rp.AssigneeChoice.startsWith('role:') && roleEntityID) {
-                    assigneeMap.set(rp.RoleID, { entityID: roleEntityID, recordID: rp.AssigneeChoice.slice(5) });
+                if (rp.AssigneeChoice.startsWith('person:')) {
+                    roleAssignments.push({
+                        RoleID: rp.RoleID,
+                        EntityName: 'MJ_BizApps_Common: People',
+                        RecordID: rp.AssigneeChoice.slice(7),
+                    });
+                } else if (rp.AssigneeChoice.startsWith('role:')) {
+                    roleAssignments.push({
+                        RoleID: rp.RoleID,
+                        EntityName: ROLES_ENTITY,
+                        RecordID: rp.AssigneeChoice.slice(5),
+                    });
                 }
             }
 
-            const tasks = await this.templateService.instantiateTemplate({
-                templateID: this.selectedTemplateID,
-                startDate: new Date(`${this.startDateStr}T09:00:00`),
-                categoryID: this.categoryID ?? undefined,
-                assigneeMap: assigneeMap.size > 0 ? assigneeMap : undefined,
+            const result = await new TasksInstantiateTemplateOperation().Execute({
+                TemplateID: this.selectedTemplateID,
+                StartDate: this.startDateStr,
+                CategoryID: this.categoryID,
+                OrganizationID: this.organizationID,
+                RoleAssignments: roleAssignments.length > 0 ? roleAssignments : undefined,
             });
-            this.Created.emit(tasks);
+            if (!result.Success || !result.Output) {
+                this.errorMessage = result.ErrorMessage || 'Failed to instantiate template on the server.';
+                return;
+            }
+            this.Created.emit(result.Output);
         } catch (err) {
             this.errorMessage = err instanceof Error ? err.message : 'Failed to instantiate template.';
         } finally {

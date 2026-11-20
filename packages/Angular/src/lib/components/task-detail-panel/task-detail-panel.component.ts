@@ -232,6 +232,20 @@ export class BeforeCommentPostedEvent {
                             [disabled]="ReadOnly || busy"
                             aria-label="Due date"
                             (ngModelChange)="updateDueDate($event)" />
+
+                        @if (organizations.length > 0) {
+                            <select
+                                class="mjt-meta-sel"
+                                [ngModel]="taskEntity.OrganizationID"
+                                [disabled]="ReadOnly || busy"
+                                aria-label="Organization"
+                                (ngModelChange)="updateOrganization($event)">
+                                <option [ngValue]="null">No organization</option>
+                                @for (org of organizations; track org.ID) {
+                                    <option [value]="org.ID">{{ org.LinkedCompanyID ? '★ ' + org.Name : org.Name }}</option>
+                                }
+                            </select>
+                        }
                     </div>
 
                     <!-- Adaptive Spotlight (0px on simple General tasks!) -->
@@ -744,6 +758,7 @@ export class TaskDetailPanelComponent implements OnChanges {
     public assignees: InspectorAssigneeRow[] = [];
     public linkedRecords: TaskWidgetLinkedRecord[] = [];
     public subtasks: ChildSubtaskRow[] = [];
+    public organizations: { ID: string; Name: string; LinkedCompanyID: string | null }[] = [];
     public typeStatuses: TaskWidgetTypeStatus[] = [];
     public spotlightData: TaskAdaptiveSpotlightInput | null = null;
     public timeline: ActivityEntry[] = [];
@@ -846,6 +861,7 @@ export class TaskDetailPanelComponent implements OnChanges {
                 this.loadParentTask().catch(() => { this.parentTaskName = null; }),
                 this.loadLinkedRecords().catch(() => { this.linkedRecords = []; }),
                 this.loadSubtasks().catch(() => { this.subtasks = []; }),
+                this.loadOrganizations().catch(() => { this.organizations = []; }),
                 this.loadTypeAndSpotlight().catch(() => { this.typeStatuses = []; }),
                 this.loadPendingSuggestions().catch(() => {
                     this.pendingSuggestionSummary = null;
@@ -1160,6 +1176,37 @@ export class TaskDetailPanelComponent implements OnChanges {
             if (await this.taskEntity.Save()) {
                 this.TaskMutated.emit(this.taskEntity.ID);
                 await this.LoadTask();
+            }
+        } finally {
+            this.busy = false;
+            this.cdr.markForCheck();
+        }
+    }
+
+    private async loadOrganizations(): Promise<void> {
+        const res = await this.createRunView().RunView<{ ID: string; Name: string; LinkedCompanyID: string | null }>({
+            EntityName: 'MJ_BizApps_Common: Organizations',
+            ExtraFilter: "Status = 'Active'",
+            Fields: ['ID', 'Name', 'LinkedCompanyID'],
+            OrderBy: 'Name ASC',
+            ResultType: 'simple',
+        });
+        this.organizations = [...(res?.Results ?? [])].sort((a, b) => {
+            if (Boolean(a.LinkedCompanyID) !== Boolean(b.LinkedCompanyID)) {
+                return a.LinkedCompanyID ? -1 : 1;
+            }
+            return a.Name.localeCompare(b.Name);
+        });
+    }
+
+    public async updateOrganization(orgId: string | null): Promise<void> {
+        if (!this.taskEntity || this.ReadOnly) return;
+        this.busy = true;
+        this.cdr.markForCheck();
+        try {
+            this.taskEntity.OrganizationID = orgId || null;
+            if (await this.taskEntity.Save()) {
+                this.TaskMutated.emit(this.taskEntity.ID);
             }
         } finally {
             this.busy = false;

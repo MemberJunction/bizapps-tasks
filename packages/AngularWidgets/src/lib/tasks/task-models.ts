@@ -4,7 +4,11 @@ import type {
     mjBizAppsTasksTaskEntity,
     mjBizAppsTasksTaskTypeStatusEntity,
 } from '@mj-biz-apps/tasks-entities';
-import type { TaskUiArchetype, TaskWorkspaceSummary } from '@mj-biz-apps/tasks-core';
+import type {
+    TaskUiArchetype,
+    TaskWorkspaceSummary,
+    TasksBulkUpdateInput,
+} from '@mj-biz-apps/tasks-core';
 
 /** Strongly-typed status union derived directly from the generated Task entity. */
 export type TaskStatusValue = mjBizAppsTasksTaskEntity['Status'];
@@ -53,6 +57,7 @@ export interface TaskWidgetAssignee {
     Status: TaskAssignmentStatusValue;
     EntityName?: string;
     RecordID: string;
+    IsRole?: boolean;
 }
 
 /** A linked business record (TaskLink) displayed as a clickable context chip. */
@@ -81,6 +86,8 @@ export interface TaskWidgetItem extends TaskWorkspaceSummary {
     TypeCode?: string | null;
     CategoryID?: string | null;
     CategoryName?: string | null;
+    OrganizationID?: string | null;
+    OrganizationName?: string | null;
     TaskTypeStatusID?: string | null;
     TaskTypeStatusName?: string | null;
     BlockedReason?: string | null;
@@ -180,9 +187,21 @@ export interface TaskCommandPaletteItem {
 /** Urgency filter key emitted when the user clicks a pill in `<mjt-urgency-strip>`. */
 export type TaskUrgencyFilterKey = '' | 'overdue' | 'blocked' | 'approvals' | 'sla';
 
+/** Lookup option passed into `<mjt-bulk-action-dock>` pickers. */
+export interface TaskBulkLookupOption {
+    ID: string;
+    Label: string;
+    Sublabel?: string;
+    EntityName?: string;
+}
+
+/** Patch payload for multi-field bulk updates (mirrors `TasksBulkUpdateInput` minus `TaskIDs`). */
+export type TaskBulkPatch = Omit<TasksBulkUpdateInput, 'TaskIDs'>;
+
 /** Bulk action request emitted by `<mjt-bulk-action-dock>`. */
 export interface TaskBulkActionRequest {
-    Kind: 'status' | 'priority' | 'clear';
+    Kind: 'status' | 'priority' | 'apply' | 'select-all' | 'clear';
     Status?: TaskStatusValue;
     Priority?: TaskPriorityValue;
+    Patch?: TaskBulkPatch;
 }

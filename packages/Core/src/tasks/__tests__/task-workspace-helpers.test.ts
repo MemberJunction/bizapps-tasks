@@ -5,6 +5,8 @@ import {
     ComputeCriticalPathTaskIds,
     ComputeTaskUrgencyCounts,
     GroupTasksIntoMilestones,
+    MatchesAssigneeFilter,
+    MatchesDueDateFilter,
     type TaskWorkspaceSummary,
 } from '../task-workspace-helpers.js';
 
@@ -109,5 +111,29 @@ describe('task-workspace-helpers', () => {
         expect(buckets.map((b) => b.Key)).toEqual(['overdue', 'this-week', 'upcoming', 'completed']);
         expect(buckets[0].Tasks.map((t) => t.ID)).toEqual(['t-overdue']);
         expect(buckets[1].Tasks.map((t) => t.ID)).toEqual(['t-app', 't-blocked']);
+    });
+
+    it('filters tasks accurately by Due Date bucket across List, Board, and Gantt', () => {
+        expect(MatchesDueDateFilter(new Date(2026, 10, 16, 17, 0, 0), 'InProgress', 'overdue', now)).toBe(true);
+        expect(MatchesDueDateFilter(new Date(2026, 10, 16, 17, 0, 0), 'Completed', 'overdue', now)).toBe(false);
+        expect(MatchesDueDateFilter(new Date(2026, 10, 18, 17, 0, 0), 'Open', 'today', now)).toBe(true);
+        expect(MatchesDueDateFilter(new Date(2026, 10, 21, 17, 0, 0), 'Open', 'week', now)).toBe(true);
+        expect(MatchesDueDateFilter(new Date(2026, 11, 10, 17, 0, 0), 'Open', 'month', now)).toBe(true);
+        expect(MatchesDueDateFilter(null, 'Open', 'none', now)).toBe(true);
+        expect(MatchesDueDateFilter(new Date(2026, 10, 18, 17, 0, 0), 'Open', 'none', now)).toBe(false);
+    });
+
+    it('filters tasks accurately by Assignee (Me, Unassigned, Person, or MJ Role)', () => {
+        const assignees = [
+            { EntityName: 'MJ_BizApps_Common: People', RecordID: 'p-alice' },
+            { EntityName: 'MJ: Roles', RecordID: 'r-finance' },
+        ];
+        expect(MatchesAssigneeFilter([], '__unassigned__', 'p-alice')).toBe(true);
+        expect(MatchesAssigneeFilter(assignees, '__unassigned__', 'p-alice')).toBe(false);
+        expect(MatchesAssigneeFilter(assignees, '__me__', 'p-alice')).toBe(true);
+        expect(MatchesAssigneeFilter(assignees, '__me__', 'p-other', ['r-finance'])).toBe(true);
+        expect(MatchesAssigneeFilter(assignees, 'person:p-alice', null)).toBe(true);
+        expect(MatchesAssigneeFilter(assignees, 'role:r-finance', null)).toBe(true);
+        expect(MatchesAssigneeFilter(assignees, 'person:p-bob', null)).toBe(false);
     });
 });

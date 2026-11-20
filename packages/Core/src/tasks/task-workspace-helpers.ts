@@ -330,3 +330,83 @@ export function GroupTasksIntoMilestones<T extends TaskWorkspaceSummary>(
     ];
     return buckets.filter((b) => b.Tasks.length > 0);
 }
+
+/** Due-date filter keys shared across Tree List, Board, and Gantt views. */
+export type TaskDueDateFilterKey = '' | 'overdue' | 'today' | 'week' | 'month' | 'none';
+
+/** Minimal assignee reference used for cross-view assignee filtering. */
+export interface TaskAssigneeFilterRef {
+    EntityName?: string;
+    RecordID: string;
+}
+
+/**
+ * Evaluates whether a task matches a unified Due Date filter across List, Board, and Gantt.
+ */
+export function MatchesDueDateFilter(
+    dueAt: Date | string | null | undefined,
+    status: string,
+    filter: TaskDueDateFilterKey | string | null | undefined,
+    now: Date = new Date(),
+): boolean {
+    if (!filter) return true;
+    const due = toDate(dueAt);
+    if (filter === 'none') return due === null;
+    if (!due) return false;
+
+    const todayStart = startOfLocalDay(now).getTime();
+    const tomorrowStart = todayStart + 24 * 60 * 60 * 1000;
+    const weekEnd = todayStart + 7 * 24 * 60 * 60 * 1000;
+    const monthEnd = todayStart + 30 * 24 * 60 * 60 * 1000;
+    const dueMs = due.getTime();
+
+    switch (filter) {
+        case 'overdue':
+            return status !== 'Completed' && status !== 'Cancelled' && dueMs < now.getTime();
+        case 'today':
+            return dueMs >= todayStart && dueMs < tomorrowStart;
+        case 'week':
+            return dueMs >= todayStart && dueMs <= weekEnd;
+        case 'month':
+            return dueMs >= todayStart && dueMs <= monthEnd;
+        default:
+            return true;
+    }
+}
+
+/**
+ * Evaluates whether a task's assignee list matches a unified Assignee filter:
+ * - `''` / `null`: all tasks
+ * - `'__unassigned__'`: tasks with 0 assignees
+ * - `'__me__'`: tasks assigned to `currentPersonID` or any role in `currentRoleIDs`
+ * - `'person:<id>'` or `'role:<id>'`: tasks assigned to that exact Person or MJ Role
+ */
+export function MatchesAssigneeFilter(
+    assignees: readonly TaskAssigneeFilterRef[] | undefined,
+    filter: string | null | undefined,
+    currentPersonID: string | null | undefined,
+    currentRoleIDs: readonly string[] = [],
+): boolean {
+    if (!filter) return true;
+    const list = assignees ?? [];
+    if (filter === '__unassigned__') {
+        return list.length === 0;
+    }
+    if (filter === '__me__') {
+        const me = currentPersonID?.toLowerCase() ?? null;
+        const myRoles = new Set(currentRoleIDs.map((id) => id.toLowerCase()));
+        return list.some((a) => {
+            const rid = a.RecordID.toLowerCase();
+            return (me !== null && rid === me) || myRoles.has(rid);
+        });
+    }
+    if (filter.startsWith('person:')) {
+        const target = filter.slice(7).toLowerCase();
+        return list.some((a) => a.RecordID.toLowerCase() === target);
+    }
+    if (filter.startsWith('role:')) {
+        const target = filter.slice(5).toLowerCase();
+        return list.some((a) => a.RecordID.toLowerCase() === target);
+    }
+    return list.some((a) => a.RecordID.toLowerCase() === filter.toLowerCase());
+}
