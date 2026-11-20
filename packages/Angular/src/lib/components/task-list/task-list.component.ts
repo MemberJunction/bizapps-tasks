@@ -1042,44 +1042,34 @@ export class TaskListComponent implements OnInit, OnChanges {
                 return;
             }
 
-            const entity = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Tasks');
+            const entity = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
             entity.NewRecord();
-            entity.Set('Name', name);
-            entity.Set('Status', 'Open');
-            entity.Set('Priority', 'Medium');
-            entity.Set('TypeID', typeID);
-            if (this.CategoryID) entity.Set('CategoryID', this.CategoryID);
-            const saved = await entity.Save();
+            entity.Name = name;
+            entity.Status = 'Open';
+            entity.Priority = 'Medium';
+            entity.TypeID = typeID;
+            if (this.CategoryID) entity.CategoryID = this.CategoryID;
 
+            // Attach assignee directly onto entity.Assignments so Task + Assignment save atomically via MJ.SaveEntityGraph
+            if (this.quickAddPersonID) {
+                const peopleEntityID = Metadata.Provider.EntityByName('MJ_BizApps_Common: People')?.ID;
+                if (!peopleEntityID) {
+                    console.error('Quick-add assignment skipped: People is not installed.');
+                } else {
+                    const assignment = await entity.Assignments.Create();
+                    assignment.AssigneeEntityID = peopleEntityID;
+                    assignment.AssigneeRecordID = this.quickAddPersonID;
+                    assignment.Status = 'Pending';
+                }
+            }
+
+            const saved = await entity.Save();
             if (!saved) {
                 console.error('Quick-add Save() returned false. LatestResult:', entity.LatestResult);
                 return;
             }
 
-            const savedID = entity.Get('ID') as string;
-
-            // Create assignment if a person was selected
-            if (this.quickAddPersonID) {
-                try {
-                    const peopleEntityID = Metadata.Provider.EntityByName('MJ_BizApps_Common: People')?.ID;
-                    if (!peopleEntityID) {
-                        console.error('Quick-add assignment skipped: People is not installed.');
-                    } else {
-                        const assignment = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Assignments');
-                        assignment.NewRecord();
-                        assignment.Set('TaskID', savedID);
-                        assignment.Set('AssigneeEntityID', peopleEntityID);
-                        assignment.Set('AssigneeRecordID', this.quickAddPersonID);
-                        assignment.Set('Status', 'Pending');
-                        const assigned = await assignment.Save();
-                        if (!assigned) {
-                            console.error('Quick-add assignment was refused:', assignment.LatestResult?.CompleteMessage);
-                        }
-                    }
-                } catch (e) {
-                    console.error('Quick-add assignment failed:', e);
-                }
-            }
+            const savedID = entity.ID;
 
             this.quickAddName = '';
             this.quickAddPersonID = '';

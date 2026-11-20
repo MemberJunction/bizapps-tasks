@@ -85,10 +85,10 @@ export class TaskHeaderPanel extends BaseFormPanel<mjBizAppsTasksTaskEntity> imp
     }
 
     public get EstimatedHours(): number {
-        return Number(this.Record?.Get('EstimatedHours') || 0);
+        return Number(this.Record?.HoursEstimated ?? 0);
     }
 
     public get ActualHours(): number {
-        return Number(this.Record?.Get('ActualHours') || 0);
+        return Number(this.Record?.HoursActual ?? 0);
     }
 }
