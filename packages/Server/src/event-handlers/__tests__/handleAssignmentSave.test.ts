@@ -21,6 +21,8 @@ vi.mock('@memberjunction/core', () => ({
 }));
 vi.mock('@memberjunction/global', () => ({
   MJEventType: { ComponentEvent: 'ComponentEvent' },
+  IsValidUUID: (v: string | null | undefined) =>
+    !!v && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(v.trim()),
   MJGlobal: { Instance: { GetGlobalObjectStore: () => ({}), GetEventListener: () => ({ subscribe: () => ({ unsubscribe() {} }) }) } },
 }));
 // The resolver answers from the mocked People rows' LinkedUserID here; its own rules (the user's
@@ -54,12 +56,17 @@ vi.mock('@memberjunction/actions', () => ({
 
 import { handleAssignmentSave, handleEntityEvent } from '../TaskNotificationHandler.js';
 
+// GuidLiteral refuses non-UUID ids before they reach SQL filter text, so fixture ids must be UUIDs.
+const TASK_ID = '11111111-1111-1111-1111-111111111111';
+const TYPE_ID = '22222222-2222-2222-2222-222222222222';
+const PERSON_ID = '33333333-3333-3333-3333-333333333333';
+
 // Read as a simple row by the assignment notice and as an entity by the OnAssign hook.
 const task = {
   Name: 'Approve discount',
   Priority: 'High',
   DueAt: null,
-  Get: (field: string) => ({ ID: 'task-1', Name: 'Approve discount', Status: 'Open', TypeID: 'type-1' } as Record<string, string>)[field],
+  Get: (field: string) => ({ ID: TASK_ID, Name: 'Approve discount', Status: 'Open', TypeID: TYPE_ID } as Record<string, string>)[field],
 };
 
 function mockViews(linkedUserID: string | null): void {
@@ -69,8 +76,8 @@ function mockViews(linkedUserID: string | null): void {
         return Promise.resolve({
           Success: true,
           Results: params.Fields?.includes('LinkedUserID')
-            ? [{ ID: 'person-1', LinkedUserID: linkedUserID }]
-            : [{ ID: 'person-1', FirstName: 'Pat', LastName: 'Doe' }],
+            ? [{ ID: PERSON_ID, LinkedUserID: linkedUserID }]
+            : [{ ID: PERSON_ID, FirstName: 'Pat', LastName: 'Doe' }],
         });
       case 'MJ_BizApps_Tasks: Tasks':
         return Promise.resolve({ Success: true, Results: params.ExtraFilter ? [task] : [] });
@@ -82,8 +89,8 @@ function mockViews(linkedUserID: string | null): void {
   });
 }
 
-function assignmentCreated() {
-  const fields: Record<string, string | null> = { AssigneeRecordID: 'person-1', TaskID: 'task-1', RoleID: null };
+function assignmentCreated(assigneeRecordID = PERSON_ID) {
+  const fields: Record<string, string | null> = { AssigneeRecordID: assigneeRecordID, TaskID: TASK_ID, RoleID: null };
   return {
     type: 'save',
     saveSubType: 'create',
@@ -108,10 +115,10 @@ describe('handleAssignmentSave', () => {
 
     expect(runAction).toHaveBeenCalledOnce();
     expect(paramsPassed()).toMatchObject({
-      TaskID: 'task-1',
+      TaskID: TASK_ID,
       TaskName: 'Approve discount',
-      TaskTypeID: 'type-1',
-      AssigneePersonID: 'person-1',
+      TaskTypeID: TYPE_ID,
+      AssigneePersonID: PERSON_ID,
       AssigneeName: 'Pat Doe',
     });
     expect(sendNotification).toHaveBeenCalledOnce();
@@ -139,7 +146,21 @@ describe('handleAssignmentSave', () => {
 
     expect(sendNotification).not.toHaveBeenCalled();
     expect(runAction).toHaveBeenCalledOnce();
-    expect(paramsPassed().AssigneePersonID).toBe('person-1');
+    expect(paramsPassed().AssigneePersonID).toBe(PERSON_ID);
+  });
+
+  it('skips People SQL lookups for a non-UUID AssigneeRecordID while still invoking OnAssign', async () => {
+    mockViews('user-1');
+
+    await handleAssignmentSave(assignmentCreated("x' OR 1=1 --"));
+
+    expect(runView.mock.calls.some(([p]) => (p as ViewParams).EntityName === 'MJ_BizApps_Common: People')).toBe(false);
+    expect(sendNotification).not.toHaveBeenCalled();
+    expect(runAction).toHaveBeenCalledOnce();
+    expect(paramsPassed()).toMatchObject({
+      AssigneePersonID: "x' OR 1=1 --",
+      AssigneeName: null,
+    });
   });
 
   it('still invokes the OnAssign action when the notification throws', async () => {
@@ -165,7 +186,7 @@ describe('handleAssignmentSave', () => {
     const token = { frame: 'tx-1' };
     const runAfterCommit = vi.fn();
     const capturePostCommitToken = vi.fn(() => token);
-    const fields: Record<string, string | null> = { AssigneeRecordID: 'person-1', TaskID: 'task-1', RoleID: null };
+    const fields: Record<string, string | null> = { AssigneeRecordID: PERSON_ID, TaskID: TASK_ID, RoleID: null };
     const event = {
       type: 'save',
       saveSubType: 'create',
@@ -199,7 +220,7 @@ describe('handleAssignmentSave', () => {
 
 describe('handleAssignmentSave for a role assignee (bc-aidp-next-golive#442)', () => {
   function roleAssignmentCreated() {
-    const fields: Record<string, string | null> = { AssigneeEntityID: ROLES_ENTITY, AssigneeRecordID: 'role-finance', TaskID: 'task-1', RoleID: null };
+    const fields: Record<string, string | null> = { AssigneeEntityID: ROLES_ENTITY, AssigneeRecordID: 'role-finance', TaskID: TASK_ID, RoleID: null };
     return {
       type: 'save',
       saveSubType: 'create',
