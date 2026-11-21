@@ -25,8 +25,11 @@
     "vitest": "^4.0.18"
   },
   "dependencies": {
+    "@memberjunction/actions": "^6.2.1",
+    "@memberjunction/actions-base": "^6.2.1",
     "@memberjunction/ai-agents": "^6.2.1",
     "@memberjunction/ai-core-plus": "^6.2.1",
+    "@memberjunction/aiengine": "^6.2.1",
     "@memberjunction/api-keys": "^6.2.1",
     "@memberjunction/core": "^6.2.1",
     "@memberjunction/core-entities": "^6.2.1",

@@ -110,6 +110,19 @@ vi.mock('@memberjunction/core-entities', () => ({
     ApplicationSettingEngine: { Instance: {} },
     MJAIAgentRunEntity: class {},
 }));
+vi.mock('@memberjunction/ai-core-plus', () => ({
+    AgentUserPolicyEngine: {
+        Instance: {
+            GetEffectivePolicyAgentChain: vi.fn(() => []),
+            GetCachedPolicy: vi.fn(() => null),
+            ResolvePolicyForAgentAndUser: vi.fn(),
+            EvaluateActionExecution: vi.fn(),
+        },
+    },
+    TypedActionPolicyGuard: {
+        CheckEntityAccess: vi.fn().mockResolvedValue({ Allowed: true, Active: false, DeniedFieldPatterns: [] }),
+    },
+}));
 
 describe('@mj-biz-apps/tasks-entities-server', () => {
     it('imports the entry point and exposes the bootstrap + all server subclasses', async () => {

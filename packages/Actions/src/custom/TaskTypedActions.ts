@@ -37,10 +37,10 @@ import {
     normalizeHealthStatus,
     normalizeTaskPriority,
     normalizeTaskStatus,
-    ORGANIZATIONS_ENTITY,
     PLANNING_TASK_TYPE_CODES,
     PLANNING_TASK_TYPE_NAMES,
     resolveCallerPerson,
+    resolveOrganizationByIdentifier,
     resolvePersonByIdentifier,
     resolveUserIDForPersonRecord,
     ROLES_ENTITY,
@@ -76,6 +76,8 @@ interface TaskSummaryRow {
     Type: string;
     CategoryID: string | null;
     Category: string | null;
+    OrganizationID?: string | null;
+    Organization?: string | null;
     ParentID: string | null;
     BlockedReason: string | null;
     HealthStatus: mjBizAppsTasksTaskEntity['HealthStatus'];
@@ -93,6 +95,8 @@ interface CompactTaskSummary {
     PercentComplete: number;
     Type: string;
     Category: string | null;
+    OrganizationID: string | null;
+    Organization: string | null;
     ParentID: string | null;
     BlockedReason: string | null;
     HealthStatus: mjBizAppsTasksTaskEntity['HealthStatus'];
@@ -144,6 +148,8 @@ function toCompactSummary(row: TaskSummaryRow): CompactTaskSummary {
         PercentComplete: row.PercentComplete ?? 0,
         Type: row.Type,
         Category: row.Category ?? null,
+        OrganizationID: row.OrganizationID ?? null,
+        Organization: row.Organization ?? null,
         ParentID: row.ParentID ?? null,
         BlockedReason: row.BlockedReason ?? null,
         HealthStatus: row.HealthStatus ?? null,
@@ -182,24 +188,6 @@ async function getPersonAssignedTaskIDs(personID: string, contextUser: UserInfo)
         {
             EntityName: TASK_ASSIGNMENTS_ENTITY,
             ExtraFilter: filter,
-            Fields: ['TaskID'],
-            ResultType: 'simple',
-            MaxRows: 1000,
-        },
-        contextUser,
-    );
-    if (!res.Success) return [];
-    return Array.from(new Set((res.Results ?? []).map((r) => r.TaskID).filter((id) => IsValidUUID(id))));
-}
-
-async function getOrganizationLinkedTaskIDs(organizationID: string, contextUser: UserInfo): Promise<string[]> {
-    const orgEntityID = findEntityIDByName(ORGANIZATIONS_ENTITY);
-    if (!orgEntityID) return [];
-    const rv = new RunView();
-    const res = await rv.RunView<{ TaskID: string }>(
-        {
-            EntityName: TASK_LINKS_ENTITY,
-            ExtraFilter: `EntityID = '${EscapeSQLString(orgEntityID)}' AND RecordID = '${EscapeSQLString(organizationID)}'`,
             Fields: ['TaskID'],
             ResultType: 'simple',
             MaxRows: 1000,
@@ -270,6 +258,7 @@ export class FindTasksAction extends BaseAction {
             const scope = scopeRaw ?? (mineOnly ? 'mine' : 'team');
             const categoryID = getStringParam(params, 'CategoryID');
             const organizationID = getStringParam(params, 'OrganizationID');
+            const organizationName = getStringParam(params, 'OrganizationName');
             const parentTaskID = getStringParam(params, 'ParentTaskID', 'ParentID');
             const taskTypeParam = getStringParam(params, 'TaskType', 'TypeCode');
             const priorityRaw = getStringParam(params, 'Priority');
@@ -414,12 +403,24 @@ export class FindTasksAction extends BaseAction {
                 filters.push(`DueAt >= '${EscapeSQLString(dueAfter.toISOString())}'`);
             }
 
-            if (organizationID) {
-                const orgTaskIds = await getOrganizationLinkedTaskIDs(organizationID, user);
-                if (orgTaskIds.length === 0) {
-                    return this.returnEmpty(params, 'No tasks linked to that organization match the requested filters.');
+            if (organizationID || organizationName) {
+                const orgLookup = await resolveOrganizationByIdentifier(
+                    { organizationID, organizationName },
+                    user,
+                );
+                if (orgLookup.Status === 'INVALID') {
+                    return failResult('VALIDATION_ERROR', orgLookup.Message, params);
                 }
-                filters.push(`ID IN (${orgTaskIds.map((id) => `'${EscapeSQLString(id)}'`).join(', ')})`);
+                if (orgLookup.Status === 'NOT_FOUND') {
+                    return failResult('NOT_FOUND', orgLookup.Message, params);
+                }
+                if (orgLookup.Status === 'AMBIGUOUS') {
+                    setOutputParam(params, 'Candidates', JSON.stringify(orgLookup.Candidates));
+                    return failResult('AMBIGUOUS', orgLookup.Message, params);
+                }
+                if (orgLookup.Status === 'FOUND') {
+                    filters.push(`OrganizationID = '${EscapeSQLString(orgLookup.Organization.ID)}'`);
+                }
             }
 
             // Optional semantic + lexical search
@@ -455,6 +456,8 @@ export class FindTasksAction extends BaseAction {
                         'Type',
                         'CategoryID',
                         'Category',
+                        'OrganizationID',
+                        'Organization',
                         'ParentID',
                         'BlockedReason',
                         'HealthStatus',
@@ -618,7 +621,7 @@ export class GetTaskAction extends BaseAction {
                     {
                         EntityName: TASKS_ENTITY,
                         ExtraFilter: `ParentID = '${escapedId}'`,
-                        Fields: ['ID', 'Name', 'Status', 'Priority', 'DueAt', 'PercentComplete', 'Type', 'Category', 'ParentID', 'BlockedReason', 'HealthStatus'],
+                        Fields: ['ID', 'Name', 'Status', 'Priority', 'DueAt', 'PercentComplete', 'Type', 'Category', 'OrganizationID', 'Organization', 'ParentID', 'BlockedReason', 'HealthStatus'],
                         OrderBy: 'Sequence ASC, DueAt ASC',
                         MaxRows: 25,
                         ResultType: 'simple',
@@ -644,6 +647,8 @@ export class GetTaskAction extends BaseAction {
                 PercentComplete: task.PercentComplete ?? 0,
                 Type: task.Type,
                 Category: task.Category ?? null,
+                OrganizationID: task.OrganizationID ?? null,
+                Organization: task.Organization ?? null,
                 ParentID: task.ParentID ?? null,
                 BlockedReason: task.BlockedReason ?? null,
                 HealthStatus: task.HealthStatus ?? null,
@@ -755,6 +760,7 @@ export class CreateTaskAction extends BaseAction {
 
         const categoryID = getStringParam(params, 'CategoryID');
         const organizationID = getStringParam(params, 'OrganizationID');
+        const organizationName = getStringParam(params, 'OrganizationName');
         const parentTaskID = getStringParam(params, 'ParentTaskID', 'ParentID');
         const taskTypeName = getStringParam(params, 'TaskTypeName', 'TypeCode', 'TaskType');
         const assigneePersonID = getStringParam(params, 'AssigneePersonID');
@@ -780,6 +786,7 @@ export class CreateTaskAction extends BaseAction {
         if (dueAt) writeFields.push('DueAt');
         if (startedAt) writeFields.push('StartedAt');
         if (categoryID) writeFields.push('CategoryID');
+        if (organizationID || organizationName) writeFields.push('OrganizationID');
         if (parentTaskID) writeFields.push('ParentID');
 
         const guard = await checkTypedPolicyGuard({
@@ -806,10 +813,33 @@ export class CreateTaskAction extends BaseAction {
                 if (existingTask) {
                     const summary = `Reused existing task "${existingTask.Name}" for ClientRequestKey '${clientRequestKey}'.`;
                     setOutputParam(params, 'TaskID', existingTask.ID);
+                    setOutputParam(params, 'OrganizationID', existingTask.OrganizationID ?? null);
                     setOutputParam(params, 'Task', JSON.stringify(toCompactSummary(existingTask)));
                     setOutputParam(params, 'IdempotentHit', true);
                     setOutputParam(params, 'Summary', summary);
                     return successResult(summary, params);
+                }
+            }
+
+            // Resolve optional Organization BEFORE persisting the task so NOT_FOUND/AMBIGUOUS leaves no orphan task
+            let resolvedOrg: { ID: string; Name: string } | null = null;
+            if (organizationID || organizationName) {
+                const orgLookup = await resolveOrganizationByIdentifier(
+                    { organizationID, organizationName },
+                    user,
+                );
+                if (orgLookup.Status === 'INVALID') {
+                    return failResult('VALIDATION_ERROR', orgLookup.Message, params);
+                }
+                if (orgLookup.Status === 'NOT_FOUND') {
+                    return failResult('NOT_FOUND', orgLookup.Message, params);
+                }
+                if (orgLookup.Status === 'AMBIGUOUS') {
+                    setOutputParam(params, 'Candidates', JSON.stringify(orgLookup.Candidates));
+                    return failResult('AMBIGUOUS', orgLookup.Message, params);
+                }
+                if (orgLookup.Status === 'FOUND') {
+                    resolvedOrg = orgLookup.Organization;
                 }
             }
 
@@ -866,6 +896,7 @@ export class CreateTaskAction extends BaseAction {
             task.DueAt = dueAt;
             task.StartedAt = startedAt;
             task.CategoryID = categoryID ?? null;
+            task.OrganizationID = resolvedOrg?.ID ?? null;
             task.ParentID = parentTaskID ?? null;
             task.CreatedByPersonID = callerPerson.ID;
 
@@ -884,10 +915,6 @@ export class CreateTaskAction extends BaseAction {
                 act.NewValue = `${CLIENT_REQUEST_KEY_PREFIX}${clientRequestKey}`;
                 act.Description = `Created via Create Task action (ClientRequestKey: ${clientRequestKey})`;
                 await act.Save();
-            }
-
-            if (organizationID) {
-                await upsertTaskOrganizationLink(task.ID, organizationID, user);
             }
 
             // Create assignment if assignee resolved
@@ -934,6 +961,8 @@ export class CreateTaskAction extends BaseAction {
                 PercentComplete: task.PercentComplete ?? 0,
                 Type: selectedType.Name,
                 Category: task.Category ?? null,
+                OrganizationID: task.OrganizationID ?? null,
+                Organization: task.Organization ?? (resolvedOrg?.Name ? resolvedOrg.Name : null),
                 ParentID: task.ParentID ?? null,
                 BlockedReason: task.BlockedReason ?? null,
                 HealthStatus: task.HealthStatus ?? null,
@@ -943,6 +972,7 @@ export class CreateTaskAction extends BaseAction {
             const assignedSuffix = resolvedAssignee ? ` and assigned to ${resolvedAssignee.Name}` : '';
             const summary = `Created task "${task.Name}" (${task.ID})${assignedSuffix}.`;
             setOutputParam(params, 'TaskID', task.ID);
+            setOutputParam(params, 'OrganizationID', task.OrganizationID ?? null);
             setOutputParam(params, 'Task', JSON.stringify(compact));
             setOutputParam(params, 'IdempotentHit', false);
             setOutputParam(params, 'Summary', summary);
@@ -1058,10 +1088,11 @@ export class UpdateTaskAction extends BaseAction {
         if (percentComplete !== null) writeFields.push('PercentComplete');
         if (blockedReason !== null) writeFields.push('BlockedReason');
         if (categoryID !== null) writeFields.push('CategoryID');
+        if (organizationID !== null) writeFields.push('OrganizationID');
         if (healthStatus !== null) writeFields.push('HealthStatus');
         if (confidenceScore !== null) writeFields.push('ConfidenceScore');
 
-        if (writeFields.length === 0 && !organizationID) {
+        if (writeFields.length === 0) {
             return failResult('VALIDATION_ERROR', 'At least one field to update must be supplied.', params);
         }
 
@@ -1076,13 +1107,14 @@ export class UpdateTaskAction extends BaseAction {
                 params,
                 entityName: TASKS_ENTITY,
                 operation: 'Update',
-                writeFields: writeFields.length > 0 ? writeFields : ['OrganizationID'],
+                writeFields,
                 record: {
                     ID: task.ID,
                     Name: task.Name,
                     Status: task.Status,
                     Priority: task.Priority,
                     CategoryID: task.CategoryID,
+                    OrganizationID: task.OrganizationID,
                 },
             });
             if (!guard.Allowed) return guard.Failure;
@@ -1096,6 +1128,7 @@ export class UpdateTaskAction extends BaseAction {
             if (percentComplete !== null) task.PercentComplete = Math.round(percentComplete);
             if (blockedReason !== null) task.BlockedReason = blockedReason;
             if (categoryID !== null) task.CategoryID = categoryID;
+            if (organizationID !== null) task.OrganizationID = organizationID;
             if (healthStatus !== null) task.HealthStatus = healthStatus;
             if (confidenceScore !== null) task.ConfidenceScore = Math.round(confidenceScore);
 
@@ -1108,7 +1141,6 @@ export class UpdateTaskAction extends BaseAction {
 
             if (organizationID) {
                 await upsertTaskOrganizationLink(task.ID, organizationID, user);
-                writeFields.push('OrganizationID');
             }
 
             const compact: CompactTaskSummary = {
@@ -1120,6 +1152,8 @@ export class UpdateTaskAction extends BaseAction {
                 PercentComplete: task.PercentComplete ?? 0,
                 Type: task.Type,
                 Category: task.Category ?? null,
+                OrganizationID: task.OrganizationID ?? null,
+                Organization: task.Organization ?? null,
                 ParentID: task.ParentID ?? null,
                 BlockedReason: task.BlockedReason ?? null,
                 HealthStatus: task.HealthStatus ?? null,
@@ -1978,6 +2012,29 @@ export class GetMyTasksBriefingAction extends BaseAction {
             const horizonDays = Math.max(1, Math.min(30, Math.round(horizonDaysRaw)));
             const maxItemsRaw = getNumberParam(params, 'MaxItems') ?? 10;
             const maxItems = Math.max(1, Math.min(50, Math.round(maxItemsRaw)));
+            const organizationID = getStringParam(params, 'OrganizationID');
+            const organizationName = getStringParam(params, 'OrganizationName');
+
+            let resolvedOrg: { ID: string; Name: string } | null = null;
+            if (organizationID || organizationName) {
+                const orgLookup = await resolveOrganizationByIdentifier(
+                    { organizationID, organizationName },
+                    user,
+                );
+                if (orgLookup.Status === 'INVALID') {
+                    return failResult('VALIDATION_ERROR', orgLookup.Message, params);
+                }
+                if (orgLookup.Status === 'NOT_FOUND') {
+                    return failResult('NOT_FOUND', orgLookup.Message, params);
+                }
+                if (orgLookup.Status === 'AMBIGUOUS') {
+                    setOutputParam(params, 'Candidates', JSON.stringify(orgLookup.Candidates));
+                    return failResult('AMBIGUOUS', orgLookup.Message, params);
+                }
+                if (orgLookup.Status === 'FOUND') {
+                    resolvedOrg = orgLookup.Organization;
+                }
+            }
 
             const now = new Date();
             const startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
@@ -2002,11 +2059,15 @@ export class GetMyTasksBriefingAction extends BaseAction {
                 taskScopeClauses.push(`ID IN (${inAssigned})`);
             }
 
+            const orgClause = resolvedOrg
+                ? ` AND OrganizationID = '${EscapeSQLString(resolvedOrg.ID)}'`
+                : '';
+
             const rv = new RunView();
             const tasksRes = await rv.RunView<TaskSummaryRow>(
                 {
                     EntityName: TASKS_ENTITY,
-                    ExtraFilter: `(${taskScopeClauses.join(' OR ')}) AND Status NOT IN ('Completed', 'Cancelled')`,
+                    ExtraFilter: `(${taskScopeClauses.join(' OR ')}) AND Status NOT IN ('Completed', 'Cancelled')${orgClause}`,
                     Fields: [
                         'ID',
                         'Name',
@@ -2017,6 +2078,8 @@ export class GetMyTasksBriefingAction extends BaseAction {
                         'TypeID',
                         'Type',
                         'Category',
+                        'OrganizationID',
+                        'Organization',
                         'ParentID',
                         'BlockedReason',
                         'HealthStatus',
@@ -2161,6 +2224,8 @@ export class GetMyTasksBriefingAction extends BaseAction {
             const briefing = {
                 GeneratedAt: now.toISOString(),
                 HorizonDays: horizonDays,
+                OrganizationID: resolvedOrg?.ID ?? null,
+                OrganizationName: resolvedOrg?.Name || null,
                 Counts: {
                     Overdue: overdue.length,
                     DueToday: dueToday.length,

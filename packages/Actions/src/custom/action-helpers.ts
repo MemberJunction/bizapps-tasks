@@ -1,8 +1,11 @@
 import { LogError, Metadata, RunView, type IMetadataProvider, type UserInfo } from '@memberjunction/core';
 import type { ActionParam, ActionResultSimple, RunActionParams } from '@memberjunction/actions-base';
 import {
+    AgentUserPolicyEngine,
     TypedActionPolicyGuard,
     type AgentEntityCrudOperation,
+    type AgentPolicyVerdict,
+    type TypedActionPolicyResultCode,
 } from '@memberjunction/ai-core-plus';
 import { AgentWakeTriggerService } from '@memberjunction/ai-agents';
 import { UserCache } from '@memberjunction/generic-database-provider';
@@ -68,6 +71,18 @@ export type PersonLookupResult =
     | { Status: 'FOUND'; Person: ResolvedPersonCandidate }
     | { Status: 'NOT_FOUND'; Message: string }
     | { Status: 'AMBIGUOUS'; Candidates: ResolvedPersonCandidate[]; Message: string };
+
+export interface ResolvedOrganizationCandidate {
+    ID: string;
+    Name: string;
+}
+
+export type OrganizationLookupResult =
+    | { Status: 'NONE' }
+    | { Status: 'FOUND'; Organization: ResolvedOrganizationCandidate }
+    | { Status: 'INVALID'; Message: string }
+    | { Status: 'NOT_FOUND'; Message: string }
+    | { Status: 'AMBIGUOUS'; Candidates: ResolvedOrganizationCandidate[]; Message: string };
 
 export interface PolicyGuardCheckResult {
     Allowed: boolean;
@@ -177,6 +192,31 @@ export function successResult(
     return { Success: true, ResultCode: resultCode, Message: message, Params: params.Params };
 }
 
+const POLICY_VERDICT_RANK: Record<AgentPolicyVerdict, number> = {
+    Allow: 0,
+    RequireApproval: 1,
+    DeferUntilNextWindow: 2,
+    Deny: 3,
+};
+
+function policyVerdictToResultCode(verdict: Exclude<AgentPolicyVerdict, 'Allow'>): TypedActionPolicyResultCode {
+    if (verdict === 'Deny') return 'POLICY_DENIED';
+    if (verdict === 'DeferUntilNextWindow') return 'POLICY_DEFERRED';
+    return 'APPROVAL_REQUIRED';
+}
+
+function extractExplicitAgentID(actionContext: RunActionParams['Context']): string | null {
+    if (!actionContext || typeof actionContext !== 'object') {
+        return null;
+    }
+    const candidate = (actionContext as { AgentID?: string }).AgentID;
+    if (typeof candidate !== 'string') {
+        return null;
+    }
+    const trimmed = candidate.trim();
+    return trimmed.length > 0 ? trimmed : null;
+}
+
 export async function checkTypedPolicyGuard(input: {
     params: RunActionParams;
     entityName: string;
@@ -184,6 +224,8 @@ export async function checkTypedPolicyGuard(input: {
     writeFields?: readonly string[];
     record?: Record<string, string | number | boolean | null | undefined>;
     provider?: IMetadataProvider;
+    actionName?: string;
+    isDestructive?: boolean;
 }): Promise<PolicyGuardCheckResult> {
     const outcome = await TypedActionPolicyGuard.CheckEntityAccess({
         entityName: input.entityName,
@@ -205,6 +247,69 @@ export async function checkTypedPolicyGuard(input: {
             ),
         };
     }
+
+    if (input.actionName || input.isDestructive) {
+        const engine = AgentUserPolicyEngine.Instance;
+        const explicitAgentId = extractExplicitAgentID(input.params.Context);
+        const agentChain = engine.GetEffectivePolicyAgentChain(explicitAgentId);
+        if (agentChain.length > 0 && input.params.ContextUser?.ID) {
+            let strictestVerdict: AgentPolicyVerdict = 'Allow';
+            let strictestReason = '';
+            const effectiveActionName = input.actionName ?? input.entityName;
+
+            for (const agentId of agentChain) {
+                let policy = engine.GetCachedPolicy(agentId, input.params.ContextUser.ID, input.provider);
+                if (!policy) {
+                    const lookup = await engine.ResolvePolicyForAgentAndUser(
+                        agentId,
+                        input.params.ContextUser.ID,
+                        input.params.ContextUser,
+                        { provider: input.provider },
+                    );
+                    if (lookup.status === 'error') {
+                        return {
+                            Allowed: false,
+                            DeniedFieldPatterns: [],
+                            Failure: failResult(
+                                'POLICY_DENIED',
+                                `Policy check failed closed for "${effectiveActionName}": ${lookup.errorMessage}`,
+                                input.params,
+                            ),
+                        };
+                    }
+                    policy = lookup.policy;
+                }
+                if (!policy) {
+                    continue;
+                }
+
+                const evalResult = engine.EvaluateActionExecution({
+                    actionName: effectiveActionName,
+                    isDestructive: input.isDestructive,
+                    contextUser: input.params.ContextUser,
+                    policy,
+                });
+                if (POLICY_VERDICT_RANK[evalResult.verdict] > POLICY_VERDICT_RANK[strictestVerdict]) {
+                    strictestVerdict = evalResult.verdict;
+                    strictestReason = evalResult.reason;
+                }
+            }
+
+            if (strictestVerdict !== 'Allow') {
+                const code = policyVerdictToResultCode(strictestVerdict);
+                return {
+                    Allowed: false,
+                    DeniedFieldPatterns: [],
+                    Failure: failResult(
+                        code,
+                        strictestReason || `Action "${effectiveActionName}" blocked by agent user policy (${code}).`,
+                        input.params,
+                    ),
+                };
+            }
+        }
+    }
+
     return {
         Allowed: true,
         DeniedFieldPatterns: outcome.DeniedFieldPatterns,
@@ -490,6 +595,79 @@ export async function wakeChiefOfStaffBestEffort(input: {
         LogError(`[BizAppsTasks] Best-effort Chief of Staff wake failed for workstream '${input.workstreamKey}': ${msg}`);
         return false;
     }
+}
+
+/**
+ * Resolves an `MJ_BizApps_Common: Organizations` record by canonical UUID (`organizationID`)
+ * or case-insensitive exact/prefix name lookup (`organizationName`), covering both external
+ * client/partner organizations and internal companies mirrored via `LinkedCompanyID`.
+ */
+export async function resolveOrganizationByIdentifier(
+    input: { organizationID?: string | null; organizationName?: string | null },
+    contextUser: UserInfo,
+): Promise<OrganizationLookupResult> {
+    const orgID = input.organizationID?.trim() ?? null;
+    const orgName = input.organizationName?.trim() ?? null;
+
+    if (!orgID && !orgName) {
+        return { Status: 'NONE' };
+    }
+
+    if (orgID) {
+        if (!IsValidUUID(orgID)) {
+            return { Status: 'INVALID', Message: 'OrganizationID must be a valid UUID.' };
+        }
+        return {
+            Status: 'FOUND',
+            Organization: { ID: orgID, Name: orgName ?? '' },
+        };
+    }
+
+    const needle = orgName!;
+    const escaped = EscapeSQLString(needle);
+    const rv = new RunView();
+    const res = await rv.RunView<ResolvedOrganizationCandidate>(
+        {
+            EntityName: ORGANIZATIONS_ENTITY,
+            ExtraFilter:
+                `(Status IS NULL OR Status = 'Active') AND (` +
+                `LOWER(Name) = LOWER('${escaped}') OR LOWER(Name) LIKE LOWER('${escaped}%')` +
+                `)`,
+            Fields: ['ID', 'Name'],
+            OrderBy: 'Name ASC',
+            MaxRows: 10,
+            ResultType: 'simple',
+        },
+        contextUser,
+    );
+
+    const rows = res.Success ? (res.Results ?? []) : [];
+    if (rows.length === 0) {
+        return {
+            Status: 'NOT_FOUND',
+            Message: `No active Organization matched '${needle}'.`,
+        };
+    }
+    if (rows.length === 1) {
+        return { Status: 'FOUND', Organization: rows[0] };
+    }
+
+    const lowerNeedle = needle.toLowerCase();
+    const exactMatches = rows.filter((r) => r.Name.trim().toLowerCase() === lowerNeedle);
+    if (exactMatches.length === 1) {
+        return { Status: 'FOUND', Organization: exactMatches[0] };
+    }
+
+    const prefixMatches = rows.filter((r) => r.Name.trim().toLowerCase().startsWith(lowerNeedle));
+    if (prefixMatches.length === 1) {
+        return { Status: 'FOUND', Organization: prefixMatches[0] };
+    }
+
+    return {
+        Status: 'AMBIGUOUS',
+        Candidates: rows,
+        Message: `Multiple active Organizations matched '${needle}'. Please clarify by OrganizationID.`,
+    };
 }
 
 /**

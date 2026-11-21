@@ -1,5 +1,6 @@
 export interface WorldState {
     Categories: Record<string, { ID: string; Name: string }>;
+    Organizations: Record<string, { ID: string; Name: string }>;
     Roles: Record<string, { ID: string; Name: string }>;
     DecisionOutcomes: Record<string, { ID: string; Name: string }>;
     TaskTypes: Record<string, { ID: string; Name: string; Code: string; OnCreateActionID?: string | null; OnStatusChangeActionID?: string | null }>;
@@ -7,6 +8,9 @@ export interface WorldState {
     Actions: Record<string, { ID: string; Name: string; Type?: string; DriverClass?: string | null }>;
     People: Record<string, { ID: string; Email: string; FirstName: string; LastName: string }>;
     SeedTaskIDs: Record<string, string>;
+    CloseTemplateID: string;
+    WorkReportID: string;
+    TranscriptMeetingID: string;
 }
 
 let current: WorldState | null = null;
