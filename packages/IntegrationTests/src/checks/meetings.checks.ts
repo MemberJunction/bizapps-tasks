@@ -589,10 +589,11 @@ const checks: NamedCheck[] = [
                 const proposals = parseProposedTasks(note.ProposedTasks);
                 Assert(proposals.length === 2, `extracted 2 proposed tasks (${proposals.length})`);
 
+                // No creator is named: the task is created by whoever accepts the proposal, and the
+                // server refuses a task created in someone else's name (bizapps-tasks#209).
                 const accepted = await notesService.acceptProposedTask(note.ID, proposals[0].id, ctx.User, {
                     assigneePersonId: world.jun.personId,
                     agendaItemId: draftedAgenda[0].ID,
-                    createdByPersonId: world.ivy.personId,
                 });
                 createdTaskId = accepted.task.ID;
                 Assert(accepted.proposal.status === 'Accepted' && accepted.proposal.taskId === createdTaskId, 'first proposal marked Accepted with taskId');
@@ -601,7 +602,6 @@ const checks: NamedCheck[] = [
                 const acceptedRetry = await notesService.acceptProposedTask(note.ID, proposals[0].id, ctx.User, {
                     assigneePersonId: world.jun.personId,
                     agendaItemId: draftedAgenda[0].ID,
-                    createdByPersonId: world.ivy.personId,
                 });
                 Assert(acceptedRetry.task.ID === createdTaskId, 'acceptProposedTask retry returns the same task idempotently');
 

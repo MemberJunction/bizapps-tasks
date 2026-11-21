@@ -79,6 +79,30 @@ export async function RequireRefusal(
     return message;
 }
 
+/** The one-save sanctions a server-side Task or Task Assignment record carries (bizapps-tasks#209). */
+type SeedSanction = 'AuthorizeCreatorOnBehalf' | 'AuthorizeApprovalAssignment';
+
+function hasSanction<K extends SeedSanction>(record: object, name: K): record is Record<K, () => void> {
+    return typeof (record as Partial<Record<K, unknown>>)[name] === 'function';
+}
+
+/**
+ * Vouches for the next save of a fixture the harness writes on a persona's behalf: a task created
+ * in a persona's name (`AuthorizeCreatorOnBehalf`), or a persona put on an approval task
+ * (`AuthorizeApprovalAssignment`). The tasks server refuses both from an ordinary user and accepts
+ * them from server code that vouches (bizapps-tasks#209); seeding a fixture is that.
+ *
+ * The method is found by shape, with no import of `@mj-biz-apps/tasks-entities-server`, which
+ * `index.ts` loads only for the direct-database run. Over GraphQL the record is the client class and
+ * has no such method: this returns false, and the save runs under the server's rules for the API
+ * key's user. The system key is accepted there; a personal key naming someone else is refused.
+ */
+export function VouchForSeed(record: object, sanction: SeedSanction): boolean {
+    if (!hasSanction(record, sanction)) return false;
+    record[sanction]();
+    return true;
+}
+
 /**
  * Builds a `UserInfo` persona bound to `personID` via `LinkedEntityID` + `LinkedEntityRecordID`.
  *
