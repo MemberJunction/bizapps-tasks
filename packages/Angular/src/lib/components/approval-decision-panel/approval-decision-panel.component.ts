@@ -193,6 +193,18 @@ export class ApprovalDecisionPanelComponent implements OnInit {
     public Notes = '';
     public SubjectLink: { LinkedEntity: string; LinkedRecordID: string } | null = null;
 
+    /**
+     * Prefills the outcome selector from keyboard shortcuts (`A` / `R`) without silently
+     * auto-committing, satisfying WCAG 2.1.4 character-key shortcut safety.
+     */
+    public PrefillOutcome(outcomeCode: string): void {
+        const match = this.Outcomes.find((o) => o.Code.toLowerCase() === outcomeCode.toLowerCase());
+        if (match) {
+            this.SelectedOutcomeCode = match.Code;
+            this.cdr.markForCheck();
+        }
+    }
+
     async ngOnInit(): Promise<void> {
         if (this._taskID) {
             await this.load();

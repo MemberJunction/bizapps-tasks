@@ -11,17 +11,21 @@ vi.mock('@memberjunction/global', async (importOriginal) => {
         RegisterClass: () => () => {},
     };
 });
-vi.mock('@memberjunction/core', () => ({
-    BaseEntity: class {},
-    BaseRemotableOperation: class {},
-    CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },
-    LogError: () => {},
-    LogStatus: () => {},
-    Metadata: class {},
-    RunView: class {},
-    RunQuery: class {},
-    UserInfo: class {},
-}));
+vi.mock('@memberjunction/core', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@memberjunction/core')>();
+    return {
+        ...actual,
+        BaseEntity: class {},
+        BaseRemotableOperation: class {},
+        CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },
+        LogError: () => {},
+        LogStatus: () => {},
+        Metadata: class {},
+        RunView: class {},
+        RunQuery: class {},
+        UserInfo: class {},
+    };
+});
 vi.mock('@memberjunction/core-entities', () => ({
     MJAIAgentRunEntity: class {},
 }));

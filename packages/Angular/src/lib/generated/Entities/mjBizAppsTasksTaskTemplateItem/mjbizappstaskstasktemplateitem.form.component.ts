@@ -16,7 +16,10 @@ export class mjBizAppsTasksTaskTemplateItemFormComponent extends BaseFormCompone
     override async ngOnInit() {
         await super.ngOnInit();
         this.initSections([
-            { sectionKey: 'details', sectionName: 'Details', isExpanded: true },
+            { sectionKey: 'templateItemDetails', sectionName: 'Template Item Details', isExpanded: true },
+            { sectionKey: 'hierarchyAndStructure', sectionName: 'Hierarchy and Structure', isExpanded: true },
+            { sectionKey: 'schedulingAndTiming', sectionName: 'Scheduling and Timing', isExpanded: true },
+            { sectionKey: 'systemMetadata', sectionName: 'System Metadata', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskTemplateItems', sectionName: 'Task Template Items', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskTemplateItemRoles', sectionName: 'Task Template Item Roles', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskTemplateItemDependenciesDependsOnItemID', sectionName: 'Task Template Item Dependencies (Depends On Item ID)', isExpanded: false },
