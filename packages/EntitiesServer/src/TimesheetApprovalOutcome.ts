@@ -14,6 +14,7 @@ import {
     mjBizAppsTasksTimesheetEntity,
 } from '@mj-biz-apps/tasks-entities';
 import { TimesheetStatusFromParts } from '@mj-biz-apps/tasks-core';
+import { SanctionApprovalWithdrawal } from './ApprovalSanctions.js';
 import { PrimaryPersonIDForUser } from './UserPeople.js';
 
 export const TIMESHEET_APPROVAL_TASK_TYPE_CODE = 'TIMESHEET_APPROVAL';
@@ -203,7 +204,12 @@ async function cancelSiblingApprovalTask(
         const loaded = await siblingTask.Load(siblingTaskID);
         if (loaded && siblingTask.Status !== 'Completed' && siblingTask.Status !== 'Cancelled') {
             siblingTask.Status = 'Cancelled';
-            await siblingTask.Save();
+            // The server withdraws this request: the timesheet it asked about was returned by another
+            // part's approver, who need hold no assignment on this one.
+            SanctionApprovalWithdrawal(siblingTask);
+            if (!(await siblingTask.Save())) {
+                LogError(`TimesheetApprovalOutcome: sibling approval task ${siblingTaskID} was not cancelled: ${siblingTask.LatestResult?.CompleteMessage ?? 'unknown error'}`);
+            }
         }
 
         if (commentPersonID) {

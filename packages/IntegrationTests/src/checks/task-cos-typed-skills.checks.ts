@@ -74,7 +74,7 @@ import {
     WORK_REPORT_ENTITY,
     WORK_REPORT_ITEM_ENTITY,
 } from '../entity-names.js';
-import { FindId, FindRows, Quote, RequireSave, View } from '../wire.js';
+import { FindId, FindRows, Quote, RequireSave, View, VouchForSeed } from '../wire.js';
 import { ACME_ORG_NAME, GetOrLoadWorld } from '../world/load-world.js';
 
 const COS_AGENT_NAME = 'Chief of Staff';
@@ -579,6 +579,7 @@ const checks: NamedCheck[] = [
                 probeTask.CreatedByPersonID = sarahPerson.ID;
                 probeTask.Status = 'Open';
                 probeTask.Priority = 'Medium';
+                VouchForSeed(probeTask, 'AuthorizeCreatorOnBehalf');
                 await RequireSave(probeTask, 'TCOS2 probe task');
                 createdTaskIds.push(probeTask.ID);
 

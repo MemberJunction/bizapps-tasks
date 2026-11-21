@@ -109,6 +109,12 @@ vi.mock('@mj-biz-apps/common-entities', async () => {
     };
 });
 
+/** Stands in for the sanction functions: notes on the record what the operation vouched for. */
+const vouch = vi.hoisted(() => (what: string) => (record: { Vouched?: string[] }): boolean => {
+    record.Vouched = [...(record.Vouched ?? []), what];
+    return true;
+});
+
 vi.mock('@mj-biz-apps/tasks-entities-server', () => ({
     PEOPLE_ENTITY: 'MJ_BizApps_Common: People',
     TIMESHEET_APPROVAL_TASK_TYPE_CODE: 'TIMESHEET_APPROVAL',
@@ -116,6 +122,9 @@ vi.mock('@mj-biz-apps/tasks-entities-server', () => ({
     BaseTimeApproverResolver: {
         ResolveAllForRootTasks: (...args: unknown[]) => resolveAllForRootTasksMock(...args),
     },
+    SanctionApprovalAssignment: vouch('assignment'),
+    SanctionApprovalWithdrawal: vouch('withdrawal'),
+    SanctionOnBehalfCreator: vouch('creator'),
 }));
 
 import {
@@ -665,6 +674,11 @@ describe('SubmitTimesheet, WithdrawTimesheet, and ReopenTimesheet operations', (
         expect(createdTask?.Name).toContain('Timesheet: Alice Worker');
         const createdAsgn = created.find((c) => c.EntityName === 'MJ_BizApps_Tasks: Task Assignments');
         expect(createdAsgn?.AssigneeRecordID).toBe(APPROVER_PERSON_ID);
+        // The operation chose the requester and the approver, so it vouches for both writes: a manager
+        // submitting for a report is not the creator, and is often the approver (bizapps-tasks#209).
+        expect(createdTask?.CreatedByPersonID).toBe(PERSON_ID);
+        expect(createdTask?.Vouched).toEqual(['creator']);
+        expect(createdAsgn?.Vouched).toEqual(['assignment']);
     });
 
     it('WithdrawTimesheet cancels Pending parts and their approval tasks and reverts status to Draft', async () => {
@@ -715,6 +729,9 @@ describe('SubmitTimesheet, WithdrawTimesheet, and ReopenTimesheet operations', (
         expect(pendingPart.Save).toHaveBeenCalledTimes(1);
         const approvalTask = created.find((c) => c.EntityName === 'MJ_BizApps_Tasks: Tasks');
         expect(approvalTask?.Status).toBe('Cancelled');
+        // The server withdraws the approval request, so the cancel is vouched for.
+        expect(approvalTask?.Vouched).toEqual(['withdrawal']);
+        expect(approvalTask?.SavedCount).toBe(1);
     });
 
     it('ReopenTimesheet enforces Manage Timesheets authorization and non-empty Reason, then reopens to Draft', async () => {

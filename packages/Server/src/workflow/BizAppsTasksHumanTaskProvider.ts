@@ -12,10 +12,18 @@
  * Raising is idempotent: an ask already linked to a task is not raised again, so a caller that
  * retries after a dropped connection does not put the same question to people twice.
  *
+ * The provider writes as whoever runs the workflow or agent, and bizapps-tasks refuses some of those
+ * writes from an ordinary user on an approval task (bizapps-tasks#209): a creator who is not the
+ * user saving, an assignee the user has no right to add (themselves, say, for an agent's question
+ * that goes back to whoever ran it), and a cancel by someone with no standing on the task. The
+ * workflow decided each of those, so the provider vouches for each save it makes
+ * (`SanctionOnBehalfCreator`, `SanctionApprovalAssignment`, `SanctionApprovalWithdrawal`). Deciding
+ * the task is never vouched for: that stays with bizapps-tasks' rule for who may decide.
+ *
  * @module @mj-biz-apps/tasks-server
  */
 import { LogError, RunView, type IMetadataProvider, type UserInfo } from '@memberjunction/core';
-import { EscapeSQLString, RegisterClassEx } from '@memberjunction/global';
+import { EscapeSQLString, RegisterClassEx, UUIDsEqual } from '@memberjunction/global';
 import {
     BaseHumanTaskProvider,
     HUMAN_TASK_PROVIDER_CAN_BE_DEFAULT,
@@ -29,10 +37,20 @@ import type {
     mjBizAppsTasksTaskEntity,
     mjBizAppsTasksTaskLinkEntity,
 } from '@mj-biz-apps/tasks-entities';
-import { AGENT_REQUEST_ENTITY, TASK_LINK_ENTITY, TaskLinkEntityServer, WORKFLOW_STEP_ENTITY, PEOPLE_ENTITY } from '@mj-biz-apps/tasks-entities-server';
+import {
+    AGENT_REQUEST_ENTITY,
+    PEOPLE_ENTITY,
+    SanctionApprovalAssignment,
+    SanctionApprovalWithdrawal,
+    SanctionOnBehalfCreator,
+    TASK_LINK_ENTITY,
+    TaskLinkEntityServer,
+    WORKFLOW_STEP_ENTITY,
+} from '@mj-biz-apps/tasks-entities-server';
 import {
     BIZAPPS_TASKS_PROVIDER_KEY,
     ResolveWorkflowTaskRequest,
+    WORKFLOW_ASSIGNEE_USERS_ENTITY,
     type WorkflowRecordRef,
     type WorkflowTaskRequest,
 } from './workflow-task-request.js';
@@ -53,6 +71,7 @@ type RaisePlan = {
     Ask: ResolvedRef;
     Assignees: ResolvedRef[];
     LinkedRecord: ResolvedRef | null;
+    /** Who the task is from, or null when no Person asked (see {@link RequesterPersonID}). */
     CreatorPersonID: string | null;
 };
 
@@ -109,6 +128,8 @@ export class BizAppsTasksHumanTaskProvider extends BaseHumanTaskProvider {
             if (!(await task.Load(taskID)) || !OPEN_STATUSES.has(task.Status)) continue;
             task.Status = 'Cancelled';
             task.CompletionNotes = withdrawalNote(ctx);
+            // The workflow or agent withdraws its own ask; whoever runs it need hold nothing on the task.
+            SanctionApprovalWithdrawal(task);
             if (!(await task.Save())) {
                 LogError(`[BizAppsTasks] Withdrawing task ${taskID} for ${describeAsk(ctx.Subject)} failed: ${task.LatestResult?.CompleteMessage ?? 'unknown error'}`);
             }
@@ -132,7 +153,7 @@ export class BizAppsTasksHumanTaskProvider extends BaseHumanTaskProvider {
             Ask: ask.Value[0],
             Assignees: assignees.Value,
             LinkedRecord: linked.Value[0] ?? null,
-            CreatorPersonID: lookups.CreatorPersonID,
+            CreatorPersonID: RequesterPersonID(ctx, lookups.CreatorPersonID, assignees.Value),
         };
     }
 
@@ -178,7 +199,10 @@ export class BizAppsTasksHumanTaskProvider extends BaseHumanTaskProvider {
         task.Priority = plan.Request.Priority;
         if (plan.Request.Description) task.Description = plan.Request.Description;
         if (plan.Request.DueAt) task.DueAt = plan.Request.DueAt;
+        // The provider decides who the task is from: the owner, who is often not the user running this
+        // step, or nobody. Vouching for it also stops the user saving being recorded in their place.
         if (plan.CreatorPersonID) task.CreatedByPersonID = plan.CreatorPersonID;
+        SanctionOnBehalfCreator(task);
         if (!(await task.Save())) throw new Error(`the task could not be created: ${task.LatestResult?.CompleteMessage ?? 'unknown error'}`);
         return task;
     }
@@ -204,10 +228,36 @@ export class BizAppsTasksHumanTaskProvider extends BaseHumanTaskProvider {
         assignment.AssigneeEntityID = ref.EntityID;
         assignment.AssigneeRecordID = ref.RecordID;
         if (assignedBy) assignment.AssignedByPersonID = assignedBy;
+        // The step's configuration names the assignees; the user running it did not choose them.
+        SanctionApprovalAssignment(assignment);
         if (!(await assignment.Save())) {
             throw new Error(`assigning ${ref.RecordID} failed: ${assignment.LatestResult?.CompleteMessage ?? 'unknown error'}`);
         }
     }
+}
+
+/**
+ * Who a raised task is from: the owner's Person, except for an agent's question put to the owner
+ * themselves, which is from nobody.
+ *
+ * bizapps-tasks refuses the person who asked for an approval any say on it: they may neither decide
+ * it nor complete it. That is right for a workflow step, whose owner is often who wants the approval,
+ * and for a question an agent puts to someone else on its owner's behalf. But when an agent asks the
+ * very user who ran it, that user is the one answering, not the one asking; recorded as the requester
+ * they could never answer their own agent in Tasks.
+ */
+export function RequesterPersonID(
+    ctx: Pick<HumanTaskRaiseContext, 'Subject' | 'OwnerUserID' | 'Provider'>,
+    ownerPersonID: string | null,
+    assignees: ReadonlyArray<{ EntityID: string; RecordID: string }>,
+): string | null {
+    if (ctx.Subject.Kind !== 'AgentRequest' || !ownerPersonID) return ownerPersonID;
+    const usersEntityID = ctx.Provider.EntityByName(WORKFLOW_ASSIGNEE_USERS_ENTITY)?.ID ?? null;
+    const ownerIsAsked = assignees.some((a) =>
+        (!!usersEntityID && !!ctx.OwnerUserID && UUIDsEqual(a.EntityID, usersEntityID) && UUIDsEqual(a.RecordID, ctx.OwnerUserID)) ||
+        UUIDsEqual(a.RecordID, ownerPersonID),
+    );
+    return ownerIsAsked ? null : ownerPersonID;
 }
 
 /** The bizapps-tasks tasks linked to one ask (a workflow step or an agent request), oldest first. */
@@ -254,6 +304,7 @@ async function discardPartialTask(task: mjBizAppsTasksTaskEntity, askLink: mjBiz
         }
         task.Status = 'Cancelled';
         task.CompletionNotes = 'Raising this task failed part-way; it was withdrawn.';
+        SanctionApprovalWithdrawal(task);
         if (!(await task.Save())) {
             LogError(`[BizAppsTasks] Could not withdraw half-raised task ${task.ID}: ${task.LatestResult?.CompleteMessage ?? 'unknown error'}`);
         }

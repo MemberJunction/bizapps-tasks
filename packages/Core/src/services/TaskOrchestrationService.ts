@@ -53,6 +53,20 @@ export function IsApprovalOutcome(code: TaskDecisionOutcomeCode): boolean {
     return TaskDecisionOutcomes[code].IsApproval;
 }
 
+/**
+ * Called with the unsaved task, and whatever links and assignments travel with it, just before it
+ * is saved.
+ *
+ * It exists for SERVER code whose write the tasks server would otherwise refuse: recording a
+ * creator who is not the user saving, or assigning approvers the server chose itself. Such code
+ * passes the sanction functions of `@mj-biz-apps/tasks-entities-server` here, for example
+ * `BeforeSave: SanctionOnBehalfCreator`, or
+ * `BeforeSave: (task) => task.Assignments.Items.forEach(SanctionApprovalAssignment)`.
+ * In a browser those functions do nothing and the server's rules decide, so this hook grants
+ * nothing by itself.
+ */
+export type TaskBeforeSave = (task: mjBizAppsTasksTaskEntity) => void | Promise<void>;
+
 export type CreateTaskParams = {
     Name: string;
     TypeID: string;
@@ -61,9 +75,16 @@ export type CreateTaskParams = {
     ParentID?: string;
     Priority?: TaskPriority;
     DueAt?: Date;
+    /**
+     * Who asked for the task. Leave it out and the server records the user saving. The server
+     * refuses anyone else unless the system user is saving or server code vouched for it through
+     * {@link CreateTaskParams.BeforeSave}.
+     */
     CreatedByPersonID?: string;
     /** Initial status; defaults to 'Open'. */
     Status?: TaskStatus;
+    /** See {@link TaskBeforeSave}. */
+    BeforeSave?: TaskBeforeSave;
 };
 
 export type RecordDecisionParams = {
@@ -82,6 +103,12 @@ export type CreateApprovalRequestParams = {
     Description?: string;
     Priority?: TaskPriority;
     DueAt?: Date;
+    /**
+     * Who asked for the approval: the person the no-self-approval rule refuses a decision on it.
+     * Leave it out and the server records the user saving. The server refuses anyone else unless
+     * the system user is saving or server code vouched for it through
+     * {@link CreateApprovalRequestParams.BeforeSave}.
+     */
     CreatedByPersonID?: string;
     /** Source record this approval is about (polymorphic link). */
     LinkEntityID?: string;
@@ -91,6 +118,8 @@ export type CreateApprovalRequestParams = {
     ApproverPersonRecordIDs?: string[];
     /** Optional TaskRole applied to each assignment. */
     RoleID?: string;
+    /** See {@link TaskBeforeSave}. */
+    BeforeSave?: TaskBeforeSave;
 };
 
 export type RecordDecisionResult = {
@@ -141,6 +170,7 @@ export class TaskOrchestrationService {
         if (params.DueAt != null) task.DueAt = params.DueAt;
         if (params.CreatedByPersonID != null) task.CreatedByPersonID = params.CreatedByPersonID;
 
+        if (params.BeforeSave) await params.BeforeSave(task);
         if (!(await task.Save())) {
             throw new Error(`Failed to create task "${params.Name}": ${task.LatestResult?.CompleteMessage ?? 'unknown error'}`);
         }
@@ -155,6 +185,12 @@ export class TaskOrchestrationService {
      * Transitions a task to a new status and saves it. The entity subclass
      * applies status side-effects (StartedAt/CompletedAt) and the server save-event
      * handler fires any configured action hooks.
+     *
+     * An approval task is not completed this way: the server refuses `Completed` on one with no
+     * approving decision standing, and `Cancelled` from someone who may not withdraw it. Use
+     * {@link RecordDecision} to approve or reject.
+     *
+     * @throws when the save is refused, with the server's reason.
      */
     async TransitionStatus(
         taskID: string,
@@ -266,6 +302,7 @@ export class TaskOrchestrationService {
             }
         }
 
+        if (params.BeforeSave) await params.BeforeSave(task);
         if (!(await task.Save())) {
             throw new Error(`Failed to create approval request "${params.Name}": ${task.LatestResult?.CompleteMessage ?? 'unknown error'}`);
         }

@@ -144,6 +144,36 @@ async function cleanupTimesheetTree(
     }
 }
 
+/**
+ * Closes an approval task the way an approver does (bizapps-tasks#209): the person it is assigned to
+ * records their decision as themselves, then the task moves to the status that decision leads to.
+ * A closing status with no decision behind it is refused for anyone who could not have decided.
+ */
+async function decideApprovalTask(
+    ctx: Parameters<NamedCheck['Fn']>[0],
+    taskID: string,
+    approverPersonID: string,
+    outcome: { ID: string },
+    status: 'Completed' | 'Cancelled',
+    what: string,
+): Promise<void> {
+    const approverUser = PersonaUser(ctx, approverPersonID, { canManage: false });
+    const decision = await ctx.Provider.GetEntityObject<mjBizAppsTasksTaskDecisionEntity>(
+        TASK_DECISION_ENTITY,
+        approverUser,
+    );
+    decision.NewRecord();
+    decision.TaskID = taskID;
+    decision.OutcomeID = outcome.ID;
+    decision.DecidedByPersonID = approverPersonID;
+    await RequireSave(decision, `${what}: decision`);
+
+    const task = await ctx.Provider.GetEntityObject<TaskEntity>(TASK_ENTITY, ctx.User);
+    Assert(await task.Load(taskID), `${what}: load approval task ${taskID}`);
+    task.Status = status;
+    await RequireSave(task, `${what}: ${status}`);
+}
+
 const checks: NamedCheck[] = [
     {
         Id: 'timesheets.TSH1',
@@ -295,15 +325,24 @@ const checks: NamedCheck[] = [
                 alexDecision.DecisionNotes = 'Project 1 time approved';
                 await RequireSave(alexDecision, 'TSH1 Alex decision on Part 1');
 
-                const completeApprovalTask = async (taskID: string) => {
-                    const t = await ctx.Provider.GetEntityObject<TaskEntity>(TASK_ENTITY, ctx.User);
-                    Assert(await t.Load(taskID), `load approval task ${taskID}`);
-                    t.Status = 'Completed';
-                    await RequireSave(t, `complete approval task ${taskID}`);
-                };
+                // A status change is not an approval (bizapps-tasks#209): Part 2 has no decision yet, and
+                // the harness user is not its approver, so completing its task is refused.
+                const undecided = await ctx.Provider.GetEntityObject<TaskEntity>(TASK_ENTITY, ctx.User);
+                Assert(await undecided.Load(part2.ApprovalTaskID), 'load Part 2 approval task');
+                undecided.Status = 'Completed';
+                await RequireRefusal(
+                    () => undecided.Save(),
+                    undecided,
+                    'TSH1 completing an approval nobody decided',
+                    'no approving decision',
+                );
 
-                await completeApprovalTask(part1.ApprovalTaskID);
-                await completeApprovalTask(part2.ApprovalTaskID);
+                // Part 1 follows Alex's decision; Marcus decides Part 2
+                const part1Task = await ctx.Provider.GetEntityObject<TaskEntity>(TASK_ENTITY, ctx.User);
+                Assert(await part1Task.Load(part1.ApprovalTaskID), 'load Part 1 approval task');
+                part1Task.Status = 'Completed';
+                await RequireSave(part1Task, 'TSH1 complete Part 1 after Alex approved it');
+                await decideApprovalTask(ctx, part2.ApprovalTaskID, marcus.ID, approvedOutcome, 'Completed', 'TSH1 Part 2');
 
                 // After 2 of 3 parts approved, timesheet is still Submitted
                 const tsMid = await ctx.Provider.GetEntityObject<mjBizAppsTasksTimesheetEntity>(
@@ -314,7 +353,7 @@ const checks: NamedCheck[] = [
                 AssertEqual(tsMid.Status, 'Submitted', 'timesheet stays Submitted until last part is approved');
 
                 // Approve Part 3 -> timesheet turns Approved
-                await completeApprovalTask(part3.ApprovalTaskID);
+                await decideApprovalTask(ctx, part3.ApprovalTaskID, elena.ID, approvedOutcome, 'Completed', 'TSH1 Part 3');
                 const tsFinal = await ctx.Provider.GetEntityObject<mjBizAppsTasksTimesheetEntity>(
                     TIMESHEET_ENTITY,
                     ctx.User,
@@ -344,6 +383,9 @@ const checks: NamedCheck[] = [
             const p2RootID = world.SeedTaskIDs['Corporate HQ Campus Construction & Relocation'];
             const p2SubID = world.SeedTaskIDs['Architectural Blueprints & Structural Engineering'];
             const sarahUser = PersonaUser(ctx, sarah.ID, { canManage: false });
+            const approvedOutcome = world.DecisionOutcomes['Approved'];
+            const rejectedOutcome = world.DecisionOutcomes['Rejected'];
+            Assert(!!approvedOutcome && !!rejectedOutcome, 'Approved and Rejected decision outcomes are seeded');
 
             const rule1 = await ctx.Provider.GetEntityObject<mjBizAppsTasksTimeApproverEntity>(
                 TIME_APPROVER_ENTITY,
@@ -411,10 +453,7 @@ const checks: NamedCheck[] = [
                 const r1P2 = r1Parts.find((p) => SameID(p.ScopeTaskID, p2RootID))!;
 
                 // Reject Part 2 while Part 1 is still Pending -> Part 1 is automatically Canceled and timesheet becomes Rejected
-                const t2 = await ctx.Provider.GetEntityObject<TaskEntity>(TASK_ENTITY, ctx.User);
-                Assert(await t2.Load(r1P2.ApprovalTaskID), 'load r1P2 task');
-                t2.Status = 'Cancelled';
-                await RequireSave(t2, 'reject r1P2 task');
+                await decideApprovalTask(ctx, r1P2.ApprovalTaskID, marcus.ID, rejectedOutcome, 'Cancelled', 'TSH2 reject r1P2');
 
                 const p1AfterReject = await ctx.Provider.GetEntityObject<mjBizAppsTasksTimesheetApprovalEntity>(
                     TIMESHEET_APPROVAL_ENTITY,
@@ -440,15 +479,8 @@ const checks: NamedCheck[] = [
                 const r2P1 = r2Parts.find((p) => SameID(p.ScopeTaskID, p1RootID))!;
                 const r2P2 = r2Parts.find((p) => SameID(p.ScopeTaskID, p2RootID))!;
 
-                const r2Task1 = await ctx.Provider.GetEntityObject<TaskEntity>(TASK_ENTITY, ctx.User);
-                Assert(await r2Task1.Load(r2P1.ApprovalTaskID), 'load r2P1 task');
-                r2Task1.Status = 'Completed';
-                await RequireSave(r2Task1, 'approve r2P1');
-
-                const r2Task2 = await ctx.Provider.GetEntityObject<TaskEntity>(TASK_ENTITY, ctx.User);
-                Assert(await r2Task2.Load(r2P2.ApprovalTaskID), 'load r2P2 task');
-                r2Task2.Status = 'Cancelled';
-                await RequireSave(r2Task2, 'reject r2P2');
+                await decideApprovalTask(ctx, r2P1.ApprovalTaskID, alex.ID, approvedOutcome, 'Completed', 'TSH2 approve r2P1');
+                await decideApprovalTask(ctx, r2P2.ApprovalTaskID, marcus.ID, rejectedOutcome, 'Cancelled', 'TSH2 reject r2P2');
 
                 // Edit e2 (Project 2) while leaving e1 (Project 1) unchanged
                 const editE2 = await ctx.Provider.GetEntityObject<mjBizAppsTasksTaskTimeEntryEntity>(
@@ -563,10 +595,9 @@ const checks: NamedCheck[] = [
                 Assert(sub2.Success && !!sub2.Output?.Success, 'TSH3 submit 2');
                 const approvalTaskID = sub2.Output!.Parts![0].ApprovalTaskID;
 
-                const appTask = await ctx.Provider.GetEntityObject<TaskEntity>(TASK_ENTITY, ctx.User);
-                Assert(await appTask.Load(approvalTaskID), 'load approval task');
-                appTask.Status = 'Completed';
-                await RequireSave(appTask, 'approve timesheet');
+                const approvedOutcome = world.DecisionOutcomes['Approved'];
+                Assert(!!approvedOutcome, 'Approved decision outcome is seeded');
+                await decideApprovalTask(ctx, approvalTaskID, alex.ID, approvedOutcome, 'Completed', 'TSH3 approve timesheet');
 
                 // 1. Non-manager (Sarah) is refused from reopening
                 const unauthReopen = await new TasksReopenTimesheetOperation().Execute(
@@ -774,10 +805,9 @@ const checks: NamedCheck[] = [
                 const partID = subRes.Output!.Parts![0].TimesheetApprovalID;
                 const approvalTaskID = subRes.Output!.Parts![0].ApprovalTaskID;
 
-                const appTask = await ctx.Provider.GetEntityObject<TaskEntity>(TASK_ENTITY, ctx.User);
-                Assert(await appTask.Load(approvalTaskID), 'load approval task');
-                appTask.Status = 'Completed';
-                await RequireSave(appTask, 'complete approval task');
+                const approvedOutcome = world.DecisionOutcomes['Approved'];
+                Assert(!!approvedOutcome, 'Approved decision outcome is seeded');
+                await decideApprovalTask(ctx, approvalTaskID, alex.ID, approvedOutcome, 'Completed', 'TSH5 approve timesheet');
 
                 // Force part back to Pending and timesheet back to Submitted to simulate a missed outcome write
                 const staleTs = await ctx.Provider.GetEntityObject<mjBizAppsTasksTimesheetEntity>(

@@ -142,6 +142,17 @@ describe('SettleHumanAsksForTask', () => {
         expect(completeWaitingStep.mock.calls[0][0]).toMatchObject({ Status: 'Complete', Payload: { approval: { Outcome: 'Rejected', Approved: false } } });
     });
 
+    it('settles a task cancelled with no decision as not approved: a withdrawal is never an approval', async () => {
+        db.decisions = [];
+        await SettleHumanAsksForTask(TASK_ID, 'Cancelled', decider, provider);
+        expect(completeWaitingStep.mock.calls[0][0]).toMatchObject({ Status: 'Complete', Payload: { approval: { Outcome: 'Cancelled', Approved: false } } });
+    });
+
+    it('does not approve from an earlier approving decision once the task is cancelled', async () => {
+        await SettleHumanAsksForTask(TASK_ID, 'Cancelled', decider, provider);
+        expect(completeWaitingStep.mock.calls[0][0].Payload.approval).toMatchObject({ Approved: false });
+    });
+
     it('leaves alone a linked step that names another provider', async () => {
         db.links = [{ ID: 'a', EntityID: STEP_ENTITY_ID, RecordID: STEP_ID }, { ID: 'b', EntityID: STEP_ENTITY_ID, RecordID: OTHER_STEP_ID }];
         db.steps = [{ ID: STEP_ID, Configuration: stepConfig('BizAppsTasks') }, { ID: OTHER_STEP_ID, Configuration: stepConfig('AgentRequest') }];

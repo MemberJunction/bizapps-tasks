@@ -218,6 +218,32 @@ await svc.assignToTask({
 });
 ```
 
+### Approval Tasks: Who May Assign, Close and Create
+
+On a task whose type has `IsApproval` set, the server checks three writes, whoever makes them:
+
+- **Adding an assignee.** The person recorded as the task's creator names its approvers while the request is open. Anyone else needs the reassign right (the `ApprovalReassignRoles` setting; everyone holds it while the setting is empty) and can never add themselves, as a person, as a user, or through a role they hold.
+- **Closing the task.** `Completed` follows an approving decision, and `Cancelled` a rejecting one. With no such decision, only someone who could record the decision can complete the task, and a cancel is a withdrawal: the creator, an active assignee or a holder of the reassign right can make it, and it never approves anything. An approval task's type can't be changed to a type that isn't an approval.
+- **Naming the creator.** A new task's `CreatedByPersonID` is the person creating it, on every task type. Leave it empty and the server records them.
+
+A refused save returns `false` with the reason in `LatestResult.CompleteMessage`.
+
+Server code that decides these itself vouches for one save of one record, just before saving it:
+
+```typescript
+import {
+    SanctionApprovalAssignment,
+    SanctionApprovalWithdrawal,
+    SanctionOnBehalfCreator,
+} from '@mj-biz-apps/tasks-entities-server';
+
+SanctionOnBehalfCreator(task);          // the task is raised for someone else, or for nobody
+SanctionApprovalAssignment(assignment); // the server chose this assignee
+SanctionApprovalWithdrawal(task);       // the server is withdrawing a request it raised
+```
+
+Each returns `false` when the record isn't a server-side Tasks record. `TaskOrchestrationService.CreateTask` and `CreateApprovalRequest` take a `BeforeSave` callback, and `TaskAssignmentService.assignToTask` a `beforeSave` one, so a caller of the services can vouch without depending on the entity classes. Nothing vouches for completing an approval: that takes a decision, or a person who could record one. Use these only where the server decided what is written, never to pass along a value a caller supplied.
+
 ### Instantiating a Template
 
 ```typescript

@@ -11,11 +11,12 @@ import {
     LogStatus,
     Metadata,
     RunView,
+    UserInfo,
     ValidationErrorInfo,
     ValidationErrorType,
     ValidationResult,
 } from '@memberjunction/core';
-import { RegisterClass } from '@memberjunction/global';
+import { RegisterClass, UUIDsEqual } from '@memberjunction/global';
 import { ActionEngineServer } from '@memberjunction/actions';
 import {
     TaskEntity,
@@ -26,8 +27,16 @@ import {
     mjBizAppsTasksTaskTypeEntity,
     mjBizAppsTasksTaskTypeStatusEntity,
 } from '@mj-biz-apps/tasks-entities';
-import { GuidLiteral, TaskService } from '@mj-biz-apps/tasks-core';
-import { PrimaryPersonIDForUser } from './UserPeople.js';
+import { GuidLiteral, IsTaskDecisionOutcomeCode, TaskDecisionOutcomes, TaskService } from '@mj-biz-apps/tasks-core';
+import { ApprovalActor, IsSystemActor } from './ApprovalActor.js';
+import {
+    ApprovalStatusChangeRefusal,
+    ApprovalTypeChangeRefusal,
+    TaskCreatorRefusal,
+    type ApprovalClosingStatus,
+} from './ApprovalTaskAuthority.js';
+import { ACTIVE_ASSIGNMENT_STATUSES, TaskDecisionRefusal, type DecisionAssignmentFact } from './TaskDecisionAuthority.js';
+import { IsPeopleEntity, PrimaryPersonIDForUser } from './UserPeople.js';
 import {
     ApplyTimesheetApprovalOutcomeForTask,
     TIMESHEET_APPROVAL_TASK_TYPE_CODE,
@@ -113,6 +122,11 @@ function isPostCommitScheduler(provider: IEntityDataProvider | null | undefined)
     return typeof candidate?.RunAfterCommit === 'function' && typeof candidate?.CapturePostCommitToken === 'function';
 }
 
+/** What lets a user close an approval task with no decision behind them: the actor facts of {@link ApprovalStatusChangeRefusal}. */
+type ClosingStanding = { ActorMayDecide: boolean; ActorIsTaskCreator: boolean; ActorHoldsActiveAssignment: boolean; ActorMayReassign: boolean };
+
+const NO_CLOSING_STANDING: ClosingStanding = { ActorMayDecide: false, ActorIsTaskCreator: false, ActorHoldsActiveAssignment: false, ActorMayReassign: false };
+
 /**
  * Server-side subclass of {@link TaskEntity}.
  *
@@ -123,9 +137,17 @@ function isPostCommitScheduler(provider: IEntityDataProvider | null | undefined)
  *   - Parent sub-task progress rollup
  *   - Event-driven Action & Workflow hook execution (OnCreate, OnStatusChange, OnEnterStatus, OnExitStatus, OnComplete, OnCancel, OnReject, OnPercentChange)
  *   - Creator integrity: a new task with no `CreatedByPersonID` records the signed-in user's Person,
- *     and a recorded creator cannot be changed. The no-self-approval rule (TaskDecisionEntityServer)
- *     compares deciders against this column, so it must not depend on every caller remembering to
- *     pass it, nor be editable away afterwards.
+ *     a creator the caller names must be the caller, and a recorded creator cannot be changed. The
+ *     no-self-approval rule (TaskDecisionEntityServer) compares deciders against this column, so it
+ *     must not depend on every caller remembering to pass it, be nameable as someone else, nor be
+ *     editable away afterwards. Server code raising a task for someone else vouches for one save
+ *     with {@link TaskEntityServer.AuthorizeCreatorOnBehalf}.
+ *   - Approval outcomes (bizapps-tasks#209): an approval task (`TaskType.IsApproval`) reaches
+ *     `Completed` only with an approving decision standing on it or from someone who could have
+ *     recorded one, is cancelled only by someone who may withdraw it, and cannot be turned into an
+ *     ordinary task. Timesheets, OnComplete actions and workflow steps read the status as the
+ *     outcome, so the status must not be settable around the decision rule. The rules are in
+ *     ./ApprovalTaskAuthority.ts; this class gathers their facts.
  *
  * Lifecycle hook dispatch lives HERE and only here — it fires on the status
  * TRANSITION captured pre-save. TaskNotificationHandler (tasks-server) must not
@@ -137,8 +159,49 @@ function isPostCommitScheduler(provider: IEntityDataProvider | null | undefined)
 @RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Tasks')
 export class TaskEntityServer extends TaskEntity {
     private _rollupHandlerRegistered = false;
+    private creatorOnBehalfAuthorized = false;
+    private approvalWithdrawalAuthorized = false;
+    /** The creator this class recorded itself on this object, which needs no second look. */
+    private stampedCreatorPersonID: string | null = null;
+
+    /**
+     * Lets the next save record the creator exactly as the caller left it: someone other than the
+     * user saving, or nobody at all (the user saving is then not recorded either). Called only by
+     * server code raising a task on someone's behalf (a workflow for its owner, a manager submitting
+     * a report's timesheet) or for no Person (an agent asking its own user), never to pass along a
+     * creator a caller supplied. See `SanctionOnBehalfCreator` (./ApprovalSanctions.ts).
+     */
+    public AuthorizeCreatorOnBehalf(): void {
+        this.creatorOnBehalfAuthorized = true;
+    }
+
+    /**
+     * Lets the next save move an approval task to `Cancelled` with no rejecting decision, whoever is
+     * saving. Called only by server code withdrawing a request it raised (a workflow withdrawing its
+     * ask, a resubmitted timesheet). It never lets an approval be `Completed`: that takes an
+     * approving decision, or someone who could record one. See `SanctionApprovalWithdrawal`
+     * (./ApprovalSanctions.ts).
+     */
+    public AuthorizeApprovalWithdrawal(): void {
+        this.approvalWithdrawalAuthorized = true;
+    }
+
+    /** Async validation carries the creator and approval rules, so it must run on every save. */
+    public override get DefaultSkipAsyncValidation(): boolean {
+        return false;
+    }
 
     public override async Save(options?: EntitySaveOptions): Promise<boolean> {
+        try {
+            return await this.saveWithLifecycle(options);
+        } finally {
+            // Each authorization covers one save, never a later one made through the same object.
+            this.creatorOnBehalfAuthorized = false;
+            this.approvalWithdrawalAuthorized = false;
+        }
+    }
+
+    private async saveWithLifecycle(options?: EntitySaveOptions): Promise<boolean> {
         // Captured before the first await so the post-commit hooks follow the caller's
         // transaction, if one is open on this Task's provider.
         const postCommitToken = this.capturePostCommitToken();
@@ -326,20 +389,254 @@ export class TaskEntityServer extends TaskEntity {
     }
 
     /**
+     * The rules that need a read: who a task's creator may be, and how an approval task may close
+     * (./ApprovalTaskAuthority.ts). Runs after the status sync in {@link Save}, so it sees the status
+     * the task will be saved with. A check that cannot be completed refuses the save.
+     */
+    public override async ValidateAsync(): Promise<ValidationResult> {
+        const result = await super.ValidateAsync();
+        try {
+            const refusals = [await this.creatorRefusal(), ...(await this.approvalRefusals())];
+            for (const refusal of refusals) {
+                if (refusal) this.addRefusal(result, refusal);
+            }
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : String(e);
+            LogError(`TaskEntityServer: checking who may save task ${this.ID ?? '(new)'} failed: ${msg}`);
+            this.addRefusal(result, `The task was not saved: whether this change is allowed could not be checked (${msg}).`);
+        }
+        return result;
+    }
+
+    private addRefusal(result: ValidationResult, message: string): void {
+        result.Errors.push(new ValidationErrorInfo('TaskEntityServer.ValidateAsync', message, null, ValidationErrorType.Failure));
+        result.Success = false;
+    }
+
+    /** Why the creator must not be recorded as it stands, or null. Reads nothing unless a caller named one. */
+    private async creatorRefusal(): Promise<string | null> {
+        const creator = this.CreatedByPersonID;
+        const field = this.Fields.find(f => f.CodeName === 'CreatedByPersonID');
+        const recordingNow = !this.IsSaved || (!!field?.Dirty && field.OldValue == null);
+        if (!creator || !recordingNow) return null;
+        if (!this.IsSaved && this.stampedCreatorPersonID && UUIDsEqual(creator, this.stampedCreatorPersonID)) return null;
+        const user = this.ContextCurrentUser;
+        const isSystem = IsSystemActor(user);
+        const checksActor = !this.creatorOnBehalfAuthorized && !isSystem && !!user && !this.IsSaved;
+        return TaskCreatorRefusal({
+            CreatorPersonID: creator,
+            TaskIsSaved: this.IsSaved,
+            ActorPersonIDs: checksActor && user ? await this.approvalActor(user).PersonIDs() : [],
+            OnBehalfSanctioned: this.creatorOnBehalfAuthorized,
+            ActorIsSystem: isSystem,
+            HasActor: !!user,
+        });
+    }
+
+    /**
+     * Why this save must not go through under the approval rules; empty when it may. Reads nothing
+     * unless the task is closing or changing type, so an ordinary save costs nothing.
+     */
+    private async approvalRefusals(): Promise<Array<string | null>> {
+        const closing = this.closingStatusBeingSet();
+        const previousTypeID = this.previousTypeID();
+        if (!closing && !previousTypeID) return [];
+        const user = this.ContextCurrentUser;
+        const isSystem = IsSystemActor(user);
+        const approvalTypeIDs = await this.approvalTypeIDs([this.TypeID, previousTypeID]);
+        const isApproval = approvalTypeIDs.some((id) => UUIDsEqual(id, this.TypeID));
+        const wasApproval = previousTypeID ? approvalTypeIDs.some((id) => UUIDsEqual(id, previousTypeID)) : isApproval;
+        return [
+            previousTypeID ? ApprovalTypeChangeRefusal({ WasApprovalType: wasApproval, IsApprovalType: isApproval, ActorIsSystem: isSystem }) : null,
+            closing && (isApproval || wasApproval) ? await this.closingRefusal(closing, user, isSystem) : null,
+        ];
+    }
+
+    /** The closing status this save moves the task to, or null when it does not close it. */
+    private closingStatusBeingSet(): ApprovalClosingStatus | null {
+        const status = this.Status;
+        if (status !== 'Completed' && status !== 'Cancelled') return null;
+        if (!this.IsSaved) return status;
+        const field = this.Fields.find(f => f.CodeName === 'Status');
+        return field?.Dirty && field.OldValue !== status ? status : null;
+    }
+
+    /** The type a saved task is being moved off, or null when its type is not changing. */
+    private previousTypeID(): string | null {
+        const field = this.Fields.find(f => f.CodeName === 'TypeID');
+        if (!this.IsSaved || !field?.Dirty || field.OldValue == null) return null;
+        const previous = String(field.OldValue);
+        return UUIDsEqual(previous, this.TypeID) ? null : previous;
+    }
+
+    /** Which of these task types are approval types. */
+    private async approvalTypeIDs(typeIDs: Array<string | null | undefined>): Promise<string[]> {
+        const ids = typeIDs.filter((id): id is string => !!id);
+        if (ids.length === 0) return [];
+        const rows = await this.readRuleRows<{ ID: string; IsApproval: boolean }>(
+            'MJ_BizApps_Tasks: Task Types',
+            `ID IN (${ids.map((id) => GuidLiteral(id, 'TypeID')).join(', ')})`,
+            ['ID', 'IsApproval'],
+        );
+        return rows.filter((t) => t.IsApproval === true).map((t) => t.ID);
+    }
+
+    /** Why this approval task must not move to `newStatus`, or null. */
+    private async closingRefusal(newStatus: ApprovalClosingStatus, user: UserInfo | null, isSystem: boolean): Promise<string | null> {
+        const decided = await this.standingDecisionStatus();
+        // Who is saving only matters when the status does not follow a decision.
+        const standing = decided !== newStatus && user ? await this.closingStanding(newStatus, user, isSystem) : NO_CLOSING_STANDING;
+        return ApprovalStatusChangeRefusal({
+            NewStatus: newStatus,
+            DecidedStatus: decided,
+            WithdrawalSanctioned: this.approvalWithdrawalAuthorized,
+            ActorIsSystem: isSystem,
+            HasActor: !!user,
+            ...standing,
+        });
+    }
+
+    /** What the user holds that lets them close this approval, reading only what `newStatus` turns on. */
+    private async closingStanding(newStatus: ApprovalClosingStatus, user: UserInfo, isSystem: boolean): Promise<ClosingStanding> {
+        if (newStatus === 'Completed') return { ...NO_CLOSING_STANDING, ActorMayDecide: await this.actorMayDecide(user) };
+        // A withdrawal somebody vouched for is accepted whoever saves it.
+        if (this.approvalWithdrawalAuthorized || isSystem) return NO_CLOSING_STANDING;
+        return this.withdrawalStanding(user);
+    }
+
+    /**
+     * The status the decision standing on this task leads to: the one being saved with the task
+     * (`RecordDecision` saves both as one unit, and the decision's own save checks who decided), else
+     * the latest one recorded. Null when there is none, or its outcome is not one that closes a task.
+     */
+    private async standingDecisionStatus(): Promise<ApprovalClosingStatus | null> {
+        const pending = (this.Decisions?.Items ?? []).filter((d) => !d.IsSaved);
+        const pendingOutcomeID = pending.length > 0 ? pending[pending.length - 1].OutcomeID : null;
+        const outcomeID = pendingOutcomeID ?? (this.IsSaved ? await this.latestRecordedOutcomeID() : null);
+        if (!outcomeID) return null;
+        const outcomes = await this.readRuleRows<{ Code: string | null }>(
+            'MJ_BizApps_Tasks: Task Decision Outcomes',
+            `ID = ${GuidLiteral(outcomeID, 'OutcomeID')}`,
+            ['ID', 'Code'],
+        );
+        const code = outcomes[0]?.Code ?? null;
+        return IsTaskDecisionOutcomeCode(code) ? TaskDecisionOutcomes[code].Status : null;
+    }
+
+    /** The outcome of the latest decision recorded on this task, or null when it has none. */
+    private async latestRecordedOutcomeID(): Promise<string | null> {
+        const rows = await this.readRuleRows<{ OutcomeID: string | null }>(
+            'MJ_BizApps_Tasks: Task Decisions',
+            `TaskID = ${GuidLiteral(this.ID, 'TaskID')}`,
+            ['ID', 'OutcomeID'],
+            { OrderBy: 'DecidedAt DESC, __mj_CreatedAt DESC', MaxRows: 1 },
+        );
+        return rows[0]?.OutcomeID ?? null;
+    }
+
+    /**
+     * Whether the user could record a decision on this task themselves: the decision rule, asked
+     * with the self-approval guard on whatever the `PreventSelfApproval` setting says, so a
+     * completion always comes from an active assignee who did not ask for the approval. A task
+     * that is being created has no assignee yet.
+     */
+    private async actorMayDecide(user: UserInfo): Promise<boolean> {
+        if (!this.IsSaved) return false;
+        const provider = this.ruleMetadataProvider;
+        const actor = this.approvalActor(user);
+        const creatorIsActor = await actor.IsPerson(this.CreatedByPersonID);
+        const refusal = TaskDecisionRefusal({
+            PreventSelfApproval: true,
+            IsApprovalTask: true,
+            DeciderUserID: user.ID,
+            DeciderPersonIDs: await actor.PersonIDs(),
+            DecidedByPersonID: null,
+            TaskAssignmentID: null,
+            TaskCreatedByPersonID: this.CreatedByPersonID ?? null,
+            Assignments: await this.assignmentRows(),
+            IsPeopleEntityID: (entityID: string) => IsPeopleEntity(provider, entityID),
+            UsersEntityID: provider.EntityByName('MJ: Users')?.ID ?? null,
+            RolesEntityID: provider.EntityByName('MJ: Roles')?.ID ?? null,
+            DeciderRoleIDs: await actor.RoleIDs(),
+            // Only read when it matters: the user asked for this approval themselves.
+            DeciderIsExempt: creatorIsActor ? await actor.HoldsSelfApprovalExemptRole() : false,
+        });
+        return refusal === null;
+    }
+
+    /** What lets the user withdraw this approval, each read only until one of them does. */
+    private async withdrawalStanding(user: UserInfo): Promise<ClosingStanding> {
+        const actor = this.approvalActor(user);
+        // A task created already cancelled is its creator's own.
+        const isCreator = !this.IsSaved || (await actor.IsPerson(this.CreatedByPersonID));
+        const holdsAssignment = !isCreator && (await this.holdsActiveAssignment(actor));
+        const mayReassign = !isCreator && !holdsAssignment && (await actor.MayReassignApprovals());
+        return { ...NO_CLOSING_STANDING, ActorIsTaskCreator: isCreator, ActorHoldsActiveAssignment: holdsAssignment, ActorMayReassign: mayReassign };
+    }
+
+    /** Whether one of this task's Pending or InProgress assignments is the user's. */
+    private async holdsActiveAssignment(actor: ApprovalActor): Promise<boolean> {
+        const active = (await this.assignmentRows()).filter((a) => ACTIVE_ASSIGNMENT_STATUSES.includes(a.Status));
+        for (const assignment of active) {
+            if (await actor.IsAssignee(assignment.AssigneeEntityID, assignment.AssigneeRecordID)) return true;
+        }
+        return false;
+    }
+
+    /** This task's assignments, in every status. */
+    private assignmentRows(): Promise<DecisionAssignmentFact[]> {
+        return this.readRuleRows<DecisionAssignmentFact>(
+            'MJ_BizApps_Tasks: Task Assignments',
+            `TaskID = ${GuidLiteral(this.ID, 'TaskID')}`,
+            ['ID', 'AssigneeEntityID', 'AssigneeRecordID', 'Status'],
+        );
+    }
+
+    private approvalActor(user: UserInfo): ApprovalActor {
+        return new ApprovalActor(user, this.ruleMetadataProvider, this.RunViewProviderToUse);
+    }
+
+    /** The provider this task was created on when it carries metadata, else the process default. */
+    private get ruleMetadataProvider(): IMetadataProvider {
+        const candidate = this.ProviderToUse as Partial<IMetadataProvider> | undefined;
+        return typeof candidate?.EntityByName === 'function' ? (candidate as IMetadataProvider) : Metadata.Provider;
+    }
+
+    /** A fresh read for a rule, as the user saving. Throws when it fails, so the rule fails closed. */
+    private async readRuleRows<T>(
+        entityName: string,
+        filter: string,
+        fields: string[],
+        options: { OrderBy?: string; MaxRows?: number } = {},
+    ): Promise<T[]> {
+        const res = await new RunView(this.RunViewProviderToUse).RunView<T>(
+            { EntityName: entityName, ExtraFilter: filter, Fields: fields, ResultType: 'simple', BypassCache: true, ...options },
+            this.ContextCurrentUser,
+        );
+        if (!res?.Success) throw new Error(res?.ErrorMessage ?? `the ${entityName} lookup returned no result`);
+        return res.Results ?? [];
+    }
+
+    /**
      * On create, records the signed-in user's Person as the creator when the caller left it unset.
-     * A caller-supplied creator is kept: server code legitimately creates tasks on someone's behalf
-     * (accounting names the batch's builder). A user with no Person (a service account) leaves it unset.
+     * A caller-supplied creator is kept here and checked in {@link ValidateAsync}: it must be the
+     * caller, unless server code vouched for it or the system user is saving. A user with no Person
+     * (a service account) leaves it unset.
      */
     private async stampCreatorPreSave(): Promise<void> {
         const user = this.ContextCurrentUser;
-        if (this.IsSaved || this.CreatedByPersonID || !user) return;
+        // Server code that vouched for the creator decided it, an empty one included.
+        if (this.IsSaved || this.CreatedByPersonID || !user || this.creatorOnBehalfAuthorized) return;
         try {
             const candidate = this.ProviderToUse as Partial<IMetadataProvider> | undefined;
             const metadataProvider = typeof candidate?.EntityByID === 'function'
                 ? (candidate as IMetadataProvider)
                 : Metadata.Provider;
             const personID = await PrimaryPersonIDForUser(metadataProvider, this.RunViewProviderToUse, user);
-            if (personID) this.CreatedByPersonID = personID;
+            if (personID) {
+                this.CreatedByPersonID = personID;
+                this.stampedCreatorPersonID = personID;
+            }
         } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : String(e);
             LogError(`TaskEntityServer: could not record the creator of task "${this.Name}": ${msg}`);

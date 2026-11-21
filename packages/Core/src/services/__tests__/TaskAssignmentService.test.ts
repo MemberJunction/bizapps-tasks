@@ -123,6 +123,24 @@ describe('TaskAssignmentService.assignToTask', () => {
   });
 });
 
+describe('TaskAssignmentService.assignToTask — beforeSave (server code vouching for the assignee)', () => {
+  it('hands the unsaved assignment to beforeSave, then saves it', async () => {
+    const assignment = makeFakeEntity();
+    getEntityObjectMock.mockResolvedValueOnce(assignment).mockResolvedValueOnce(makeFakeEntity());
+    const seen: Array<{ assignee: unknown; saved: number }> = [];
+
+    await new TaskAssignmentService().assignToTask({
+      taskID: 'task-1',
+      assigneeEntityID: 'entity-1',
+      assigneeRecordID: 'person-1',
+      beforeSave: (a) => { seen.push({ assignee: a.AssigneeRecordID, saved: assignment.Save.mock.calls.length }); },
+    });
+
+    expect(seen).toEqual([{ assignee: 'person-1', saved: 0 }]);
+    expect(assignment.Save).toHaveBeenCalledOnce();
+  });
+});
+
 describe('TaskAssignmentService.assignToTask — a refused save', () => {
   it('throws with the save message and logs no activity', async () => {
     const assignment = makeFakeEntity();
