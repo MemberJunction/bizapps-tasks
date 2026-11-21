@@ -2,10 +2,14 @@
   "entity": "MJ: AI Skills",
   "filePattern": "**/.*.json",
   "pull": {
-    "filter": "Name IN ('Chief of Staff Tasks & Priorities', 'Work reports')",
+    "filter": "Name IN ('Chief of Staff Tasks & To-dos', 'Work reports', 'Chief of Staff Meetings & Transcripts')",
     "relatedEntities": {
       "MJ: AI Agent Skills": {
         "entity": "MJ: AI Agent Skills",
+        "foreignKey": "SkillID"
+      },
+      "MJ: AI Skill Actions": {
+        "entity": "MJ: AI Skill Actions",
         "foreignKey": "SkillID"
       }
     }

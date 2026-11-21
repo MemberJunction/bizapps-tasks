@@ -1,39 +1,390 @@
-import { ActionParam, ActionResultSimple, RunActionParams } from '@memberjunction/actions-base';
+import { RunView } from '@memberjunction/core';
+import type { ActionResultSimple, RunActionParams } from '@memberjunction/actions-base';
 import { BaseAction } from '@memberjunction/actions';
-import { IsValidUUID, RegisterClass, UUIDsEqual } from '@memberjunction/global';
+import { TypedActionPolicyGuard } from '@memberjunction/ai-core-plus';
+import { EscapeSQLString, IsValidUUID, RegisterClass, UUIDsEqual } from '@memberjunction/global';
 import {
     GetLocalDayWindow,
     IsPrivilegedWorkReportUser,
     WorkReportService,
 } from '@mj-biz-apps/tasks-core';
+import type {
+    mjBizAppsTasksWorkReportEntity,
+    mjBizAppsTasksWorkReportItemEntity,
+} from '@mj-biz-apps/tasks-entities';
+import {
+    buildWorkReportDeepLink,
+    checkTypedPolicyGuard,
+    failResult,
+    getDateParam,
+    getNumberParam,
+    getStringParam,
+    setOutputParam,
+    successResult,
+    toIsoOrNull,
+    WORK_REPORT_ITEMS_ENTITY,
+    WORK_REPORTS_ENTITY,
+} from './action-helpers.js';
 
 export const DRAFT_WORK_REPORT_ACTION_ID = '9F5124A5-64F2-4C06-8D71-60710DCB531B';
 export const SUBMIT_WORK_REPORT_ACTION_ID = '856D4E92-79B4-486A-A092-48CF5FC22998';
 export const REVIEW_WORK_REPORT_ACTION_ID = 'B880DABA-0FC1-4012-9C3B-92694D99985E';
 
-function getStringParam(params: RunActionParams, name: string): string | null {
-    const found = params.Params.find((p) => p.Name.toLowerCase() === name.toLowerCase());
-    if (!found || found.Value == null) return null;
-    const str = String(found.Value).trim();
-    return str.length > 0 ? str : null;
-}
+type WorkReportStatusValue = mjBizAppsTasksWorkReportEntity['Status'];
 
-function setOutputParam(params: RunActionParams, name: string, value: string | boolean | null): void {
-    const existing = params.Params.find((p) => p.Name.toLowerCase() === name.toLowerCase());
-    if (existing) {
-        existing.Value = value;
-        return;
+const VALID_WORK_REPORT_STATUSES: ReadonlySet<WorkReportStatusValue> = new Set([
+    'Draft',
+    'Submitted',
+    'Reviewed',
+]);
+
+function mapWorkReportServiceError(message: string): { code: string; message: string } {
+    if (/not found/i.test(message)) {
+        return { code: 'NOT_FOUND', message };
     }
-    const out: ActionParam = {
-        Name: name,
-        Value: value,
-        Type: 'Output',
-    };
-    params.Params.push(out);
+    if (/could not be resolved to an active Person/i.test(message)) {
+        return { code: 'NO_PERSON_RECORD', message };
+    }
+    if (
+        /Only the |not the mapped supervisor|cannot review their own|does not match|No mapped supervisor/i.test(message)
+    ) {
+        return { code: 'PERMISSION_DENIED', message };
+    }
+    if (/Only a '(?:Draft|Submitted)'|already been|Invalid |is required/i.test(message)) {
+        return { code: 'VALIDATION_ERROR', message };
+    }
+    return { code: 'ERROR', message };
 }
 
-function failResult(code: string, message: string): ActionResultSimple {
-    return { Success: false, ResultCode: code, Message: message };
+function normalizeWorkReportStatus(raw: string | null): WorkReportStatusValue | null {
+    if (!raw) return null;
+    const norm = raw.trim().toLowerCase();
+    if (norm === 'draft') return 'Draft';
+    if (norm === 'submitted') return 'Submitted';
+    if (norm === 'reviewed') return 'Reviewed';
+    return VALID_WORK_REPORT_STATUSES.has(raw as WorkReportStatusValue)
+        ? (raw as WorkReportStatusValue)
+        : null;
+}
+
+/**
+ * Action: `Tasks.GetWorkReport`
+ *
+ * Returns a single `MJ_BizApps_Tasks: Work Reports` record with its linked
+ * `MJ_BizApps_Tasks: Work Report Items`, enforcing author/supervisor-chain
+ * visibility and `TypedActionPolicyGuard` field masking.
+ */
+@RegisterClass(BaseAction, 'Tasks.GetWorkReport')
+export class GetWorkReportAction extends BaseAction {
+    public static override readonly AuthorizesCaller = true;
+
+    protected override async InternalRunAction(params: RunActionParams): Promise<ActionResultSimple> {
+        const user = params.ContextUser;
+        if (!user) return failResult('PERMISSION_DENIED', 'ContextUser is required.', params);
+
+        const reportID = getStringParam(params, 'WorkReportID');
+        if (!reportID || !IsValidUUID(reportID)) {
+            return failResult('VALIDATION_ERROR', 'A valid WorkReportID UUID is required.', params);
+        }
+
+        const reportGuard = await checkTypedPolicyGuard({
+            params,
+            entityName: WORK_REPORTS_ENTITY,
+            operation: 'Read',
+        });
+        if (!reportGuard.Allowed) return reportGuard.Failure;
+
+        const itemsGuard = await checkTypedPolicyGuard({
+            params,
+            entityName: WORK_REPORT_ITEMS_ENTITY,
+            operation: 'Read',
+        });
+        if (!itemsGuard.Allowed) return itemsGuard.Failure;
+
+        try {
+            const callerPerson = await WorkReportService.Instance.ResolvePersonForUser(user);
+            const callerIsPrivileged = IsPrivilegedWorkReportUser(user);
+            if (!callerPerson?.ID && !callerIsPrivileged) {
+                return failResult(
+                    'NO_PERSON_RECORD',
+                    'No active Person record is linked to ContextUser.',
+                    params,
+                );
+            }
+
+            const rv = new RunView();
+            const escapedId = EscapeSQLString(reportID);
+            const [reportRes, itemsRes] = await Promise.all([
+                rv.RunView<
+                    Pick<
+                        mjBizAppsTasksWorkReportEntity,
+                        | 'ID'
+                        | 'PersonID'
+                        | 'Person'
+                        | 'PeriodStart'
+                        | 'PeriodEnd'
+                        | 'Title'
+                        | 'Body'
+                        | 'Status'
+                        | 'SupervisorFeedback'
+                        | 'ReviewedByPersonID'
+                        | 'ReviewedByPerson'
+                        | 'ReviewedAt'
+                    >
+                >(
+                    {
+                        EntityName: WORK_REPORTS_ENTITY,
+                        ExtraFilter: `ID = '${escapedId}'`,
+                        Fields: [
+                            'ID',
+                            'PersonID',
+                            'Person',
+                            'PeriodStart',
+                            'PeriodEnd',
+                            'Title',
+                            'Body',
+                            'Status',
+                            'SupervisorFeedback',
+                            'ReviewedByPersonID',
+                            'ReviewedByPerson',
+                            'ReviewedAt',
+                        ],
+                        MaxRows: 1,
+                        ResultType: 'simple',
+                    },
+                    user,
+                ),
+                rv.RunView<
+                    Pick<
+                        mjBizAppsTasksWorkReportItemEntity,
+                        'ID' | 'WorkReportID' | 'TaskID' | 'Task' | 'Section' | 'Summary' | 'Sequence'
+                    >
+                >(
+                    {
+                        EntityName: WORK_REPORT_ITEMS_ENTITY,
+                        ExtraFilter: `WorkReportID = '${escapedId}'`,
+                        Fields: ['ID', 'WorkReportID', 'TaskID', 'Task', 'Section', 'Summary', 'Sequence'],
+                        OrderBy: 'Sequence ASC',
+                        MaxRows: 200,
+                        ResultType: 'simple',
+                    },
+                    user,
+                ),
+            ]);
+
+            const report = reportRes.Success ? reportRes.Results?.[0] : undefined;
+            if (!report) {
+                return failResult('NOT_FOUND', `WorkReport '${reportID}' was not found or is not accessible.`, params);
+            }
+
+            // Explicit defense-in-depth reporting-line check in addition to RLS
+            if (!callerIsPrivileged && callerPerson?.ID && !UUIDsEqual(report.PersonID, callerPerson.ID)) {
+                const chain = await WorkReportService.Instance.ResolveSupervisorChainForPerson(
+                    report.PersonID,
+                    user,
+                );
+                const supervisorPersonIDs =
+                    chain.SupervisorChainPersonIDs && chain.SupervisorChainPersonIDs.length > 0
+                        ? chain.SupervisorChainPersonIDs
+                        : chain.SupervisorPersonID
+                          ? [chain.SupervisorPersonID]
+                          : [];
+                const isSupervisor = supervisorPersonIDs.some((id) => UUIDsEqual(id, callerPerson.ID));
+                if (!isSupervisor) {
+                    return failResult(
+                        'PERMISSION_DENIED',
+                        'Only the report author, their supervisor chain, or an administrator may read this work report.',
+                        params,
+                    );
+                }
+            }
+
+            const maskedHeader = TypedActionPolicyGuard.MaskRecord(
+                {
+                    ID: report.ID,
+                    PersonID: report.PersonID,
+                    PersonName: report.Person ?? null,
+                    PeriodStart: toIsoOrNull(report.PeriodStart),
+                    PeriodEnd: toIsoOrNull(report.PeriodEnd),
+                    Title: report.Title ?? null,
+                    Body: report.Body,
+                    Status: report.Status,
+                    SupervisorFeedback: report.SupervisorFeedback ?? null,
+                    ReviewedByPersonID: report.ReviewedByPersonID ?? null,
+                    ReviewedByPersonName: report.ReviewedByPerson ?? null,
+                    ReviewedAt: toIsoOrNull(report.ReviewedAt),
+                    DeepLink: buildWorkReportDeepLink(report.ID),
+                },
+                reportGuard.DeniedFieldPatterns,
+            );
+
+            const items = TypedActionPolicyGuard.MaskRows(
+                (itemsRes.Success ? (itemsRes.Results ?? []) : []).map((item) => ({
+                    ID: item.ID,
+                    TaskID: item.TaskID ?? null,
+                    TaskName: item.Task ?? null,
+                    Section: item.Section,
+                    Summary: item.Summary,
+                    Sequence: item.Sequence,
+                })),
+                itemsGuard.DeniedFieldPatterns,
+            );
+
+            const payload = {
+                ...maskedHeader,
+                Items: items,
+            };
+
+            const summary = `Loaded WorkReport "${report.Title ?? report.ID}" (${report.Status}) with ${items.length} item(s).`;
+            setOutputParam(params, 'WorkReport', JSON.stringify(payload));
+            setOutputParam(params, 'Summary', summary);
+            return successResult(summary, params);
+        } catch (err) {
+            const mapped = mapWorkReportServiceError(err instanceof Error ? err.message : String(err));
+            return failResult(mapped.code, mapped.message, params);
+        }
+    }
+}
+
+/**
+ * Action: `Tasks.ListWorkReports`
+ *
+ * Lists Work Reports scoped to `Mine`, `TeamPendingReview`, or `TeamRecent` via RLS-safe `RunView`,
+ * enforcing `TypedActionPolicyGuard` narrowing and field masking.
+ */
+@RegisterClass(BaseAction, 'Tasks.ListWorkReports')
+export class ListWorkReportsAction extends BaseAction {
+    public static override readonly AuthorizesCaller = true;
+
+    protected override async InternalRunAction(params: RunActionParams): Promise<ActionResultSimple> {
+        const user = params.ContextUser;
+        if (!user) return failResult('PERMISSION_DENIED', 'ContextUser is required.', params);
+
+        const guard = await checkTypedPolicyGuard({
+            params,
+            entityName: WORK_REPORTS_ENTITY,
+            operation: 'Read',
+        });
+        if (!guard.Allowed) return guard.Failure;
+
+        try {
+            const scopeRaw = (getStringParam(params, 'Scope') ?? 'Mine').trim().toLowerCase();
+            if (scopeRaw !== 'mine' && scopeRaw !== 'teampendingreview' && scopeRaw !== 'teamrecent') {
+                return failResult(
+                    'VALIDATION_ERROR',
+                    `Invalid Scope '${scopeRaw}'. Expected Mine, TeamPendingReview, or TeamRecent.`,
+                    params,
+                );
+            }
+
+            const statusRaw = getStringParam(params, 'Status');
+            const status = statusRaw ? normalizeWorkReportStatus(statusRaw) : null;
+            if (statusRaw && !status) {
+                return failResult(
+                    'VALIDATION_ERROR',
+                    `Invalid Status '${statusRaw}'. Expected Draft, Submitted, or Reviewed.`,
+                    params,
+                );
+            }
+
+            const since = getDateParam(params, 'Since');
+            if (since === 'INVALID') {
+                return failResult('VALIDATION_ERROR', 'Since must be a valid ISO-8601 date.', params);
+            }
+
+            const limitRaw = getNumberParam(params, 'Limit', 'MaxRows') ?? 20;
+            const limit = Math.max(1, Math.min(100, Math.round(limitRaw)));
+
+            const callerPerson = await WorkReportService.Instance.ResolvePersonForUser(user);
+            const callerIsPrivileged = IsPrivilegedWorkReportUser(user);
+            if (!callerPerson?.ID && !callerIsPrivileged) {
+                return failResult(
+                    'NO_PERSON_RECORD',
+                    'No active Person record is linked to ContextUser.',
+                    params,
+                );
+            }
+
+            const filters: string[] = [];
+            if (scopeRaw === 'mine') {
+                if (!callerPerson?.ID) {
+                    return failResult(
+                        'NO_PERSON_RECORD',
+                        'No active Person record is linked to ContextUser.',
+                        params,
+                    );
+                }
+                filters.push(`PersonID = '${EscapeSQLString(callerPerson.ID)}'`);
+            } else {
+                const directReportIDs = callerPerson?.ID
+                    ? await WorkReportService.Instance.ResolveDirectReportPersonIDs(callerPerson.ID, user)
+                    : [];
+                if (directReportIDs.length === 0) {
+                    const emptySummary = 'No team work reports found (no direct reports mapped in MJ: Employees).';
+                    setOutputParam(params, 'WorkReports', '[]');
+                    setOutputParam(params, 'TotalCount', 0);
+                    setOutputParam(params, 'Summary', emptySummary);
+                    return successResult(emptySummary, params);
+                }
+                const inTeam = directReportIDs.map((id) => `'${EscapeSQLString(id)}'`).join(', ');
+                filters.push(`PersonID IN (${inTeam})`);
+                if (scopeRaw === 'teampendingreview') {
+                    filters.push(`Status = 'Submitted'`);
+                }
+            }
+
+            if (status) {
+                filters.push(`Status = '${EscapeSQLString(status)}'`);
+            }
+            if (since) {
+                filters.push(`PeriodEnd >= '${EscapeSQLString(since.toISOString().slice(0, 10))}'`);
+            }
+
+            const rv = new RunView();
+            const res = await rv.RunView<
+                Pick<
+                    mjBizAppsTasksWorkReportEntity,
+                    'ID' | 'PersonID' | 'Person' | 'PeriodStart' | 'PeriodEnd' | 'Title' | 'Status' | 'ReviewedAt'
+                >
+            >(
+                {
+                    EntityName: WORK_REPORTS_ENTITY,
+                    ExtraFilter: filters.join(' AND '),
+                    Fields: ['ID', 'PersonID', 'Person', 'PeriodStart', 'PeriodEnd', 'Title', 'Status', 'ReviewedAt'],
+                    OrderBy: 'PeriodEnd DESC, __mj_UpdatedAt DESC',
+                    MaxRows: limit,
+                    ResultType: 'simple',
+                },
+                user,
+            );
+
+            if (!res.Success) {
+                return failResult('ERROR', res.ErrorMessage ?? 'Failed to list work reports.', params);
+            }
+
+            const compact = (res.Results ?? []).map((r) => ({
+                ID: r.ID,
+                PersonID: r.PersonID,
+                PersonName: r.Person ?? null,
+                PeriodStart: toIsoOrNull(r.PeriodStart),
+                PeriodEnd: toIsoOrNull(r.PeriodEnd),
+                Title: r.Title ?? null,
+                Status: r.Status,
+                ReviewedAt: toIsoOrNull(r.ReviewedAt),
+                DeepLink: buildWorkReportDeepLink(r.ID),
+            }));
+            const masked = TypedActionPolicyGuard.MaskRows(compact, guard.DeniedFieldPatterns);
+
+            const summary = `Found ${masked.length} work report(s) for scope '${scopeRaw}'.`;
+            setOutputParam(params, 'WorkReports', JSON.stringify(masked));
+            setOutputParam(params, 'TotalCount', masked.length);
+            setOutputParam(params, 'Summary', summary);
+            return successResult(summary, params);
+        } catch (err) {
+            const mapped = mapWorkReportServiceError(err instanceof Error ? err.message : String(err));
+            return failResult(mapped.code, mapped.message, params);
+        }
+    }
 }
 
 /**
@@ -48,33 +399,45 @@ function failResult(code: string, message: string): ActionResultSimple {
 export class DraftWorkReportAction extends BaseAction {
     public static override readonly AuthorizesCaller = true;
 
-    protected async InternalRunAction(params: RunActionParams): Promise<ActionResultSimple> {
+    protected override async InternalRunAction(params: RunActionParams): Promise<ActionResultSimple> {
         const user = params.ContextUser;
-        if (!user) return failResult('ERROR', 'ContextUser is required');
+        if (!user) return failResult('PERMISSION_DENIED', 'ContextUser is required', params);
+
+        const guard = await checkTypedPolicyGuard({
+            params,
+            entityName: WORK_REPORTS_ENTITY,
+            operation: 'Create',
+            writeFields: ['PersonID', 'PeriodStart', 'PeriodEnd', 'Title', 'Body', 'Status'],
+        });
+        if (!guard.Allowed) return guard.Failure;
 
         try {
             const explicitPersonID = getStringParam(params, 'PersonID');
             if (explicitPersonID && !IsValidUUID(explicitPersonID)) {
-                return failResult('ERROR', 'PersonID is not a valid UUID');
+                return failResult('VALIDATION_ERROR', 'PersonID is not a valid UUID', params);
             }
 
             const callerPerson = await WorkReportService.Instance.ResolvePersonForUser(user);
             const callerIsPrivileged = IsPrivilegedWorkReportUser(user);
             if (!callerPerson?.ID && !callerIsPrivileged) {
-                return failResult('ERROR', 'No active Person record is linked to ContextUser');
+                return failResult('NO_PERSON_RECORD', 'No active Person record is linked to ContextUser', params);
             }
 
             const personID = explicitPersonID ?? callerPerson?.ID ?? null;
             if (!personID) {
-                return failResult('ERROR', 'No active Person record is linked to ContextUser');
+                return failResult('NO_PERSON_RECORD', 'No active Person record is linked to ContextUser', params);
             }
             if (!callerIsPrivileged && (!callerPerson?.ID || !UUIDsEqual(callerPerson.ID, personID))) {
-                return failResult('ERROR', 'Only the report author (or a privileged administrator) may draft a work report for this person');
+                return failResult(
+                    'PERMISSION_DENIED',
+                    'Only the report author (or a privileged administrator) may draft a work report for this person',
+                    params,
+                );
             }
 
             const authoredByRunID = getStringParam(params, 'AuthoredByAgentRunID');
             if (authoredByRunID && !IsValidUUID(authoredByRunID)) {
-                return failResult('ERROR', 'AuthoredByAgentRunID is not a valid UUID');
+                return failResult('VALIDATION_ERROR', 'AuthoredByAgentRunID is not a valid UUID', params);
             }
 
             const rawTzOffset = getStringParam(params, 'TimezoneOffsetMinutes');
@@ -87,7 +450,7 @@ export class DraftWorkReportAction extends BaseAction {
             const periodStart = rawStart ? new Date(rawStart) : localDay.PeriodStart;
             const periodEnd = rawEnd ? new Date(rawEnd) : localDay.PeriodEnd;
             if (Number.isNaN(periodStart.getTime()) || Number.isNaN(periodEnd.getTime())) {
-                return failResult('ERROR', 'PeriodStart or PeriodEnd is not a valid ISO-8601 date');
+                return failResult('VALIDATION_ERROR', 'PeriodStart or PeriodEnd is not a valid ISO-8601 date', params);
             }
             const customTitle = getStringParam(params, 'Title');
             const customBody = getStringParam(params, 'Body');
@@ -106,23 +469,22 @@ export class DraftWorkReportAction extends BaseAction {
             if (outcome.SkippedNoActivity || !outcome.Report) {
                 setOutputParam(params, 'WorkReportID', '');
                 setOutputParam(params, 'WorkReportItemsCreated', '0');
-                return {
-                    Success: true,
-                    ResultCode: 'NO_ACTIVITY',
-                    Message: 'No task activity occurred in the requested reporting window; skipped creating a draft.',
-                };
+                return successResult(
+                    'No task activity occurred in the requested reporting window; skipped creating a draft.',
+                    params,
+                    'NO_ACTIVITY',
+                );
             }
 
             setOutputParam(params, 'WorkReportID', outcome.Report.ID);
             setOutputParam(params, 'WorkReportItemsCreated', String(outcome.Items.length));
-            return {
-                Success: true,
-                ResultCode: 'SUCCESS',
-                Message: `Drafted WorkReport ${outcome.Report.ID} with ${outcome.Items.length} item(s).`,
-            };
+            return successResult(
+                `Drafted WorkReport ${outcome.Report.ID} with ${outcome.Items.length} item(s).`,
+                params,
+            );
         } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            return failResult('ERROR', msg);
+            const mapped = mapWorkReportServiceError(err instanceof Error ? err.message : String(err));
+            return failResult(mapped.code, mapped.message, params);
         }
     }
 }
@@ -138,20 +500,28 @@ export class DraftWorkReportAction extends BaseAction {
 export class SubmitWorkReportAction extends BaseAction {
     public static override readonly AuthorizesCaller = true;
 
-    protected async InternalRunAction(params: RunActionParams): Promise<ActionResultSimple> {
+    protected override async InternalRunAction(params: RunActionParams): Promise<ActionResultSimple> {
         const user = params.ContextUser;
-        if (!user) return failResult('ERROR', 'ContextUser is required');
+        if (!user) return failResult('PERMISSION_DENIED', 'ContextUser is required', params);
 
         const reportID = getStringParam(params, 'WorkReportID');
         if (!reportID || !IsValidUUID(reportID)) {
-            return failResult('ERROR', 'Valid WorkReportID is required');
+            return failResult('VALIDATION_ERROR', 'Valid WorkReportID is required', params);
         }
+
+        const guard = await checkTypedPolicyGuard({
+            params,
+            entityName: WORK_REPORTS_ENTITY,
+            operation: 'Update',
+            writeFields: ['Status', 'Title', 'Body'],
+        });
+        if (!guard.Allowed) return guard.Failure;
 
         try {
             const callerPerson = await WorkReportService.Instance.ResolvePersonForUser(user);
             const callerIsPrivileged = IsPrivilegedWorkReportUser(user);
             if (!callerPerson?.ID && !callerIsPrivileged) {
-                return failResult('ERROR', 'No active Person record is linked to ContextUser');
+                return failResult('NO_PERSON_RECORD', 'No active Person record is linked to ContextUser', params);
             }
 
             const editedTitle = getStringParam(params, 'Title');
@@ -171,16 +541,15 @@ export class SubmitWorkReportAction extends BaseAction {
             setOutputParam(params, 'SupervisorNotified', outcome.SupervisorNotified);
             setOutputParam(params, 'SupervisorName', supervisorName);
 
-            return {
-                Success: true,
-                ResultCode: 'SUCCESS',
-                Message: outcome.SupervisorNotified
+            return successResult(
+                outcome.SupervisorNotified
                     ? `Submitted WorkReport ${outcome.Report.ID} and created supervisor review request ${requestID}.`
                     : `Submitted WorkReport ${outcome.Report.ID}.`,
-            };
+                params,
+            );
         } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            return failResult('ERROR', msg);
+            const mapped = mapWorkReportServiceError(err instanceof Error ? err.message : String(err));
+            return failResult(mapped.code, mapped.message, params);
         }
     }
 }
@@ -195,25 +564,33 @@ export class SubmitWorkReportAction extends BaseAction {
 export class ReviewWorkReportAction extends BaseAction {
     public static override readonly AuthorizesCaller = true;
 
-    protected async InternalRunAction(params: RunActionParams): Promise<ActionResultSimple> {
+    protected override async InternalRunAction(params: RunActionParams): Promise<ActionResultSimple> {
         const user = params.ContextUser;
-        if (!user) return failResult('ERROR', 'ContextUser is required');
+        if (!user) return failResult('PERMISSION_DENIED', 'ContextUser is required', params);
 
         const reportID = getStringParam(params, 'WorkReportID');
         if (!reportID || !IsValidUUID(reportID)) {
-            return failResult('ERROR', 'Valid WorkReportID is required');
+            return failResult('VALIDATION_ERROR', 'Valid WorkReportID is required', params);
         }
 
         const feedback = getStringParam(params, 'SupervisorFeedback');
         if (!feedback) {
-            return failResult('ERROR', 'SupervisorFeedback is required');
+            return failResult('VALIDATION_ERROR', 'SupervisorFeedback is required', params);
         }
+
+        const guard = await checkTypedPolicyGuard({
+            params,
+            entityName: WORK_REPORTS_ENTITY,
+            operation: 'Update',
+            writeFields: ['Status', 'SupervisorFeedback', 'ReviewedByPersonID', 'ReviewedAt'],
+        });
+        if (!guard.Allowed) return guard.Failure;
 
         try {
             const reviewerPerson = await WorkReportService.Instance.ResolvePersonForUser(user);
             const callerIsPrivileged = IsPrivilegedWorkReportUser(user);
             if (!reviewerPerson?.ID && !callerIsPrivileged) {
-                return failResult('ERROR', 'No active Person record is linked to ContextUser');
+                return failResult('NO_PERSON_RECORD', 'No active Person record is linked to ContextUser', params);
             }
 
             const outcome = await WorkReportService.Instance.RecordSupervisorReview({
@@ -223,14 +600,13 @@ export class ReviewWorkReportAction extends BaseAction {
                 ContextUser: user,
             });
 
-            return {
-                Success: true,
-                ResultCode: 'SUCCESS',
-                Message: `Recorded supervisor feedback on WorkReport ${outcome.Report.ID}.`,
-            };
+            return successResult(
+                `Recorded supervisor feedback on WorkReport ${outcome.Report.ID}.`,
+                params,
+            );
         } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            return failResult('ERROR', msg);
+            const mapped = mapWorkReportServiceError(err instanceof Error ? err.message : String(err));
+            return failResult(mapped.code, mapped.message, params);
         }
     }
 }

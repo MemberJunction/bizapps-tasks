@@ -1,0 +1,23 @@
+[
+  {
+    "fields": {
+      "Name": "BizApps Tasks Search",
+      "EntityID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Tasks",
+      "TypeID": "@lookup:MJ: Entity Document Types.Name=Search",
+      "Status": "Active",
+      "VectorDatabaseID": "@lookup:MJ: Vector Databases.Name=Simple Vector Service Provider",
+      "VectorIndexID": "@lookup:MJ: Vector Indexes.Name=Default - SVS + gte-small (Local)",
+      "AIModelID": "@lookup:MJ: AI Models.Name=gte-small (Local)",
+      "TemplateText": "@file:templates/tasks-search.njk",
+      "PotentialMatchThreshold": 0.7,
+      "AbsoluteMatchThreshold": 0.95
+    },
+    "primaryKey": {
+      "ID": "A36A7ED6-7681-42EC-80B5-9B51B7C7CC38"
+    },
+    "sync": {
+      "lastModified": "2026-11-20T22:08:49.584Z",
+      "checksum": "39cad0a90b4dd99246ad885c1c26ff985adb63fc7de4e157dabd22084950cfa3"
+    }
+  }
+]

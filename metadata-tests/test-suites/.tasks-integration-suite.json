@@ -140,6 +140,17 @@
           "primaryKey": {
             "ID": "71A0B001-A111-4000-8000-000000000009"
           }
+        },
+        {
+          "fields": {
+            "SuiteID": "@parent:ID",
+            "TestID": "@lookup:MJ: Tests.Name=TSK-09 - Chief of Staff Typed Skills, Transcripts, and Rhythms",
+            "Sequence": 9,
+            "Status": "Active"
+          },
+          "primaryKey": {
+            "ID": "830B6849-A21D-40A7-AFE8-B7E85C40D9FC"
+          }
         }
       ]
     },

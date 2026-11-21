@@ -6,6 +6,7 @@
   "directoryOrder": [
     "row-level-security-filters",
     "entities",
+    "entity-documents",
     "templates",
     "notification-types",
     "credential-types",
@@ -35,6 +36,7 @@
     "scheduled-job-types",
     "scheduled-jobs",
     "chief-of-staff-skills",
+    "rhythm-templates",
     "chief-of-staff-nav-items"
   ],
   "emitSyncNotes": false,

@@ -1,0 +1,4 @@
+Task: {{ Name }}{% if Type %} [{{ Type }}]{% endif %}{% if Category %} (Category: {{ Category }}){% endif %}
+Status: {{ Status }} | Priority: {{ Priority }}{% if PlanningPeriod %} | Period: {{ PlanningPeriod }}{% endif %}{% if HealthStatus %} | Health: {{ HealthStatus }}{% endif %}
+{% if Description %}{{ Description }}{% endif %}
+{% if BlockedReason %}Blocked: {{ BlockedReason }}{% endif %}
