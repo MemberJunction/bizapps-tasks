@@ -240,6 +240,54 @@ describe('TaskOrchestrationService.RecordDecision', () => {
   });
 });
 
+describe('TaskOrchestrationService BeforeSave (server code vouching for a write)', () => {
+  it('CreateTask hands the unsaved task to BeforeSave, then saves it', async () => {
+    const task = makeFakeEntity();
+    getEntityObjectMock.mockResolvedValueOnce(task);
+    const seen: Array<{ creator: unknown; saved: number }> = [];
+
+    await new TaskOrchestrationService().CreateTask({
+      Name: 'Raised for someone else',
+      TypeID: 'type-1',
+      CreatedByPersonID: 'person-owner',
+      BeforeSave: (t) => { seen.push({ creator: t.CreatedByPersonID, saved: task.Save.mock.calls.length }); },
+    }, user);
+
+    expect(seen).toEqual([{ creator: 'person-owner', saved: 0 }]);
+    expect(task.Save).toHaveBeenCalledOnce();
+  });
+
+  it('CreateApprovalRequest hands BeforeSave the task with its assignments already attached', async () => {
+    const task = makeFakeEntity();
+    getEntityObjectMock.mockResolvedValueOnce(task);
+    const vouchedFor: unknown[] = [];
+
+    await new TaskOrchestrationService().CreateApprovalRequest({
+      Name: 'Approve batch',
+      TypeID: 'type-approval',
+      ApproverPersonEntityID: 'ent-person',
+      ApproverPersonRecordIDs: ['person-1', 'person-2'],
+      BeforeSave: async (t) => {
+        expect(task.Save).not.toHaveBeenCalled();
+        for (const assignment of t.Assignments.Items) vouchedFor.push(assignment.AssigneeRecordID);
+      },
+    }, user);
+
+    expect(vouchedFor).toEqual(['person-1', 'person-2']);
+    expect(task.Save).toHaveBeenCalledOnce();
+  });
+
+  it('does not save when BeforeSave throws', async () => {
+    const task = makeFakeEntity();
+    getEntityObjectMock.mockResolvedValueOnce(task);
+
+    await expect(
+      new TaskOrchestrationService().CreateTask({ Name: 'x', TypeID: 'type-1', BeforeSave: () => { throw new Error('not on this host'); } }, user),
+    ).rejects.toThrow('not on this host');
+    expect(task.Save).not.toHaveBeenCalled();
+  });
+});
+
 describe('TaskOrchestrationService provider threading & atomic graph creation', () => {
   it('CreateApprovalRequest composes task + Links + Assignments on the supplied provider in ONE atomic task.Save()', async () => {
     const task = makeFakeEntity({ ID: 'task-tx-1' });

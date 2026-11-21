@@ -24,7 +24,7 @@ import {
     TASK_TYPE_ENTITY,
     TASK_TYPE_STATUS_ENTITY,
 } from '../entity-names.js';
-import { FindId, FindRows, Quote, RequireSave } from '../wire.js';
+import { FindId, FindRows, Quote, RequireSave, VouchForSeed } from '../wire.js';
 import { SetWorld, type WorldState } from './world.js';
 
 const WORLD_DOMAIN = 'task-world.test';
@@ -406,15 +406,17 @@ export async function LoadWorld(ctx: IntegrationCheckContext): Promise<WorldStat
         PercentComplete: 100,
     });
 
+    // Seeded open, not approved: an approval task closes as Completed only on its approver's
+    // decision (bizapps-tasks#209), and a seed has no approver to record one as.
     SeedTaskIDs['Municipal Zoning Variance & Building Permits'] = await upsertTask(ctx, {
         Name: 'Municipal Zoning Variance & Building Permits',
         ParentID: p2RootID,
         TypeID: approvalType.ID,
-        TaskTypeStatusID: TaskTypeStatuses['APPROVAL_REQUEST.APPROVED']?.ID,
+        TaskTypeStatusID: TaskTypeStatuses['APPROVAL_REQUEST.SUBMITTED']?.ID,
         CategoryID: Categories['Permitting & Municipal Inspections']?.ID ?? realEstateCat.ID,
-        Status: 'Completed',
+        Status: 'Open',
         Priority: 'Critical',
-        PercentComplete: 100,
+        PercentComplete: 0,
     });
 
     SeedTaskIDs['Site Excavation & Deep Foundation Concrete Pour'] = await upsertTask(ctx, {
@@ -600,6 +602,7 @@ async function upsertTask(
     task.Status = fields.Status;
     task.Priority = fields.Priority;
     task.PercentComplete = fields.PercentComplete;
+    if (fields.CreatedByPersonID) VouchForSeed(task, 'AuthorizeCreatorOnBehalf');
     await RequireSave(task, `task ${fields.Name}`);
     return task.ID;
 }

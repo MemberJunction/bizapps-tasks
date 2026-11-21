@@ -54,6 +54,18 @@ export {
     TasksRunRecurringPlaybooksServerOperation,
 } from './TasksRemoteOperationsServer.js';
 export { TaskDecisionRefusal, DeciderAssignments, type TaskDecisionFacts, type DecisionAssignmentFact } from './TaskDecisionAuthority.js';
+export {
+    ApprovalAssignmentAddRefusal,
+    ApprovalStatusChangeRefusal,
+    ApprovalTypeChangeRefusal,
+    TaskCreatorRefusal,
+    type ApprovalAssignmentAddFacts,
+    type ApprovalClosingStatus,
+    type ApprovalStatusChangeFacts,
+    type ApprovalTypeChangeFacts,
+    type TaskCreatorFacts,
+} from './ApprovalTaskAuthority.js';
+export { SanctionApprovalAssignment, SanctionApprovalWithdrawal, SanctionOnBehalfCreator } from './ApprovalSanctions.js';
 export { TaskTimeEntryEntityServer, TASK_TIME_ENTRY_ENTITY } from './TaskTimeEntryEntityServer.js';
 export { TaskTimerEntityServer, TASK_TIMER_ENTITY } from './TaskTimerEntityServer.js';
 export { TaskAgentRunEntityServer, TASK_AGENT_RUN_ENTITY } from './TaskAgentRunEntityServer.js';

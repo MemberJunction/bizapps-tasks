@@ -20,6 +20,11 @@ export class TaskAssignmentService {
      * Pass `provider` to create the assignment and activity on the caller's transactional
      * provider instead of the process-global provider.
      *
+     * On an approval task the server decides who may add an assignee (the requester while the request
+     * is open, otherwise a holder of the reassign right, and nobody may add themselves). Server code
+     * that chose the assignee itself passes `beforeSave: SanctionApprovalAssignment` from
+     * `@mj-biz-apps/tasks-entities-server`; in a browser that function does nothing.
+     *
      * @throws when the assignment does not save. No activity is logged for a refused assignment.
      */
     async assignToTask(params: {
@@ -29,6 +34,8 @@ export class TaskAssignmentService {
         roleID?: string;
         roleNotes?: string;
         assignedByPersonID?: string;
+        /** Called with the unsaved assignment just before it is saved. */
+        beforeSave?: (assignment: mjBizAppsTasksTaskAssignmentEntity) => void | Promise<void>;
     }, contextUser?: UserInfo, provider?: IMetadataProvider): Promise<mjBizAppsTasksTaskAssignmentEntity> {
         const effectiveProvider = provider ?? this.provider;
         const assignment = await effectiveProvider.GetEntityObject<mjBizAppsTasksTaskAssignmentEntity>(
@@ -43,6 +50,7 @@ export class TaskAssignmentService {
         if (params.roleNotes) assignment.RoleNotes = params.roleNotes;
         if (params.assignedByPersonID) assignment.AssignedByPersonID = params.assignedByPersonID;
 
+        if (params.beforeSave) await params.beforeSave(assignment);
         if (!(await assignment.Save())) {
             const detail = assignment.LatestResult?.CompleteMessage ?? 'the save was refused without a reason';
             LogError(`TaskAssignmentService.assignToTask: failed to save assignment for task ${params.taskID}: ${detail}`);
