@@ -11,6 +11,9 @@ const { runView, runAction, sendNotification, getEntityObject, listeners } = vi.
   listeners: [] as EntityEventListener[],
 }));
 
+// Settling the asks a task was raised for is covered by its own tests; here it must not pull in the engine.
+vi.mock('@mj-biz-apps/tasks-entities', () => ({ mjBizAppsTasksTaskEntity: class {} }));
+vi.mock('../../workflow/workflow-step-completion.js', () => ({ SettleHumanAsksForTask: vi.fn() }));
 const TASK_1 = '11111111-1111-4111-8111-111111111111';
 const TYPE_1 = '22222222-2222-4222-8222-222222222222';
 const PERSON_1 = '33333333-3333-4333-8333-333333333331';

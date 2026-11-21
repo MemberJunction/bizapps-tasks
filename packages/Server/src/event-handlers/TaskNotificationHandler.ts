@@ -32,12 +32,13 @@ import { IsValidUUID, MJEventType, MJGlobal, MJEvent, UUIDsEqual } from '@member
 import { Subscription } from 'rxjs';
 import { ResolveUserIDForPerson, ResolveUserIDsForPeople } from '@mj-biz-apps/common-entities';
 import { GuidLiteral } from '@mj-biz-apps/tasks-core';
-import type {
-    mjBizAppsTasksTaskAssignmentEntity,
-    mjBizAppsTasksTaskCommentEntity,
+import {
     mjBizAppsTasksTaskEntity,
+    type mjBizAppsTasksTaskAssignmentEntity,
+    type mjBizAppsTasksTaskCommentEntity,
 } from '@mj-biz-apps/tasks-entities';
 import { IsRoleEntityID, ResolveUserIDsForRoles, RoleName } from '../role-assignees.js';
+import { SettleHumanAsksForTask } from '../workflow/workflow-step-completion.js';
 import {
     sendTaskNotifications,
     TASK_ASSIGNMENT_NOTIFICATION_TYPE,
@@ -145,6 +146,11 @@ export function handleEntityEvent(event: BaseEntityEvent): void {
             scheduleAfterCommit(entity, 'Task save notifications', () =>
                 handleTaskSave(event).catch(logHandlerError('TaskSave')),
             );
+            // Answers the workflow step or agent request the task was raised for: only once the
+            // decision is committed, so a save that rolls back never settles anything.
+            scheduleAfterCommit(entity, 'Settle the asks the task was raised for', () =>
+                completeLinkedWorkflowSteps(event).catch(logHandlerError('HumanAskSettlement')),
+            );
             break;
         case TASK_ASSIGNMENTS_ENTITY:
             scheduleAfterCommit(entity, 'Task assignment notification and OnAssign hook', () =>
@@ -164,6 +170,25 @@ function logHandlerError(handler: string): (err: unknown) => void {
         const msg = err instanceof Error ? err.message : String(err);
         LogError(`[BizAppsTasks] ${handler} notification error: ${msg}`);
     };
+}
+
+// ---------------------------------------------------------------------------
+// Workflow steps (tasks raised by the BizAppsTasks human-task provider)
+// ---------------------------------------------------------------------------
+
+/**
+ * A task that reaches Completed or Cancelled settles the workflow step it was raised for, if any.
+ * Runs on every save of a settled task; completing an already-finished step is refused, so a later
+ * edit to the task changes nothing.
+ */
+async function completeLinkedWorkflowSteps(event: BaseEntityEvent): Promise<void> {
+    if (event.saveSubType === 'create') return;
+    const task = event.baseEntity;
+    if (!(task instanceof mjBizAppsTasksTaskEntity)) return;
+    const contextUser = task.ContextCurrentUser;
+    if (!contextUser || (task.Status !== 'Completed' && task.Status !== 'Cancelled')) return;
+    // The server's provider: this handler only runs inside MJAPI, which has one.
+    await SettleHumanAsksForTask(task.ID, task.Status, contextUser, Metadata.Provider);
 }
 
 // ---------------------------------------------------------------------------

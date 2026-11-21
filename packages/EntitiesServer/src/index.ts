@@ -15,6 +15,7 @@ import { TaskEntityServer } from './TaskEntityServer.js';
 import { TaskCheckInEntityServer } from './TaskCheckInEntityServer.js';
 import { TaskDecisionEntityServer } from './TaskDecisionEntityServer.js';
 import { TaskAssignmentEntityServer } from './TaskAssignmentEntityServer.js';
+import { TaskLinkEntityServer } from './TaskLinkEntityServer.js';
 import { TaskTimeEntryEntityServer } from './TaskTimeEntryEntityServer.js';
 import { TaskTimerEntityServer } from './TaskTimerEntityServer.js';
 import { TaskAgentRunEntityServer } from './TaskAgentRunEntityServer.js';
@@ -48,6 +49,7 @@ export { TaskEntityServer, REJECTED_STAGE_CODE, type TaskActionHookType, type Ta
 export { TaskCheckInEntityServer } from './TaskCheckInEntityServer.js';
 export { TaskDecisionEntityServer, TASK_DECISION_ENTITY } from './TaskDecisionEntityServer.js';
 export { TaskAssignmentEntityServer, TASK_ASSIGNMENT_ENTITY } from './TaskAssignmentEntityServer.js';
+export { TaskLinkEntityServer, TASK_LINK_ENTITY, WORKFLOW_STEP_ENTITY, AGENT_REQUEST_ENTITY } from './TaskLinkEntityServer.js';
 export {
     TasksBulkUpdateServerOperation,
     TasksInstantiateTemplateServerOperation,
@@ -123,6 +125,7 @@ export function LoadBizAppsTasksEntitiesServer(): void {
         TaskCheckInEntityServer,
         TaskDecisionEntityServer,
         TaskAssignmentEntityServer,
+        TaskLinkEntityServer,
         TaskTimeEntryEntityServer,
         TaskTimerEntityServer,
         TaskAgentRunEntityServer,

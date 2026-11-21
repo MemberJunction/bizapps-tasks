@@ -19,6 +19,7 @@ import { LoadBizAppsTasksEntitiesServer } from '@mj-biz-apps/tasks-entities-serv
 
 // Import notification handler
 import { InitTaskNotificationHandler } from './event-handlers/TaskNotificationHandler.js';
+import { LoadBizAppsTasksHumanTaskProvider } from './workflow/BizAppsTasksHumanTaskProvider.js';
 
 // Import scheduled job drivers (registers via @RegisterClass for scheduling engine discovery)
 import { OverdueTaskNotificationJob } from './scheduled-jobs/OverdueTaskNotificationJob.js';
@@ -92,8 +93,12 @@ const SERVER_REGISTERED_CLASSES = [
 export function LoadBizAppsTasksServer(): void {
     LoadBizAppsTasksEntitiesServer();
     InitTaskNotificationHandler();
+    LoadBizAppsTasksHumanTaskProvider();
     if (SERVER_REGISTERED_CLASSES.length === 0) {
         throw new Error('Unreachable: server classes missing');
     }
     console.log('[BizAppsTasks] Server loaded');
 }
+export * from './workflow/workflow-task-request.js';
+export * from './workflow/workflow-step-completion.js';
+export { BizAppsTasksHumanTaskProvider, RaisedTaskIDsFor, LoadBizAppsTasksHumanTaskProvider } from './workflow/BizAppsTasksHumanTaskProvider.js';

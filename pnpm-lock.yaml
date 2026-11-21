@@ -394,6 +394,12 @@ importers:
       '@memberjunction/actions':
         specifier: 6.2.1
         version: 6.2.1
+      '@memberjunction/ai-agents':
+        specifier: 6.2.1
+        version: 6.2.1(@aws-sdk/credential-provider-node@3.972.95)(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))(@smithy/signature-v4@5.7.5)(@types/node@24.10.11)(axios@1.19.0)(chokidar@3.6.0)(encoding@0.1.13)(typescript@5.9.3)(ws@8.21.3)(zod@3.25.76)
+      '@memberjunction/ai-core-plus':
+        specifier: 6.2.1
+        version: 6.2.1
       '@memberjunction/core':
         specifier: 6.2.1
         version: 6.2.1
@@ -416,6 +422,9 @@ importers:
         specifier: 6.2.1
         version: 6.2.1(@aws-sdk/credential-provider-node@3.972.95)(@aws-sdk/credential-providers@3.1107.0)(@azure/identity@4.13.1)(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))(@smithy/signature-v4@5.7.5)(axios@1.19.0)(chokidar@3.6.0)(encoding@0.1.13)(playwright@1.65.0)(socks@2.8.9)(typescript@5.9.3)(vitest@1.6.1(@types/node@24.10.11)(jsdom@26.1.0))
       '@memberjunction/sqlserver-dataprovider':
+        specifier: 6.2.1
+        version: 6.2.1(@aws-sdk/credential-provider-node@3.972.95)(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))(@smithy/signature-v4@5.7.5)(@types/node@24.10.11)(axios@1.19.0)(chokidar@3.6.0)(encoding@0.1.13)(typescript@5.9.3)(ws@8.21.3)(zod@3.25.76)
+      '@memberjunction/task-graph':
         specifier: 6.2.1
         version: 6.2.1(@aws-sdk/credential-provider-node@3.972.95)(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))(@smithy/signature-v4@5.7.5)(@types/node@24.10.11)(axios@1.19.0)(chokidar@3.6.0)(encoding@0.1.13)(typescript@5.9.3)(ws@8.21.3)(zod@3.25.76)
       '@mj-biz-apps/common-entities':
