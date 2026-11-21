@@ -1,7 +1,7 @@
 import { RunView } from '@memberjunction/core';
 import type { ActionResultSimple, RunActionParams } from '@memberjunction/actions-base';
 import { BaseAction } from '@memberjunction/actions';
-import { TypedActionPolicyGuard } from '@memberjunction/ai-core-plus';
+import { TypedActionPolicyGuard } from './ai-policy-compat.js';
 import { UserCache } from '@memberjunction/generic-database-provider';
 import { EscapeSQLString, IsValidUUID, RegisterClass, UUIDsEqual } from '@memberjunction/global';
 import {

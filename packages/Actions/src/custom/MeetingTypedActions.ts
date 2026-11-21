@@ -1,7 +1,7 @@
 import { Metadata, RunView, type UserInfo } from '@memberjunction/core';
 import type { ActionResultSimple, RunActionParams } from '@memberjunction/actions-base';
 import { BaseAction } from '@memberjunction/actions';
-import { TypedActionPolicyGuard } from '@memberjunction/ai-core-plus';
+import { TypedActionPolicyGuard } from './ai-policy-compat.js';
 import { EscapeSQLString, IsValidUUID, NormalizeUUID, RegisterClass, UUIDsEqual } from '@memberjunction/global';
 import {
     COS_TASKS_INBOX_WORKSTREAM_KEY,

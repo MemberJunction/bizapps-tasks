@@ -55,6 +55,14 @@ export {
     TasksInstantiateTemplateServerOperation,
     TasksRunRecurringPlaybooksServerOperation,
 } from './TasksRemoteOperationsServer.js';
+export {
+    ClearPolicyCacheCompat,
+    EnsureAgentUserPolicyEngineCompat,
+    GetAgentUserPolicyEngineCompat,
+    RunWithExecutingAgentContextCompat,
+    SetCachedPolicyCompat,
+    type AgentUserPolicyEngineCompat,
+} from './ai-policy-compat.js';
 export { TaskDecisionRefusal, DeciderAssignments, type TaskDecisionFacts, type DecisionAssignmentFact } from './TaskDecisionAuthority.js';
 export { TaskTimeEntryEntityServer, TASK_TIME_ENTRY_ENTITY } from './TaskTimeEntryEntityServer.js';
 export { TaskTimerEntityServer, TASK_TIMER_ENTITY } from './TaskTimerEntityServer.js';

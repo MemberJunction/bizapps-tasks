@@ -1,13 +1,17 @@
 import { LogError, Metadata, RunView, type IMetadataProvider, type UserInfo } from '@memberjunction/core';
 import type { ActionParam, ActionResultSimple, RunActionParams } from '@memberjunction/actions-base';
 import {
-    AgentUserPolicyEngine,
-    TypedActionPolicyGuard,
     type AgentEntityCrudOperation,
     type AgentPolicyVerdict,
-    type TypedActionPolicyResultCode,
 } from '@memberjunction/ai-core-plus';
-import { AgentWakeTriggerService } from '@memberjunction/ai-agents';
+import {
+    GetAgentUserPolicyEngineCompat,
+    GetEffectivePolicyAgentChainCompat,
+    ResolvePolicyForAgentAndUserCompat,
+    TriggerWakeForWorkstreamCompat,
+    TypedActionPolicyGuard,
+    type TypedActionPolicyResultCode,
+} from './ai-policy-compat.js';
 import { UserCache } from '@memberjunction/generic-database-provider';
 import { EscapeSQLString, IsValidUUID, UUIDsEqual } from '@memberjunction/global';
 import { ResolveUserIDForPerson } from '@mj-biz-apps/common-entities';
@@ -251,9 +255,9 @@ export async function checkTypedPolicyGuard(input: {
     }
 
     if (input.actionName || input.isDestructive) {
-        const engine = AgentUserPolicyEngine.Instance;
+        const engine = GetAgentUserPolicyEngineCompat();
         const explicitAgentId = extractExplicitAgentID(input.params.Context);
-        const agentChain = engine.GetEffectivePolicyAgentChain(explicitAgentId);
+        const agentChain = GetEffectivePolicyAgentChainCompat(engine, explicitAgentId);
         if (agentChain.length > 0 && input.params.ContextUser?.ID) {
             let strictestVerdict: AgentPolicyVerdict = 'Allow';
             let strictestReason = '';
@@ -262,7 +266,8 @@ export async function checkTypedPolicyGuard(input: {
             for (const agentId of agentChain) {
                 let policy = engine.GetCachedPolicy(agentId, input.params.ContextUser.ID, input.provider);
                 if (!policy) {
-                    const lookup = await engine.ResolvePolicyForAgentAndUser(
+                    const lookup = await ResolvePolicyForAgentAndUserCompat(
+                        engine,
                         agentId,
                         input.params.ContextUser.ID,
                         input.params.ContextUser,
@@ -594,7 +599,7 @@ export async function wakeChiefOfStaffBestEffort(input: {
             ? input.actingUser
             : (UserCache.Instance.GetSystemUser() ?? input.actingUser);
 
-        const res = await AgentWakeTriggerService.Instance.TriggerWakeForWorkstream({
+        const res = await TriggerWakeForWorkstreamCompat({
             targetUserID: input.targetUserID,
             targetAgentName: 'Chief of Staff',
             workstreamKey: input.workstreamKey,
