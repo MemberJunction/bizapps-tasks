@@ -136,6 +136,7 @@ interface MockEntity {
     Description?: string | null;
     Status?: string;
     Priority?: string;
+    Visibility?: string;
     PercentComplete?: number;
     DueAt?: Date | null;
     CompletedAt?: Date | null;
@@ -372,6 +373,106 @@ describe('FindTasksAction', () => {
         const candidates = JSON.parse(String(ambigParams.find((p) => p.Name === 'Candidates')?.Value));
         expect(candidates).toHaveLength(2);
     });
+
+    it('honors Task.Visibility in Scope = Team so User B never sees User A Private tasks while User A does', async () => {
+        // Bob queries Scope = 'Team': backend returns Alice's Private task, Alice's Standard task, and Bob's own Private task
+        resolvePersonForUserMock.mockResolvedValueOnce({
+            ID: PERSON_BOB,
+            FirstName: 'Bob',
+            LastName: 'Rivera',
+            Email: 'bob@example.com',
+            LinkedUserID: USER_BOB,
+        });
+        runViewMock
+            .mockResolvedValueOnce({ Success: true, Results: [] }) // Bob's assignments
+            .mockResolvedValueOnce({ Success: true, Results: [{ ID: TYPE_GENERAL, Name: 'General', Code: 'GENERAL' }] }) // task types
+            .mockResolvedValueOnce({
+                Success: true,
+                Results: [
+                    {
+                        ID: TASK_1,
+                        Name: 'Alice Confidential Compensation Review',
+                        Status: 'Open',
+                        Priority: 'High',
+                        Visibility: 'Private',
+                        TypeID: TYPE_GENERAL,
+                        Type: 'General',
+                        CreatedByPersonID: PERSON_ALICE,
+                        PercentComplete: 0,
+                    },
+                    {
+                        ID: TASK_2,
+                        Name: 'Shared Q4 Roadmap',
+                        Status: 'Open',
+                        Priority: 'Medium',
+                        Visibility: 'Standard',
+                        TypeID: TYPE_GENERAL,
+                        Type: 'General',
+                        CreatedByPersonID: PERSON_ALICE,
+                        PercentComplete: 10,
+                    },
+                    {
+                        ID: '33333333-3333-4333-8333-333333333333',
+                        Name: 'Bob Personal 1:1 Notes',
+                        Status: 'Open',
+                        Priority: 'Low',
+                        Visibility: 'Private',
+                        TypeID: TYPE_GENERAL,
+                        Type: 'General',
+                        CreatedByPersonID: PERSON_BOB,
+                        PercentComplete: 0,
+                    },
+                ],
+            });
+
+        const bobParams = makeParams({ Scope: 'Team' });
+        const bobRes = await run(new FindTasksAction(), makeRunParams(USER_BOB, bobParams));
+
+        expect(bobRes).toMatchObject({ Success: true, ResultCode: 'SUCCESS' });
+        expect(runViewMock.mock.calls[2][0].ExtraFilter).toContain(`Visibility = 'Standard'`);
+        const bobTasks = JSON.parse(String(bobParams.find((p) => p.Name === 'Tasks')?.Value));
+        expect(bobTasks.map((t: { ID: string }) => t.ID)).toEqual([
+            TASK_2,
+            '33333333-3333-4333-8333-333333333333',
+        ]);
+        expect(bobTasks.some((t: { ID: string }) => t.ID === TASK_1)).toBe(false);
+
+        // Alice queries Scope = 'Team' and DOES see her own Private task
+        runViewMock.mockReset();
+        resolvePersonForUserMock.mockResolvedValueOnce({
+            ID: PERSON_ALICE,
+            FirstName: 'Alice',
+            LastName: 'Ng',
+            Email: 'alice@example.com',
+            LinkedUserID: USER_ALICE,
+        });
+        runViewMock
+            .mockResolvedValueOnce({ Success: true, Results: [] })
+            .mockResolvedValueOnce({ Success: true, Results: [{ ID: TYPE_GENERAL, Name: 'General', Code: 'GENERAL' }] })
+            .mockResolvedValueOnce({
+                Success: true,
+                Results: [
+                    {
+                        ID: TASK_1,
+                        Name: 'Alice Confidential Compensation Review',
+                        Status: 'Open',
+                        Priority: 'High',
+                        Visibility: 'Private',
+                        TypeID: TYPE_GENERAL,
+                        Type: 'General',
+                        CreatedByPersonID: PERSON_ALICE,
+                        PercentComplete: 0,
+                    },
+                ],
+            });
+
+        const aliceParams = makeParams({ Scope: 'Team' });
+        const aliceRes = await run(new FindTasksAction(), makeRunParams(USER_ALICE, aliceParams));
+        expect(aliceRes).toMatchObject({ Success: true, ResultCode: 'SUCCESS' });
+        const aliceTasks = JSON.parse(String(aliceParams.find((p) => p.Name === 'Tasks')?.Value));
+        expect(aliceTasks).toHaveLength(1);
+        expect(aliceTasks[0]).toMatchObject({ ID: TASK_1, Visibility: 'Private' });
+    });
 });
 
 describe('GetTaskAction', () => {
@@ -452,7 +553,7 @@ describe('CreateTaskAction', () => {
         expect(getEntityObjectMock).not.toHaveBeenCalled();
     });
 
-    it('creates a task, records ClientRequestKey, assigns human, and wakes cross-user CoS with system user', async () => {
+    it('creates a task with default Standard visibility, records ClientRequestKey, and saves assignment without duplicate per-task wakes', async () => {
         runViewMock
             .mockResolvedValueOnce({ Success: true, Results: [] }) // no prior ClientRequestKey
             .mockResolvedValueOnce({
@@ -479,14 +580,39 @@ describe('CreateTaskAction', () => {
 
         expect(res).toMatchObject({ Success: true, ResultCode: 'SUCCESS' });
         expect(taskEntity.Save).toHaveBeenCalledTimes(1);
+        expect(taskEntity.Visibility).toBe('Standard');
         expect(actEntity.NewValue).toBe('client_request_key:req-42');
-        expect(triggerWakeMock).toHaveBeenCalledWith(
+        expect(assignEntity.Save).toHaveBeenCalledTimes(1);
+        // Coalesced 'tasks-inbox' wake is owned by TaskAssignmentEntityServer post-commit, not duplicated here
+        expect(triggerWakeMock).not.toHaveBeenCalled();
+    });
+
+    it('supports explicit Visibility = Private on CreateTaskAction and rejects invalid Visibility values', async () => {
+        const badRes = await run(
+            new CreateTaskAction(),
+            makeRunParams(USER_ALICE, makeParams({ Name: 'Bad visibility', Visibility: 'Secret' })),
+        );
+        expect(badRes).toMatchObject({ Success: false, ResultCode: 'VALIDATION_ERROR' });
+
+        runViewMock.mockResolvedValueOnce({
+            Success: true,
+            Results: [{ ID: TYPE_GENERAL, Name: 'General', Code: 'GENERAL' }],
+        });
+        const taskEntity = makeEntity({ ID: TASK_1, Status: 'Open', Priority: 'Medium' });
+        getEntityObjectMock.mockResolvedValueOnce(taskEntity);
+
+        const params = makeParams({ Name: 'Private HR review', Visibility: 'Private' });
+        const res = await run(new CreateTaskAction(), makeRunParams(USER_ALICE, params));
+
+        expect(res).toMatchObject({ Success: true, ResultCode: 'SUCCESS' });
+        expect(taskEntity.Visibility).toBe('Private');
+        expect(checkEntityAccessMock).toHaveBeenCalledWith(
             expect.objectContaining({
-                targetUserID: USER_BOB,
-                workstreamKey: `task-assigned-${TASK_1}`,
-                contextUser: expect.objectContaining({ ID: SYSTEM_USER_ID }),
+                writeFields: expect.arrayContaining(['Visibility']),
             }),
         );
+        const createdTask = JSON.parse(String(params.find((p) => p.Name === 'Task')?.Value));
+        expect(createdTask.Visibility).toBe('Private');
     });
 
     it('resolves OrganizationName, stamps task.OrganizationID, and returns OrganizationID output param', async () => {
@@ -555,6 +681,38 @@ describe('UpdateTaskAction', () => {
         expect(taskEntity.PercentComplete).toBe(50);
         expect(linkEntity.RecordID).toBe(ORG_1);
     });
+
+    it('updates Visibility cleanly and validates Visibility input', async () => {
+        const badRes = await run(
+            new UpdateTaskAction(),
+            makeRunParams(USER_ALICE, makeParams({ TaskID: TASK_1, Visibility: 'Hidden' })),
+        );
+        expect(badRes).toMatchObject({ Success: false, ResultCode: 'VALIDATION_ERROR' });
+
+        const taskEntity = makeEntity({
+            ID: TASK_1,
+            Name: 'Sensitive Review',
+            Status: 'Open',
+            Priority: 'High',
+            Visibility: 'Standard',
+            PercentComplete: 0,
+            Type: 'General',
+        });
+        getEntityObjectMock.mockResolvedValueOnce(taskEntity);
+
+        const params = makeParams({ TaskID: TASK_1, Visibility: 'Private' });
+        const res = await run(new UpdateTaskAction(), makeRunParams(USER_ALICE, params));
+
+        expect(res).toMatchObject({ Success: true, ResultCode: 'SUCCESS' });
+        expect(taskEntity.Visibility).toBe('Private');
+        expect(checkEntityAccessMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                writeFields: ['Visibility'],
+            }),
+        );
+        const updated = JSON.parse(String(params.find((p) => p.Name === 'Task')?.Value));
+        expect(updated.Visibility).toBe('Private');
+    });
 });
 
 describe('CompleteTaskAction', () => {
@@ -570,17 +728,14 @@ describe('CompleteTaskAction', () => {
         expect(taskEntity.Save).not.toHaveBeenCalled();
     });
 
-    it('completes task, detects newly unblocked downstream task, and wakes assignee CoS using system user', async () => {
+    it('completes task and reports newly unblocked downstream task IDs without duplicate per-task wakes', async () => {
         const taskEntity = makeEntity({ ID: TASK_1, Name: 'Approve spec', Status: 'InProgress' });
         getEntityObjectMock.mockResolvedValueOnce(taskEntity);
 
         runViewMock
             .mockResolvedValueOnce({ Success: true, Results: [{ TaskID: TASK_2, Task: 'Build implementation' }] }) // downstream deps
             .mockResolvedValueOnce({ Success: true, Results: [{ ID: TASK_2, Name: 'Build implementation', Status: 'Blocked' }] }) // open downstream tasks
-            .mockResolvedValueOnce({ Success: true, Results: [{ TaskID: TASK_2, DependsOnTaskID: TASK_1 }] }) // all prereqs of TASK_2
-            .mockResolvedValueOnce({ Success: true, Results: [{ TaskID: TASK_2, AssigneeRecordID: PERSON_BOB }] }); // assignments of TASK_2
-
-        resolveUserIDForPersonMock.mockResolvedValueOnce(USER_BOB);
+            .mockResolvedValueOnce({ Success: true, Results: [{ TaskID: TASK_2, DependsOnTaskID: TASK_1 }] }); // all prereqs of TASK_2
 
         const params = makeParams({ TaskID: TASK_1 });
         const res = await run(new CompleteTaskAction(), makeRunParams(USER_ALICE, params));
@@ -589,13 +744,8 @@ describe('CompleteTaskAction', () => {
         expect(taskEntity.Status).toBe('Completed');
         expect(taskEntity.PercentComplete).toBe(100);
         expect(JSON.parse(String(params.find((p) => p.Name === 'UnblockedTaskIDs')?.Value))).toEqual([TASK_2]);
-        expect(triggerWakeMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                targetUserID: USER_BOB,
-                workstreamKey: `task-unblocked-${TASK_2}`,
-                contextUser: expect.objectContaining({ ID: SYSTEM_USER_ID }),
-            }),
-        );
+        // Coalesced 'tasks-inbox' wake is owned by TaskEntityServer post-commit, not duplicated here
+        expect(triggerWakeMock).not.toHaveBeenCalled();
     });
 });
 

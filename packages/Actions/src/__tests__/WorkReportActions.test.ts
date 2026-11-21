@@ -99,6 +99,8 @@ vi.mock('@mj-biz-apps/tasks-core', async (importOriginal) => {
 import {
     DRAFT_WORK_REPORT_ACTION_ID,
     DraftWorkReportAction,
+    GET_MY_WORK_REPORTS_BRIEFING_ACTION_ID,
+    GetMyWorkReportsBriefingAction,
     GetWorkReportAction,
     ListWorkReportsAction,
     REVIEW_WORK_REPORT_ACTION_ID,
@@ -153,7 +155,8 @@ function invokeAction(
         | ListWorkReportsAction
         | DraftWorkReportAction
         | SubmitWorkReportAction
-        | ReviewWorkReportAction,
+        | ReviewWorkReportAction
+        | GetMyWorkReportsBriefingAction,
     params: RunActionParams,
 ): Promise<ActionResultSimple> {
     return (action as Partial<InvokableAction> as InvokableAction).InternalRunAction(params);
@@ -169,15 +172,17 @@ beforeEach(() => {
 });
 
 describe('WorkReportActions metadata & AuthorizesCaller', () => {
-    it('declares AuthorizesCaller = true across all 5 actions and exports UUIDv4 action IDs', () => {
+    it('declares AuthorizesCaller = true across all 6 actions and exports UUIDv4 action IDs', () => {
         expect(GetWorkReportAction.AuthorizesCaller).toBe(true);
         expect(ListWorkReportsAction.AuthorizesCaller).toBe(true);
         expect(DraftWorkReportAction.AuthorizesCaller).toBe(true);
         expect(SubmitWorkReportAction.AuthorizesCaller).toBe(true);
         expect(ReviewWorkReportAction.AuthorizesCaller).toBe(true);
+        expect(GetMyWorkReportsBriefingAction.AuthorizesCaller).toBe(true);
         expect(DRAFT_WORK_REPORT_ACTION_ID).toMatch(/^[0-9a-f-]{36}$/i);
         expect(SUBMIT_WORK_REPORT_ACTION_ID).toMatch(/^[0-9a-f-]{36}$/i);
         expect(REVIEW_WORK_REPORT_ACTION_ID).toMatch(/^[0-9a-f-]{36}$/i);
+        expect(GET_MY_WORK_REPORTS_BRIEFING_ACTION_ID).toMatch(/^[0-9a-f-]{36}$/i);
     });
 });
 
@@ -427,5 +432,74 @@ describe('SubmitWorkReportAction & ReviewWorkReportAction (upgraded canonical Re
             makeRunParams(USER_BOB, makeParams({ WorkReportID: REPORT_ID, SupervisorFeedback: 'Approved' })),
         );
         expect(notFoundRes).toMatchObject({ Success: false, ResultCode: 'NOT_FOUND' });
+    });
+});
+
+describe('GetMyWorkReportsBriefingAction', () => {
+    it('returns caller Draft/Submitted 15Five reports and direct reports awaiting supervisor review', async () => {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        resolvePersonForUserMock.mockResolvedValueOnce({ ID: PERSON_BOB });
+        resolveDirectReportPersonIDsMock.mockResolvedValueOnce([PERSON_ALICE]);
+        runViewMock
+            .mockResolvedValueOnce({
+                Success: true,
+                Results: [
+                    {
+                        ID: REPORT_ID,
+                        PersonID: PERSON_BOB,
+                        Person: 'Bob Supervisor',
+                        PeriodStart: todayStr,
+                        PeriodEnd: todayStr,
+                        Title: `Daily 15Five — ${todayStr}`,
+                        Status: 'Draft',
+                    },
+                ],
+            }) // Bob's own reports
+            .mockResolvedValueOnce({
+                Success: true,
+                Results: [
+                    {
+                        ID: '55555555-5555-4555-8555-555555555555',
+                        PersonID: PERSON_ALICE,
+                        Person: 'Alice Ng',
+                        PeriodStart: todayStr,
+                        PeriodEnd: todayStr,
+                        Title: `Daily 15Five — ${todayStr}`,
+                        Status: 'Submitted',
+                    },
+                ],
+            }); // direct reports awaiting review
+
+        const params = makeParams({ LookbackDays: '14' });
+        const res = await invokeAction(new GetMyWorkReportsBriefingAction(), makeRunParams(USER_BOB, params));
+
+        expect(res).toMatchObject({ Success: true, ResultCode: 'SUCCESS' });
+        const briefing = JSON.parse(String(params.find((p) => p.Name === 'Briefing')?.Value));
+        expect(briefing.HasReportForToday).toBe(true);
+        expect(briefing.Counts).toMatchObject({
+            MyDrafts: 1,
+            MySubmitted: 0,
+            DirectReportsAwaitingReview: 1,
+            TotalActionable: 2,
+        });
+        expect(briefing.MyDraftReports).toHaveLength(1);
+        expect(briefing.DirectReportsAwaitingReview).toHaveLength(1);
+    });
+
+    it('returns POLICY_DENIED when TypedActionPolicyGuard blocks reading Work Reports', async () => {
+        checkEntityAccessMock.mockResolvedValueOnce({
+            Allowed: false,
+            Active: true,
+            DeniedFieldPatterns: [],
+            ResultCode: 'POLICY_DENIED',
+            Message: 'AllowListOnly blocks Work Reports.',
+        });
+
+        const res = await invokeAction(
+            new GetMyWorkReportsBriefingAction(),
+            makeRunParams(USER_BOB, makeParams({})),
+        );
+        expect(res).toMatchObject({ Success: false, ResultCode: 'POLICY_DENIED' });
+        expect(runViewMock).not.toHaveBeenCalled();
     });
 });

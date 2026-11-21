@@ -103,6 +103,17 @@
             "lastModified": "2026-11-20T22:09:05.889Z",
             "checksum": "3d5f9b9f7daafde2d423e2435ea5e9eb3d7057567b7bad24480e0eaf80702741"
           }
+        },
+        {
+          "fields": {
+            "SkillID": "@parent:ID",
+            "ActionID": "@lookup:MJ: Actions.Name=Get My Work Reports Briefing",
+            "Role": "Briefing",
+            "ExposeToModel": false
+          },
+          "primaryKey": {
+            "ID": "6C2A9AC9-8372-47FC-8C96-CCB997E7AFE5"
+          }
         }
       ]
     },

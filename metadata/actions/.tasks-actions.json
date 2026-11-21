@@ -2039,6 +2039,21 @@
         {
           "fields": {
             "ActionID": "@parent:ID",
+            "Name": "Visibility",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Row-level visibility: Standard (default, visible to team) or Private (restricted to creator, assignees, and root-task participants).",
+            "DefaultValue": "Standard"
+          },
+          "primaryKey": {
+            "ID": "A8A52E64-4999-44EF-AF4C-28869A9A13CD"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
             "Name": "DueAt",
             "Type": "Input",
             "ValueType": "Scalar",
@@ -2548,6 +2563,20 @@
           "sync": {
             "lastModified": "2026-11-20T22:08:59.378Z",
             "checksum": "d460a2213b0ac8c2e9ec8f170b0edd1535203ffc11c6842f44049912d1574529"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Visibility",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Updated row-level visibility: Standard or Private."
+          },
+          "primaryKey": {
+            "ID": "ED15FA0F-89E5-4E43-9693-9544D306C969"
           }
         },
         {
@@ -6483,6 +6512,21 @@
         {
           "fields": {
             "ActionID": "@parent:ID",
+            "Name": "Async",
+            "Type": "Both",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "When true, marks the task InProgress and dispatches agent execution in the background, returning DISPATCHED immediately so OnAssign save hooks never stall HTTP requests.",
+            "DefaultValue": "false"
+          },
+          "primaryKey": {
+            "ID": "CDA88843-3108-4CCA-9C5E-BB30594032DF"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
             "Name": "AgentName",
             "Type": "Output",
             "ValueType": "Scalar",
@@ -6603,6 +6647,17 @@
           "sync": {
             "lastModified": "2026-11-20T22:09:01.548Z",
             "checksum": "9ab1f298f866ab447ea164ee75c0a801b341a31d31fe6abd5f1ec95c5e969dd9"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "DISPATCHED",
+            "IsSuccess": true,
+            "Description": "Assigned AI agent dispatched asynchronously in the background; TaskAgentRun, comment, status update, and tasks-inbox wake will complete non-blocking."
+          },
+          "primaryKey": {
+            "ID": "80B6E3BE-296C-4DE3-B24B-0BCE6904117A"
           }
         },
         {
@@ -7036,6 +7091,313 @@
           },
           "primaryKey": {
             "ID": "2DE0561D-C81E-47DC-89FA-9E7B052E8C04"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "fields": {
+      "Name": "Get My Meetings Briefing",
+      "CategoryID": "@lookup:MJ: Action Categories.Name=Tasks",
+      "Description": "Deterministic briefing collector (Role = Briefing, ExposeToModel = false) returning upcoming meetings within HorizonDays, recent completed meetings needing transcript processing or commitment acceptance, and open meeting follow-up tasks.",
+      "Type": "Custom",
+      "DriverClass": "GetMyMeetingsBriefingAction",
+      "IconClass": "fa-solid fa-calendar-day",
+      "UserPrompt": "Assemble a deterministic briefing of upcoming meetings, recent completed meetings needing transcript processing or commitment acceptance, and open meeting follow-up tasks.",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "A5C566B3-0F01-49ED-B18D-3811EB3CD2BA"
+    },
+    "relatedEntities": {
+      "MJ: Action Params": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "HorizonDays",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Upcoming meetings horizon in days (1-30, default 7).",
+            "DefaultValue": "7"
+          },
+          "primaryKey": {
+            "ID": "25A2B057-1BCD-4AFC-BA7F-8040C04607AD"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "LookbackDays",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Recent completed meetings lookback window in days (1-30, default 7).",
+            "DefaultValue": "7"
+          },
+          "primaryKey": {
+            "ID": "0DE1158A-93BA-4E35-B894-1074CB32B467"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "MaxItems",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Maximum items per bucket (1-50, default 10).",
+            "DefaultValue": "10"
+          },
+          "primaryKey": {
+            "ID": "C4DA7D20-325B-4334-A563-B278DB8410B0"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Briefing",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "JSON meetings briefing payload with counts, upcoming meetings, recent completed meetings needing follow-up, and open linked follow-up tasks."
+          },
+          "primaryKey": {
+            "ID": "AFAA6A46-37C4-4A82-8DE1-B7995C59F4EC"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Summary",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "One-line deterministic meetings briefing digest."
+          },
+          "primaryKey": {
+            "ID": "7D04339F-D794-40FB-B386-9A3544E7C336"
+          }
+        }
+      ],
+      "MJ: Action Result Codes": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "SUCCESS",
+            "IsSuccess": true,
+            "Description": "Meetings briefing assembled."
+          },
+          "primaryKey": {
+            "ID": "5952BB04-9F4D-4DED-9FC5-89C754643054"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "NO_PERSON_RECORD",
+            "IsSuccess": false,
+            "Description": "No active Person record or meeting attendance could be resolved for ContextUser."
+          },
+          "primaryKey": {
+            "ID": "53E9DB2C-2DCC-4958-842C-F5FC2D6E88D0"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "POLICY_DENIED",
+            "IsSuccess": false,
+            "Description": "Blocked by the user agent policy."
+          },
+          "primaryKey": {
+            "ID": "B4BD6230-44FE-4F59-8A8C-707681E85352"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "POLICY_DEFERRED",
+            "IsSuccess": false,
+            "Description": "Deferred until the next allowed policy time window."
+          },
+          "primaryKey": {
+            "ID": "79271602-982C-4496-9EE7-A27C0315408C"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "PERMISSION_DENIED",
+            "IsSuccess": false,
+            "Description": "Caller is not authorized for this operation."
+          },
+          "primaryKey": {
+            "ID": "15318F9E-A7BE-4610-9E30-0A889C637141"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "ERROR",
+            "IsSuccess": false,
+            "Description": "Unexpected execution or query error."
+          },
+          "primaryKey": {
+            "ID": "7AA9416E-59DC-4F0C-BBF6-918A29867EBF"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "fields": {
+      "Name": "Get My Work Reports Briefing",
+      "CategoryID": "@lookup:MJ: Action Categories.Name=Tasks",
+      "Description": "Deterministic briefing collector (Role = Briefing, ExposeToModel = false) returning the caller's current draft/submitted 15Five work reports and any direct reports' submitted work reports awaiting supervisor review.",
+      "Type": "Custom",
+      "DriverClass": "GetMyWorkReportsBriefingAction",
+      "IconClass": "fa-solid fa-clipboard-list",
+      "UserPrompt": "Assemble a deterministic briefing of the caller's draft/submitted 15Five work reports and direct reports' submitted work reports awaiting supervisor review.",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "7436F4C6-1556-4D25-9487-4EAC3D6E8CB0"
+    },
+    "relatedEntities": {
+      "MJ: Action Params": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "LookbackDays",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Lookback window in days for the caller's recent work reports (1-90, default 14).",
+            "DefaultValue": "14"
+          },
+          "primaryKey": {
+            "ID": "E26EBC7A-22BB-4031-9DED-4B081909DE16"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "MaxItems",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Maximum items per bucket (1-50, default 10).",
+            "DefaultValue": "10"
+          },
+          "primaryKey": {
+            "ID": "C7D8F107-1B15-4EF7-B7D7-C1CECCBFD1DA"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Briefing",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "JSON work reports briefing payload with caller drafts/submissions, HasReportForToday, and direct reports awaiting supervisor review."
+          },
+          "primaryKey": {
+            "ID": "887169AD-70AD-4564-8782-2687D068ABED"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Summary",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "One-line deterministic work reports briefing digest."
+          },
+          "primaryKey": {
+            "ID": "8B5A000A-2BDE-4977-A472-43AD8555355B"
+          }
+        }
+      ],
+      "MJ: Action Result Codes": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "SUCCESS",
+            "IsSuccess": true,
+            "Description": "Work reports briefing assembled."
+          },
+          "primaryKey": {
+            "ID": "C8C8BEAD-83F1-4455-8D0C-FAB34DE79989"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "NO_PERSON_RECORD",
+            "IsSuccess": false,
+            "Description": "No active Person record is linked to ContextUser."
+          },
+          "primaryKey": {
+            "ID": "E6CDA850-B8FA-461B-A3CA-BAD890739606"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "POLICY_DENIED",
+            "IsSuccess": false,
+            "Description": "Blocked by the user agent policy."
+          },
+          "primaryKey": {
+            "ID": "9D4B7E81-A404-4DF1-9409-D80E17CECDB1"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "POLICY_DEFERRED",
+            "IsSuccess": false,
+            "Description": "Deferred until the next allowed policy time window."
+          },
+          "primaryKey": {
+            "ID": "381EEB36-D63A-4A79-80FC-4538BDC71359"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "PERMISSION_DENIED",
+            "IsSuccess": false,
+            "Description": "Caller is not authorized for this operation."
+          },
+          "primaryKey": {
+            "ID": "D8A587B2-EFDC-4926-AA65-69A0E3B7047A"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "ERROR",
+            "IsSuccess": false,
+            "Description": "Unexpected execution or query error."
+          },
+          "primaryKey": {
+            "ID": "7039A560-59B6-4C35-8AF9-7479B87DF9D8"
           }
         }
       ]

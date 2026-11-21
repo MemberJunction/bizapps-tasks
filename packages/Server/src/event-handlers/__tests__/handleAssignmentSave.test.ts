@@ -2,13 +2,15 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 type ViewParams = { EntityName: string; ExtraFilter?: string; Fields?: string[] };
 
-const { runView, runAction, sendNotification, resolveRoleUsers, ROLES_ENTITY, ROLE_FINANCE, ASSIGN_ACTION } = vi.hoisted(() => ({
+const { runView, runAction, sendNotification, resolveRoleUsers, ROLES_ENTITY, AI_AGENTS_ENTITY, ROLE_FINANCE, AGENT_1, ASSIGN_ACTION } = vi.hoisted(() => ({
   runView: vi.fn(),
   runAction: vi.fn(),
   sendNotification: vi.fn(),
   resolveRoleUsers: vi.fn(),
   ROLES_ENTITY: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  AI_AGENTS_ENTITY: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
   ROLE_FINANCE: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  AGENT_1: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
   ASSIGN_ACTION: '44444444-4444-4444-8444-444444444444',
 }));
 
@@ -26,7 +28,20 @@ vi.mock('@memberjunction/core', async (importOriginal) => ({
   CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },
   LogError: vi.fn(),
   LogStatus: vi.fn(),
-  Metadata: class {},
+  Metadata: class {
+    static Provider = {
+      Entities: [
+        { ID: ROLES_ENTITY, Name: 'MJ: Roles' },
+        { ID: AI_AGENTS_ENTITY, Name: 'MJ: AI Agents' },
+      ],
+      EntityByName: (name: string) =>
+        name === 'MJ: AI Agents'
+          ? { ID: AI_AGENTS_ENTITY, Name: 'MJ: AI Agents' }
+          : name === 'MJ: Roles'
+            ? { ID: ROLES_ENTITY, Name: 'MJ: Roles' }
+            : undefined,
+    };
+  },
   RunView: class { RunView = runView; },
   UserInfo: class {},
 }));
@@ -275,5 +290,36 @@ describe('handleAssignmentSave for a role assignee (bc-aidp-next-golive#442)', (
     await handleAssignmentSave(roleAssignmentCreated());
 
     expect(runAction).toHaveBeenCalledOnce();
+  });
+});
+
+describe('handleAssignmentSave for an AI Agent assignee (Agent Task non-blocking dispatch)', () => {
+  it('skips human People lookup/notification and dispatches OnAssignActionID with AgentID and Async=true', async () => {
+    mockViews('user-1');
+    const event = {
+      type: 'save',
+      saveSubType: 'create',
+      baseEntity: {
+        ContextCurrentUser: { ID: 'user-ctx' },
+        AssigneeEntityID: AI_AGENTS_ENTITY,
+        AssigneeRecordID: AGENT_1,
+        TaskID: TASK_1,
+        RoleID: null,
+      },
+    } as unknown as Parameters<typeof handleAssignmentSave>[0];
+
+    await handleAssignmentSave(event);
+
+    expect(sendNotification).not.toHaveBeenCalled();
+    expect(runView.mock.calls.some(([p]) => (p as ViewParams).EntityName === 'MJ_BizApps_Common: People')).toBe(false);
+    expect(runAction).toHaveBeenCalledOnce();
+    expect(paramsPassed()).toMatchObject({
+      TaskID: TASK_1,
+      AssigneeEntityID: AI_AGENTS_ENTITY,
+      AssigneeRecordID: AGENT_1,
+      AgentID: AGENT_1,
+      AssigneePersonID: null,
+      Async: 'true',
+    });
   });
 });

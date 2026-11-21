@@ -75,6 +75,17 @@ function scheduleAfterCommit(entity: BaseEntity, description: string, task: () =
 const TASKS_ENTITY = 'MJ_BizApps_Tasks: Tasks';
 const TASK_ASSIGNMENTS_ENTITY = 'MJ_BizApps_Tasks: Task Assignments';
 const TASK_COMMENTS_ENTITY = 'MJ_BizApps_Tasks: Task Comments';
+const AI_AGENTS_ENTITY = 'MJ: AI Agents';
+
+function isAIAgentEntityID(entityID: string | null | undefined): boolean {
+    if (!entityID) return false;
+    const provider = Metadata.Provider;
+    const entity =
+        typeof provider?.EntityByName === 'function'
+            ? provider.EntityByName(AI_AGENTS_ENTITY)
+            : provider?.Entities?.find((e) => e.Name === AI_AGENTS_ENTITY);
+    return Boolean(entity && UUIDsEqual(entity.ID, entityID));
+}
 
 /** The TaskType FK columns that can carry an action hook. */
 type TaskTypeActionColumn =
@@ -286,7 +297,21 @@ export async function handleAssignmentSave(event: BaseEntityEvent): Promise<void
     if (!taskID || !IsValidUUID(taskID)) return;
 
     if (IsRoleEntityID(assigneeEntityID)) {
-        await handleRoleAssignment(assigneeRecordID, taskID, roleID, contextUser);
+        await handleRoleAssignment(assigneeEntityID, assigneeRecordID, taskID, roleID, contextUser);
+        return;
+    }
+
+    if (isAIAgentEntityID(assigneeEntityID)) {
+        // AI Agent assignments skip human in-app notifications and dispatch the TaskType's
+        // OnAssignActionID (e.g., Agent Task -> Tasks.ExecuteAssignedAgent) with Async=true
+        // so long-running agent executions never block save/HTTP hooks.
+        await invokeTaskTypeActionByTaskID(taskID, 'OnAssignActionID', contextUser, [
+            { Name: 'AssigneeEntityID', Value: assigneeEntityID ?? null },
+            { Name: 'AssigneeRecordID', Value: assigneeRecordID },
+            { Name: 'AgentID', Value: assigneeRecordID },
+            { Name: 'AssigneePersonID', Value: null },
+            { Name: 'Async', Value: 'true' },
+        ]);
         return;
     }
 
@@ -299,7 +324,7 @@ export async function handleAssignmentSave(event: BaseEntityEvent): Promise<void
         LogError(`[BizAppsTasks] Assignment notification error: ${err instanceof Error ? err.message : String(err)}`);
     }
 
-    const hookParams = await buildAssignHookParams(assigneeRecordID, contextUser);
+    const hookParams = await buildAssignHookParams(assigneeEntityID, assigneeRecordID, contextUser);
     await invokeTaskTypeActionByTaskID(taskID, 'OnAssignActionID', contextUser, hookParams);
 }
 
@@ -320,7 +345,13 @@ async function notifyAssignee(assigneeRecordID: string, taskID: string, roleID: 
  * A task assigned to an MJ role (bc-aidp-next-golive#442): every active user holding the role is
  * notified, and the OnAssign hook names the role in place of a person.
  */
-async function handleRoleAssignment(mjRoleID: string, taskID: string, roleID: string | null, contextUser: UserInfo): Promise<void> {
+async function handleRoleAssignment(
+    assigneeEntityID: string | null,
+    mjRoleID: string,
+    taskID: string,
+    roleID: string | null,
+    contextUser: UserInfo,
+): Promise<void> {
     const mjRoleName = RoleName(mjRoleID) ?? mjRoleID;
     try {
         const userIDs = await ResolveUserIDsForRoles([mjRoleID], contextUser);
@@ -334,8 +365,11 @@ async function handleRoleAssignment(mjRoleID: string, taskID: string, roleID: st
     }
 
     await invokeTaskTypeActionByTaskID(taskID, 'OnAssignActionID', contextUser, [
+        { Name: 'AssigneeEntityID', Value: assigneeEntityID },
+        { Name: 'AssigneeRecordID', Value: mjRoleID },
         { Name: 'AssigneePersonID', Value: null },
         { Name: 'AssigneeName', Value: mjRoleName },
+        { Name: 'Async', Value: 'true' },
     ]);
 }
 
@@ -397,11 +431,18 @@ async function sendAssignmentNotification(
  * Inputs an OnAssign action receives beyond the task's own: who was assigned, so an action
  * such as a Teams post can name them.
  */
-async function buildAssignHookParams(assigneeRecordID: string, contextUser: UserInfo): Promise<ActionHookInput[]> {
+async function buildAssignHookParams(
+    assigneeEntityID: string | null,
+    assigneeRecordID: string,
+    contextUser: UserInfo,
+): Promise<ActionHookInput[]> {
     const assigneeName = await getPersonName(assigneeRecordID, contextUser);
     return [
+        { Name: 'AssigneeEntityID', Value: assigneeEntityID },
+        { Name: 'AssigneeRecordID', Value: assigneeRecordID },
         { Name: 'AssigneePersonID', Value: assigneeRecordID },
         { Name: 'AssigneeName', Value: assigneeName },
+        { Name: 'Async', Value: 'true' },
     ];
 }
 
@@ -590,7 +631,9 @@ async function getTaskAssigneeUserIDs(taskID: string, contextUser: UserInfo): Pr
     }
 
     const roleIDs = assignments.Results.filter(a => IsRoleEntityID(a.AssigneeEntityID)).map(a => a.AssigneeRecordID);
-    const personIDs = assignments.Results.filter(a => !IsRoleEntityID(a.AssigneeEntityID)).map(a => a.AssigneeRecordID);
+    const personIDs = assignments.Results
+        .filter(a => !IsRoleEntityID(a.AssigneeEntityID) && !isAIAgentEntityID(a.AssigneeEntityID))
+        .map(a => a.AssigneeRecordID);
     const roleUserIDs = await getRoleAssigneeUserIDs(taskID, roleIDs, contextUser);
     const personUserIDs = await getPersonAssigneeUserIDs(taskID, personIDs, contextUser);
     return uniqueUserIDs([...roleUserIDs, ...personUserIDs]);

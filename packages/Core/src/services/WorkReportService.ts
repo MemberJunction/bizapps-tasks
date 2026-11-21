@@ -149,6 +149,8 @@ export interface SubmitWorkReportParams {
     UpdatedBody?: string | null;
     UpdatedTitle?: string | null;
     ContextUser?: UserInfo;
+    /** Optional elevated System User used strictly for writing the cross-user supervisor AI Agent Request. */
+    ServiceContextUser?: UserInfo;
     Provider?: WorkReportProvider;
 }
 
@@ -1683,6 +1685,7 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
                 Report: this.snapshotReport(reportEntity, params.WorkReportID),
                 Supervisor: supervisor,
                 ContextUser: params.ContextUser,
+                ServiceContextUser: params.ServiceContextUser,
                 Provider: params.Provider,
             });
         }
@@ -1856,6 +1859,7 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
         Report: WorkReportRecordSnapshot;
         Supervisor: SupervisorResolution;
         ContextUser?: UserInfo;
+        ServiceContextUser?: UserInfo;
         Provider?: WorkReportProvider;
     }): Promise<string | null> {
         const md = this.getMetadataProvider(params.Provider);
@@ -1866,6 +1870,7 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
 
         const rv = this.createRunView(params.Provider);
         const workReportsEntity = findEntityByName(md, WORK_REPORTS_ENTITY_NAME);
+        const requestContextUser = params.ServiceContextUser ?? params.ContextUser;
 
         // Look up the Chief of Staff agent ID if available
         let cosAgentID: string | null = null;
@@ -1906,7 +1911,7 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
 
         const reqEntity = await md.GetEntityObject<AIAgentRequestEntity>(
             AI_AGENT_REQUESTS_ENTITY_NAME,
-            params.ContextUser,
+            requestContextUser,
         );
         reqEntity.NewRecord();
 

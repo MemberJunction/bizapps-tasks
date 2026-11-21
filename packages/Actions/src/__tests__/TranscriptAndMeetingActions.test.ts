@@ -8,6 +8,9 @@ const {
     maskRecordMock,
     maskRowsMock,
     resolvePersonForUserMock,
+    resolveUserIDForPersonMock,
+    triggerWakeMock,
+    getSystemUserMock,
     runViewMock,
     getEntityObjectMock,
     getCredentialMock,
@@ -24,6 +27,9 @@ const {
     maskRecordMock: vi.fn(<T extends object>(rec: T): T => rec),
     maskRowsMock: vi.fn(<T extends object>(rows: readonly T[]): T[] => [...rows]),
     resolvePersonForUserMock: vi.fn(),
+    resolveUserIDForPersonMock: vi.fn(),
+    triggerWakeMock: vi.fn(),
+    getSystemUserMock: vi.fn(),
     runViewMock: vi.fn(),
     getEntityObjectMock: vi.fn(),
     getCredentialMock: vi.fn(),
@@ -79,10 +85,10 @@ vi.mock('@memberjunction/ai-core-plus', () => ({
     },
 }));
 vi.mock('@memberjunction/ai-agents', () => ({
-    AgentWakeTriggerService: { Instance: { TriggerWakeForWorkstream: vi.fn() } },
+    AgentWakeTriggerService: { Instance: { TriggerWakeForWorkstream: triggerWakeMock } },
 }));
 vi.mock('@memberjunction/generic-database-provider', () => ({
-    UserCache: { Instance: { GetSystemUser: vi.fn() } },
+    UserCache: { Instance: { GetSystemUser: getSystemUserMock } },
 }));
 vi.mock('@memberjunction/credentials', () => ({
     CredentialEngine: {
@@ -103,7 +109,7 @@ vi.mock('@memberjunction/storage', () => ({
     },
 }));
 vi.mock('@mj-biz-apps/common-entities', () => ({
-    ResolveUserIDForPerson: vi.fn(),
+    ResolveUserIDForPerson: resolveUserIDForPersonMock,
 }));
 vi.mock('@mj-biz-apps/tasks-core', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@mj-biz-apps/tasks-core')>();
@@ -133,6 +139,7 @@ import { MeetingTranscriptService } from '../meetings/MeetingTranscriptService.j
 import {
     AcceptMeetingCommitmentsAction,
     GetMeetingNotesAction,
+    GetMyMeetingsBriefingAction,
     GetMyUpcomingMeetingsAction,
     PrepareMeetingBriefAction,
     ProcessMeetingTranscriptAction,
@@ -143,8 +150,12 @@ interface Invokable {
 }
 
 const USER_ALICE = 'aaaa1111-1111-4111-8111-111111111111';
+const USER_BOB = 'bbbb2222-2222-4222-8222-222222222222';
+const SYSTEM_USER_ID = '99999999-9999-4999-8999-999999999999';
 const PERSON_ALICE = '11111111-1111-4111-8111-111111111111';
+const PERSON_BOB = '11111111-1111-4111-8111-111111111112';
 const MEETING_1 = '22222222-2222-4222-8222-222222222201';
+const MEETING_2 = '22222222-2222-4222-8222-222222222202';
 const NOTE_1 = '33333333-3333-4333-8333-333333333301';
 const TASK_EXISTING = '44444444-4444-4444-8444-444444444401';
 const TASK_NEW = '44444444-4444-4444-8444-444444444402';
@@ -175,6 +186,9 @@ beforeEach(() => {
     clearZoomTranscriptTokenCache();
     checkEntityAccessMock.mockResolvedValue({ Allowed: true, Active: true, DeniedFieldPatterns: [] });
     resolvePersonForUserMock.mockResolvedValue({ ID: PERSON_ALICE, Email: 'alice@example.com' });
+    resolveUserIDForPersonMock.mockResolvedValue(null);
+    getSystemUserMock.mockReturnValue({ ID: SYSTEM_USER_ID, Name: 'System', Email: 'system@mj.local' });
+    triggerWakeMock.mockResolvedValue({ triggered: true, resultCode: 'WAKE_SCHEDULED' });
 });
 
 afterEach(() => {
@@ -414,13 +428,14 @@ describe('MeetingTranscriptService', () => {
     });
 });
 
-describe('5 Typed Meetings Actions', () => {
-    it('all 5 actions declare AuthorizesCaller = true', () => {
+describe('6 Typed Meetings Actions', () => {
+    it('all 6 actions declare AuthorizesCaller = true', () => {
         expect(GetMyUpcomingMeetingsAction.AuthorizesCaller).toBe(true);
         expect(PrepareMeetingBriefAction.AuthorizesCaller).toBe(true);
         expect(ProcessMeetingTranscriptAction.AuthorizesCaller).toBe(true);
         expect(AcceptMeetingCommitmentsAction.AuthorizesCaller).toBe(true);
         expect(GetMeetingNotesAction.AuthorizesCaller).toBe(true);
+        expect(GetMyMeetingsBriefingAction.AuthorizesCaller).toBe(true);
     });
 
     it('GetMyUpcomingMeetingsAction lists upcoming meetings with prep flags', async () => {
@@ -551,5 +566,166 @@ describe('5 Typed Meetings Actions', () => {
         expect(payload.Decisions).toContain('Approve Q4 budget.');
         expect(payload.Decisions).toContain('Budget: Approved unanimously');
         expect(payload.LinkedTasks).toHaveLength(1);
+    });
+
+    it('routes other attendees commitments to their CoS via coalesced tasks-inbox wake in ProcessMeetingTranscriptAction & AcceptMeetingCommitmentsAction', async () => {
+        // 1. ProcessMeetingTranscriptAction routes Bob's commitment (skips Alice's own)
+        getEntityObjectMock.mockResolvedValueOnce({
+            ID: MEETING_1,
+            Name: 'Sprint Planning',
+            StartsAt: new Date('2026-11-20T15:00:00Z'),
+            EndsAt: new Date('2026-11-20T15:30:00Z'),
+            Load: vi.fn().mockResolvedValue(true),
+        });
+        draftFromTranscriptMock.mockResolvedValueOnce({
+            ID: NOTE_1,
+            Body: 'Summary',
+            ProposedTasks: JSON.stringify([
+                { id: 'p-1', title: 'Alice drafts spec', assigneePersonId: PERSON_ALICE, status: 'Pending', taskId: null },
+                { id: 'p-2', title: 'Bob benchmarks API', assigneePersonId: PERSON_BOB, status: 'Pending', taskId: null },
+            ]),
+        });
+        runViewMock
+            .mockResolvedValueOnce({ Success: true, Results: [] })
+            .mockResolvedValueOnce({ Success: true, Results: [] });
+        resolveUserIDForPersonMock.mockResolvedValueOnce(USER_BOB);
+
+        const procParams = makeParams({
+            MeetingID: MEETING_1,
+            TranscriptText: 'Alice: ACTION: Alice drafts spec\nBob: ACTION: Bob benchmarks API',
+        });
+        const procRes = await run(new ProcessMeetingTranscriptAction(), makeRunParams(procParams));
+        expect(procRes).toMatchObject({ Success: true, ResultCode: 'SUCCESS' });
+        expect(triggerWakeMock).toHaveBeenCalledTimes(1);
+        expect(triggerWakeMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                targetUserID: USER_BOB,
+                workstreamKey: 'tasks-inbox',
+                contextUser: expect.objectContaining({ ID: SYSTEM_USER_ID }),
+            }),
+        );
+
+        // 2. AcceptMeetingCommitmentsAction routes accepted Bob commitment via tasks-inbox
+        triggerWakeMock.mockClear();
+        const noteEntity = {
+            ID: NOTE_1,
+            MeetingID: MEETING_1,
+            Meeting: 'Sprint Planning',
+            ProposedTasks: JSON.stringify([
+                { id: 'p-2', title: 'Bob benchmarks API', assigneePersonId: PERSON_BOB, status: 'Pending', taskId: null },
+            ]),
+            Load: vi.fn().mockResolvedValue(true),
+            Save: vi.fn().mockResolvedValue(true),
+        };
+        getEntityObjectMock.mockResolvedValueOnce(noteEntity);
+        acceptProposedTaskMock.mockResolvedValueOnce({
+            task: { ID: TASK_NEW, Name: 'Bob benchmarks API' },
+            proposal: { id: 'p-2', title: 'Bob benchmarks API', assigneePersonId: PERSON_BOB },
+        });
+        resolveUserIDForPersonMock.mockResolvedValueOnce(USER_BOB);
+
+        const accParams = makeParams({ MeetingNoteID: NOTE_1 });
+        const accRes = await run(new AcceptMeetingCommitmentsAction(), makeRunParams(accParams));
+        expect(accRes).toMatchObject({ Success: true, ResultCode: 'SUCCESS' });
+        expect(triggerWakeMock).toHaveBeenCalledTimes(1);
+        expect(triggerWakeMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                targetUserID: USER_BOB,
+                workstreamKey: 'tasks-inbox',
+            }),
+        );
+    });
+
+    it('GetMyMeetingsBriefingAction returns upcoming meetings, completed meetings needing transcript/commitments, and open follow-up tasks', async () => {
+        const tomorrowStart = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+        const tomorrowEnd = new Date(Date.now() + 25 * 60 * 60 * 1000).toISOString();
+        const yesterdayStart = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
+        const yesterdayEnd = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+        runViewMock
+            .mockResolvedValueOnce({ Success: true, Results: [{ MeetingID: MEETING_1 }, { MeetingID: MEETING_2 }] }) // attendees
+            .mockResolvedValueOnce({
+                Success: true,
+                Results: [
+                    {
+                        ID: MEETING_1,
+                        Name: 'Board Prep',
+                        Status: 'Completed',
+                        StartsAt: yesterdayStart,
+                        EndsAt: yesterdayEnd,
+                        TimeZone: 'UTC',
+                        LocationType: 'Virtual',
+                        Visibility: 'Standard',
+                        TranscriptFileID: FILE_1,
+                    },
+                    {
+                        ID: MEETING_2,
+                        Name: 'Customer Sync',
+                        Status: 'Scheduled',
+                        StartsAt: tomorrowStart,
+                        EndsAt: tomorrowEnd,
+                        TimeZone: 'UTC',
+                        LocationType: 'Virtual',
+                        Visibility: 'Standard',
+                        TranscriptFileID: null,
+                    },
+                ],
+            }) // meetings
+            .mockResolvedValueOnce({ Success: true, Results: [{ MeetingID: MEETING_2 }] }) // agenda items
+            .mockResolvedValueOnce({ Success: true, Results: [{ MeetingID: MEETING_1 }, { MeetingID: MEETING_2 }] }) // attendee counts
+            .mockResolvedValueOnce({
+                Success: true,
+                Results: [
+                    {
+                        ID: NOTE_1,
+                        MeetingID: MEETING_1,
+                        Kind: 'Summary',
+                        Source: 'AI',
+                        Status: 'Draft',
+                        ProposedTasks: JSON.stringify([
+                            { id: 'p-1', title: 'Send follow-up deck', status: 'Pending', taskId: null },
+                        ]),
+                    },
+                ],
+            }) // notes
+            .mockResolvedValueOnce({ Success: true, Results: [{ TaskID: TASK_EXISTING, RecordID: MEETING_1 }] }) // task links
+            .mockResolvedValueOnce({
+                Success: true,
+                Results: [
+                    {
+                        ID: TASK_EXISTING,
+                        Name: 'Publish board packet',
+                        Status: 'Open',
+                        Priority: 'High',
+                        Visibility: 'Standard',
+                        DueAt: tomorrowEnd,
+                        PercentComplete: 25,
+                    },
+                ],
+            }); // open follow-up tasks
+
+        const params = makeParams({ HorizonDays: 7, LookbackDays: 7 });
+        const res = await run(new GetMyMeetingsBriefingAction(), makeRunParams(params));
+
+        expect(res).toMatchObject({ Success: true, ResultCode: 'SUCCESS' });
+        const briefing = JSON.parse(String(params.find((p) => p.Name === 'Briefing')?.Value));
+        expect(briefing.Counts).toMatchObject({
+            UpcomingMeetings: 1,
+            RecentCompletedNeedingFollowUp: 1,
+            NeedingTranscriptProcessing: 0,
+            NeedingCommitmentAcceptance: 1,
+            OpenMeetingFollowUpTasks: 1,
+        });
+        expect(briefing.UpcomingMeetings[0]).toMatchObject({ ID: MEETING_2, HasAgenda: true });
+        expect(briefing.RecentCompletedMeetingsNeedingFollowUp[0]).toMatchObject({
+            ID: MEETING_1,
+            NeedsCommitmentAcceptance: true,
+            PendingCommitmentsCount: 1,
+        });
+        expect(briefing.OpenMeetingFollowUpTasks[0]).toMatchObject({
+            ID: TASK_EXISTING,
+            MeetingID: MEETING_1,
+            MeetingName: 'Board Prep',
+        });
     });
 });

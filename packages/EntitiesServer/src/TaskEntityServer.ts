@@ -33,6 +33,7 @@ import {
     TIMESHEET_APPROVAL_TASK_TYPE_CODE,
 } from './TimesheetApprovalOutcome.js';
 import { EnterTaskCheckInGraphScope } from './composite-graph-scope.js';
+import { wakeAssigneesForTaskUnblock } from './cos-wake-helpers.js';
 
 /**
  * Action hook trigger types supported on TaskType and TaskTypeStatus.
@@ -195,6 +196,37 @@ export class TaskEntityServer extends TaskEntity {
                 LogError(`TaskEntityServer: action hook dispatch error for task ${this.ID}: ${msg}`);
             })
         );
+
+        // 7. Coalesced Chief of Staff `tasks-inbox` wake on direct unblock (Blocked -> Open/InProgress)
+        // or prerequisite completion unblocking downstream tasks (covers UI, BulkUpdateTasks, and CoS actions).
+        const actingUser = this.ContextCurrentUser;
+        if (actingUser && lifecycleContext.statusChanged && !lifecycleContext.isNew) {
+            const taskID = this.ID;
+            const taskName = this.Name;
+            const oldStatus = lifecycleContext.oldStatus;
+            const newStatus = lifecycleContext.newStatus;
+            const candidateProvider = this.ProviderToUse as Partial<IMetadataProvider> | undefined;
+            const metadataProvider =
+                typeof candidateProvider?.EntityByName === 'function'
+                    ? (candidateProvider as IMetadataProvider)
+                    : Metadata.Provider;
+            const runViewProvider = this.RunViewProviderToUse;
+
+            this.runAfterCommit('Task unblock CoS tasks-inbox wake', postCommitToken, () =>
+                wakeAssigneesForTaskUnblock({
+                    taskID,
+                    taskName,
+                    oldStatus,
+                    newStatus,
+                    actingUser,
+                    provider: metadataProvider,
+                    runViewProvider,
+                }).then(() => undefined).catch((err) => {
+                    const msg = err instanceof Error ? err.message : String(err);
+                    LogError(`TaskEntityServer: CoS unblock wake error for task ${taskID}: ${msg}`);
+                })
+            );
+        }
 
         return true;
     }
