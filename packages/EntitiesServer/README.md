@@ -5,6 +5,7 @@ Authoritative server-side entity subclasses and approval engines for BizApps Tas
 ## Entity Server Subclasses
 
 - `TaskEntityServer` (`@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Tasks')`)
+  - **Parent Organization Inheritance (`inheritParentOrganizationPreSave`)**: On create, new child sub-tasks automatically inherit their parent task's `OrganizationID` when left unset, while preserving explicit overrides and intentional clears on existing tasks.
   - **Dynamic Status Synchronization**: Auto-syncs `TaskTypeStatusID` $\leftrightarrow$ `Status` (`MacroStatus`) and auto-assigns default stage on task creation.
   - **Terminal Completion**: Automatically populates `CompletedAt` and sets `PercentComplete = 100` upon entering terminal statuses.
   - **Audit Logging**: Writes server-authoritative `Task Activities` on creation, status change, progress update, priority change, and due date changes.
@@ -40,3 +41,8 @@ Authoritative server-side entity subclasses and approval engines for BizApps Tas
 - `TimesheetEngine` (`BaseSingleton`): Implements `SubmitTimesheet`, `WithdrawTimesheet`, `ReopenTimesheet`, `GetTaskEffort`, and `ReconcileStaleTimesheetApprovals`.
 - `BaseTimeApproverResolver`: `ClassFactory` extension point allowing downstream BizApps to resolve external parent scopes for a task (`ResolveScopesForTask`). Ships with `TaskLinkScopeApproverResolver` (`@RegisterClass(BaseTimeApproverResolver, 'TaskLinkScopeApproverResolver', 50)`).
 - `UserHasTasksAuthorization`: Evaluates hierarchical `Tasks: Manage Time Entries` and `Tasks: Manage Timesheets` authorizations.
+
+## Server Remotable Operations (`TasksRemoteOperationsServer.ts`)
+
+- `TasksBulkUpdateServerOperation` (`@RegisterClass(BaseRemotableOperation, 'BizAppsTasks.BulkUpdateTasks')`): Authoritative server handler for Asana-grade bulk operations across up to 500 tasks per call — deduplicates UUIDs, validates inputs, applies scalar + assignment + tag mutations through `TaskEntityServer` so audit trails and lifecycle hooks fire accurately, and reports partial failures cleanly.
+- `TasksInstantiateTemplateServerOperation` (`@RegisterClass(BaseRemotableOperation, 'BizAppsTasks.InstantiateTemplate')`): Server handler that topologically sorts template items (parent-before-child), computes relative `DueAt` offsets, stamps `OrganizationID` / `CategoryID`, assigns mapped People or MJ Roles, and wires `TaskDependency` links.
