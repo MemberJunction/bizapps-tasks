@@ -84,10 +84,11 @@
     "fields": {
       "Name": "Priority Objective",
       "Code": "PRIORITY_OBJECTIVE",
-      "Description": "Strategic quarterly or annual priority objective (OKR parent) tracked by the user and their Chief of Staff agent",
+      "Description": "Legacy strategic objective task type superseded by Planning-owned Priority Tasks.",
       "IconClass": "fa-solid fa-bullseye",
       "DefaultPriority": "High",
-      "IsApproval": false
+      "IsApproval": false,
+      "IsActive": false
     },
     "primaryKey": {
       "ID": "8D42A1B9-3E71-4C5A-9F20-1B6E8D3A9C01"
@@ -101,10 +102,11 @@
     "fields": {
       "Name": "Key Result",
       "Code": "KEY_RESULT",
-      "Description": "Measurable key result with baseline, target, and actual values plus periodic check-in cadence",
+      "Description": "Legacy measurable key result task type superseded by generic measurable tasks and Planning-owned Key Results.",
       "IconClass": "fa-solid fa-chart-line",
       "DefaultPriority": "High",
-      "IsApproval": false
+      "IsApproval": false,
+      "IsActive": false
     },
     "primaryKey": {
       "ID": "8D42A1B9-3E71-4C5A-9F20-1B6E8D3A9C02"

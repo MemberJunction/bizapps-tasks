@@ -1,0 +1,22 @@
+[
+  {
+    "_comments": [
+      "Configures ExtensionEntity on the Planning PRIORITY Task Type so MJ_BizApps_Planning: Priority Tasks",
+      "functions as a declared IS-A child of MJ_BizApps_Tasks: Tasks via SubtypeSelector (TypeID.ExtensionEntity).",
+      "Gated by pushWhen=@env:MJ_BIZAPPS_PLANNING_INSTALLED so standalone bizapps-tasks metadata pushes without Planning."
+    ],
+    "primaryKey": {
+      "ID": "7E100001-0000-0000-0000-000000000001"
+    },
+    "fields": {
+      "Name": "Priority",
+      "Code": "PRIORITY",
+      "Description": "Strategic priority item managed through BizApps Planning (IS-A extension of MJ_BizApps_Tasks: Tasks).",
+      "IconClass": "fa-solid fa-bullseye",
+      "DefaultPriority": "High",
+      "IsApproval": false,
+      "IsActive": true,
+      "ExtensionEntity": "MJ_BizApps_Planning: Priority Tasks"
+    }
+  }
+]

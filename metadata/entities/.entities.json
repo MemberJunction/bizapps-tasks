@@ -41,6 +41,114 @@
             "lastModified": "2026-09-17T23:07:39.088Z",
             "checksum": "882b1c4b195c7cc964188965e4b057dc2624ed5517b4ddd7b2e2fb41bd664a8c"
           }
+        },
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.Name=HealthStatus&EntityID=@parent:ID"
+          },
+          "fields": {
+            "Description": "Qualitative health status for measurable or tracked tasks: OnTrack, AtRisk, OffTrack, Completed, or Paused.",
+            "AutoUpdateDescription": false
+          }
+        },
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.Name=ConfidenceScore&EntityID=@parent:ID"
+          },
+          "fields": {
+            "Description": "Owner confidence score (0-100) that this task will achieve its target or deliverable on time.",
+            "AutoUpdateDescription": false
+          }
+        },
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.Name=BaselineValue&EntityID=@parent:ID"
+          },
+          "fields": {
+            "Description": "Starting baseline value for a measurable task or quantitative deliverable.",
+            "AutoUpdateDescription": false
+          }
+        },
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.Name=TargetValue&EntityID=@parent:ID"
+          },
+          "fields": {
+            "Description": "Target goal value for a measurable task or quantitative deliverable.",
+            "AutoUpdateDescription": false
+          }
+        },
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.Name=CurrentValue&EntityID=@parent:ID"
+          },
+          "fields": {
+            "Description": "Latest actual measured value for a measurable task or deliverable, updated automatically by TaskCheckIn records.",
+            "AutoUpdateDescription": false
+          }
+        },
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.Name=UnitOfMeasure&EntityID=@parent:ID"
+          },
+          "fields": {
+            "Description": "Unit of measure for BaselineValue, TargetValue, and CurrentValue on measurable tasks (e.g., %, USD, Hours, Days, Items, NPS).",
+            "AutoUpdateDescription": false
+          }
+        },
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.Name=MetricDirection&EntityID=@parent:ID"
+          },
+          "fields": {
+            "Description": "Direction of improvement for quantitative task metrics: Increase, Decrease, or Maintain.",
+            "AutoUpdateDescription": false
+          }
+        },
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.Name=RollupWeight&EntityID=@parent:ID"
+          },
+          "fields": {
+            "Description": "Relative weight (default 1.00) when rolling up child task progress, health, and confidence into a parent task.",
+            "AutoUpdateDescription": false
+          }
+        },
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.Name=PlanningPeriod&EntityID=@parent:ID"
+          },
+          "fields": {
+            "Description": "Tracking period or cycle identifier for scheduled or measurable tasks (e.g., 2026-Q4, FY2027, H1-2026).",
+            "AutoUpdateDescription": false
+          }
+        },
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.Name=CheckInCadence&EntityID=@parent:ID"
+          },
+          "fields": {
+            "Description": "Expected progress check-in frequency for this task: Daily, Weekly, BiWeekly, Monthly, Quarterly, or None.",
+            "AutoUpdateDescription": false
+          }
+        },
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.Name=LastCheckInAt&EntityID=@parent:ID"
+          },
+          "fields": {
+            "Description": "Timestamp when the most recent Task Check In progress update was recorded for this task.",
+            "AutoUpdateDescription": false
+          }
+        },
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.Name=NextCheckInDueAt&EntityID=@parent:ID"
+          },
+          "fields": {
+            "Description": "Timestamp when the next progress check-in is due based on CheckInCadence; used for scheduled check-in reminders.",
+            "AutoUpdateDescription": false
+          }
         }
       ]
     },
@@ -172,6 +280,15 @@
           "sync": {
             "lastModified": "2026-09-17T23:07:39.058Z",
             "checksum": "882b1c4b195c7cc964188965e4b057dc2624ed5517b4ddd7b2e2fb41bd664a8c"
+          }
+        },
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.Name=ExtensionEntity&EntityID=@parent:ID"
+          },
+          "fields": {
+            "Description": "Optional MemberJunction Entity name (e.g. MJ_BizApps_Tasks_GitHub: Git Hub Issue Tasks, MJ_BizApps_Planning: Priority Tasks) of the disjoint IS-A child of MJ_BizApps_Tasks: Tasks provisioned for tasks of this type. Read declaratively by Task SubtypeSelector (TypeID.ExtensionEntity).",
+            "AutoUpdateDescription": false
           }
         }
       ]
@@ -392,6 +509,30 @@
     "fields": {
       "AllowUserSearchAPI": false,
       "AutoUpdateAllowUserSearchAPI": false
+    }
+  },
+  {
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Check Ins"
+    },
+    "fields": {
+      "Description": "Structured periodic progress check-ins for tasks and measurable deliverables, authored by users or AI agents.",
+      "AutoUpdateDescription": false,
+      "AllowUserSearchAPI": false,
+      "AutoUpdateAllowUserSearchAPI": false
+    },
+    "relatedEntities": {
+      "MJ: Entity Fields": [
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.Name=TaskID&EntityID=@parent:ID"
+          },
+          "fields": {
+            "Description": "The measurable task or deliverable this check-in updates.",
+            "AutoUpdateDescription": false
+          }
+        }
+      ]
     }
   }
 ]

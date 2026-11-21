@@ -20,6 +20,7 @@
     "authorization-roles",
     "entity-relationships",
     "task-types",
+    "task-types-planning",
     "task-roles",
     "task-decision-outcomes",
     "task-notification-configs",
