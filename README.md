@@ -263,6 +263,79 @@ const tasks = await svc.instantiateTemplate({
 
 ---
 
+### Answering Workflow Human Steps and Agent Questions
+
+BizApps Tasks is a MemberJunction **human-task provider**, registered under the key `BizAppsTasks`. When an MJ workflow (task graph) reaches a Human step, or an agent asks a question, the provider puts it in front of people as an ordinary Tasks task. They see it in their Tasks inbox, with assignees, notifications and the usual decision rules. When they decide or complete the task, the answer goes back to the workflow or the agent. This needs MJ with the human-task provider contract (MJ #6763, #6777): MJ `next` today, and the next MJ edge build.
+
+**Two ways to route work to Tasks:**
+
+- **Per step.** Name the provider on the Human step:
+
+  ```typescript
+  import { TaskNode } from '@memberjunction/ai-core-plus';
+
+  TaskNode.Human(
+      { tempId: 'review', name: 'Approve the contract', description: 'Legal sign-off', dependsOn: ['draft'] },
+      {
+          provider: 'BizAppsTasks',
+          instructions: 'Review the contract and approve or reject it.',
+          expiresInHours: 72,
+          providerConfiguration: {
+              title: 'Approve the contract',
+              assignees: [{ entity: 'MJ: Roles', recordID: legalRoleID }],
+              linkedRecord: { entity: 'MJ_BizApps_Contracts: Contracts', recordID: 'payload.contractID' },
+          },
+      },
+  );
+  ```
+
+- **For the whole install.** Set the default provider in the host's `mj.config.cjs`:
+
+  ```javascript
+  humanTasks: { defaultProvider: 'BizAppsTasks' }   // or MJ_HUMAN_TASKS_DEFAULT_PROVIDER
+  ```
+
+  Every Human step that names no provider then goes to Tasks, and so does every agent's question (a Chat step's feedback request). Plan-mode approvals stay in MJ's inbox. Without the setting, nothing changes.
+
+**`providerConfiguration` keys** for a workflow step:
+
+| Key | Meaning |
+|---|---|
+| `taskType` | Task type `Code` or `Name`. Default `APPROVAL_REQUEST`. |
+| `title` | Task name. Default: the step's name. |
+| `priority` | `Low` / `Medium` / `High` / `Critical`. Default `High`. |
+| `approverPersonIDs` | People to assign: an ID, a list, or `payload.<path>` holding either. |
+| `assignees` | `[{ entity, recordID }]` for People, `MJ: Users` or `MJ: Roles`; `recordID` may be `payload.<path>`. |
+| `linkedRecord` | `{ entity, recordID }`: the record the decision is about, shown on the task. |
+| `outputKey` | Payload key the decision is written under. Default `approval`. |
+
+A workflow step must name someone through `approverPersonIDs` or `assignees`, or be assigned to a user. It never falls back to the workflow's owner, who is often the person asking for approval, so a step naming no one is refused. An agent's question goes to the user the request names, else to the user who ran the agent. Settings the provider can't use fail the step permanently, with a message naming the problem.
+
+**What comes back:**
+
+- **A workflow step** completes with this under its `outputKey`, so later steps can branch on `payload.approval.Approved`:
+
+  ```json
+  { "Outcome": "Approved", "Approved": true, "Notes": "…", "DecidedByPersonID": "…", "TaskID": "…" }
+  ```
+
+  Only a recorded approving decision on a completed task approves. A task closed without one completes the step with `Approved: false`, so Tasks' decision rules decide who can release a step. That includes `PreventSelfApproval`, which is on by default.
+- **An agent's question** is answered through MJ's `AnswerAgentRequestFromProvider`, which resumes the agent:
+  - an approving decision approves, and a rejecting one rejects;
+  - a task completed without a decision responds with the task's completion notes;
+  - a task cancelled without a decision leaves the question open in MJ's inbox.
+- **Withdrawn elsewhere.** If the step expires, its run is cancelled, or the question is answered in MJ first, the provider cancels the open task.
+
+**Safety.** Answering a linked task settles the ask without the person deciding needing access to the workflow, so a link to an `MJ: Tasks` step or an `MJ: AI Agent Requests` row works like a key. Only the provider may create those links, and nobody may move an existing link onto or off one (`TaskLinkEntityServer`).
+
+**Code and tests:**
+
+- The provider: `packages/Server/src/workflow/BizAppsTasksHumanTaskProvider.ts`
+- Settling: `packages/Server/src/workflow/workflow-step-completion.ts`
+- The live check, run against a database on MJ's real dispatcher: `MJ_IT_LOAD_ENTITIES_SERVER=1 node test-harnesses/integration.mjs workflow-human-tasks`
+- A full example user: Forms' publish approval (`bizapps-forms`, `FormPublishReview.ts`)
+- MJ's guide: [`guides/WORKFLOW_AND_TASK_GRAPH_GUIDE.md`](https://github.com/MemberJunction/MJ/blob/next/guides/WORKFLOW_AND_TASK_GRAPH_GUIDE.md)
+
 ## Seed Data
 
 Deployed via migrations. Fully customizable per deployment.
