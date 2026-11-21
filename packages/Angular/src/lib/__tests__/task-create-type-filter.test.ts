@@ -125,7 +125,7 @@ const { runViewMock, getEntityObjectMock, entitiesMock } = vi.hoisted(() => {
         { ID: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', Name: 'MJ_BizApps_Common: Organizations', Icon: 'fa-solid fa-building', DisplayNameOrName: 'Organizations' },
     ];
     return {
-        runViewMock: vi.fn<[RunViewParams], Promise<MockRunViewResult>>(),
+        runViewMock: vi.fn<[RunViewParams], Promise<MockRunViewResult | undefined>>(),
         getEntityObjectMock: vi.fn<[string], Promise<MockEntityStub>>(),
         entitiesMock: entities,
     };
@@ -146,7 +146,7 @@ vi.mock('@memberjunction/core', async (importOriginal) => {
             static FromMetadataProvider() {
                 return new this();
             }
-            RunView(params: RunViewParams): Promise<MockRunViewResult> {
+            RunView(params: RunViewParams): Promise<MockRunViewResult | undefined> {
                 return runViewMock(params);
             }
         },
@@ -184,7 +184,6 @@ import {
     ResolveDefaultGenericTaskTypeID,
     SelectDefaultGenericTaskTypeID,
     SelectGenericQuickAddTaskTypeID,
-    type TaskTypeLookupRow,
     type TaskTypeRunViewLike,
 } from '../task-type-filter.helper';
 
@@ -453,14 +452,48 @@ describe('Generic Task Type Creation Filtering', () => {
         expect(SelectGenericQuickAddTaskTypeID(MIXED_TASK_TYPES, TT_KEY_RESULT_ID)).toBe(TT_GENERAL_ID);
         expect(SelectGenericQuickAddTaskTypeID(planningOnly, TT_PRIORITY_ID)).toBeNull();
 
-        setupDefaultLookupRunView(MIXED_TASK_TYPES);
+        type TaskTypeLookupRunViewParams = Parameters<TaskTypeRunViewLike['RunView']>[0];
+        type TaskTypeLookupRunViewReturn = ReturnType<TaskTypeRunViewLike['RunView']>;
+        const taskTypeLookupSpy = vi.fn<[TaskTypeLookupRunViewParams], TaskTypeLookupRunViewReturn>(
+            async () => ({ Success: true, Results: MIXED_TASK_TYPES }),
+        );
         const runViewDouble: TaskTypeRunViewLike = {
-            RunView: <T = TaskTypeLookupRow>(p: RunViewParams) =>
-                runViewMock(p) as Promise<{ Success: boolean; Results: T[] }>,
+            RunView: (params) => taskTypeLookupSpy(params),
         };
         expect(await ResolveDefaultGenericTaskTypeID(runViewDouble)).toBe(TT_GENERAL_ID);
         expect(await ResolveDefaultGenericTaskTypeID(runViewDouble, TT_DELIVERABLE_ID.toUpperCase())).toBe(TT_DELIVERABLE_ID);
         expect(await ResolveDefaultGenericTaskTypeID(runViewDouble, TT_PRIORITY_ID)).toBe(TT_GENERAL_ID);
+
+        // When RunView returns undefined (e.g. unstubbed unit-test mocks), block known Planning/OKR IDs & codes
+        // while permitting non-Planning generic default IDs.
+        taskTypeLookupSpy.mockResolvedValue(undefined);
+        for (const blockedId of [
+            null,
+            '',
+            TT_PRIORITY_ID,
+            TT_PRIORITY_ID.toUpperCase(),
+            TT_PRIORITY_OBJECTIVE_ID,
+            TT_KEY_RESULT_ID,
+            'PRIORITY',
+            'PRIORITY_OBJECTIVE',
+            'OBJECTIVE',
+            'KEY_RESULT',
+            'planning-priority-type',
+            'okr-key-result',
+        ]) {
+            expect(await ResolveDefaultGenericTaskTypeID(runViewDouble, blockedId)).toBeNull();
+        }
+        expect(await ResolveDefaultGenericTaskTypeID(runViewDouble, TT_DELIVERABLE_ID)).toBe(TT_DELIVERABLE_ID);
+        expect(await ResolveDefaultGenericTaskTypeID(runViewDouble, '55555555-5555-4555-8555-555555555551')).toBe(
+            '55555555-5555-4555-8555-555555555551',
+        );
+        expect(await ResolveDefaultGenericTaskTypeID(runViewDouble, 'type-1')).toBe('type-1');
+
+        // Fail closed when RunView explicitly returns Success=false
+        taskTypeLookupSpy.mockResolvedValue({ Success: false, Results: [] });
+        for (const candidateId of [null, TT_PRIORITY_ID, TT_PLANNING_CUSTOM_ID, TT_KEY_RESULT_ID, TT_DELIVERABLE_ID]) {
+            expect(await ResolveDefaultGenericTaskTypeID(runViewDouble, candidateId)).toBeNull();
+        }
     });
 
     it('TaskEditPanelComponent hides PRIORITY, external Planning ExtensionEntity, and inactive OKR types in creatableTaskTypes while handling differently-cased UUIDs', async () => {
@@ -725,6 +758,39 @@ describe('Generic Task Type Creation Filtering', () => {
             LinkedRecord: null,
         });
         expect(getEntityObjectMock).not.toHaveBeenCalled();
+
+        // 8. Block Planning/OKR defaults in quickAddTask() and onQuickCaptureSubmit() when RunView returns undefined,
+        // while still allowing non-Planning generic default IDs (unstubbed test compatibility).
+        runViewMock.mockResolvedValue(undefined);
+        getEntityObjectMock.mockClear();
+        for (const blockedDefaultId of [null, TT_PRIORITY_ID, TT_PRIORITY_OBJECTIVE_ID, TT_KEY_RESULT_ID, 'PRIORITY', 'OBJECTIVE', 'KEY_RESULT']) {
+            list.QuickAddDefaultTypeID = blockedDefaultId;
+            list.quickAddName = 'Should abort when Planning/OKR default and lookup is undefined';
+            await list.quickAddTask();
+            expect(list.quickAdding).toBe(false);
+            expect(list.quickAddName).toBe('Should abort when Planning/OKR default and lookup is undefined');
+
+            await list.onQuickCaptureSubmit({
+                RawText: 'Should abort capture when Planning/OKR default and lookup is undefined',
+                Title: 'Should abort capture when Planning/OKR default and lookup is undefined',
+                Priority: 'High',
+                DueAt: null,
+                AssigneeQuery: null,
+                TagNames: [],
+                HoursEstimated: null,
+                LinkedRecord: null,
+            });
+            expect(list.quickAdding).toBe(false);
+        }
+        expect(getEntityObjectMock).not.toHaveBeenCalled();
+
+        const unstubbedGenericTask = makeTaskEntityStub();
+        getEntityObjectMock.mockResolvedValueOnce(unstubbedGenericTask);
+        list.QuickAddDefaultTypeID = TT_DELIVERABLE_ID;
+        list.quickAddName = 'Generic quick add with unstubbed RunView';
+        await list.quickAddTask();
+        expect(unstubbedGenericTask.TypeID).toBe(TT_DELIVERABLE_ID);
+        expect(unstubbedGenericTask.Save).toHaveBeenCalledTimes(1);
     });
 
     it('MyTasksPageComponent, TasksDashboardPageComponent, and ConnectedTasksHostComponent filter Planning-owned types on create/bulk while preserving task visibility', async () => {
