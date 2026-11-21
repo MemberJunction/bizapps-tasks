@@ -5,6 +5,7 @@ import { AgentRunner } from '@memberjunction/ai-agents';
 import { AIEngine } from '@memberjunction/aiengine';
 import type { MJAIAgentEntityExtended } from '@memberjunction/ai-core-plus';
 import { EscapeSQLString, IsValidUUID, RegisterClass, UUIDsEqual } from '@memberjunction/global';
+import { COS_TASKS_INBOX_WORKSTREAM_KEY } from '@mj-biz-apps/tasks-core';
 import type {
     mjBizAppsTasksTaskAgentRunEntity,
     mjBizAppsTasksTaskCommentEntity,
@@ -36,24 +37,46 @@ interface AgentExecutionSummary {
     errorMessage: string | null;
 }
 
+interface AgentFinalizationOutcome {
+    execution: AgentExecutionSummary;
+    commentID: string | null;
+    taskStatus: mjBizAppsTasksTaskEntity['Status'];
+}
+
 /**
  * Action: `Tasks.ExecuteAssignedAgent`
  *
- * `OnAssign` execution hook (and direct tool) for `Agent Task` workflows (Plan §3.6).
+ * `OnAssign` execution hook (and direct tool) for `Agent Task` (`AGENT_TASK`) workflows (Plan §3.6).
  * When a task is assigned to an `MJ: AI Agents` record:
  * 1. Loads the task and resolves the assigned active AI Agent.
- * 2. Executes the agent via `AgentRunner.RunAgent` under the assigner's `contextUser`
+ * 2. Transitions `Open` -> `InProgress` immediately.
+ * 3. Executes the agent via `AgentRunner.RunAgent` under the assigner's `contextUser`
  *    (bounded by MJ's entity permissions, RLS, and parent policy ceiling).
- * 3. Links the `MJ: AI Agent Runs` row to the task via `MJ_BizApps_Tasks: Task Agent Runs`.
- * 4. Posts a `TaskComment` summarizing the agent's outcome/artifacts or failure.
- * 5. Updates task status (`InProgress` awaiting human acceptance on success unless
+ *    When `Async = true` (the default passed by the `OnAssign` hook), dispatches the agent run
+ *    in the background and immediately returns `DISPATCHED` so long-running agents never stall
+ *    UI saves or HTTP requests.
+ * 4. Links the `MJ: AI Agent Runs` row to the task via `MJ_BizApps_Tasks: Task Agent Runs`.
+ * 5. Posts a `TaskComment` summarizing the agent's outcome/artifacts or failure.
+ * 6. Updates task status (`InProgress` awaiting human acceptance on success unless
  *    `AutoCompleteOnSuccess = true`; `Blocked` with `BlockedReason` on failure).
- * 6. Wakes the assigner's (and creator's) Chief of Staff via `AgentWakeTriggerService`
- *    (best-effort, elevating via `UserCache.Instance.GetSystemUser()` when cross-user).
+ * 7. Wakes the assigner's (and creator's) Chief of Staff on the coalesced `tasks-inbox` workstream
+ *    via `AgentWakeTriggerService` (best-effort, elevating via `UserCache.Instance.GetSystemUser()` when cross-user).
  */
 @RegisterClass(BaseAction, 'Tasks.ExecuteAssignedAgent')
 export class ExecuteAssignedAgentAction extends BaseAction {
     public static override readonly AuthorizesCaller = true;
+
+    private static readonly pendingExecutions = new Set<Promise<void>>();
+
+    /**
+     * Awaits all currently tracked background (`Async = true`) executions.
+     * Useful for graceful server shutdown and deterministic unit tests.
+     */
+    public static async WaitForPendingExecutions(): Promise<void> {
+        while (ExecuteAssignedAgentAction.pendingExecutions.size > 0) {
+            await Promise.allSettled([...ExecuteAssignedAgentAction.pendingExecutions]);
+        }
+    }
 
     protected override async InternalRunAction(params: RunActionParams): Promise<ActionResultSimple> {
         const user = params.ContextUser;
@@ -112,127 +135,197 @@ export class ExecuteAssignedAgentAction extends BaseAction {
 
             const additionalInstructions = getStringParam(params, 'AdditionalInstructions');
             const autoCompleteOnSuccess = getBooleanParam(params, 'AutoCompleteOnSuccess', false);
+            const runAsync = getBooleanParam(params, 'Async', false);
             const taskPrompt = this.buildAgentTaskPrompt(task, additionalInstructions);
 
-            const execution = await this.executeAgent(agent, taskPrompt, user);
-
-            // Best-effort link to MJ_BizApps_Tasks: Task Agent Runs
-            if (execution.agentRunID && IsValidUUID(execution.agentRunID)) {
-                try {
-                    const link = await md.GetEntityObject<mjBizAppsTasksTaskAgentRunEntity>(
-                        TASK_AGENT_RUNS_ENTITY,
-                        user,
-                    );
-                    link.NewRecord();
-                    link.TaskID = task.ID;
-                    link.AIAgentRunID = execution.agentRunID;
-                    link.Role = 'Executed';
-                    link.Notes = execution.success
-                        ? `Executed by assigned agent "${agent.Name}"`
-                        : `Execution failed for assigned agent "${agent.Name}": ${execution.errorMessage ?? 'unknown error'}`;
-                    await link.Save();
-                } catch (linkErr) {
-                    LogError(
-                        `[BizAppsTasks] Failed to link AgentRun '${execution.agentRunID}' to Task '${task.ID}': ${
-                            linkErr instanceof Error ? linkErr.message : String(linkErr)
-                        }`,
-                    );
-                }
-            }
-
-            // Write progress / outcome comment on the task
-            const callerPerson = await resolveCallerPerson(user);
-            const commentAuthorPersonID = callerPerson?.ID ?? task.CreatedByPersonID ?? null;
-            let commentID: string | null = null;
-            if (commentAuthorPersonID) {
-                const comment = await md.GetEntityObject<mjBizAppsTasksTaskCommentEntity>(
-                    TASK_COMMENTS_ENTITY,
+            if (runAsync) {
+                const bgTask = this.runAgentAndFinalize(
+                    md,
+                    task,
+                    agent,
+                    taskPrompt,
+                    autoCompleteOnSuccess,
                     user,
-                );
-                comment.NewRecord();
-                comment.TaskID = task.ID;
-                comment.PersonID = commentAuthorPersonID;
-                comment.Content = execution.success
-                    ? `**Agent "${agent.Name}" completed execution:**\n\n${execution.outcomeText}`
-                    : `**Agent "${agent.Name}" encountered an error:**\n\n${execution.errorMessage ?? 'Execution failed without an error message.'}`;
-                if (await comment.Save()) {
-                    commentID = comment.ID;
-                }
-            }
+                )
+                    .then(() => undefined)
+                    .catch((err) => {
+                        const msg = err instanceof Error ? err.message : String(err);
+                        LogError(
+                            `[BizAppsTasks] Background agent execution failed for task '${task.ID}' (agent '${agent.Name}'): ${msg}`,
+                        );
+                    });
 
-            // Update task status cleanly (human remains accountable for acceptance unless AutoCompleteOnSuccess = true)
-            if (execution.success) {
-                if (autoCompleteOnSuccess) {
-                    task.Status = 'Completed';
-                    task.PercentComplete = 100;
-                    task.CompletedAt = new Date();
-                } else {
-                    task.Status = 'InProgress';
-                    task.PercentComplete = Math.max(task.PercentComplete ?? 0, 90);
-                }
-                task.CompletionNotes = execution.outcomeText.slice(0, 2000);
-                task.BlockedReason = null;
-            } else {
-                task.Status = 'Blocked';
-                task.BlockedReason = `Assigned agent "${agent.Name}" failed: ${execution.errorMessage ?? 'unknown error'}`.slice(
-                    0,
-                    1000,
-                );
-            }
-            await task.Save();
-
-            // Wake assigner's (and creator's) Chief of Staff
-            const wakeUserIDs = new Set<string>();
-            if (IsValidUUID(user.ID)) wakeUserIDs.add(user.ID);
-            if (task.CreatedByPersonID) {
-                const creatorUserID = await resolveUserIDForPersonRecord(task.CreatedByPersonID, user);
-                if (creatorUserID && !Array.from(wakeUserIDs).some((id) => UUIDsEqual(id, creatorUserID))) {
-                    wakeUserIDs.add(creatorUserID);
-                }
-            }
-
-            for (const targetUserID of wakeUserIDs) {
-                await wakeChiefOfStaffBestEffort({
-                    targetUserID,
-                    workstreamKey: `agent-task-${task.ID}`,
-                    wakeReason: execution.success
-                        ? `Agent "${agent.Name}" finished work on task "${task.Name}" and left results ready for review.`
-                        : `Agent "${agent.Name}" failed on task "${task.Name}" and needs human attention.`,
-                    resumeState: {
-                        eventType: execution.success ? 'AgentTaskCompleted' : 'AgentTaskFailed',
-                        taskID: task.ID,
-                        taskName: task.Name,
-                        agentID: agent.ID,
-                        agentName: agent.Name,
-                        agentRunID: execution.agentRunID,
-                        commentID,
-                        taskStatus: task.Status,
-                    },
-                    actingUser: user,
+                ExecuteAssignedAgentAction.pendingExecutions.add(bgTask);
+                void bgTask.finally(() => {
+                    ExecuteAssignedAgentAction.pendingExecutions.delete(bgTask);
                 });
+
+                const summary = `Dispatched agent "${agent.Name}" in background for task "${task.Name}" (status: ${task.Status}).`;
+                setOutputParam(params, 'AgentID', agent.ID);
+                setOutputParam(params, 'AgentName', agent.Name);
+                setOutputParam(params, 'AgentRunID', '');
+                setOutputParam(params, 'TaskStatus', task.Status);
+                setOutputParam(params, 'CommentID', '');
+                setOutputParam(params, 'OutcomeSummary', summary);
+                setOutputParam(params, 'Async', true);
+                setOutputParam(params, 'Summary', summary);
+                return successResult(summary, params, 'DISPATCHED');
             }
+
+            const outcome = await this.runAgentAndFinalize(
+                md,
+                task,
+                agent,
+                taskPrompt,
+                autoCompleteOnSuccess,
+                user,
+            );
 
             setOutputParam(params, 'AgentID', agent.ID);
             setOutputParam(params, 'AgentName', agent.Name);
-            setOutputParam(params, 'AgentRunID', execution.agentRunID ?? '');
-            setOutputParam(params, 'TaskStatus', task.Status);
-            setOutputParam(params, 'CommentID', commentID ?? '');
-            setOutputParam(params, 'OutcomeSummary', execution.outcomeText);
+            setOutputParam(params, 'AgentRunID', outcome.execution.agentRunID ?? '');
+            setOutputParam(params, 'TaskStatus', outcome.taskStatus);
+            setOutputParam(params, 'CommentID', outcome.commentID ?? '');
+            setOutputParam(params, 'OutcomeSummary', outcome.execution.outcomeText);
 
-            if (!execution.success) {
+            if (!outcome.execution.success) {
                 return failResult(
                     'AGENT_EXECUTION_FAILED',
-                    `Assigned agent "${agent.Name}" failed on task "${task.Name}": ${execution.errorMessage ?? 'unknown error'}`,
+                    `Assigned agent "${agent.Name}" failed on task "${task.Name}": ${outcome.execution.errorMessage ?? 'unknown error'}`,
                     params,
                 );
             }
 
-            const summary = `Executed agent "${agent.Name}" on task "${task.Name}" (status: ${task.Status}).`;
+            const summary = `Executed agent "${agent.Name}" on task "${task.Name}" (status: ${outcome.taskStatus}).`;
             setOutputParam(params, 'Summary', summary);
             return successResult(summary, params);
         } catch (err) {
             return failResult('ERROR', err instanceof Error ? err.message : String(err), params);
         }
+    }
+
+    private async runAgentAndFinalize(
+        md: Metadata,
+        task: mjBizAppsTasksTaskEntity,
+        agent: MJAIAgentEntityExtended,
+        taskPrompt: string,
+        autoCompleteOnSuccess: boolean,
+        user: UserInfo,
+    ): Promise<AgentFinalizationOutcome> {
+        let execution: AgentExecutionSummary;
+        try {
+            execution = await this.executeAgent(agent, taskPrompt, user);
+        } catch (runErr) {
+            const errMsg = runErr instanceof Error ? runErr.message : String(runErr);
+            execution = {
+                success: false,
+                agentRunID: null,
+                outcomeText: errMsg,
+                errorMessage: errMsg,
+            };
+        }
+
+        // Best-effort link to MJ_BizApps_Tasks: Task Agent Runs
+        if (execution.agentRunID && IsValidUUID(execution.agentRunID)) {
+            try {
+                const link = await md.GetEntityObject<mjBizAppsTasksTaskAgentRunEntity>(
+                    TASK_AGENT_RUNS_ENTITY,
+                    user,
+                );
+                link.NewRecord();
+                link.TaskID = task.ID;
+                link.AIAgentRunID = execution.agentRunID;
+                link.Role = 'Executed';
+                link.Notes = execution.success
+                    ? `Executed by assigned agent "${agent.Name}"`
+                    : `Execution failed for assigned agent "${agent.Name}": ${execution.errorMessage ?? 'unknown error'}`;
+                await link.Save();
+            } catch (linkErr) {
+                LogError(
+                    `[BizAppsTasks] Failed to link AgentRun '${execution.agentRunID}' to Task '${task.ID}': ${
+                        linkErr instanceof Error ? linkErr.message : String(linkErr)
+                    }`,
+                );
+            }
+        }
+
+        // Write progress / outcome comment on the task
+        const callerPerson = await resolveCallerPerson(user);
+        const commentAuthorPersonID = callerPerson?.ID ?? task.CreatedByPersonID ?? null;
+        let commentID: string | null = null;
+        if (commentAuthorPersonID) {
+            const comment = await md.GetEntityObject<mjBizAppsTasksTaskCommentEntity>(
+                TASK_COMMENTS_ENTITY,
+                user,
+            );
+            comment.NewRecord();
+            comment.TaskID = task.ID;
+            comment.PersonID = commentAuthorPersonID;
+            comment.Content = execution.success
+                ? `**Agent "${agent.Name}" completed execution:**\n\n${execution.outcomeText}`
+                : `**Agent "${agent.Name}" encountered an error:**\n\n${execution.errorMessage ?? 'Execution failed without an error message.'}`;
+            if (await comment.Save()) {
+                commentID = comment.ID;
+            }
+        }
+
+        // Update task status cleanly (human remains accountable for acceptance unless AutoCompleteOnSuccess = true)
+        if (execution.success) {
+            if (autoCompleteOnSuccess) {
+                task.Status = 'Completed';
+                task.PercentComplete = 100;
+                task.CompletedAt = new Date();
+            } else {
+                task.Status = 'InProgress';
+                task.PercentComplete = Math.max(task.PercentComplete ?? 0, 90);
+            }
+            task.CompletionNotes = execution.outcomeText.slice(0, 2000);
+            task.BlockedReason = null;
+        } else {
+            task.Status = 'Blocked';
+            task.BlockedReason = `Assigned agent "${agent.Name}" failed: ${execution.errorMessage ?? 'unknown error'}`.slice(
+                0,
+                1000,
+            );
+        }
+        await task.Save();
+
+        // Wake assigner's (and creator's) Chief of Staff on coalesced `tasks-inbox` workstream
+        const wakeUserIDs = new Set<string>();
+        if (IsValidUUID(user.ID)) wakeUserIDs.add(user.ID);
+        if (task.CreatedByPersonID) {
+            const creatorUserID = await resolveUserIDForPersonRecord(task.CreatedByPersonID, user);
+            if (creatorUserID && !Array.from(wakeUserIDs).some((id) => UUIDsEqual(id, creatorUserID))) {
+                wakeUserIDs.add(creatorUserID);
+            }
+        }
+
+        for (const targetUserID of wakeUserIDs) {
+            await wakeChiefOfStaffBestEffort({
+                targetUserID,
+                workstreamKey: COS_TASKS_INBOX_WORKSTREAM_KEY,
+                wakeReason: execution.success
+                    ? `Agent "${agent.Name}" finished work on task "${task.Name}" and left results ready for review.`
+                    : `Agent "${agent.Name}" failed on task "${task.Name}" and needs human attention.`,
+                resumeState: {
+                    eventType: execution.success ? 'AgentTaskCompleted' : 'AgentTaskFailed',
+                    taskID: task.ID,
+                    taskName: task.Name,
+                    agentID: agent.ID,
+                    agentName: agent.Name,
+                    agentRunID: execution.agentRunID,
+                    commentID,
+                    taskStatus: task.Status,
+                },
+                actingUser: user,
+            });
+        }
+
+        return {
+            execution,
+            commentID,
+            taskStatus: task.Status,
+        };
     }
 
     private async resolveAssignedAgentID(

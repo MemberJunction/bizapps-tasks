@@ -61,12 +61,13 @@ describe('@mj-biz-apps/tasks-actions', () => {
         expect(mod).toBeDefined();
         expect(mod.PostTaskAssignmentToTeamsAction).toBeDefined();
         expect(mod.LinkAgentRunToTaskAction).toBeDefined();
-        // Work Report actions (5)
+        // Work Report actions (6)
         expect(mod.GetWorkReportAction).toBeDefined();
         expect(mod.ListWorkReportsAction).toBeDefined();
         expect(mod.DraftWorkReportAction).toBeDefined();
         expect(mod.SubmitWorkReportAction).toBeDefined();
         expect(mod.ReviewWorkReportAction).toBeDefined();
+        expect(mod.GetMyWorkReportsBriefingAction).toBeDefined();
         // Typed Task actions (9)
         expect(mod.FindTasksAction).toBeDefined();
         expect(mod.GetTaskAction).toBeDefined();
@@ -77,17 +78,19 @@ describe('@mj-biz-apps/tasks-actions', () => {
         expect(mod.AddTaskUpdateAction).toBeDefined();
         expect(mod.FindSimilarTasksAction).toBeDefined();
         expect(mod.GetMyTasksBriefingAction).toBeDefined();
-        // Typed Meetings actions (5) & Transcript plugins/service
+        // Typed Meetings actions (6) & Transcript plugins/service
         expect(mod.GetMyUpcomingMeetingsAction).toBeDefined();
         expect(mod.PrepareMeetingBriefAction).toBeDefined();
         expect(mod.ProcessMeetingTranscriptAction).toBeDefined();
         expect(mod.AcceptMeetingCommitmentsAction).toBeDefined();
         expect(mod.GetMeetingNotesAction).toBeDefined();
+        expect(mod.GetMyMeetingsBriefingAction).toBeDefined();
         expect(mod.ZoomTranscriptSource).toBeDefined();
         expect(mod.AttachedFileTranscriptSource).toBeDefined();
         expect(mod.MeetingTranscriptService).toBeDefined();
-        // Agent Task OnAssign hook & Recurring Playbooks
+        // Agent Task OnAssign hook, Recurring Playbooks & CoS wake dispatcher
         expect(mod.ExecuteAssignedAgentAction).toBeDefined();
         expect(mod.RunRecurringPlaybooksAction).toBeDefined();
+        expect(mod.registerChiefOfStaffWakeDispatcher).toBeDefined();
     });
 });

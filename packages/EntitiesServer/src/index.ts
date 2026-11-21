@@ -107,7 +107,14 @@ export { ZoomVideoProvider } from './video/ZoomVideoProvider.js';
 export { MeetingCalendarSyncService, type MeetingCalendarSyncOptions } from './calendar/MeetingCalendarSyncService.js';
 export { MeetingCalendarEventLinkHandler, extractMeetingRecordId } from './calendar/MeetingCalendarEventLinkHandler.js';
 export { registerMeetingServerAIRuntime, executeServerMeetingAIPrompt, readServerMeetingTranscriptFile } from './ai/meeting-ai-runtime.js';
-export { runAfterCommit } from './after-commit.js';
+export { capturePostCommitToken, runAfterCommit } from './after-commit.js';
+export {
+    resolveAssigneeUserIDsForTarget,
+    resolveTaskAssigneeUserIDsByTask,
+    wakeAssigneesForTaskAssignment,
+    wakeAssigneesForTaskUnblock,
+    wakeMeetingParticipantsForTranscript,
+} from './cos-wake-helpers.js';
 
 /**
  * Bootstrap / anti-tree-shaking anchor. Call once from MJAPI bootstrap.

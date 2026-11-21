@@ -134,6 +134,9 @@ function run(action: ExecuteAssignedAgentAction, params: RunActionParams): Promi
 
 beforeEach(() => {
     vi.clearAllMocks();
+    getEntityObjectMock.mockReset();
+    runViewMock.mockReset();
+    agentRunnerRunAgentMock.mockReset();
     agentsList.length = 0;
     checkEntityAccessMock.mockResolvedValue({ Allowed: true, Active: true, DeniedFieldPatterns: [] });
     resolvePersonForUserMock.mockResolvedValue({ ID: PERSON_ALICE });
@@ -232,18 +235,99 @@ describe('ExecuteAssignedAgentAction', () => {
         expect(taskEntity.Status).toBe('InProgress');
         expect(taskEntity.PercentComplete).toBe(90);
 
-        // Both assigner (self) and creator (cross-user -> system user) woken
+        // Both assigner (self) and creator (cross-user -> system user) woken on coalesced 'tasks-inbox'
         expect(triggerWakeMock).toHaveBeenCalledTimes(2);
         expect(triggerWakeMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 targetUserID: USER_ALICE,
+                workstreamKey: 'tasks-inbox',
                 contextUser: expect.objectContaining({ ID: USER_ALICE }),
             }),
         );
         expect(triggerWakeMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 targetUserID: USER_CREATOR,
+                workstreamKey: 'tasks-inbox',
                 contextUser: expect.objectContaining({ ID: SYSTEM_USER_ID }),
+            }),
+        );
+    });
+
+    it('dispatches non-blocking background execution when Async = true and completes artifacts + tasks-inbox wake', async () => {
+        agentsList.push({ ID: AGENT_1, Name: 'Async Research Agent', Status: 'Active' });
+
+        const taskEntity = {
+            ID: TASK_1,
+            Name: 'Deep market synthesis',
+            Description: 'Run deep market analysis.',
+            Status: 'Open',
+            Priority: 'High',
+            PercentComplete: 0,
+            CreatedByPersonID: PERSON_CREATOR,
+            CompletionNotes: null as string | null,
+            BlockedReason: null as string | null,
+            Load: vi.fn().mockResolvedValue(true),
+            Save: vi.fn().mockResolvedValue(true),
+        };
+        const runLinkEntity = {
+            ID: 'tar-async-1',
+            TaskID: '',
+            AIAgentRunID: '',
+            Role: '',
+            Notes: '',
+            NewRecord: vi.fn(),
+            Save: vi.fn().mockResolvedValue(true),
+        };
+        const commentEntity = {
+            ID: 'cmt-async-1',
+            TaskID: '',
+            PersonID: '',
+            Content: '',
+            NewRecord: vi.fn(),
+            Save: vi.fn().mockResolvedValue(true),
+        };
+
+        getEntityObjectMock
+            .mockResolvedValueOnce(taskEntity)
+            .mockResolvedValueOnce(runLinkEntity)
+            .mockResolvedValueOnce(commentEntity);
+        resolveUserIDForPersonMock.mockResolvedValueOnce(USER_CREATOR);
+
+        let resolveAgent!: (val: {
+            success: boolean;
+            payload: { summary: string };
+            agentRun: { ID: string };
+        }) => void;
+        agentRunnerRunAgentMock.mockReturnValueOnce(
+            new Promise((resolve) => {
+                resolveAgent = resolve;
+            }),
+        );
+
+        const params = makeParams({ TaskID: TASK_1, AgentID: AGENT_1, Async: true });
+        const res = await run(new ExecuteAssignedAgentAction(), makeRunParams(params));
+
+        // Returns immediately before the agent finishes!
+        expect(res).toMatchObject({ Success: true, ResultCode: 'DISPATCHED' });
+        expect(params.find((p) => p.Name === 'Async')?.Value).toBe(true);
+        expect(taskEntity.Status).toBe('InProgress');
+        expect(triggerWakeMock).not.toHaveBeenCalled();
+
+        // Complete the background agent run and flush pending executions deterministically
+        resolveAgent({
+            success: true,
+            payload: { summary: 'Async market synthesis complete.' },
+            agentRun: { ID: AGENT_RUN_1 },
+        });
+        await ExecuteAssignedAgentAction.WaitForPendingExecutions();
+
+        expect(runLinkEntity.AIAgentRunID).toBe(AGENT_RUN_1);
+        expect(commentEntity.Content).toContain('Async market synthesis complete.');
+        expect(taskEntity.PercentComplete).toBe(90);
+        expect(triggerWakeMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                targetUserID: USER_CREATOR,
+                workstreamKey: 'tasks-inbox',
             }),
         );
     });

@@ -2,6 +2,7 @@ import { RunView } from '@memberjunction/core';
 import type { ActionResultSimple, RunActionParams } from '@memberjunction/actions-base';
 import { BaseAction } from '@memberjunction/actions';
 import { TypedActionPolicyGuard } from '@memberjunction/ai-core-plus';
+import { UserCache } from '@memberjunction/generic-database-provider';
 import { EscapeSQLString, IsValidUUID, RegisterClass, UUIDsEqual } from '@memberjunction/global';
 import {
     GetLocalDayWindow,
@@ -29,6 +30,7 @@ import {
 export const DRAFT_WORK_REPORT_ACTION_ID = '9F5124A5-64F2-4C06-8D71-60710DCB531B';
 export const SUBMIT_WORK_REPORT_ACTION_ID = '856D4E92-79B4-486A-A092-48CF5FC22998';
 export const REVIEW_WORK_REPORT_ACTION_ID = 'B880DABA-0FC1-4012-9C3B-92694D99985E';
+export const GET_MY_WORK_REPORTS_BRIEFING_ACTION_ID = '7436F4C6-1556-4D25-9487-4EAC3D6E8CB0';
 
 type WorkReportStatusValue = mjBizAppsTasksWorkReportEntity['Status'];
 
@@ -527,12 +529,14 @@ export class SubmitWorkReportAction extends BaseAction {
             const editedTitle = getStringParam(params, 'Title');
             const editedBody = getStringParam(params, 'Body');
 
+            const systemUser = UserCache.Instance.GetSystemUser() ?? user;
             const outcome = await WorkReportService.Instance.SubmitWorkReport({
                 WorkReportID: reportID,
                 CallerPersonID: callerPerson?.ID ?? null,
                 UpdatedTitle: editedTitle ?? undefined,
                 UpdatedBody: editedBody ?? undefined,
                 ContextUser: user,
+                ServiceContextUser: systemUser,
             });
 
             const requestID = outcome.SupervisorRequestID ?? '';
@@ -604,6 +608,179 @@ export class ReviewWorkReportAction extends BaseAction {
                 `Recorded supervisor feedback on WorkReport ${outcome.Report.ID}.`,
                 params,
             );
+        } catch (err) {
+            const mapped = mapWorkReportServiceError(err instanceof Error ? err.message : String(err));
+            return failResult(mapped.code, mapped.message, params);
+        }
+    }
+}
+
+/**
+ * Action: `Get My Work Reports Briefing` (`Role = 'Briefing'`, `ExposeToModel = false`)
+ *
+ * Returns a deterministic Chief of Staff briefing slice containing:
+ * - The caller's current `Draft` / recently `Submitted` 15Five work reports (plus whether today's report exists)
+ * - Any direct reports' `Submitted` work reports awaiting supervisor review
+ */
+@RegisterClass(BaseAction, 'GetMyWorkReportsBriefingAction')
+export class GetMyWorkReportsBriefingAction extends BaseAction {
+    public static override readonly AuthorizesCaller = true;
+
+    protected override async InternalRunAction(params: RunActionParams): Promise<ActionResultSimple> {
+        const user = params.ContextUser;
+        if (!user) return failResult('PERMISSION_DENIED', 'ContextUser is required.', params);
+
+        const guard = await checkTypedPolicyGuard({
+            params,
+            entityName: WORK_REPORTS_ENTITY,
+            operation: 'Read',
+        });
+        if (!guard.Allowed) return guard.Failure;
+
+        try {
+            const lookbackDaysRaw = getNumberParam(params, 'LookbackDays') ?? 14;
+            const lookbackDays = Math.max(1, Math.min(90, Math.round(lookbackDaysRaw)));
+            const maxItemsRaw = getNumberParam(params, 'MaxItems') ?? 10;
+            const maxItems = Math.max(1, Math.min(50, Math.round(maxItemsRaw)));
+
+            const callerPerson = await WorkReportService.Instance.ResolvePersonForUser(user);
+            if (!callerPerson?.ID) {
+                return failResult(
+                    'NO_PERSON_RECORD',
+                    'No active Person record is linked to ContextUser.',
+                    params,
+                );
+            }
+
+            const now = new Date();
+            const lookbackDateStr = new Date(now.getTime() - lookbackDays * 24 * 60 * 60 * 1000)
+                .toISOString()
+                .slice(0, 10);
+            const todayDateStr = GetLocalDayWindow(now).PeriodStart.toISOString().slice(0, 10);
+
+            let directReportPersonIDs: string[] = [];
+            try {
+                directReportPersonIDs = await WorkReportService.Instance.ResolveDirectReportPersonIDs(
+                    callerPerson.ID,
+                    user,
+                );
+            } catch {
+                directReportPersonIDs = [];
+            }
+
+            const rv = new RunView();
+            const myReportsPromise = rv.RunView<
+                Pick<
+                    mjBizAppsTasksWorkReportEntity,
+                    'ID' | 'PersonID' | 'Person' | 'PeriodStart' | 'PeriodEnd' | 'Title' | 'Status' | 'ReviewedAt'
+                >
+            >(
+                {
+                    EntityName: WORK_REPORTS_ENTITY,
+                    ExtraFilter:
+                        `PersonID = '${EscapeSQLString(callerPerson.ID)}' ` +
+                        `AND (Status = 'Draft' OR PeriodEnd >= '${EscapeSQLString(lookbackDateStr)}')`,
+                    Fields: ['ID', 'PersonID', 'Person', 'PeriodStart', 'PeriodEnd', 'Title', 'Status', 'ReviewedAt'],
+                    OrderBy: 'PeriodEnd DESC, __mj_UpdatedAt DESC',
+                    MaxRows: maxItems * 2,
+                    ResultType: 'simple',
+                },
+                user,
+            );
+
+            const directReportsPromise =
+                directReportPersonIDs.length > 0
+                    ? rv.RunView<
+                          Pick<
+                              mjBizAppsTasksWorkReportEntity,
+                              'ID' | 'PersonID' | 'Person' | 'PeriodStart' | 'PeriodEnd' | 'Title' | 'Status' | 'ReviewedAt'
+                          >
+                      >(
+                          {
+                              EntityName: WORK_REPORTS_ENTITY,
+                              ExtraFilter:
+                                  `PersonID IN (${directReportPersonIDs.map((id) => `'${EscapeSQLString(id)}'`).join(', ')}) ` +
+                                  `AND Status = 'Submitted'`,
+                              Fields: ['ID', 'PersonID', 'Person', 'PeriodStart', 'PeriodEnd', 'Title', 'Status', 'ReviewedAt'],
+                              OrderBy: 'PeriodEnd DESC, __mj_UpdatedAt DESC',
+                              MaxRows: maxItems,
+                              ResultType: 'simple',
+                          },
+                          user,
+                      )
+                    : Promise.resolve({ Success: true, Results: [] as Array<Pick<
+                          mjBizAppsTasksWorkReportEntity,
+                          'ID' | 'PersonID' | 'Person' | 'PeriodStart' | 'PeriodEnd' | 'Title' | 'Status' | 'ReviewedAt'
+                      >> });
+
+            const [myRes, teamRes] = await Promise.all([myReportsPromise, directReportsPromise]);
+            if (!myRes.Success) {
+                return failResult('ERROR', myRes.ErrorMessage ?? 'Failed to load caller work reports.', params);
+            }
+            if (!teamRes.Success) {
+                const errMsg =
+                    'ErrorMessage' in teamRes && typeof teamRes.ErrorMessage === 'string' && teamRes.ErrorMessage
+                        ? teamRes.ErrorMessage
+                        : 'Failed to load direct reports work reports.';
+                return failResult('ERROR', errMsg, params);
+            }
+
+            const toBriefingRow = (
+                r: Pick<
+                    mjBizAppsTasksWorkReportEntity,
+                    'ID' | 'PersonID' | 'Person' | 'PeriodStart' | 'PeriodEnd' | 'Title' | 'Status' | 'ReviewedAt'
+                >,
+            ) => ({
+                ID: r.ID,
+                PersonID: r.PersonID,
+                PersonName: r.Person ?? null,
+                PeriodStart: toIsoOrNull(r.PeriodStart),
+                PeriodEnd: toIsoOrNull(r.PeriodEnd),
+                Title: r.Title ?? 'Work Report',
+                Status: r.Status,
+                ReviewedAt: toIsoOrNull(r.ReviewedAt),
+                DeepLink: buildWorkReportDeepLink(r.ID),
+            });
+
+            const myRows = myRes.Results ?? [];
+            const hasReportForToday = myRows.some((r) => {
+                const endIso = toIsoOrNull(r.PeriodEnd);
+                return endIso !== null && endIso.slice(0, 10) >= todayDateStr;
+            });
+
+            const myDrafts = myRows.filter((r) => r.Status === 'Draft').map(toBriefingRow);
+            const mySubmitted = myRows.filter((r) => r.Status === 'Submitted').map(toBriefingRow);
+            const directReportsAwaitingReview = (teamRes.Results ?? []).map(toBriefingRow);
+
+            const briefing = {
+                GeneratedAt: now.toISOString(),
+                LookbackDays: lookbackDays,
+                HasReportForToday: hasReportForToday,
+                Counts: {
+                    MyDrafts: myDrafts.length,
+                    MySubmitted: mySubmitted.length,
+                    DirectReportsAwaitingReview: directReportsAwaitingReview.length,
+                    TotalActionable: myDrafts.length + directReportsAwaitingReview.length,
+                },
+                MyDraftReports: TypedActionPolicyGuard.MaskRows(myDrafts.slice(0, maxItems), guard.DeniedFieldPatterns),
+                MySubmittedReports: TypedActionPolicyGuard.MaskRows(
+                    mySubmitted.slice(0, maxItems),
+                    guard.DeniedFieldPatterns,
+                ),
+                DirectReportsAwaitingReview: TypedActionPolicyGuard.MaskRows(
+                    directReportsAwaitingReview.slice(0, maxItems),
+                    guard.DeniedFieldPatterns,
+                ),
+            };
+
+            const summary =
+                `Work reports briefing: ${myDrafts.length} draft(s), ${mySubmitted.length} submitted awaiting review, ` +
+                `${directReportsAwaitingReview.length} direct report(s) awaiting your review ` +
+                `(today's report ${hasReportForToday ? 'exists' : 'not yet drafted'}).`;
+
+            setOutputParam(params, 'Briefing', JSON.stringify(briefing));
+            setOutputParam(params, 'Summary', summary);
+            return successResult(summary, params);
         } catch (err) {
             const mapped = mapWorkReportServiceError(err instanceof Error ? err.message : String(err));
             return failResult(mapped.code, mapped.message, params);

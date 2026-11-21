@@ -103,6 +103,17 @@
             "lastModified": "2026-11-20T22:09:05.760Z",
             "checksum": "13efc134193ae80e9cca5f9238c34fab81bcecd4431e33b7bd4a91d99ef21c00"
           }
+        },
+        {
+          "fields": {
+            "SkillID": "@parent:ID",
+            "ActionID": "@lookup:MJ: Actions.Name=Get My Meetings Briefing",
+            "Role": "Briefing",
+            "ExposeToModel": false
+          },
+          "primaryKey": {
+            "ID": "1083F349-15C6-4602-9311-CE7FEB8C95EF"
+          }
         }
       ]
     },
