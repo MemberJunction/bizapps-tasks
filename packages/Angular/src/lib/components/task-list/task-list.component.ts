@@ -26,6 +26,12 @@ import type {
     mjBizAppsTasksTaskAssignmentEntity,
     mjBizAppsTasksTaskEntity,
 } from '@mj-biz-apps/tasks-entities';
+import { FilterGenericCreatableTaskTypes } from '@mj-biz-apps/tasks-entities';
+import {
+    GENERIC_TASK_TYPE_FIELDS,
+    ResolveDefaultGenericTaskTypeID,
+    type TaskTypeLookupRow,
+} from '../../task-type-filter.helper';
 import {
     TaskBulkActionDockComponent,
     TaskCompletionRingComponent,
@@ -387,7 +393,7 @@ export class BeforeStatusChangeEvent {
             cursor: pointer;
         }
         .mjt-s-pill.is-active {
-            background: var(--mj-brand-primary); border-color: var(--mj-brand-primary); color: var(--mj-brand-on-primary, #ffffff);
+            background: var(--mj-brand-primary); border-color: var(--mj-brand-primary); color: var(--mj-text-inverse);
         }
         .mjt-s-count { opacity: 0.85; font-size: 11px; }
         .mjt-list-loading { padding: 32px; text-align: center; color: var(--mj-text-muted); font-size: var(--mj-text-sm, 14px); }
@@ -1059,6 +1065,10 @@ export class TaskListComponent implements OnInit, OnChanges {
         return new RunView();
     }
 
+    private async resolveDefaultQuickAddTypeID(): Promise<string | null> {
+        return ResolveDefaultGenericTaskTypeID(this.createRunView());
+    }
+
     public async quickAddTask(): Promise<void> {
         const name = this.quickAddName.trim();
         if (!name || this.quickAdding) return;
@@ -1067,15 +1077,7 @@ export class TaskListComponent implements OnInit, OnChanges {
         try {
             let typeID = this.QuickAddDefaultTypeID;
             if (!typeID) {
-                const res = await this.createRunView().RunView<{ ID: string }>({
-                    EntityName: 'MJ_BizApps_Tasks: Task Types',
-                    ExtraFilter: 'IsActive = 1',
-                    OrderBy: "CASE WHEN Code = 'GENERAL' THEN 0 ELSE 1 END, Name ASC",
-                    Fields: ['ID'],
-                    MaxRows: 1,
-                    ResultType: 'simple',
-                });
-                typeID = res.Results?.[0]?.ID ?? null;
+                typeID = await this.resolveDefaultQuickAddTypeID();
             }
             if (!typeID) return;
 
@@ -1116,15 +1118,7 @@ export class TaskListComponent implements OnInit, OnChanges {
         try {
             let typeID = this.QuickAddDefaultTypeID;
             if (!typeID) {
-                const res = await new RunView().RunView<{ ID: string }>({
-                    EntityName: 'MJ_BizApps_Tasks: Task Types',
-                    ExtraFilter: "IsActive = 1",
-                    OrderBy: "CASE WHEN Code = 'GENERAL' THEN 0 ELSE 1 END, Name ASC",
-                    Fields: ['ID'],
-                    MaxRows: 1,
-                    ResultType: 'simple',
-                });
-                typeID = res.Results?.[0]?.ID ?? null;
+                typeID = await this.resolveDefaultQuickAddTypeID();
             }
             if (!typeID) return;
 
@@ -1242,10 +1236,10 @@ export class TaskListComponent implements OnInit, OnChanges {
                     OrderBy: 'Sequence ASC, Name ASC',
                     ResultType: 'simple',
                 }),
-                this.createRunView().RunView<{ ID: string; Name: string }>({
+                this.createRunView().RunView<TaskTypeLookupRow>({
                     EntityName: 'MJ_BizApps_Tasks: Task Types',
                     ExtraFilter: 'IsActive = 1',
-                    Fields: ['ID', 'Name'],
+                    Fields: [...GENERIC_TASK_TYPE_FIELDS],
                     OrderBy: 'Name ASC',
                     ResultType: 'simple',
                 }),
@@ -1282,7 +1276,10 @@ export class TaskListComponent implements OnInit, OnChanges {
                     Sublabel: o.LinkedCompanyID ? 'Company' : undefined,
                 }));
             this.bulkCategoryOptions = (catsRes?.Results ?? []).map((c) => ({ ID: c.ID, Label: c.Name }));
-            this.bulkTaskTypeOptions = (typesRes?.Results ?? []).map((t) => ({ ID: t.ID, Label: t.Name }));
+            this.bulkTaskTypeOptions = FilterGenericCreatableTaskTypes(typesRes?.Results ?? []).map((t) => ({
+                ID: t.ID,
+                Label: t.Name,
+            }));
             this.bulkStageOptions = (stagesRes?.Results ?? []).map((s) => ({ ID: s.ID, Label: s.Name }));
             this.bulkTagOptions = (tagsRes?.Results ?? []).map((t) => ({ ID: t.ID, Label: t.Name }));
 

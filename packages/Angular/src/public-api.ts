@@ -83,6 +83,7 @@ export * from './lib/chief-of-staff/chief-of-staff-work-reports.component.js';
 
 // Cross-version helpers
 export * from './lib/task-field-suggestions.helper.js';
+export * from './lib/task-type-filter.helper.js';
 
 // Meetings (the meetings plan, § 5)
 export * from './lib/meetings/meeting-data.js';

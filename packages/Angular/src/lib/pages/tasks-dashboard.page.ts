@@ -51,6 +51,10 @@ import {
     type SavedTaskFilterView,
     type TaskDueDateFilterKey,
 } from '@mj-biz-apps/tasks-core';
+import {
+    FilterGenericCreatableTaskTypes,
+    type TaskTypeClassificationInput,
+} from '@mj-biz-apps/tasks-entities';
 import { ResolveCurrentPersonID } from '../current-person';
 import { OpenTaskRecord } from '../open-task-record';
 import { TaskDetailPanelComponent } from '../components/task-detail-panel/task-detail-panel.component';
@@ -708,7 +712,7 @@ export class TasksDashboardPageComponent implements OnInit {
 
     public Categories: TaskCategoryOption[] = [];
     public CategoryNavSections: MJLeftNavSection[] = [];
-    public TaskTypes: { ID: string; Name: string }[] = [];
+    public TaskTypes: Array<TaskTypeClassificationInput & { ID: string; Name: string }> = [];
     public PeopleOptions: { ID: string; Name: string }[] = [];
     public OrganizationOptions: { ID: string; Name: string; LinkedCompanyID: string | null }[] = [];
     public FilterValues: Record<string, unknown> = {
@@ -1061,9 +1065,10 @@ export class TasksDashboardPageComponent implements OnInit {
                 OrderBy: 'Sequence ASC, Name ASC',
                 ResultType: 'simple',
             }),
-            rv.RunView<{ ID: string; Name: string }>({
+            rv.RunView<TaskTypeClassificationInput & { ID: string; Name: string }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Types',
                 ExtraFilter: 'IsActive = 1',
+                Fields: ['ID', 'Name', 'Code', 'ExtensionEntity', 'IsActive'],
                 OrderBy: 'Name ASC',
                 ResultType: 'simple',
             }),
@@ -1131,7 +1136,10 @@ export class TasksDashboardPageComponent implements OnInit {
             Sublabel: o.LinkedCompanyID ? 'Company' : undefined,
         }));
         this.BulkCategoryOptions = this.Categories.map((c) => ({ ID: c.ID, Label: c.Name }));
-        this.BulkTaskTypeOptions = this.TaskTypes.map((t) => ({ ID: t.ID, Label: t.Name }));
+        this.BulkTaskTypeOptions = FilterGenericCreatableTaskTypes(this.TaskTypes).map((t) => ({
+            ID: t.ID,
+            Label: t.Name,
+        }));
         this.BulkStageOptions = (stagesRes?.Results ?? []).map((s) => ({ ID: s.ID, Label: s.Name }));
         this.BulkTagOptions = (tagsRes?.Results ?? []).map((t) => ({ ID: t.ID, Label: t.Name }));
     }

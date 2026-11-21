@@ -20,6 +20,12 @@ import type {
     mjBizAppsTasksTaskRoleEntity,
     mjBizAppsTasksTaskTagEntity,
 } from '@mj-biz-apps/tasks-entities';
+import {
+    FilterGenericCreatableTaskTypes,
+    IsGenericCreatableTaskType,
+    IsPlanningExtensionEntity,
+    IsPlanningOwnedTaskType,
+} from '@mj-biz-apps/tasks-entities';
 import type {
     TaskCheckInCadenceValue,
     TaskMetricDirectionValue,
@@ -48,7 +54,7 @@ interface PersonRow {
     LastName: string | null;
 }
 
-interface TaskTypeOption {
+export interface TaskTypeOption {
     ID: string;
     Name: string;
     Code: string;
@@ -58,6 +64,8 @@ interface TaskTypeOption {
     OnCompleteAction: string | null;
     OnRejectAction: string | null;
     OnCancelAction: string | null;
+    ExtensionEntity?: string | null;
+    IsActive?: boolean | null;
 }
 
 interface TagOption {
@@ -130,10 +138,16 @@ export class BeforeTaskSaveEvent {
             } @else {
                 <form class="mjt-ep-form" (ngSubmit)="save()">
                     <div class="mjt-ep-scroll">
-                        <!-- 1. TaskType Pill Strip -->
-                        @if (taskTypes.length > 0) {
+                        <!-- 1. TaskType Pill Strip (excludes Planning-owned & inactive OKR types on create) -->
+                        @if (isCurrentTypeLocked && activeTaskType) {
+                            <div class="mjt-type-locked" role="status" aria-label="Task type">
+                                <i [class]="activeTaskType.IconClass || 'fa-solid fa-bullseye'" aria-hidden="true"></i>
+                                <span>{{ activeTaskType.Name }}</span>
+                                <span class="mjt-type-locked-note">{{ currentTypeOwnershipNote }}</span>
+                            </div>
+                        } @else if (creatableTaskTypes.length > 0) {
                             <div class="mjt-type-strip" role="radiogroup" aria-label="Task type">
-                                @for (tt of taskTypes; track tt.ID) {
+                                @for (tt of creatableTaskTypes; track tt.ID) {
                                     <button
                                         type="button"
                                         role="radio"
@@ -387,40 +401,40 @@ export class BeforeTaskSaveEvent {
                             </div>
                         }
 
-                        <!-- 8. Type-Adaptive Section: Key Result / OKR -->
-                        @if (ActiveArchetype === 'key-result') {
+                        <!-- 8. Type-Adaptive / Measurable Task Section: Metric & Check-In Cadence -->
+                        @if (ActiveArchetype === 'key-result' || trackMetrics) {
                             <div class="mjt-ep-adaptive mjt-ep-adaptive--brand">
                                 <div class="mjt-ep-adaptive-title">
-                                    <i class="fa-solid fa-bullseye" aria-hidden="true"></i> Key Result Metric &amp; Cadence
+                                    <i class="fa-solid fa-chart-line" aria-hidden="true"></i> Measurable Metric &amp; Check-In Cadence
                                 </div>
                                 <div class="mjt-ep-okr-grid">
                                     <div class="mjt-ep-field">
-                                        <label>Baseline</label>
-                                        <input type="number" name="baseline" step="any" class="mjt-ep-input" [(ngModel)]="form.BaselineValue" [disabled]="ReadOnly" />
+                                        <label for="mjtEpBaseline" title="Starting numeric value for measurable task progress tracking">Baseline</label>
+                                        <input id="mjtEpBaseline" type="number" name="baseline" step="any" class="mjt-ep-input" [(ngModel)]="form.BaselineValue" [disabled]="ReadOnly" title="Starting numeric value for measurable task progress tracking" />
                                     </div>
                                     <div class="mjt-ep-field">
-                                        <label>Current</label>
-                                        <input type="number" name="currentVal" step="any" class="mjt-ep-input" [(ngModel)]="form.CurrentValue" [disabled]="ReadOnly" />
+                                        <label for="mjtEpCurrent" title="Current measured value used to compute measurable task progress">Current</label>
+                                        <input id="mjtEpCurrent" type="number" name="currentVal" step="any" class="mjt-ep-input" [(ngModel)]="form.CurrentValue" [disabled]="ReadOnly" title="Current measured value used to compute measurable task progress" />
                                     </div>
                                     <div class="mjt-ep-field">
-                                        <label>Target</label>
-                                        <input type="number" name="targetVal" step="any" class="mjt-ep-input" [(ngModel)]="form.TargetValue" [disabled]="ReadOnly" />
+                                        <label for="mjtEpTarget" title="Target numeric goal for measurable task completion">Target</label>
+                                        <input id="mjtEpTarget" type="number" name="targetVal" step="any" class="mjt-ep-input" [(ngModel)]="form.TargetValue" [disabled]="ReadOnly" title="Target numeric goal for measurable task completion" />
                                     </div>
                                     <div class="mjt-ep-field">
-                                        <label>Unit</label>
-                                        <input type="text" name="unit" class="mjt-ep-input" [(ngModel)]="form.UnitOfMeasure" [disabled]="ReadOnly" placeholder="%, $, deals..." />
+                                        <label for="mjtEpUnit" title="Unit of measure for task metric tracking (e.g., %, $, deals, hours)">Unit</label>
+                                        <input id="mjtEpUnit" type="text" name="unit" class="mjt-ep-input" [(ngModel)]="form.UnitOfMeasure" [disabled]="ReadOnly" placeholder="%, $, deals..." title="Unit of measure for task metric tracking (e.g., %, $, deals, hours)" />
                                     </div>
                                     <div class="mjt-ep-field">
-                                        <label>Direction</label>
-                                        <select name="direction" class="mjt-ep-input" [(ngModel)]="form.MetricDirection" [disabled]="ReadOnly">
+                                        <label for="mjtEpDirection" title="Whether progress toward target increases, decreases, or maintains the baseline">Direction</label>
+                                        <select id="mjtEpDirection" name="direction" class="mjt-ep-input" [(ngModel)]="form.MetricDirection" [disabled]="ReadOnly" title="Whether progress toward target increases, decreases, or maintains the baseline">
                                             <option [ngValue]="'Increase'">Increase</option>
                                             <option [ngValue]="'Decrease'">Decrease</option>
                                             <option [ngValue]="'Maintain'">Maintain</option>
                                         </select>
                                     </div>
                                     <div class="mjt-ep-field">
-                                        <label>Check-In Cadence</label>
-                                        <select name="cadence" class="mjt-ep-input" [(ngModel)]="form.CheckInCadence" [disabled]="ReadOnly">
+                                        <label for="mjtEpCadence" title="Recurring check-in frequency for measurable task progress updates">Check-In Cadence</label>
+                                        <select id="mjtEpCadence" name="cadence" class="mjt-ep-input" [(ngModel)]="form.CheckInCadence" [disabled]="ReadOnly" title="Recurring check-in frequency for measurable task progress updates">
                                             <option [ngValue]="'Weekly'">Weekly</option>
                                             <option [ngValue]="'BiWeekly'">Bi-Weekly</option>
                                             <option [ngValue]="'Monthly'">Monthly</option>
@@ -430,8 +444,8 @@ export class BeforeTaskSaveEvent {
                                         </select>
                                     </div>
                                     <div class="mjt-ep-field mjt-span-2">
-                                        <label>Planning Period</label>
-                                        <input type="text" name="period" class="mjt-ep-input" [(ngModel)]="form.PlanningPeriod" [disabled]="ReadOnly" placeholder="e.g. Q4 2026" />
+                                        <label for="mjtEpPeriod" title="Target time period label for this measurable task (e.g., Q4 2026)">Target Period</label>
+                                        <input id="mjtEpPeriod" type="text" name="period" class="mjt-ep-input" [(ngModel)]="form.PlanningPeriod" [disabled]="ReadOnly" placeholder="e.g. Q4 2026" title="Target time period label for this measurable task (e.g., Q4 2026)" />
                                     </div>
                                 </div>
                             </div>
@@ -491,6 +505,13 @@ export class BeforeTaskSaveEvent {
                                         <input type="number" name="pct" min="0" max="100" class="mjt-ep-input" [(ngModel)]="form.PercentComplete" [disabled]="ReadOnly" />
                                     </div>
                                 </div>
+
+                                @if (ActiveArchetype !== 'key-result') {
+                                    <label class="mjt-ep-metric-toggle" title="Set baseline, target, unit, and check-in cadence to track progress on any measurable task.">
+                                        <input type="checkbox" name="trackMetrics" [(ngModel)]="trackMetrics" [disabled]="ReadOnly" />
+                                        <span>Track measurable metric target &amp; check-in cadence</span>
+                                    </label>
+                                }
 
                                 <!-- Tags -->
                                 <div class="mjt-ep-field">
@@ -631,7 +652,33 @@ export class BeforeTaskSaveEvent {
         .mjt-type-pill.is-active {
             background: var(--mj-brand-primary);
             border-color: var(--mj-brand-primary);
-            color: var(--mj-brand-on-primary, #ffffff);
+            color: var(--mj-text-inverse);
+        }
+        .mjt-type-locked {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: var(--mj-radius-full, 9999px);
+            border: 1px solid var(--mj-border-default);
+            background: var(--mj-bg-surface-sunken);
+            color: var(--mj-text-primary);
+            font-size: var(--mj-text-xs, 12px);
+            font-weight: var(--mj-font-semibold, 600);
+            align-self: flex-start;
+        }
+        .mjt-type-locked-note {
+            color: var(--mj-text-muted);
+            font-weight: var(--mj-font-normal, 400);
+        }
+        .mjt-ep-metric-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: var(--mj-text-xs, 12px);
+            font-weight: var(--mj-font-medium, 500);
+            color: var(--mj-text-secondary);
+            cursor: pointer;
         }
         .mjt-ep-hero-fields {
             display: flex;
@@ -874,7 +921,7 @@ export class BeforeTaskSaveEvent {
             font-size: 10.5px;
             padding: 1px 5px;
             border-radius: 4px;
-            background: rgba(255, 255, 255, 0.2);
+            background: color-mix(in srgb, var(--mj-text-inverse) 20%, transparent);
             color: inherit;
             margin-left: 4px;
         }
@@ -927,13 +974,46 @@ export class TaskEditPanelComponent implements OnChanges {
     public creatingTag = false;
     public isNew = true;
     public timeTrackingEnabled = false;
+    public trackMetrics = false;
 
     private peopleEntityID: string | null = null;
     private rolesEntityID: string | null = null;
     private cdr = inject(ChangeDetectorRef);
 
+    /** Task types eligible for generic task creation (excludes Planning-owned & inactive OKR types). */
+    public get creatableTaskTypes(): TaskTypeOption[] {
+        return FilterGenericCreatableTaskTypes(this.taskTypes);
+    }
+
     public get activeTaskType(): TaskTypeOption | undefined {
         return this.taskTypes.find((t) => t.ID === this.form.TypeID);
+    }
+
+    /** True when editing an existing task whose Type is Planning-owned or inactive legacy OKR. */
+    public get isCurrentTypeLocked(): boolean {
+        return !this.isNew && Boolean(this.activeTaskType) && !IsGenericCreatableTaskType(this.activeTaskType);
+    }
+
+    public get currentTypeOwnershipNote(): string {
+        const tt = this.activeTaskType;
+        if (!tt) return '';
+        if (IsPlanningExtensionEntity(tt.ExtensionEntity) || (tt.Code ?? '').trim().toUpperCase() === 'PRIORITY') {
+            return 'Managed in Planning';
+        }
+        if (IsPlanningOwnedTaskType(tt)) {
+            return 'Legacy OKR type (read-only)';
+        }
+        return 'Inactive type (read-only)';
+    }
+
+    private hasMetricValues(): boolean {
+        return (
+            this.form.BaselineValue != null ||
+            this.form.TargetValue != null ||
+            this.form.CurrentValue != null ||
+            Boolean(this.form.UnitOfMeasure.trim()) ||
+            Boolean(this.form.PlanningPeriod.trim())
+        );
     }
 
     public get ActiveArchetype(): TaskUiArchetype {
@@ -1008,6 +1088,7 @@ export class TaskEditPanelComponent implements OnChanges {
     private async init(): Promise<void> {
         this.isNew = !this.TaskID;
         this.saveError = null;
+        this.trackMetrics = false;
         this.draftSubtasks = [];
         this.newSubtaskDraft = '';
         await this.loadLookups();
@@ -1018,15 +1099,24 @@ export class TaskEditPanelComponent implements OnChanges {
             this.assignees = [];
             this.selectedTags = [];
             this.linkedRecords = [];
-            if (!this.form.TypeID && this.taskTypes.length > 0) {
-                const general = this.taskTypes.find((t) => t.Code === 'GENERAL') ?? this.taskTypes[0];
+            const creatable = this.creatableTaskTypes;
+            const requestedAllowed = this.form.TypeID
+                ? creatable.some((t) => t.ID.toLowerCase() === this.form.TypeID.toLowerCase())
+                : false;
+            if ((!this.form.TypeID || !requestedAllowed) && creatable.length > 0) {
+                const general = creatable.find((t) => t.Code === 'GENERAL') ?? creatable[0];
                 this.form.TypeID = general.ID;
+            } else if (!requestedAllowed) {
+                this.form.TypeID = '';
             }
             this.cdr.markForCheck();
         }
     }
 
     public selectTaskType(tt: TaskTypeOption): void {
+        if (this.isNew && !IsGenericCreatableTaskType(tt)) {
+            return;
+        }
         this.form.TypeID = tt.ID;
         if (this.isNew && tt.DefaultPriority) {
             this.form.Priority = tt.DefaultPriority;
@@ -1079,7 +1169,6 @@ export class TaskEditPanelComponent implements OnChanges {
         const [types, typeStatuses, cats, orgs, ppl, rls, tasks, tags] = await Promise.all([
             rv.RunView<TaskTypeOption>({
                 EntityName: 'MJ_BizApps_Tasks: Task Types',
-                ExtraFilter: 'IsActive = 1',
                 OrderBy: 'Name ASC',
                 ResultType: 'simple',
             }),
@@ -1127,7 +1216,7 @@ export class TaskEditPanelComponent implements OnChanges {
             }),
         ]);
 
-        const order = ['GENERAL', 'ACTION_ITEM', 'DELIVERABLE', 'APPROVAL_REQUEST', 'KEY_RESULT', 'FOLLOW_UP'];
+        const order = ['GENERAL', 'ACTION_ITEM', 'DELIVERABLE', 'APPROVAL_REQUEST', 'AGENT_TASK', 'FOLLOW_UP'];
         this.taskTypes = [...(types?.Results ?? [])].sort((a, b) => {
             const ia = order.indexOf(a.Code);
             const ib = order.indexOf(b.Code);
@@ -1192,6 +1281,7 @@ export class TaskEditPanelComponent implements OnChanges {
                 PlanningPeriod: entity.PlanningPeriod ?? '',
                 CheckInCadence: entity.CheckInCadence ?? 'Weekly',
             };
+            this.trackMetrics = this.hasMetricValues();
             await Promise.all([this.loadExistingAssignees(), this.loadExistingTags(), this.loadExistingLinks()]);
         } finally {
             this.loading = false;
@@ -1398,7 +1488,7 @@ export class TaskEditPanelComponent implements OnChanges {
             entity.CategoryID = this.form.CategoryID;
             entity.OrganizationID = this.form.OrganizationID;
 
-            if (this.ActiveArchetype === 'key-result') {
+            if (this.ActiveArchetype === 'key-result' || this.trackMetrics || this.hasMetricValues()) {
                 entity.BaselineValue = this.form.BaselineValue;
                 entity.TargetValue = this.form.TargetValue;
                 entity.CurrentValue = this.form.CurrentValue;
@@ -1496,7 +1586,10 @@ export class TaskEditPanelComponent implements OnChanges {
 
     private async persistDraftSubtasks(parentTaskID: string): Promise<void> {
         if (!this.isNew || this.draftSubtasks.length === 0) return;
-        const generalType = this.taskTypes.find((t) => t.Code === 'GENERAL')?.ID ?? this.form.TypeID;
+        const generalType =
+            this.creatableTaskTypes.find((t) => t.Code === 'GENERAL')?.ID ??
+            this.creatableTaskTypes[0]?.ID ??
+            this.form.TypeID;
         for (let i = 0; i < this.draftSubtasks.length; i++) {
             const child = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
             child.NewRecord();
