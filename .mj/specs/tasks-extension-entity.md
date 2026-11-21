@@ -28,3 +28,10 @@ Field descriptions in `metadata/entities/.entities.json` (`AutoUpdateDescription
 - `IsPlanningExtensionEntity` / `IsPlanningOwnedTaskType` / `IsLegacyOkrTaskType`
 - `IsGenericCreatableTaskType` / `FilterGenericCreatableTaskTypes`
 - `IsTaskTypeExtensionEntityAvailable` (safely verifies whether a Task Type's IS-A `ExtensionEntity` is registered in the current metadata provider)
+
+## 4. Angular Generic Task Creation Menu & Form Filtering
+
+- `packages/Angular/src/lib/task-type-filter.helper.ts` exports `SelectDefaultGenericTaskTypeID` and `ResolveDefaultGenericTaskTypeID`, delegating to `FilterGenericCreatableTaskTypes` and preferring `GENERAL`.
+- `TaskEditPanelComponent` (`creatableTaskTypes`) filters out `PRIORITY`, any `MJ_BizApps_Planning:*` `ExtensionEntity` type, and inactive legacy OKR types from the task-type creation pill strip and refuses Planning-owned `DefaultTypeID` values on create, while still resolving `activeTaskType` and displaying a read-only locked type indicator (`Managed in Planning` / `Legacy OKR type (read-only)`) when inspecting an existing task of those types.
+- `TaskEditPanelComponent` also allows attaching quantitative metric and check-in cadence fields (`BaselineValue`, `CurrentValue`, `TargetValue`, `UnitOfMeasure`, `MetricDirection`, `PlanningPeriod`, `CheckInCadence`) to any generic measurable task (`trackMetrics`) and restores them on reopen.
+- `TaskListComponent` (quick-add, quick-capture, `bulkTaskTypeOptions`), `MyTasksPageComponent` (`OnQuickCapture`), `TasksDashboardPageComponent` (`BulkTaskTypeOptions`), and `ConnectedTasksHostComponent` (`onQuickAdd`) all exclude Planning-owned and inactive OKR task types from creation and bulk type-reassignment menus while keeping existing tasks of any type viewable and filterable.
