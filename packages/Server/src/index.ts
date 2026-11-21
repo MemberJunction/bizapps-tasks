@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 // Import generated packages to trigger @RegisterClass decorators
 import '@mj-biz-apps/tasks-entities';
-import '@mj-biz-apps/tasks-actions';
+import { registerChiefOfStaffWakeDispatcher } from '@mj-biz-apps/tasks-actions';
 
 // Import core services to trigger any class registrations
 import '@mj-biz-apps/tasks-core';
@@ -91,6 +91,7 @@ const SERVER_REGISTERED_CLASSES = [
  * This function exists as the entry point for DynamicPackageLoader.
  */
 export function LoadBizAppsTasksServer(): void {
+    registerChiefOfStaffWakeDispatcher();
     LoadBizAppsTasksEntitiesServer();
     InitTaskNotificationHandler();
     LoadBizAppsTasksHumanTaskProvider();

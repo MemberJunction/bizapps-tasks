@@ -21,16 +21,20 @@ import {
     BaseEntity,
     BaseEntityResult,
     EntityDeleteOptions,
+    EntitySaveOptions,
     LogError,
     Metadata,
     RunView,
     ValidationErrorInfo,
     ValidationResult,
+    type IMetadataProvider,
     type UserInfo,
 } from '@memberjunction/core';
-import { RegisterClass } from '@memberjunction/global';
+import { IsValidUUID, RegisterClass } from '@memberjunction/global';
 import { GuidLiteral as guid, TasksSettings } from '@mj-biz-apps/tasks-core';
 import { mjBizAppsTasksTaskAssignmentEntity } from '@mj-biz-apps/tasks-entities';
+import { capturePostCommitToken, runAfterCommit } from './after-commit.js';
+import { wakeAssigneesForTaskAssignment } from './cos-wake-helpers.js';
 import { IsPeopleEntity as isPeopleEntity, PEOPLE_ENTITY, PeopleFilterForUser } from './UserPeople.js';
 
 export const TASK_ASSIGNMENT_ENTITY = 'MJ_BizApps_Tasks: Task Assignments';
@@ -66,6 +70,48 @@ export class TaskAssignmentEntityServer extends mjBizAppsTasksTaskAssignmentEnti
             result.Errors.push(new ValidationErrorInfo(SOURCE, refusal, null));
         }
         return result;
+    }
+
+    public override async Save(options?: EntitySaveOptions): Promise<boolean> {
+        const postCommitToken = capturePostCommitToken(this.ProviderToUse);
+        const isNew = !this.IsSaved;
+        const assigneeChanged = this.IsSaved && ASSIGNEE_FIELDS.some((name) => this.GetFieldByName(name)?.Dirty);
+
+        const saved = await super.Save(options);
+        if (!saved) return false;
+
+        const actingUser = this.ContextCurrentUser;
+        if ((isNew || assigneeChanged) && actingUser && IsValidUUID(this.TaskID) && this.AssigneeRecordID) {
+            const taskID = this.TaskID;
+            const taskAssignmentID = this.ID;
+            const assigneeEntityID = this.AssigneeEntityID ?? null;
+            const assigneeRecordID = this.AssigneeRecordID;
+            const candidateProvider = this.ProviderToUse as Partial<IMetadataProvider> | undefined;
+            const metadataProvider =
+                typeof candidateProvider?.EntityByName === 'function'
+                    ? (candidateProvider as IMetadataProvider)
+                    : Metadata.Provider;
+            const runViewProvider = this.RunViewProviderToUse;
+
+            runAfterCommit(
+                this.ProviderToUse,
+                `CoS tasks-inbox wake for task assignment ${taskAssignmentID}`,
+                async () => {
+                    await wakeAssigneesForTaskAssignment({
+                        taskID,
+                        taskAssignmentID,
+                        assigneeEntityID,
+                        assigneeRecordID,
+                        actingUser,
+                        provider: metadataProvider,
+                        runViewProvider,
+                    });
+                },
+                postCommitToken,
+            );
+        }
+
+        return true;
     }
 
     public override async Delete(options?: EntityDeleteOptions): Promise<boolean> {

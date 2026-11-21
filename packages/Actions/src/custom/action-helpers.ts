@@ -12,6 +12,7 @@ import { UserCache } from '@memberjunction/generic-database-provider';
 import { EscapeSQLString, IsValidUUID, UUIDsEqual } from '@memberjunction/global';
 import { ResolveUserIDForPerson } from '@mj-biz-apps/common-entities';
 import {
+    ChiefOfStaffWakeRegistry,
     PEOPLE_ENTITY_NAME,
     WorkReportService,
     type PersonIdentitySummary,
@@ -58,6 +59,7 @@ export const CLIENT_REQUEST_KEY_PREFIX = 'client_request_key:';
 
 export type TaskStatusValue = mjBizAppsTasksTaskEntity['Status'];
 export type TaskPriorityValue = mjBizAppsTasksTaskEntity['Priority'];
+export type TaskVisibilityValue = mjBizAppsTasksTaskEntity['Visibility'];
 export type TaskHealthStatusValue = NonNullable<mjBizAppsTasksTaskEntity['HealthStatus']>;
 
 export interface ResolvedPersonCandidate {
@@ -366,6 +368,19 @@ export function normalizeTaskPriority(raw: string | null): TaskPriorityValue | n
     }
 }
 
+export function normalizeTaskVisibility(raw: string | null): TaskVisibilityValue | null {
+    if (!raw) return null;
+    const norm = raw.trim().toLowerCase();
+    switch (norm) {
+        case 'standard':
+            return 'Standard';
+        case 'private':
+            return 'Private';
+        default:
+            return null;
+    }
+}
+
 export function normalizeHealthStatus(raw: string | null): TaskHealthStatusValue | null {
     if (!raw) return null;
     const norm = raw.trim().toLowerCase().replace(/[\s_-]+/g, '');
@@ -570,6 +585,7 @@ export async function wakeChiefOfStaffBestEffort(input: {
     wakeReason: string;
     resumeState: Record<string, string | number | boolean | null>;
     actingUser: UserInfo;
+    metadataProvider?: IMetadataProvider;
 }): Promise<boolean> {
     if (!IsValidUUID(input.targetUserID)) return false;
     try {
@@ -588,6 +604,7 @@ export async function wakeChiefOfStaffBestEffort(input: {
                 triggeredByUserID: input.actingUser.ID,
             },
             contextUser: wakeContextUser,
+            metadataProvider: input.metadataProvider,
         });
         return res.triggered;
     } catch (err) {
@@ -595,6 +612,21 @@ export async function wakeChiefOfStaffBestEffort(input: {
         LogError(`[BizAppsTasks] Best-effort Chief of Staff wake failed for workstream '${input.workstreamKey}': ${msg}`);
         return false;
     }
+}
+
+/**
+ * Registers the server-side Chief of Staff wake dispatcher on {@link ChiefOfStaffWakeRegistry}
+ * so entity persistence hooks (`TaskAssignmentEntityServer`, `TaskEntityServer`,
+ * `MeetingEntityServer`, `MeetingNoteEntityServer`) can trigger coalesced wakes without
+ * depending directly on `@memberjunction/ai-agents`.
+ */
+export function registerChiefOfStaffWakeDispatcher(): void {
+    ChiefOfStaffWakeRegistry.Instance.RegisterHandler(wakeChiefOfStaffBestEffort);
+}
+
+// Register immediately when `@mj-biz-apps/tasks-actions` loads if no custom handler is installed.
+if (!ChiefOfStaffWakeRegistry.Instance.HasHandler) {
+    registerChiefOfStaffWakeDispatcher();
 }
 
 /**

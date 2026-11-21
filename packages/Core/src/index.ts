@@ -5,6 +5,7 @@ export * from './services/TaskTemplateService.js';
 export * from './services/TaskOrchestrationService.js';
 export * from './services/TimeTrackingService.js';
 export * from './services/WorkReportService.js';
+export * from './services/ChiefOfStaffWakeRegistry.js';
 export * from './config/TasksSettings.js';
 export * from './config/TasksAuthorizations.js';
 export * from './time/DurationFormatting.js';

@@ -4,6 +4,7 @@ import { BaseAction } from '@memberjunction/actions';
 import { TypedActionPolicyGuard } from '@memberjunction/ai-core-plus';
 import { EscapeSQLString, IsValidUUID, NormalizeUUID, RegisterClass, UUIDsEqual } from '@memberjunction/global';
 import {
+    COS_TASKS_INBOX_WORKSTREAM_KEY,
     extractDecisionsFromText,
     markProposedTaskAccepted,
     MeetingNotesService,
@@ -34,12 +35,14 @@ import {
     MEETING_NOTES_ENTITY,
     MEETINGS_ENTITY,
     resolveCallerPerson,
+    resolveUserIDForPersonRecord,
     setOutputParam,
     successResult,
     TASK_ASSIGNMENTS_ENTITY,
     TASK_LINKS_ENTITY,
     TASKS_ENTITY,
     toIsoOrNull,
+    wakeChiefOfStaffBestEffort,
 } from './action-helpers.js';
 
 interface RawMeetingRow {
@@ -104,6 +107,81 @@ interface RawMeetingNoteRow {
 interface LinkExistingMatchInput {
     ProposalID: string;
     ExistingTaskID: string;
+}
+
+interface AttendeeCommitmentRef {
+    AssigneePersonID: string | null;
+    Title: string;
+    TaskID?: string | null;
+    ProposalID?: string | null;
+}
+
+/**
+ * Routes meeting commitments owned by attendees other than the caller to each attendee's
+ * Chief of Staff via ONE coalesced per-user `tasks-inbox` wake.
+ */
+async function routeOtherAttendeeCommitments(
+    commitments: ReadonlyArray<AttendeeCommitmentRef>,
+    meetingID: string,
+    meetingName: string | null,
+    noteID: string | null,
+    actingUser: UserInfo,
+): Promise<string[]> {
+    const callerPerson = await resolveCallerPerson(actingUser);
+    const byPerson = new Map<string, AttendeeCommitmentRef[]>();
+    for (const c of commitments) {
+        if (!c.AssigneePersonID || !IsValidUUID(c.AssigneePersonID)) continue;
+        if (callerPerson?.ID && UUIDsEqual(c.AssigneePersonID, callerPerson.ID)) continue;
+        const key = NormalizeUUID(c.AssigneePersonID);
+        const list = byPerson.get(key) ?? [];
+        list.push(c);
+        byPerson.set(key, list);
+    }
+    if (byPerson.size === 0) return [];
+
+    const wokenUserIDs: string[] = [];
+    const seenUsers = new Set<string>();
+    const meetingLabel = meetingName ? `"${meetingName}"` : `meeting ${meetingID}`;
+
+    for (const items of byPerson.values()) {
+        const personID = items[0].AssigneePersonID;
+        if (!personID) continue;
+        const targetUserID = await resolveUserIDForPersonRecord(personID, actingUser);
+        if (!targetUserID || !IsValidUUID(targetUserID)) continue;
+        if (UUIDsEqual(targetUserID, actingUser.ID)) continue;
+        const normUser = NormalizeUUID(targetUserID);
+        if (seenUsers.has(normUser)) continue;
+        seenUsers.add(normUser);
+
+        const titles = items.map((i) => i.Title).filter(Boolean);
+        const wakeReason =
+            items.length === 1
+                ? `Meeting commitment from ${meetingLabel} assigned to you: "${titles[0]}".`
+                : `${items.length} meeting commitments from ${meetingLabel} were assigned to you.`;
+
+        const taskIDs = items.map((i) => i.TaskID).filter((id): id is string => Boolean(id));
+        const proposalIDs = items.map((i) => i.ProposalID).filter((id): id is string => Boolean(id));
+
+        await wakeChiefOfStaffBestEffort({
+            targetUserID,
+            workstreamKey: COS_TASKS_INBOX_WORKSTREAM_KEY,
+            wakeReason,
+            resumeState: {
+                eventType: 'MeetingCommitmentRouted',
+                meetingID,
+                meetingName,
+                meetingNoteID: noteID,
+                assigneePersonID: personID,
+                commitmentCount: items.length,
+                taskIDs: taskIDs.length > 0 ? taskIDs.join(',') : null,
+                proposalIDs: proposalIDs.length > 0 ? proposalIDs.join(',') : null,
+            },
+            actingUser,
+        });
+        wokenUserIDs.push(targetUserID);
+    }
+
+    return wokenUserIDs;
 }
 
 function parseLinkExistingMatches(raw: string | null): LinkExistingMatchInput[] {
@@ -682,6 +760,7 @@ export class ProcessMeetingTranscriptAction extends BaseAction {
 
             const autoCreatedTaskIDs: string[] = [];
             const autoLinkedTaskIDs: string[] = [];
+            const createdTaskIdByProposal = new Map<string, string>();
 
             if (autoCreate && result.Status === 'PROCESSED' && result.NoteID) {
                 const notesService = new MeetingNotesService(Metadata.Provider);
@@ -692,6 +771,7 @@ export class ProcessMeetingTranscriptAction extends BaseAction {
                         user,
                     );
                     autoCreatedTaskIDs.push(accepted.task.ID);
+                    createdTaskIdByProposal.set(proposal.ProposalID.toLowerCase(), accepted.task.ID);
                 }
                 for (const matched of result.MatchedExistingTasks) {
                     const linked = await ensureMeetingTaskLink(
@@ -706,11 +786,38 @@ export class ProcessMeetingTranscriptAction extends BaseAction {
                 }
             }
 
+            // Route other attendees' commitments to their Chief of Staff via coalesced 'tasks-inbox' wake
+            let routedAttendeeUserIDs: string[] = [];
+            if (result.Status === 'PROCESSED') {
+                const commitmentRefs: AttendeeCommitmentRef[] = [
+                    ...result.ProposedNewCommitments.map((p) => ({
+                        AssigneePersonID: p.AssigneePersonID ?? null,
+                        Title: p.Title,
+                        TaskID: createdTaskIdByProposal.get(p.ProposalID.toLowerCase()) ?? null,
+                        ProposalID: p.ProposalID,
+                    })),
+                    ...result.MatchedExistingTasks.map((m) => ({
+                        AssigneePersonID: m.AssigneePersonID ?? null,
+                        Title: m.ProposalTitle,
+                        TaskID: m.MatchedTask.TaskID,
+                        ProposalID: m.ProposalID,
+                    })),
+                ];
+                routedAttendeeUserIDs = await routeOtherAttendeeCommitments(
+                    commitmentRefs,
+                    meetingID,
+                    result.MeetingName,
+                    result.NoteID,
+                    user,
+                );
+            }
+
             const payload = {
                 ...result,
                 AutoCreateCommitments: autoCreate,
                 AutoCreatedTaskIDs: autoCreatedTaskIDs,
                 AutoLinkedTaskIDs: autoLinkedTaskIDs,
+                RoutedAttendeeUserIDs: routedAttendeeUserIDs,
             };
 
             setOutputParam(params, 'Status', result.Status);
@@ -789,6 +896,7 @@ export class AcceptMeetingCommitmentsAction extends BaseAction {
 
             const acceptedTasks: Array<{ ProposalID: string; TaskID: string; Title: string; DeepLink: string }> = [];
             const linkedTasks: Array<{ ProposalID: string; ExistingTaskID: string; DeepLink: string }> = [];
+            const routedCommitmentRefs: AttendeeCommitmentRef[] = [];
 
             // 1. Link proposals matched to existing tasks (prevents duplicates!)
             let updatedProposals = existingProposals;
@@ -811,6 +919,12 @@ export class AcceptMeetingCommitmentsAction extends BaseAction {
                     ExistingTaskID: match.ExistingTaskID,
                     DeepLink: buildTaskDeepLink(match.ExistingTaskID),
                 });
+                routedCommitmentRefs.push({
+                    AssigneePersonID: target.assigneePersonId,
+                    Title: target.title,
+                    TaskID: match.ExistingTaskID,
+                    ProposalID: target.id,
+                });
             }
 
             if (proposalsModified) {
@@ -829,7 +943,22 @@ export class AcceptMeetingCommitmentsAction extends BaseAction {
                     Title: res.task.Name || res.proposal.title,
                     DeepLink: buildTaskDeepLink(res.task.ID),
                 });
+                routedCommitmentRefs.push({
+                    AssigneePersonID: res.proposal.assigneePersonId,
+                    Title: res.task.Name || res.proposal.title,
+                    TaskID: res.task.ID,
+                    ProposalID: res.proposal.id,
+                });
             }
+
+            // 3. Route commitments assigned to other attendees to their Chief of Staff via coalesced 'tasks-inbox' wake
+            await routeOtherAttendeeCommitments(
+                routedCommitmentRefs,
+                note.MeetingID,
+                note.Meeting ?? null,
+                noteID,
+                user,
+            );
 
             const summary = `Accepted ${acceptedTasks.length} new commitment task(s) and linked ${linkedTasks.length} existing task(s).`;
             setOutputParam(params, 'AcceptedTasks', JSON.stringify(acceptedTasks));
@@ -1020,6 +1149,391 @@ export class GetMeetingNotesAction extends BaseAction {
 
             const summary = `Loaded ${formattedNotes.length} note(s), ${payload.Decisions.length} decision(s), and ${linkedTasks.length} linked task(s) for "${meeting.Name}".`;
             setOutputParam(params, 'MeetingNotes', JSON.stringify(payload));
+            setOutputParam(params, 'Summary', summary);
+            return successResult(summary, params);
+        } catch (err) {
+            return failResult('ERROR', err instanceof Error ? err.message : String(err), params);
+        }
+    }
+}
+
+// =============================================================================
+// 6. Get My Meetings Briefing (Role = 'Briefing', ExposeToModel = false)
+// =============================================================================
+
+@RegisterClass(BaseAction, 'GetMyMeetingsBriefingAction')
+export class GetMyMeetingsBriefingAction extends BaseAction {
+    public static override readonly AuthorizesCaller = true;
+
+    protected override async InternalRunAction(params: RunActionParams): Promise<ActionResultSimple> {
+        const user = params.ContextUser;
+        if (!user) return failResult('PERMISSION_DENIED', 'ContextUser is required.', params);
+
+        const meetingGuard = await checkTypedPolicyGuard({
+            params,
+            entityName: MEETINGS_ENTITY,
+            operation: 'Read',
+        });
+        if (!meetingGuard.Allowed) return meetingGuard.Failure;
+
+        const notesGuard = await checkTypedPolicyGuard({
+            params,
+            entityName: MEETING_NOTES_ENTITY,
+            operation: 'Read',
+        });
+        if (!notesGuard.Allowed) return notesGuard.Failure;
+
+        try {
+            const horizonDaysRaw = getNumberParam(params, 'HorizonDays') ?? 7;
+            const horizonDays = Math.max(1, Math.min(30, Math.round(horizonDaysRaw)));
+            const lookbackDaysRaw = getNumberParam(params, 'LookbackDays') ?? 7;
+            const lookbackDays = Math.max(1, Math.min(30, Math.round(lookbackDaysRaw)));
+            const maxItemsRaw = getNumberParam(params, 'MaxItems') ?? 10;
+            const maxItems = Math.max(1, Math.min(50, Math.round(maxItemsRaw)));
+
+            const callerPerson = await resolveCallerPerson(user);
+            const rv = new RunView();
+
+            const attendeeClauses: string[] = [];
+            if (IsValidUUID(user.ID)) {
+                attendeeClauses.push(`UserID = '${EscapeSQLString(user.ID)}'`);
+            }
+            if (callerPerson?.ID) {
+                attendeeClauses.push(`PersonID = '${EscapeSQLString(callerPerson.ID)}'`);
+            }
+
+            let attendeeMeetingIDs: string[] = [];
+            if (attendeeClauses.length > 0) {
+                const attRes = await rv.RunView<{ MeetingID: string }>(
+                    {
+                        EntityName: MEETING_ATTENDEES_ENTITY,
+                        ExtraFilter: attendeeClauses.join(' OR '),
+                        Fields: ['MeetingID'],
+                        MaxRows: 500,
+                        ResultType: 'simple',
+                    },
+                    user,
+                );
+                if (attRes.Success) {
+                    attendeeMeetingIDs = Array.from(
+                        new Set((attRes.Results ?? []).map((r) => r.MeetingID).filter((id) => IsValidUUID(id))),
+                    );
+                }
+            }
+
+            const scopeClauses: string[] = [];
+            if (attendeeMeetingIDs.length > 0) {
+                scopeClauses.push(
+                    `ID IN (${attendeeMeetingIDs.map((id) => `'${EscapeSQLString(id)}'`).join(', ')})`,
+                );
+            }
+            if (callerPerson?.ID) {
+                scopeClauses.push(`OrganizerPersonID = '${EscapeSQLString(callerPerson.ID)}'`);
+            }
+
+            if (scopeClauses.length === 0) {
+                return failResult(
+                    'NO_PERSON_RECORD',
+                    'No active Person record or meeting attendance could be resolved for ContextUser.',
+                    params,
+                );
+            }
+
+            const now = new Date();
+            const nowMs = now.getTime();
+            const lookbackStart = new Date(nowMs - lookbackDays * 24 * 60 * 60 * 1000).toISOString();
+            const horizonEnd = new Date(nowMs + horizonDays * 24 * 60 * 60 * 1000).toISOString();
+
+            const meetingsRes = await rv.RunView<RawMeetingRow>(
+                {
+                    EntityName: MEETINGS_ENTITY,
+                    ExtraFilter:
+                        `(${scopeClauses.join(' OR ')}) ` +
+                        `AND Status NOT IN ('Cancelled') ` +
+                        `AND EndsAt >= '${EscapeSQLString(lookbackStart)}' ` +
+                        `AND StartsAt <= '${EscapeSQLString(horizonEnd)}'`,
+                    Fields: [
+                        'ID',
+                        'Name',
+                        'Status',
+                        'StartsAt',
+                        'EndsAt',
+                        'TimeZone',
+                        'LocationType',
+                        'Location',
+                        'VideoJoinURL',
+                        'OrganizerPersonID',
+                        'OrganizerPerson',
+                        'Visibility',
+                        'TranscriptFileID',
+                        'Type',
+                    ],
+                    OrderBy: 'StartsAt ASC',
+                    MaxRows: 100,
+                    ResultType: 'simple',
+                },
+                user,
+            );
+            if (!meetingsRes.Success) {
+                return failResult('ERROR', meetingsRes.ErrorMessage ?? 'Failed to load meetings briefing.', params);
+            }
+
+            const allMeetings = meetingsRes.Results ?? [];
+            const allMeetingIDs = allMeetings.map((m) => m.ID).filter((id) => IsValidUUID(id));
+            const meetingNameByNormID = new Map<string, string>(
+                allMeetings.map((m) => [NormalizeUUID(m.ID), m.Name]),
+            );
+
+            const agendaCountByMeeting = new Map<string, number>();
+            const attendeeCountByMeeting = new Map<string, number>();
+            const notesByMeeting = new Map<string, RawMeetingNoteRow[]>();
+
+            if (allMeetingIDs.length > 0) {
+                const inList = allMeetingIDs.map((id) => `'${EscapeSQLString(id)}'`).join(', ');
+                const [agendaRes, attCountRes, notesRes] = await Promise.all([
+                    rv.RunView<{ MeetingID: string }>(
+                        {
+                            EntityName: MEETING_AGENDA_ITEMS_ENTITY,
+                            ExtraFilter: `MeetingID IN (${inList})`,
+                            Fields: ['MeetingID'],
+                            ResultType: 'simple',
+                        },
+                        user,
+                    ),
+                    rv.RunView<{ MeetingID: string }>(
+                        {
+                            EntityName: MEETING_ATTENDEES_ENTITY,
+                            ExtraFilter: `MeetingID IN (${inList})`,
+                            Fields: ['MeetingID'],
+                            ResultType: 'simple',
+                        },
+                        user,
+                    ),
+                    rv.RunView<RawMeetingNoteRow>(
+                        {
+                            EntityName: MEETING_NOTES_ENTITY,
+                            ExtraFilter: `MeetingID IN (${inList})`,
+                            Fields: ['ID', 'MeetingID', 'Kind', 'Source', 'Status', 'ProposedTasks'],
+                            ResultType: 'simple',
+                        },
+                        user,
+                    ),
+                ]);
+
+                for (const r of agendaRes.Success ? (agendaRes.Results ?? []) : []) {
+                    const k = NormalizeUUID(r.MeetingID);
+                    agendaCountByMeeting.set(k, (agendaCountByMeeting.get(k) ?? 0) + 1);
+                }
+                for (const r of attCountRes.Success ? (attCountRes.Results ?? []) : []) {
+                    const k = NormalizeUUID(r.MeetingID);
+                    attendeeCountByMeeting.set(k, (attendeeCountByMeeting.get(k) ?? 0) + 1);
+                }
+                for (const n of notesRes.Success ? (notesRes.Results ?? []) : []) {
+                    const k = NormalizeUUID(n.MeetingID);
+                    const list = notesByMeeting.get(k) ?? [];
+                    list.push(n);
+                    notesByMeeting.set(k, list);
+                }
+            }
+
+            const upcomingRaw: Array<Record<string, string | number | boolean | null>> = [];
+            const recentCompletedNeedingFollowUpRaw: Array<
+                Record<string, string | number | boolean | string[] | null>
+            > = [];
+            let needingTranscriptCount = 0;
+            let needingAcceptanceCount = 0;
+
+            for (const m of allMeetings) {
+                const normID = NormalizeUUID(m.ID);
+                const endsAtMs = new Date(m.EndsAt).getTime();
+                const isPastOrCompleted =
+                    m.Status === 'Completed' || (!Number.isNaN(endsAtMs) && endsAtMs < nowMs);
+                const meetingNotes = notesByMeeting.get(normID) ?? [];
+
+                if (!isPastOrCompleted) {
+                    const agendaCount = agendaCountByMeeting.get(normID) ?? 0;
+                    upcomingRaw.push({
+                        ID: m.ID,
+                        Name: m.Name,
+                        Status: m.Status,
+                        StartsAt: toIsoOrNull(m.StartsAt),
+                        EndsAt: toIsoOrNull(m.EndsAt),
+                        TimeZone: m.TimeZone,
+                        LocationType: m.LocationType,
+                        Location: m.Location ?? null,
+                        VideoJoinURL: m.VideoJoinURL ?? null,
+                        Organizer: m.OrganizerPerson ?? null,
+                        Type: m.Type ?? null,
+                        Visibility: m.Visibility,
+                        AttendeeCount: attendeeCountByMeeting.get(normID) ?? 0,
+                        AgendaItemCount: agendaCount,
+                        HasAgenda: agendaCount > 0,
+                        HasNotes: meetingNotes.length > 0,
+                        HasTranscript: Boolean(m.TranscriptFileID),
+                        DeepLink: buildMeetingDeepLink(m.ID),
+                    });
+                } else {
+                    const hasProcessedNote = meetingNotes.some(
+                        (n) => n.Source === 'AI' || n.Kind === 'Summary',
+                    );
+                    let pendingCommitmentsCount = 0;
+                    const pendingNoteIDs: string[] = [];
+                    for (const n of meetingNotes) {
+                        if (!n.ProposedTasks) continue;
+                        try {
+                            const pending = parseProposedTasks(n.ProposedTasks).filter((p) => p.status === 'Pending');
+                            if (pending.length > 0) {
+                                pendingCommitmentsCount += pending.length;
+                                pendingNoteIDs.push(n.ID);
+                            }
+                        } catch {
+                            // Ignore malformed legacy JSON when summarizing briefing counts
+                        }
+                    }
+
+                    const needsTranscriptProcessing = !hasProcessedNote;
+                    const needsCommitmentAcceptance = pendingCommitmentsCount > 0;
+                    if (needsTranscriptProcessing) needingTranscriptCount += 1;
+                    if (needsCommitmentAcceptance) needingAcceptanceCount += 1;
+
+                    if (needsTranscriptProcessing || needsCommitmentAcceptance) {
+                        recentCompletedNeedingFollowUpRaw.push({
+                            ID: m.ID,
+                            Name: m.Name,
+                            Status: m.Status,
+                            StartsAt: toIsoOrNull(m.StartsAt),
+                            EndsAt: toIsoOrNull(m.EndsAt),
+                            Organizer: m.OrganizerPerson ?? null,
+                            Visibility: m.Visibility,
+                            HasTranscript: Boolean(m.TranscriptFileID),
+                            NeedsTranscriptProcessing: needsTranscriptProcessing,
+                            NeedsCommitmentAcceptance: needsCommitmentAcceptance,
+                            PendingCommitmentsCount: pendingCommitmentsCount,
+                            PendingNoteIDs: pendingNoteIDs,
+                            DeepLink: buildMeetingDeepLink(m.ID),
+                        });
+                    }
+                }
+            }
+
+            // Most recent completed meetings first
+            recentCompletedNeedingFollowUpRaw.reverse();
+
+            // Load open follow-up tasks linked to the caller's meetings (if policy permits reading Tasks)
+            let openFollowUpTasks: Array<Record<string, string | number | boolean | null | undefined>> = [];
+            const meetingEntityID = findEntityIDByName(MEETINGS_ENTITY);
+            if (meetingEntityID && allMeetingIDs.length > 0) {
+                const tasksGuard = await checkTypedPolicyGuard({
+                    params,
+                    entityName: TASKS_ENTITY,
+                    operation: 'Read',
+                });
+                if (tasksGuard.Allowed) {
+                    const inMeetings = allMeetingIDs.map((id) => `'${EscapeSQLString(id)}'`).join(', ');
+                    const linksRes = await rv.RunView<{ TaskID: string; RecordID: string }>(
+                        {
+                            EntityName: TASK_LINKS_ENTITY,
+                            ExtraFilter: `EntityID = '${EscapeSQLString(meetingEntityID)}' AND RecordID IN (${inMeetings})`,
+                            Fields: ['TaskID', 'RecordID'],
+                            MaxRows: 200,
+                            ResultType: 'simple',
+                        },
+                        user,
+                    );
+                    const meetingIdByTaskNorm = new Map<string, string>();
+                    const linkedTaskIds: string[] = [];
+                    for (const link of linksRes.Success ? (linksRes.Results ?? []) : []) {
+                        if (!IsValidUUID(link.TaskID)) continue;
+                        const normTask = NormalizeUUID(link.TaskID);
+                        if (!meetingIdByTaskNorm.has(normTask)) {
+                            meetingIdByTaskNorm.set(normTask, link.RecordID);
+                            linkedTaskIds.push(link.TaskID);
+                        }
+                    }
+
+                    if (linkedTaskIds.length > 0) {
+                        const inTasks = linkedTaskIds
+                            .slice(0, 100)
+                            .map((id) => `'${EscapeSQLString(id)}'`)
+                            .join(', ');
+                        const tasksRes = await rv.RunView<
+                            Pick<
+                                mjBizAppsTasksTaskEntity,
+                                'ID' | 'Name' | 'Status' | 'Priority' | 'Visibility' | 'DueAt' | 'PercentComplete' | 'BlockedReason'
+                            >
+                        >(
+                            {
+                                EntityName: TASKS_ENTITY,
+                                ExtraFilter: `ID IN (${inTasks}) AND Status NOT IN ('Completed', 'Cancelled')`,
+                                Fields: [
+                                    'ID',
+                                    'Name',
+                                    'Status',
+                                    'Priority',
+                                    'Visibility',
+                                    'DueAt',
+                                    'PercentComplete',
+                                    'BlockedReason',
+                                ],
+                                OrderBy: 'DueAt ASC',
+                                MaxRows: maxItems,
+                                ResultType: 'simple',
+                            },
+                            user,
+                        );
+                        const rawTasks = (tasksRes.Success ? (tasksRes.Results ?? []) : []).map((t) => {
+                            const mId = meetingIdByTaskNorm.get(NormalizeUUID(t.ID)) ?? null;
+                            return {
+                                ID: t.ID,
+                                Name: t.Name,
+                                Status: t.Status,
+                                Priority: t.Priority,
+                                Visibility: t.Visibility ?? 'Standard',
+                                DueAt: toIsoOrNull(t.DueAt),
+                                PercentComplete: t.PercentComplete ?? 0,
+                                BlockedReason: t.BlockedReason ?? null,
+                                MeetingID: mId,
+                                MeetingName: mId ? (meetingNameByNormID.get(NormalizeUUID(mId)) ?? null) : null,
+                                DeepLink: buildTaskDeepLink(t.ID),
+                            };
+                        });
+                        openFollowUpTasks = TypedActionPolicyGuard.MaskRows(rawTasks, tasksGuard.DeniedFieldPatterns);
+                    }
+                }
+            }
+
+            const upcomingMeetings = TypedActionPolicyGuard.MaskRows(
+                upcomingRaw.slice(0, maxItems),
+                meetingGuard.DeniedFieldPatterns,
+            );
+            const recentCompletedNeedingFollowUp = TypedActionPolicyGuard.MaskRows(
+                recentCompletedNeedingFollowUpRaw.slice(0, maxItems),
+                meetingGuard.DeniedFieldPatterns,
+            );
+
+            const briefing = {
+                GeneratedAt: now.toISOString(),
+                HorizonDays: horizonDays,
+                LookbackDays: lookbackDays,
+                Counts: {
+                    UpcomingMeetings: upcomingRaw.length,
+                    RecentCompletedNeedingFollowUp: recentCompletedNeedingFollowUpRaw.length,
+                    NeedingTranscriptProcessing: needingTranscriptCount,
+                    NeedingCommitmentAcceptance: needingAcceptanceCount,
+                    OpenMeetingFollowUpTasks: openFollowUpTasks.length,
+                },
+                UpcomingMeetings: upcomingMeetings,
+                RecentCompletedMeetingsNeedingFollowUp: recentCompletedNeedingFollowUp,
+                OpenMeetingFollowUpTasks: openFollowUpTasks,
+            };
+
+            const summary =
+                `Meetings briefing: ${upcomingRaw.length} upcoming (${horizonDays}d), ` +
+                `${recentCompletedNeedingFollowUpRaw.length} recent completed needing follow-up ` +
+                `(${needingTranscriptCount} transcript, ${needingAcceptanceCount} commitment acceptance), ` +
+                `${openFollowUpTasks.length} open meeting follow-up task(s).`;
+
+            setOutputParam(params, 'Briefing', JSON.stringify(briefing));
             setOutputParam(params, 'Summary', summary);
             return successResult(summary, params);
         } catch (err) {

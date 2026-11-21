@@ -1,7 +1,9 @@
-import { BaseEntity, ValidationErrorInfo, ValidationErrorType, type EntityDeleteOptions, type IMetadataProvider, type ValidationResult } from '@memberjunction/core';
-import { RegisterClass } from '@memberjunction/global';
+import { BaseEntity, ValidationErrorInfo, ValidationErrorType, type EntityDeleteOptions, type EntitySaveOptions, type IMetadataProvider, type ValidationResult } from '@memberjunction/core';
+import { IsValidUUID, RegisterClass } from '@memberjunction/global';
 import { mjBizAppsTasksMeetingNoteEntity } from '@mj-biz-apps/tasks-entities';
 import { MEETING_NOTE_ENTITY } from '@mj-biz-apps/tasks-core';
+import { capturePostCommitToken, runAfterCommit } from './after-commit.js';
+import { wakeMeetingParticipantsForTranscript } from './cos-wake-helpers.js';
 import { callerAndMeeting, movedFromMeetingRefusal, valueBefore } from './meeting-caller.js';
 
 const fail = (result: ValidationResult, field: string, message: string): ValidationResult => {
@@ -47,6 +49,46 @@ export class MeetingNoteEntityServer extends mjBizAppsTasksMeetingNoteEntity {
         const authorField = this.Fields.find((f) => f.CodeName === 'AuthorPersonID');
         if (!access.owns && authorField?.Dirty) return fail(result, 'AuthorPersonID', 'A note keeps its author; the organizer may change it.');
         return result;
+    }
+
+    public override async Save(options?: EntitySaveOptions): Promise<boolean> {
+        const postCommitToken = capturePostCommitToken(this.ProviderToUse);
+        const isNew = !this.IsSaved;
+        const contentChanged =
+            isNew ||
+            Boolean(this.Fields.find((f) => (f.CodeName === 'Body' || f.CodeName === 'ProposedTasks') && f.Dirty));
+
+        const saved = await super.Save(options);
+        if (!saved) return false;
+
+        const actingUser = this.ContextCurrentUser;
+        if (contentChanged && actingUser && IsValidUUID(this.MeetingID)) {
+            const meetingID = this.MeetingID;
+            const noteID = this.ID;
+            const excludeActingUser = this.Source === 'AI';
+            const provider = this.metadataProvider;
+            const runViewProvider = this.RunViewProviderToUse;
+
+            runAfterCommit(
+                this.ProviderToUse,
+                `CoS meetings-transcript wake for meeting note ${noteID}`,
+                async () => {
+                    await wakeMeetingParticipantsForTranscript({
+                        meetingID,
+                        noteID,
+                        eventType: 'MeetingNoteSaved',
+                        hasTranscriptFile: false,
+                        excludeActingUser,
+                        actingUser,
+                        provider,
+                        runViewProvider,
+                    });
+                },
+                postCommitToken,
+            );
+        }
+
+        return true;
     }
 
     public override async Delete(options?: EntityDeleteOptions): Promise<boolean> {

@@ -18,8 +18,9 @@ import {
     type MeetingStatus,
 } from '@mj-biz-apps/tasks-core';
 import { BusinessTimeZoneEngine } from '@mj-biz-apps/common-entities';
-import { runAfterCommit } from './after-commit.js';
+import { capturePostCommitToken, runAfterCommit } from './after-commit.js';
 import { MeetingCalendarSyncService } from './calendar/MeetingCalendarSyncService.js';
+import { wakeMeetingParticipantsForTranscript } from './cos-wake-helpers.js';
 import { callerOwnsMeeting, meetingCaller, valueBefore } from './meeting-caller.js';
 import { resolveVideoProviderDriver, type VideoMeetingInput, type VideoProviderBase } from './video/VideoProviderBase.js';
 
@@ -118,6 +119,7 @@ export class MeetingEntityServer extends mjBizAppsTasksMeetingEntity {
     }
 
     public override async Save(options?: EntitySaveOptions): Promise<boolean> {
+        const postCommitToken = capturePostCommitToken(this.ProviderToUse);
         const isNew = !this.IsSaved;
         const before = this.statusBefore;
         const maintainedBySync = this.isMaintainedBySync;
@@ -125,6 +127,7 @@ export class MeetingEntityServer extends mjBizAppsTasksMeetingEntity {
 
         const videoProviderIdBefore = isNew ? null : valueBefore(this, 'VideoProviderID');
         const videoMeetingIdBefore = isNew ? null : valueBefore(this, 'VideoMeetingID');
+        const transcriptFileBefore = isNew ? null : valueBefore(this, 'TranscriptFileID');
         const providerChanged =
             !isNew &&
             (videoProviderIdBefore ?? '').toLowerCase() !== (this.VideoProviderID ?? '').toLowerCase();
@@ -227,6 +230,38 @@ export class MeetingEntityServer extends mjBizAppsTasksMeetingEntity {
             runAfterCommit(this.ProviderToUse, `sync calendar event for meeting ${meetingId}`, async () => {
                 await MeetingCalendarSyncService.enqueueSync(meetingId, () => runCalendarSyncIfConfigured());
             });
+        }
+
+        // Post-meeting transcript/follow-up Chief of Staff wake (coalesced per participant on `meetings-transcript`)
+        const completedNow = this.Status === 'Completed' && before !== 'Completed';
+        const transcriptAttachedNow =
+            Boolean(this.TranscriptFileID) &&
+            (isNew || (transcriptFileBefore ?? '').toLowerCase() !== (this.TranscriptFileID ?? '').toLowerCase());
+        const actingUser = this.ContextCurrentUser;
+        if ((completedNow || transcriptAttachedNow) && actingUser) {
+            const meetingName = this.Name;
+            const organizerPersonID = this.OrganizerPersonID;
+            const hasTranscriptFile = Boolean(this.TranscriptFileID);
+            const provider = this.metadataProvider;
+            const runViewProvider = this.RunViewProviderToUse;
+            runAfterCommit(
+                this.ProviderToUse,
+                `post-meeting CoS meetings-transcript wake for meeting ${meetingId}`,
+                async () => {
+                    await wakeMeetingParticipantsForTranscript({
+                        meetingID: meetingId,
+                        meetingName,
+                        organizerPersonID,
+                        eventType: transcriptAttachedNow ? 'MeetingTranscriptAttached' : 'MeetingCompleted',
+                        hasTranscriptFile,
+                        excludeActingUser: false,
+                        actingUser,
+                        provider,
+                        runViewProvider,
+                    });
+                },
+                postCommitToken,
+            );
         }
         return true;
     }

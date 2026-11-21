@@ -7421,6 +7421,10 @@ export class mjBizAppsTasksTask_ {
     @MaxLength(36)
     OrganizationID?: string;
         
+    @Field({nullable: true, description: "Controls who may read this task and its child records (assignments, check-ins, comments, activities). Standard (default) is visible across the organization; Private restricts visibility to the creator, assignees (direct Person or MJ Role members), and creator/assignees of the root parent task."}) 
+    @MaxLength(20)
+    Visibility?: string;
+        
     @Field({nullable: true}) 
     @MaxLength(100)
     Type?: string;
@@ -7592,6 +7596,9 @@ export class CreatemjBizAppsTasksTaskInput {
     @Field({ nullable: true })
     OrganizationID: string | null;
 
+    @Field({ nullable: true })
+    Visibility?: string;
+
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
 }
@@ -7709,6 +7716,9 @@ export class UpdatemjBizAppsTasksTaskInput {
 
     @Field({ nullable: true })
     OrganizationID?: string | null;
+
+    @Field({ nullable: true })
+    Visibility?: string;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];

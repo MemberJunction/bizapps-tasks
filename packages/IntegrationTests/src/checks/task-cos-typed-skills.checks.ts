@@ -63,6 +63,7 @@ import {
     TASK_ENTITY,
     TASK_LINK_ENTITY,
     TASK_TAG_LINK_ENTITY,
+    TASK_TYPE_ENTITY,
     USER_ENTITY,
     USER_ROLE_ENTITY,
     WORK_REPORT_ENTITY,
@@ -250,10 +251,12 @@ const checks: NamedCheck[] = [
             const world = await GetOrLoadWorld(ctx);
             const sarahPerson = world.People['sarah.connor@task-world.test'];
             const alexPerson = world.People['alex.chen@task-world.test'];
+            const marcusPerson = world.People['marcus.vance@task-world.test'];
             const acmeOrg = world.Organizations[ACME_ORG_NAME];
-            Assert(!!sarahPerson && !!alexPerson && !!acmeOrg, 'TSK-00 people and Acme org must exist');
+            Assert(!!sarahPerson && !!alexPerson && !!marcusPerson && !!acmeOrg, 'TSK-00 people and Acme org must exist');
 
             const sarahUser = await ensureUIUserForPerson(ctx, sarahPerson);
+            const marcusUser = await ensureUIUserForPerson(ctx, marcusPerson);
             const createdTaskIds: string[] = [];
             const logIds: string[] = [];
             const stamp = Date.now();
@@ -413,6 +416,101 @@ const checks: NamedCheck[] = [
                 const compRepeatRes = await runTypedAction(ctx, 'Mark Task Complete', sarahUser, compRepeatParams, logIds);
                 Assert(compRepeatRes.Success, 'repeat Mark Task Complete succeeded');
                 AssertEqual(compRepeatRes.Result?.ResultCode, 'ALREADY_COMPLETED', 'repeat Mark Task Complete returns ALREADY_COMPLETED');
+
+                // 10. Task.Visibility = 'Private' RLS isolation: User A (Sarah) sees it; User B (Marcus) sees 0 rows
+                const privateTitle = `TCOS1 Private Executive Task ${stamp}`;
+                const createPrivateParams = [
+                    inputParam('Name', privateTitle),
+                    inputParam('Description', 'Confidential task visible only to Sarah'),
+                    inputParam('Priority', 'High'),
+                    inputParam('Visibility', 'Private'),
+                ];
+                const createPrivateRes = await runTypedAction(ctx, 'Create Task', sarahUser, createPrivateParams, logIds);
+                Assert(createPrivateRes.Success, `Create Private Task failed: ${createPrivateRes.Message}`);
+                const privateTaskID = String(readOutParam(createPrivateRes, createPrivateParams, 'TaskID') ?? '');
+                Assert(IsValidUUID(privateTaskID), 'Create Private Task returned valid TaskID');
+                createdTaskIds.push(privateTaskID);
+                const createdPrivateJson = JSON.parse(String(readOutParam(createPrivateRes, createPrivateParams, 'Task') ?? '{}')) as {
+                    Visibility?: string;
+                };
+                AssertEqual(createdPrivateJson.Visibility, 'Private', 'Created task has Visibility = Private');
+
+                // Add a comment on the private task so child-entity RLS (Task Comments) is also verified
+                const privateCommentRes = await runTypedAction(
+                    ctx,
+                    'Add Task Update',
+                    sarahUser,
+                    [inputParam('TaskID', privateTaskID), inputParam('Content', 'Confidential private comment')],
+                    logIds,
+                );
+                Assert(privateCommentRes.Success, `Add comment on private task failed: ${privateCommentRes.Message}`);
+
+                // User A (Sarah) sees her Private task via Find Tasks (Scope = 'Team') and Get Task
+                const sarahTeamFindParams = [
+                    inputParam('Scope', 'Team'),
+                    inputParam('SearchText', privateTitle),
+                ];
+                const sarahTeamFindRes = await runTypedAction(ctx, 'Find Tasks', sarahUser, sarahTeamFindParams, logIds);
+                Assert(sarahTeamFindRes.Success, `Sarah Find Tasks (Team) failed: ${sarahTeamFindRes.Message}`);
+                const sarahTeamRows = JSON.parse(String(readOutParam(sarahTeamFindRes, sarahTeamFindParams, 'Tasks') ?? '[]')) as Array<{ ID: string }>;
+                Assert(sarahTeamRows.some((r) => UUIDsEqual(r.ID, privateTaskID)), 'User A (Sarah) sees her own Private task');
+
+                const sarahGetPrivateRes = await runTypedAction(
+                    ctx,
+                    'Get Task',
+                    sarahUser,
+                    [inputParam('TaskID', privateTaskID)],
+                    logIds,
+                );
+                Assert(sarahGetPrivateRes.Success, `User A (Sarah) can Get her own Private task: ${sarahGetPrivateRes.Message}`);
+
+                // User B (Marcus, UI role, neither creator nor assignee) MUST see 0 rows via DB RLS and Find Tasks (Scope = 'Team')
+                const marcusDirectRlsRes = await View(ctx).RunView<{ ID: string }>(
+                    {
+                        EntityName: TASK_ENTITY,
+                        ExtraFilter: `ID = '${EscapeSQLString(privateTaskID)}'`,
+                        Fields: ['ID'],
+                        ResultType: 'simple',
+                        BypassCache: true,
+                    },
+                    marcusUser,
+                );
+                Assert(marcusDirectRlsRes.Success, `Marcus RLS RunView failed: ${marcusDirectRlsRes.ErrorMessage}`);
+                AssertEqual((marcusDirectRlsRes.Results ?? []).length, 0, 'User B (Marcus) sees 0 rows for User A Private task via DB RLS');
+
+                const marcusCommentsRlsRes = await View(ctx).RunView<{ ID: string }>(
+                    {
+                        EntityName: TASK_COMMENT_ENTITY,
+                        ExtraFilter: `TaskID = '${EscapeSQLString(privateTaskID)}'`,
+                        Fields: ['ID'],
+                        ResultType: 'simple',
+                        BypassCache: true,
+                    },
+                    marcusUser,
+                );
+                Assert(marcusCommentsRlsRes.Success, `Marcus Task Comments RLS RunView failed: ${marcusCommentsRlsRes.ErrorMessage}`);
+                AssertEqual((marcusCommentsRlsRes.Results ?? []).length, 0, 'User B (Marcus) sees 0 Task Comments for User A Private task via DB RLS');
+
+                const marcusTeamFindParams = [
+                    inputParam('Scope', 'Team'),
+                    inputParam('SearchText', privateTitle),
+                ];
+                const marcusTeamFindRes = await runTypedAction(ctx, 'Find Tasks', marcusUser, marcusTeamFindParams, logIds);
+                Assert(marcusTeamFindRes.Success, `Marcus Find Tasks (Team) failed: ${marcusTeamFindRes.Message}`);
+                const marcusTeamRows = JSON.parse(String(readOutParam(marcusTeamFindRes, marcusTeamFindParams, 'Tasks') ?? '[]')) as Array<{ ID: string }>;
+                Assert(
+                    !marcusTeamRows.some((r) => UUIDsEqual(r.ID, privateTaskID)),
+                    'User B (Marcus) must NOT see User A Private task in Find Tasks (Scope = Team)',
+                );
+
+                const marcusGetPrivateRes = await runTypedAction(
+                    ctx,
+                    'Get Task',
+                    marcusUser,
+                    [inputParam('TaskID', privateTaskID)],
+                    logIds,
+                );
+                Assert(!marcusGetPrivateRes.Success, 'User B (Marcus) cannot Get User A Private task');
             } finally {
                 // Clean up any novel task created during Accept Meeting Commitments even if a later step threw
                 try {
@@ -758,6 +856,18 @@ const checks: NamedCheck[] = [
                 const marcusGetRes = await runTypedAction(ctx, 'Get Work Report', marcusUser, marcusGetParams, logIds);
                 Assert(!marcusGetRes.Success, 'Unrelated UI user Marcus cannot Get Sarah work report');
 
+                // 5b. Get My Work Reports Briefing as supervisor Alex includes Sarah's submitted report awaiting review
+                const wrBriefParams = [inputParam('LookbackDays', 14)];
+                const wrBriefRes = await runTypedAction(ctx, 'Get My Work Reports Briefing', alexUser, wrBriefParams, logIds);
+                Assert(wrBriefRes.Success, `Get My Work Reports Briefing failed: ${wrBriefRes.Message}`);
+                const wrBriefing = JSON.parse(String(readOutParam(wrBriefRes, wrBriefParams, 'Briefing') ?? '{}')) as {
+                    DirectReportsAwaitingReview?: Array<{ ID: string }>;
+                };
+                Assert(
+                    (wrBriefing.DirectReportsAwaitingReview ?? []).some((r) => UUIDsEqual(r.ID, createdReportId!)),
+                    'Get My Work Reports Briefing surfaces direct report submitted report awaiting review',
+                );
+
                 // 6. Review Work Report as supervisor Alex
                 const reviewParams = [
                     inputParam('WorkReportID', createdReportId),
@@ -872,6 +982,18 @@ const checks: NamedCheck[] = [
                 Assert(
                     upcomingMeetings.some((m) => UUIDsEqual(m.ID, meeting.ID)),
                     'Get My Upcoming Meetings includes ephemeral meeting',
+                );
+
+                // 1b. Get My Meetings Briefing includes ephemeral upcoming meeting
+                const mBriefParams = [inputParam('HorizonDays', 7), inputParam('LookbackDays', 7)];
+                const mBriefRes = await runTypedAction(ctx, 'Get My Meetings Briefing', alexUser, mBriefParams, logIds);
+                Assert(mBriefRes.Success, `Get My Meetings Briefing failed: ${mBriefRes.Message}`);
+                const mBriefing = JSON.parse(String(readOutParam(mBriefRes, mBriefParams, 'Briefing') ?? '{}')) as {
+                    UpcomingMeetings?: Array<{ ID: string }>;
+                };
+                Assert(
+                    (mBriefing.UpcomingMeetings ?? []).some((m) => UUIDsEqual(m.ID, meeting.ID)),
+                    'Get My Meetings Briefing includes ephemeral upcoming meeting',
                 );
 
                 // 2. Prepare Meeting Brief
@@ -1100,6 +1222,38 @@ const checks: NamedCheck[] = [
             for (const r of rhythms) {
                 AssertEqual(r.Status, 'Active', `Rhythm Template '${r.WorkstreamKey}' is Active`);
             }
+
+            // 5. All 3 Briefing actions bound with Role = 'Briefing' and ExposeToModel = false
+            for (const briefingActionName of [
+                'Get My Tasks Briefing',
+                'Get My Meetings Briefing',
+                'Get My Work Reports Briefing',
+            ]) {
+                const links = await FindRows<{ Role: string; ExposeToModel: boolean }>(
+                    ctx,
+                    AI_SKILL_ACTION_ENTITY,
+                    `ActionID IN (SELECT ID FROM [__mj].[vwActions] WHERE Name = '${Quote(briefingActionName)}')`,
+                    ['Role', 'ExposeToModel'],
+                );
+                Assert(links.length >= 1, `${briefingActionName} must be bound to its CoS skill`);
+                AssertEqual(links[0].Role, 'Briefing', `${briefingActionName} Role = 'Briefing'`);
+                AssertEqual(links[0].ExposeToModel, false, `${briefingActionName} ExposeToModel = false`);
+            }
+
+            // 6. Canonical Agent Task (AGENT_TASK) Task Type exists with OnAssignActionID -> Execute Assigned Agent
+            const agentTaskTypes = await FindRows<{ ID: string; Code: string; OnAssignActionID: string | null }>(
+                ctx,
+                TASK_TYPE_ENTITY,
+                `Code = 'AGENT_TASK'`,
+                ['ID', 'Code', 'OnAssignActionID'],
+            );
+            AssertEqual(agentTaskTypes.length, 1, 'Canonical Agent Task (AGENT_TASK) Task Type must exist');
+            const executeAgentActionId = await FindId(ctx, ACTION_ENTITY, `Name = 'Execute Assigned Agent'`);
+            Assert(!!executeAgentActionId, 'Execute Assigned Agent action must exist');
+            Assert(
+                UUIDsEqual(agentTaskTypes[0].OnAssignActionID, executeAgentActionId),
+                'Agent Task OnAssignActionID must point to Execute Assigned Agent',
+            );
         },
     },
 ];

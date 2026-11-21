@@ -127,5 +127,19 @@
     "primaryKey": {
       "ID": "A1B2C3D4-4444-4A44-8444-444444444401"
     }
+  },
+  {
+    "fields": {
+      "Name": "Agent Task",
+      "Code": "AGENT_TASK",
+      "Description": "A task delegated to an MJ AI Agent. Assigning an AI Agent triggers non-blocking execution via Execute Assigned Agent, linking the AIAgentRun, posting results, and waking the assigner on tasks-inbox.",
+      "IconClass": "fa-solid fa-robot",
+      "DefaultPriority": "Medium",
+      "IsApproval": false,
+      "OnAssignActionID": "@lookup:MJ: Actions.Name=Execute Assigned Agent"
+    },
+    "primaryKey": {
+      "ID": "665697FE-9B18-4691-B40C-BE849FE60216"
+    }
   }
 ]

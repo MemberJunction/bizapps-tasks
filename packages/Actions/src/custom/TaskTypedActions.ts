@@ -37,12 +37,12 @@ import {
     normalizeHealthStatus,
     normalizeTaskPriority,
     normalizeTaskStatus,
+    normalizeTaskVisibility,
     PLANNING_TASK_TYPE_CODES,
     PLANNING_TASK_TYPE_NAMES,
     resolveCallerPerson,
     resolveOrganizationByIdentifier,
     resolvePersonByIdentifier,
-    resolveUserIDForPersonRecord,
     ROLES_ENTITY,
     setOutputParam,
     successResult,
@@ -57,9 +57,9 @@ import {
     TASKS_ENTITY,
     toIsoOrNull,
     upsertTaskOrganizationLink,
-    wakeChiefOfStaffBestEffort,
     WORK_REPORTS_ENTITY,
     type TaskStatusValue,
+    type TaskVisibilityValue,
 } from './action-helpers.js';
 
 interface TaskSummaryRow {
@@ -68,6 +68,7 @@ interface TaskSummaryRow {
     Description?: string | null;
     Status: mjBizAppsTasksTaskEntity['Status'];
     Priority: mjBizAppsTasksTaskEntity['Priority'];
+    Visibility?: mjBizAppsTasksTaskEntity['Visibility'];
     DueAt: string | Date | null;
     StartedAt?: string | Date | null;
     CompletedAt?: string | Date | null;
@@ -79,6 +80,7 @@ interface TaskSummaryRow {
     OrganizationID?: string | null;
     Organization?: string | null;
     ParentID: string | null;
+    RootParentID?: string | null;
     BlockedReason: string | null;
     HealthStatus: mjBizAppsTasksTaskEntity['HealthStatus'];
     CreatedByPersonID?: string | null;
@@ -91,6 +93,7 @@ interface CompactTaskSummary {
     Name: string;
     Status: mjBizAppsTasksTaskEntity['Status'];
     Priority: mjBizAppsTasksTaskEntity['Priority'];
+    Visibility: mjBizAppsTasksTaskEntity['Visibility'];
     DueAt: string | null;
     PercentComplete: number;
     Type: string;
@@ -144,6 +147,7 @@ function toCompactSummary(row: TaskSummaryRow): CompactTaskSummary {
         Name: row.Name,
         Status: row.Status,
         Priority: row.Priority,
+        Visibility: row.Visibility ?? 'Standard',
         DueAt: toIsoOrNull(row.DueAt),
         PercentComplete: row.PercentComplete ?? 0,
         Type: row.Type,
@@ -177,17 +181,37 @@ async function loadAllTaskTypes(contextUser: UserInfo): Promise<TaskTypeLookupRo
     return res.Success ? (res.Results ?? []) : [];
 }
 
-async function getPersonAssignedTaskIDs(personID: string, contextUser: UserInfo): Promise<string[]> {
+async function getCallerAssignedTaskIDs(
+    personID: string | null,
+    contextUser: UserInfo,
+): Promise<string[]> {
     const rv = new RunView();
-    const peopleEntityID = findEntityIDByName(PEOPLE_ENTITY_NAME);
-    const filter = peopleEntityID
-        ? `AssigneeEntityID = '${EscapeSQLString(peopleEntityID)}' AND AssigneeRecordID = '${EscapeSQLString(personID)}'`
-        : `AssigneeRecordID = '${EscapeSQLString(personID)}'`;
+    const clauses: string[] = [];
+
+    if (personID && IsValidUUID(personID)) {
+        const peopleEntityID = findEntityIDByName(PEOPLE_ENTITY_NAME);
+        clauses.push(
+            peopleEntityID
+                ? `(AssigneeEntityID = '${EscapeSQLString(peopleEntityID)}' AND AssigneeRecordID = '${EscapeSQLString(personID)}')`
+                : `AssigneeRecordID = '${EscapeSQLString(personID)}'`,
+        );
+    }
+
+    const rolesEntityID = findEntityIDByName(ROLES_ENTITY);
+    const userRoleIDs = (contextUser.UserRoles ?? [])
+        .map((ur) => ur.RoleID)
+        .filter((id): id is string => Boolean(id && IsValidUUID(id)));
+    if (rolesEntityID && userRoleIDs.length > 0) {
+        const inRoles = userRoleIDs.map((id) => `'${EscapeSQLString(id)}'`).join(', ');
+        clauses.push(`(AssigneeEntityID = '${EscapeSQLString(rolesEntityID)}' AND AssigneeRecordID IN (${inRoles}))`);
+    }
+
+    if (clauses.length === 0) return [];
 
     const res = await rv.RunView<{ TaskID: string }>(
         {
             EntityName: TASK_ASSIGNMENTS_ENTITY,
-            ExtraFilter: filter,
+            ExtraFilter: clauses.join(' OR '),
             Fields: ['TaskID'],
             ResultType: 'simple',
             MaxRows: 1000,
@@ -314,6 +338,8 @@ export class FindTasksAction extends BaseAction {
             );
 
             const filters: string[] = [];
+            let callerPersonIDForVisibility: string | null = null;
+            let callerAssignedIDsForVisibility: string[] = [];
 
             // Scope resolution (caller -> Person)
             if (scope !== 'team') {
@@ -325,7 +351,9 @@ export class FindTasksAction extends BaseAction {
                         params,
                     );
                 }
-                const assignedIds = await getPersonAssignedTaskIDs(callerPerson.ID, user);
+                callerPersonIDForVisibility = callerPerson.ID;
+                const assignedIds = await getCallerAssignedTaskIDs(callerPerson.ID, user);
+                callerAssignedIDsForVisibility = assignedIds;
                 if (scope === 'assignedtome') {
                     if (assignedIds.length === 0) {
                         return this.returnEmpty(params, 'No tasks assigned to you match the requested filters.');
@@ -353,6 +381,26 @@ export class FindTasksAction extends BaseAction {
                         filters.push(`CreatedByPersonID = '${EscapeSQLString(callerPerson.ID)}'`);
                     }
                 }
+            } else {
+                // Defense-in-depth visibility scoping for Scope = 'Team' alongside DB RLS:
+                // never leak another user's Private task even under elevated/non-UI roles.
+                const callerPerson = await resolveCallerPerson(user);
+                callerPersonIDForVisibility = callerPerson?.ID ?? null;
+                const assignedIds = await getCallerAssignedTaskIDs(callerPersonIDForVisibility, user);
+                callerAssignedIDsForVisibility = assignedIds;
+
+                const visibilityClauses: string[] = [`Visibility = 'Standard'`];
+                if (callerPersonIDForVisibility) {
+                    visibilityClauses.push(
+                        `CreatedByPersonID = '${EscapeSQLString(callerPersonIDForVisibility)}'`,
+                    );
+                }
+                if (assignedIds.length > 0) {
+                    const inList = assignedIds.map((id) => `'${EscapeSQLString(id)}'`).join(', ');
+                    visibilityClauses.push(`ID IN (${inList})`);
+                    visibilityClauses.push(`RootParentID IN (${inList})`);
+                }
+                filters.push(`(${visibilityClauses.join(' OR ')})`);
             }
 
             // TaskType filtering + planning-type exclusion
@@ -450,6 +498,7 @@ export class FindTasksAction extends BaseAction {
                         'Description',
                         'Status',
                         'Priority',
+                        'Visibility',
                         'DueAt',
                         'PercentComplete',
                         'TypeID',
@@ -459,8 +508,10 @@ export class FindTasksAction extends BaseAction {
                         'OrganizationID',
                         'Organization',
                         'ParentID',
+                        'RootParentID',
                         'BlockedReason',
                         'HealthStatus',
+                        'CreatedByPersonID',
                         '__mj_UpdatedAt',
                     ],
                     OrderBy: 'DueAt ASC, __mj_UpdatedAt DESC',
@@ -475,6 +526,18 @@ export class FindTasksAction extends BaseAction {
             }
 
             let rows = res.Results ?? [];
+            if (scope === 'team') {
+                const assignedNorm = new Set(callerAssignedIDsForVisibility.map((id) => NormalizeUUID(id)));
+                rows = rows.filter((r) => {
+                    if ((r.Visibility ?? 'Standard') !== 'Private') return true;
+                    if (callerPersonIDForVisibility && r.CreatedByPersonID && UUIDsEqual(r.CreatedByPersonID, callerPersonIDForVisibility)) {
+                        return true;
+                    }
+                    if (assignedNorm.has(NormalizeUUID(r.ID))) return true;
+                    if (r.RootParentID && assignedNorm.has(NormalizeUUID(r.RootParentID))) return true;
+                    return false;
+                });
+            }
             if (excludePlanningTypes && !taskTypeParam) {
                 // Defensive in-memory filter in case TaskType metadata wasn't returned in mock environments
                 rows = rows.filter((r) => !PLANNING_TASK_TYPE_NAMES.has((r.Type ?? '').trim().toLowerCase()));
@@ -641,6 +704,7 @@ export class GetTaskAction extends BaseAction {
                 Description: task.Description ?? null,
                 Status: task.Status,
                 Priority: task.Priority,
+                Visibility: task.Visibility ?? 'Standard',
                 DueAt: toIsoOrNull(task.DueAt),
                 StartedAt: toIsoOrNull(task.StartedAt),
                 CompletedAt: toIsoOrNull(task.CompletedAt),
@@ -752,6 +816,16 @@ export class CreateTaskAction extends BaseAction {
             );
         }
 
+        const visibilityRaw = getStringParam(params, 'Visibility');
+        const visibility: TaskVisibilityValue | null = visibilityRaw ? normalizeTaskVisibility(visibilityRaw) : 'Standard';
+        if (!visibility) {
+            return failResult(
+                'VALIDATION_ERROR',
+                `Invalid Visibility '${visibilityRaw}'. Expected Standard or Private.`,
+                params,
+            );
+        }
+
         const dueAt = getDateParam(params, 'DueAt');
         const startedAt = getDateParam(params, 'StartedAt');
         if (dueAt === 'INVALID' || startedAt === 'INVALID') {
@@ -782,6 +856,7 @@ export class CreateTaskAction extends BaseAction {
         }
 
         const writeFields: string[] = ['Name', 'TypeID', 'Status', 'Priority', 'PercentComplete', 'CreatedByPersonID'];
+        if (visibilityRaw !== null) writeFields.push('Visibility');
         if (description) writeFields.push('Description');
         if (dueAt) writeFields.push('DueAt');
         if (startedAt) writeFields.push('StartedAt');
@@ -892,6 +967,7 @@ export class CreateTaskAction extends BaseAction {
             task.TypeID = selectedType.ID;
             task.Status = 'Open';
             task.Priority = priority;
+            task.Visibility = visibility;
             task.PercentComplete = 0;
             task.DueAt = dueAt;
             task.StartedAt = startedAt;
@@ -917,7 +993,8 @@ export class CreateTaskAction extends BaseAction {
                 await act.Save();
             }
 
-            // Create assignment if assignee resolved
+            // Create assignment if assignee resolved (TaskAssignmentEntityServer triggers
+            // the coalesced per-user 'tasks-inbox' CoS wake post-commit for all pathways)
             if (resolvedAssignee) {
                 const peopleEntityID = findEntityIDByName(PEOPLE_ENTITY_NAME);
                 if (peopleEntityID) {
@@ -931,24 +1008,6 @@ export class CreateTaskAction extends BaseAction {
                     assignment.AssigneeRecordID = resolvedAssignee.ID;
                     assignment.AssignedByPersonID = callerPerson.ID;
                     await assignment.Save();
-
-                    const assigneeUserID =
-                        resolvedAssignee.LinkedUserID ??
-                        (await resolveUserIDForPersonRecord(resolvedAssignee.ID, user));
-                    if (assigneeUserID && !UUIDsEqual(assigneeUserID, user.ID)) {
-                        await wakeChiefOfStaffBestEffort({
-                            targetUserID: assigneeUserID,
-                            workstreamKey: `task-assigned-${task.ID}`,
-                            wakeReason: `New task "${task.Name}" assigned to you by ${user.Name ?? user.Email}.`,
-                            resumeState: {
-                                eventType: 'TaskAssigned',
-                                taskID: task.ID,
-                                taskName: task.Name,
-                                assigneePersonID: resolvedAssignee.ID,
-                            },
-                            actingUser: user,
-                        });
-                    }
                 }
             }
 
@@ -957,6 +1016,7 @@ export class CreateTaskAction extends BaseAction {
                 Name: task.Name,
                 Status: task.Status,
                 Priority: task.Priority,
+                Visibility: task.Visibility ?? visibility,
                 DueAt: toIsoOrNull(task.DueAt),
                 PercentComplete: task.PercentComplete ?? 0,
                 Type: selectedType.Name,
@@ -1040,6 +1100,7 @@ export class UpdateTaskAction extends BaseAction {
         const description = getStringParam(params, 'Description');
         const statusRaw = getStringParam(params, 'Status');
         const priorityRaw = getStringParam(params, 'Priority');
+        const visibilityRaw = getStringParam(params, 'Visibility');
         const dueAt = getDateParam(params, 'DueAt', 'ExpectedCompletionAt');
         const startedAt = getDateParam(params, 'StartedAt');
         const percentComplete = getNumberParam(params, 'PercentComplete');
@@ -1073,6 +1134,14 @@ export class UpdateTaskAction extends BaseAction {
         if (priorityRaw && !priority) {
             return failResult('VALIDATION_ERROR', `Invalid Priority '${priorityRaw}'.`, params);
         }
+        const visibility = visibilityRaw ? normalizeTaskVisibility(visibilityRaw) : null;
+        if (visibilityRaw && !visibility) {
+            return failResult(
+                'VALIDATION_ERROR',
+                `Invalid Visibility '${visibilityRaw}'. Expected Standard or Private.`,
+                params,
+            );
+        }
         const healthStatus = healthRaw ? normalizeHealthStatus(healthRaw) : null;
         if (healthRaw && !healthStatus) {
             return failResult('VALIDATION_ERROR', `Invalid HealthStatus '${healthRaw}'.`, params);
@@ -1083,6 +1152,7 @@ export class UpdateTaskAction extends BaseAction {
         if (description !== null) writeFields.push('Description');
         if (status !== null) writeFields.push('Status');
         if (priority !== null) writeFields.push('Priority');
+        if (visibility !== null) writeFields.push('Visibility');
         if (dueAt !== null) writeFields.push('DueAt');
         if (startedAt !== null) writeFields.push('StartedAt');
         if (percentComplete !== null) writeFields.push('PercentComplete');
@@ -1113,6 +1183,7 @@ export class UpdateTaskAction extends BaseAction {
                     Name: task.Name,
                     Status: task.Status,
                     Priority: task.Priority,
+                    Visibility: task.Visibility,
                     CategoryID: task.CategoryID,
                     OrganizationID: task.OrganizationID,
                 },
@@ -1123,6 +1194,7 @@ export class UpdateTaskAction extends BaseAction {
             if (description !== null) task.Description = description;
             if (status !== null) task.Status = status;
             if (priority !== null) task.Priority = priority;
+            if (visibility !== null) task.Visibility = visibility;
             if (dueAt !== null) task.DueAt = dueAt;
             if (startedAt !== null) task.StartedAt = startedAt;
             if (percentComplete !== null) task.PercentComplete = Math.round(percentComplete);
@@ -1148,6 +1220,7 @@ export class UpdateTaskAction extends BaseAction {
                 Name: task.Name,
                 Status: task.Status,
                 Priority: task.Priority,
+                Visibility: task.Visibility ?? 'Standard',
                 DueAt: toIsoOrNull(task.DueAt),
                 PercentComplete: task.PercentComplete ?? 0,
                 Type: task.Type,
@@ -1242,7 +1315,9 @@ export class CompleteTaskAction extends BaseAction {
                 }
             }
 
-            const unblockedTaskIDs = await this.notifyUnblockedDownstreamTasks(task.ID, task.Name, user);
+            // Coalesced per-user 'tasks-inbox' CoS wakes for unblocked downstream assignees are
+            // triggered post-commit by TaskEntityServer.Save; here we compute UnblockedTaskIDs for the action output.
+            const unblockedTaskIDs = await this.findUnblockedDownstreamTaskIDs(task.ID, user);
 
             const summary =
                 unblockedTaskIDs.length > 0
@@ -1258,9 +1333,8 @@ export class CompleteTaskAction extends BaseAction {
         }
     }
 
-    private async notifyUnblockedDownstreamTasks(
+    private async findUnblockedDownstreamTaskIDs(
         completedTaskID: string,
-        completedTaskName: string,
         actingUser: UserInfo,
     ): Promise<string[]> {
         const rv = new RunView();
@@ -1332,7 +1406,7 @@ export class CompleteTaskAction extends BaseAction {
             }
         }
 
-        const unblocked: Array<{ ID: string; Name: string }> = [];
+        const unblockedIds: string[] = [];
         for (const dsTask of openDownstream) {
             const prereqsForTask = allPrereqs.filter((p) => UUIDsEqual(p.TaskID, dsTask.ID));
             const stillBlocked = prereqsForTask.some(
@@ -1341,50 +1415,11 @@ export class CompleteTaskAction extends BaseAction {
                     incompletePrereqIds.has(NormalizeUUID(p.DependsOnTaskID)),
             );
             if (!stillBlocked) {
-                unblocked.push(dsTask);
+                unblockedIds.push(dsTask.ID);
             }
         }
 
-        if (unblocked.length === 0) return [];
-
-        const peopleEntityID = findEntityIDByName(PEOPLE_ENTITY_NAME);
-        const inUnblocked = unblocked.map((t) => `'${EscapeSQLString(t.ID)}'`).join(', ');
-        const assignFilter = peopleEntityID
-            ? `TaskID IN (${inUnblocked}) AND AssigneeEntityID = '${EscapeSQLString(peopleEntityID)}'`
-            : `TaskID IN (${inUnblocked})`;
-        const assignRes = await rv.RunView<{ TaskID: string; AssigneeRecordID: string }>(
-            {
-                EntityName: TASK_ASSIGNMENTS_ENTITY,
-                ExtraFilter: assignFilter,
-                Fields: ['TaskID', 'AssigneeRecordID'],
-                ResultType: 'simple',
-            },
-            actingUser,
-        );
-
-        const assignments = assignRes.Success ? (assignRes.Results ?? []) : [];
-        for (const dsTask of unblocked) {
-            const taskAssignees = assignments.filter((a) => UUIDsEqual(a.TaskID, dsTask.ID));
-            for (const assignee of taskAssignees) {
-                const targetUserID = await resolveUserIDForPersonRecord(assignee.AssigneeRecordID, actingUser);
-                if (!targetUserID) continue;
-                await wakeChiefOfStaffBestEffort({
-                    targetUserID,
-                    workstreamKey: `task-unblocked-${dsTask.ID}`,
-                    wakeReason: `Prerequisite task "${completedTaskName}" was completed, unblocking "${dsTask.Name}".`,
-                    resumeState: {
-                        eventType: 'TaskUnblocked',
-                        taskID: dsTask.ID,
-                        taskName: dsTask.Name,
-                        completedDependencyTaskID: completedTaskID,
-                        completedDependencyTaskName: completedTaskName,
-                    },
-                    actingUser,
-                });
-            }
-        }
-
-        return unblocked.map((t) => t.ID);
+        return unblockedIds;
     }
 }
 
@@ -1462,7 +1497,6 @@ export class AssignTaskAction extends BaseAction {
             let targetEntityName: string;
             let targetRecordID: string;
             let targetDisplayName: string;
-            let humanLinkedUserID: string | null = null;
 
             if (inferredType === 'agent') {
                 targetEntityName = AI_AGENTS_ENTITY;
@@ -1510,8 +1544,6 @@ export class AssignTaskAction extends BaseAction {
                 }
                 targetRecordID = lookup.Person.ID;
                 targetDisplayName = lookup.Person.Name;
-                humanLinkedUserID =
-                    lookup.Person.LinkedUserID ?? (await resolveUserIDForPersonRecord(lookup.Person.ID, user));
             }
 
             const targetEntityID = findEntityIDByName(targetEntityName);
@@ -1580,23 +1612,8 @@ export class AssignTaskAction extends BaseAction {
                 assignmentID = assignment.ID;
             }
 
-            // Wake human assignee's Chief of Staff (best-effort, non-blocking)
-            if (inferredType === 'person' && humanLinkedUserID && !UUIDsEqual(humanLinkedUserID, user.ID)) {
-                await wakeChiefOfStaffBestEffort({
-                    targetUserID: humanLinkedUserID,
-                    workstreamKey: `task-assigned-${taskID}`,
-                    wakeReason: `Task "${task.Name}" was assigned to you by ${user.Name ?? user.Email}.`,
-                    resumeState: {
-                        eventType: 'TaskAssigned',
-                        taskID,
-                        taskName: task.Name,
-                        taskAssignmentID: assignmentID,
-                        assigneePersonID: targetRecordID,
-                    },
-                    actingUser: user,
-                });
-            }
-
+            // Note: TaskAssignmentEntityServer.Save triggers the coalesced per-user
+            // 'tasks-inbox' CoS wake post-commit for both Person and MJ Role assignments.
             const summary = `Assigned "${task.Name}" to ${targetDisplayName} (${targetEntityName}).`;
             setOutputParam(params, 'TaskAssignmentID', assignmentID);
             setOutputParam(params, 'TaskID', taskID);
@@ -2042,7 +2059,7 @@ export class GetMyTasksBriefingAction extends BaseAction {
             const horizonEnd = new Date(endOfToday.getTime() + horizonDays * 24 * 60 * 60 * 1000);
 
             const [assignedIds, allTypes] = await Promise.all([
-                getPersonAssignedTaskIDs(callerPerson.ID, user),
+                getCallerAssignedTaskIDs(callerPerson.ID, user),
                 loadAllTaskTypes(user),
             ]);
 
@@ -2073,6 +2090,7 @@ export class GetMyTasksBriefingAction extends BaseAction {
                         'Name',
                         'Status',
                         'Priority',
+                        'Visibility',
                         'DueAt',
                         'PercentComplete',
                         'TypeID',
