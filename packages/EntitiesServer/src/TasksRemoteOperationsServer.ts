@@ -6,16 +6,12 @@ import {
     UserInfo,
 } from '@memberjunction/core';
 import {
+    AgentUserPolicyEngine,
+    TypedActionPolicyGuard,
     type AgentEntityCrudOperation,
     type AgentPolicyVerdict,
-} from '@memberjunction/ai-core-plus';
-import {
-    GetAgentUserPolicyEngineCompat,
-    GetEffectivePolicyAgentChainCompat,
-    ResolvePolicyForAgentAndUserCompat,
-    TypedActionPolicyGuardCompatAdapter,
     type TypedActionPolicyResultCode,
-} from './ai-policy-compat.js';
+} from '@memberjunction/ai-core-plus';
 import { RegisterClass, UUIDsEqual } from '@memberjunction/global';
 import {
     TASKS_BULK_UPDATE_OP_KEY,
@@ -76,13 +72,13 @@ async function enforceAgentPolicyForTasksRemoteOp(params: {
     provider: IMetadataProvider;
     user: UserInfo;
 }): Promise<void> {
-    const engine = GetAgentUserPolicyEngineCompat();
-    const agentChain = GetEffectivePolicyAgentChainCompat(engine);
+    const engine = AgentUserPolicyEngine.Instance;
+    const agentChain = engine.GetEffectivePolicyAgentChain();
     if (agentChain.length === 0) {
         return;
     }
 
-    const entityOutcome = await TypedActionPolicyGuardCompatAdapter.CheckEntityAccess({
+    const entityOutcome = await TypedActionPolicyGuard.CheckEntityAccess({
         entityName: TASKS_ENTITY_NAME,
         operation: params.entityOperation,
         contextUser: params.user,
@@ -107,8 +103,7 @@ async function enforceAgentPolicyForTasksRemoteOp(params: {
     for (const agentId of agentChain) {
         let policy = engine.GetCachedPolicy(agentId, params.user.ID, params.provider);
         if (!policy) {
-            const lookup = await ResolvePolicyForAgentAndUserCompat(
-                engine,
+            const lookup = await engine.ResolvePolicyForAgentAndUser(
                 agentId,
                 params.user.ID,
                 params.user,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -171,27 +171,13 @@ describe('Task metadata & generic measurable field descriptions (AC-1)', () => {
 });
 
 describe('PRIORITY TaskType ExtensionEntity metadata & standalone/Planning resilience (AC-2)', () => {
-    it('configures PRIORITY ExtensionEntity in metadata/task-types-planning and lists it in directoryOrder', () => {
+    it('leaves PRIORITY task-type ownership to Planning and keeps metadata/.mj-sync.json free of task-types-planning', () => {
         const rootSync = JSON.parse(
             readFileSync(resolve(repoRoot, 'metadata/.mj-sync.json'), 'utf8'),
         ) as { directoryOrder: string[] };
         expect(rootSync.directoryOrder).toContain('task-types');
-        expect(rootSync.directoryOrder).toContain('task-types-planning');
-
-        const folderSync = JSON.parse(
-            readFileSync(resolve(repoRoot, 'metadata/task-types-planning/.mj-sync.json'), 'utf8'),
-        ) as { entity: string; pushWhen?: string };
-        expect(folderSync.entity).toBe('MJ_BizApps_Tasks: Task Types');
-        expect(folderSync.pushWhen).toBe('@env:MJ_BIZAPPS_PLANNING_INSTALLED');
-
-        const planningTaskTypes = JSON.parse(
-            readFileSync(resolve(repoRoot, 'metadata/task-types-planning/.planning-task-types.json'), 'utf8'),
-        ) as TaskTypeMetadataEntry[];
-        const priorityType = planningTaskTypes.find((t) => t.fields.Code === PRIORITY_TASK_TYPE_CODE);
-        expect(priorityType).toBeDefined();
-        expect(priorityType?.primaryKey.ID).toBe('7E100001-0000-0000-0000-000000000001');
-        expect(priorityType?.fields.ExtensionEntity).toBe(PRIORITY_EXTENSION_ENTITY);
-        expect(priorityType?.fields.IsActive).toBe(true);
+        expect(rootSync.directoryOrder).not.toContain('task-types-planning');
+        expect(existsSync(resolve(repoRoot, 'metadata/task-types-planning'))).toBe(false);
     });
 
     it('marks legacy OKR task types inactive and keeps standalone metadata free of Planning dependencies', () => {

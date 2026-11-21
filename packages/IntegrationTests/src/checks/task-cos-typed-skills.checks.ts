@@ -19,12 +19,7 @@ import type {
 } from '@memberjunction/core-entities';
 import { ActionEngineServer } from '@memberjunction/actions';
 import { ActionParam, ActionResult, RunActionParams } from '@memberjunction/actions-base';
-import {
-    ClearPolicyCacheCompat,
-    GetAgentUserPolicyEngineCompat,
-    RunWithExecutingAgentContextCompat,
-    SetCachedPolicyCompat,
-} from '@mj-biz-apps/tasks-entities-server';
+import { AgentUserPolicyEngine } from '@memberjunction/ai-core-plus';
 import { EscapeSQLString, IsValidUUID, UUIDsEqual } from '@memberjunction/global';
 import {
     Assert,
@@ -566,7 +561,7 @@ const checks: NamedCheck[] = [
             let priorDestructive: boolean | null = null;
             let priorStatus: MJAIAgentUserPolicyEntity['Status'] | null = null;
 
-            const engine = GetAgentUserPolicyEngineCompat();
+            const engine = AgentUserPolicyEngine.Instance;
 
             try {
                 // Create an ephemeral task owned by Sarah for Update / BulkUpdate checks
@@ -615,16 +610,16 @@ const checks: NamedCheck[] = [
                     policy.RequireApprovalForDestructiveActions = requireDestructiveApproval;
                     await RequireSave(policy, `TCOS2 policy (${mode}, destructive=${requireDestructiveApproval})`);
                     savedPolicyId = policy.ID;
-                    ClearPolicyCacheCompat(engine, cosAgentId!, sarahUser.ID);
-                    ClearPolicyCacheCompat(engine, cosAgentId!, sarahUser.ID, ctx.Provider);
-                    SetCachedPolicyCompat(engine, policy);
-                    SetCachedPolicyCompat(engine, policy, ctx.Provider);
+                    engine.ClearCache(cosAgentId!, sarahUser.ID);
+                    engine.ClearCache(cosAgentId!, sarahUser.ID, ctx.Provider);
+                    engine.SetCachedPolicy(policy);
+                    engine.SetCachedPolicy(policy, ctx.Provider);
                 };
 
                 // Phase A: ReadOnly blocks all write typed actions + all 3 Remotable Operations (live), while allowing reads & DryRun
                 await applyPolicy('ReadOnly', true);
 
-                await RunWithExecutingAgentContextCompat(engine, cosAgentId!, async () => {
+                await engine.RunWithExecutingAgentContext(cosAgentId!, async () => {
                     const createBlocked = await runTypedAction(
                         ctx,
                         'Create Task',
@@ -708,7 +703,7 @@ const checks: NamedCheck[] = [
 
                 // Phase B: UserCeiling + RequireApprovalForDestructiveActions=true blocks destructive BulkUpdate / Rollover with APPROVAL_REQUIRED
                 await applyPolicy('UserCeiling', true);
-                await RunWithExecutingAgentContextCompat(engine, cosAgentId!, async () => {
+                await engine.RunWithExecutingAgentContext(cosAgentId!, async () => {
                     const bulkApproval = await new TasksBulkUpdateOperation().Execute(
                         { TaskIDs: [probeTask.ID], Priority: 'High' },
                         { provider: ctx.Provider, user: sarahUser },
@@ -722,7 +717,7 @@ const checks: NamedCheck[] = [
 
                 // Phase C: UserCeiling + RequireApprovalForDestructiveActions=false permits BulkUpdate & InstantiateTemplate
                 await applyPolicy('UserCeiling', false);
-                await RunWithExecutingAgentContextCompat(engine, cosAgentId!, async () => {
+                await engine.RunWithExecutingAgentContext(cosAgentId!, async () => {
                     const bulkOk = await new TasksBulkUpdateOperation().Execute(
                         { TaskIDs: [probeTask.ID], Priority: 'High' },
                         { provider: ctx.Provider, user: sarahUser },
@@ -747,8 +742,8 @@ const checks: NamedCheck[] = [
                 );
                 Assert(directHumanOk.Success, `Direct human BulkUpdateTasks must bypass agent policy: ${directHumanOk.ErrorMessage}`);
             } finally {
-                ClearPolicyCacheCompat(engine, cosAgentId!, sarahUser.ID);
-                ClearPolicyCacheCompat(engine, cosAgentId!, sarahUser.ID, ctx.Provider);
+                engine.ClearCache(cosAgentId!, sarahUser.ID);
+                engine.ClearCache(cosAgentId!, sarahUser.ID, ctx.Provider);
                 if (policyCreatedByTest && savedPolicyId) {
                     await deleteEntityById(ctx, AI_AGENT_USER_POLICY_ENTITY, savedPolicyId);
                 } else if (savedPolicyId && priorMode !== null && priorDestructive !== null && priorStatus !== null) {
