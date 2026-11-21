@@ -1,0 +1,24 @@
+{
+  "fields": {
+    "TypeID": "@lookup:MJ: Test Types.Name=Integration Test",
+    "Name": "TSK-10 - Chief of Staff Live Agent Tasks, Transcripts, and Policy Enforcement",
+    "Description": "Exercises the real Chief of Staff agent via AgentRunner.RunAgent against live DB and live LLM across 4 heuristic checks (TCOSL1-TCOSL4): org-scoped briefing & task discovery, deduplicated task creation, meeting transcript/notes review, and live ReadOnly policy enforcement with zero raw SQL/CRUD invocations.",
+    "InputDefinition": {},
+    "ExpectedOutcomes": {
+      "summary": "All 4 live Chief of Staff checks reach terminal Completed status with verifyAgentRun passing, typed Tasks/Meetings actions invoked, zero raw SQL/CRUD calls, real DB persistence under ReadWrite, and zero unauthorized mutations under Tasks=ReadOnly."
+    },
+    "Configuration": {
+      "tier": "live-model",
+      "transport": "server",
+      "checks": [
+        {
+          "type": "task-cos-live"
+        }
+      ]
+    },
+    "Status": "Active"
+  },
+  "primaryKey": {
+    "ID": "0CAF9E23-7450-42F8-83B8-38BCFBA8808B"
+  }
+}

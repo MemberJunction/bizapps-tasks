@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { BaseEntity, RunView, type IMetadataProvider, type RunViewParams, type RunViewResult, type UserInfo } from '@memberjunction/core';
+import { type MJAIAgentUserPolicyEntity } from '@memberjunction/core-entities';
+import { AgentUserPolicyEngine } from '@memberjunction/ai-core-plus';
 import {
     TasksBulkUpdateServerOperation,
     TasksInstantiateTemplateServerOperation,
@@ -892,6 +894,165 @@ describe('TasksRunRecurringPlaybooksServerOperation', () => {
             expect(invalid.Success).toBe(false);
             expect(invalid.ErrorMessage).toMatch(/PeriodKey/i);
         } finally {
+            runViewSpy.mockRestore();
+        }
+    });
+});
+
+function makeAgentPolicy(overrides: Partial<MJAIAgentUserPolicyEntity> = {}): MJAIAgentUserPolicyEntity {
+    const base: Partial<MJAIAgentUserPolicyEntity> = {
+        ID: 'pol-tasks-1',
+        AgentID: 'c0500000-0000-4000-8000-000000000001',
+        UserID: TEST_USER.ID,
+        DisplayNameOverride: null,
+        PreferredPersonaID: null,
+        Status: 'Active',
+        OnboardingStatus: 'Completed',
+        CoordinationMode: 'Coordinator',
+        DefaultDataAccessMode: 'UserCeiling',
+        EmailChannelMode: 'DraftOnly',
+        CalendarChannelMode: 'ReadOnly',
+        PhoneChannelMode: 'InboundOnly',
+        MessagingChannelMode: 'Enabled',
+        AllowInterAgentCoordination: true,
+        RequireApprovalForExternalComms: true,
+        RequireApprovalForFinancials: true,
+        RequireApprovalForDestructiveActions: true,
+        AutoApproveAmountThreshold: null,
+        EntityAccessRules: null,
+        EntityAccessRulesObject: null,
+        ActionPolicyRules: null,
+        ActionPolicyRulesObject: null,
+        InstructionsOverride: null,
+        ...overrides,
+    };
+    return base as MJAIAgentUserPolicyEntity;
+}
+
+describe('Tasks Remotable Operations — Agent User Policy Enforcement', () => {
+    const AGENT_COS = 'c0500000-0000-4000-8000-000000000001';
+    const engine = AgentUserPolicyEngine.Instance;
+
+    it('blocks BulkUpdateTasks, InstantiateTemplate, and RunRecurringPlaybooks (live) with [POLICY_DENIED] under ReadOnly, while allowing DryRun and direct human calls', async () => {
+        const task1 = makeMockTask(TASK_1);
+        const { provider, runViewSpy } = makeBulkHarness([task1]);
+
+        try {
+            engine.ClearCache();
+            engine.SetCachedPolicy(
+                makeAgentPolicy({
+                    AgentID: AGENT_COS,
+                    UserID: TEST_USER.ID,
+                    DefaultDataAccessMode: 'ReadOnly',
+                }),
+                provider,
+            );
+
+            // 1. Direct human call outside executing agent context succeeds unchanged
+            const bulkOp = new TasksBulkUpdateServerOperation();
+            const humanRes = await bulkOp.ExecuteServer(
+                { TaskIDs: [TASK_1], Priority: 'High' },
+                { provider, user: TEST_USER, emitProgress: () => {} },
+            );
+            expect(humanRes.Success).toBe(true);
+            expect(task1.Priority).toBe('High');
+
+            // 2. Executing agent under ReadOnly -> [POLICY_DENIED] across all 3 write ops
+            await engine.RunWithExecutingAgentContext(AGENT_COS, async () => {
+                const bulkBlocked = await bulkOp.ExecuteServer(
+                    { TaskIDs: [TASK_1], Priority: 'Low' },
+                    { provider, user: TEST_USER, emitProgress: () => {} },
+                );
+                expect(bulkBlocked.Success).toBe(false);
+                expect(bulkBlocked.ErrorMessage).toContain('[POLICY_DENIED]');
+                expect(task1.Priority).toBe('High');
+
+                const instOp = new TasksInstantiateTemplateServerOperation();
+                const instBlocked = await instOp.ExecuteServer(
+                    { TemplateID: TEMPLATE_1, StartDate: '2026-12-01' },
+                    { provider, user: TEST_USER, emitProgress: () => {} },
+                );
+                expect(instBlocked.Success).toBe(false);
+                expect(instBlocked.ErrorMessage).toContain('[POLICY_DENIED]');
+
+                const recurOp = new TasksRunRecurringPlaybooksServerOperation();
+                const recurBlocked = await recurOp.ExecuteServer(
+                    { TemplateID: TEMPLATE_1, AnchorDate: '2026-12-01', PeriodKey: '2026-12', DryRun: false },
+                    { provider, user: TEST_USER, emitProgress: () => {} },
+                );
+                expect(recurBlocked.Success).toBe(false);
+                expect(recurBlocked.ErrorMessage).toContain('[POLICY_DENIED]');
+
+                // DryRun: true uses Read operation and is permitted under ReadOnly
+                const dryAllowed = await recurOp.ExecuteServer(
+                    { TemplateID: TEMPLATE_1, AnchorDate: '2026-12-01', PeriodKey: '2026-12', DryRun: true },
+                    { provider, user: TEST_USER, emitProgress: () => {} },
+                );
+                expect(dryAllowed.Success).toBe(true);
+                expect(dryAllowed.Output?.DryRun).toBe(true);
+            });
+        } finally {
+            engine.ClearCache();
+            runViewSpy.mockRestore();
+        }
+    });
+
+    it('blocks bulk and non-DryRun rollover mutations with [APPROVAL_REQUIRED] when RequireApprovalForDestructiveActions is enabled, and succeeds when disabled', async () => {
+        const task1 = makeMockTask(TASK_1);
+        const { provider, runViewSpy } = makeBulkHarness([task1]);
+
+        try {
+            engine.ClearCache();
+            engine.SetCachedPolicy(
+                makeAgentPolicy({
+                    AgentID: AGENT_COS,
+                    UserID: TEST_USER.ID,
+                    DefaultDataAccessMode: 'UserCeiling',
+                    RequireApprovalForDestructiveActions: true,
+                }),
+                provider,
+            );
+
+            const bulkOp = new TasksBulkUpdateServerOperation();
+            const recurOp = new TasksRunRecurringPlaybooksServerOperation();
+
+            await engine.RunWithExecutingAgentContext(AGENT_COS, async () => {
+                const bulkApproval = await bulkOp.ExecuteServer(
+                    { TaskIDs: [TASK_1], Status: 'Completed' },
+                    { provider, user: TEST_USER, emitProgress: () => {} },
+                );
+                expect(bulkApproval.Success).toBe(false);
+                expect(bulkApproval.ErrorMessage).toContain('[APPROVAL_REQUIRED]');
+
+                const recurApproval = await recurOp.ExecuteServer(
+                    { TemplateID: TEMPLATE_1, AnchorDate: '2026-12-01', PeriodKey: '2026-12', DryRun: false },
+                    { provider, user: TEST_USER, emitProgress: () => {} },
+                );
+                expect(recurApproval.Success).toBe(false);
+                expect(recurApproval.ErrorMessage).toContain('[APPROVAL_REQUIRED]');
+            });
+
+            // Once RequireApprovalForDestructiveActions is false, agent bulk update succeeds cleanly
+            engine.SetCachedPolicy(
+                makeAgentPolicy({
+                    AgentID: AGENT_COS,
+                    UserID: TEST_USER.ID,
+                    DefaultDataAccessMode: 'UserCeiling',
+                    RequireApprovalForDestructiveActions: false,
+                }),
+                provider,
+            );
+
+            await engine.RunWithExecutingAgentContext(AGENT_COS, async () => {
+                const bulkOk = await bulkOp.ExecuteServer(
+                    { TaskIDs: [TASK_1], Priority: 'Critical' },
+                    { provider, user: TEST_USER, emitProgress: () => {} },
+                );
+                expect(bulkOk.Success).toBe(true);
+                expect(task1.Priority).toBe('Critical');
+            });
+        } finally {
+            engine.ClearCache();
             runViewSpy.mockRestore();
         }
     });

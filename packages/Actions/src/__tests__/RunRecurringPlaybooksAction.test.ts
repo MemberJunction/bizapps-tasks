@@ -1,14 +1,52 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { RunActionParams } from '@memberjunction/actions-base';
 import { UserInfo } from '@memberjunction/core';
+import { type MJAIAgentUserPolicyEntity } from '@memberjunction/core-entities';
+import { AgentUserPolicyEngine } from '@memberjunction/ai-core-plus';
 import { TasksRunRecurringPlaybooksOperation } from '@mj-biz-apps/tasks-core';
 import { RunRecurringPlaybooksAction } from '../custom/RunRecurringPlaybooksAction.js';
 
 const mockUser = { ID: 'user-1', Name: 'Controller' } as UserInfo;
+const AGENT_COS = 'c0500000-0000-4000-8000-000000000001';
+
+function makePolicy(overrides: Partial<MJAIAgentUserPolicyEntity> = {}): MJAIAgentUserPolicyEntity {
+    const base: Partial<MJAIAgentUserPolicyEntity> = {
+        ID: 'pol-recur-1',
+        AgentID: AGENT_COS,
+        UserID: mockUser.ID,
+        DisplayNameOverride: null,
+        PreferredPersonaID: null,
+        Status: 'Active',
+        OnboardingStatus: 'Completed',
+        CoordinationMode: 'Coordinator',
+        DefaultDataAccessMode: 'UserCeiling',
+        EmailChannelMode: 'DraftOnly',
+        CalendarChannelMode: 'ReadOnly',
+        PhoneChannelMode: 'InboundOnly',
+        MessagingChannelMode: 'Enabled',
+        AllowInterAgentCoordination: true,
+        RequireApprovalForExternalComms: true,
+        RequireApprovalForFinancials: true,
+        RequireApprovalForDestructiveActions: true,
+        AutoApproveAmountThreshold: null,
+        EntityAccessRules: null,
+        EntityAccessRulesObject: null,
+        ActionPolicyRules: null,
+        ActionPolicyRulesObject: null,
+        InstructionsOverride: null,
+        ...overrides,
+    };
+    return base as MJAIAgentUserPolicyEntity;
+}
 
 describe('RunRecurringPlaybooksAction', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
+        AgentUserPolicyEngine.Instance.ClearCache();
+    });
+
+    it('declares AuthorizesCaller = true', () => {
+        expect(RunRecurringPlaybooksAction.AuthorizesCaller).toBe(true);
     });
 
     it('returns MISSING_PARAMS when TemplateID is omitted', async () => {
@@ -138,5 +176,85 @@ describe('RunRecurringPlaybooksAction', () => {
         const result = await action.Run(params);
         expect(result.Success).toBe(false);
         expect(result.ResultCode).toBe('PARTIAL_FAILURE');
+    });
+
+    it('blocks executing-agent calls with POLICY_DENIED under ReadOnly policy and allows DryRun previews', async () => {
+        const executeSpy = vi.spyOn(TasksRunRecurringPlaybooksOperation.prototype, 'Execute').mockResolvedValue({
+            Success: true,
+            Output: {
+                TemplateID: 'tmpl-close',
+                PeriodKey: '2026-12',
+                AnchorDate: '2026-12-01',
+                DryRun: true,
+                TargetOrganizations: 1,
+                LaunchedCount: 0,
+                SkippedCount: 0,
+                FailedCount: 0,
+                TotalTasksCreated: 0,
+                Results: [],
+            },
+        });
+
+        const engine = AgentUserPolicyEngine.Instance;
+        engine.SetCachedPolicy(makePolicy({ DefaultDataAccessMode: 'ReadOnly' }));
+
+        const action = new RunRecurringPlaybooksAction();
+        await engine.RunWithExecutingAgentContext(AGENT_COS, async () => {
+            const deniedParams: RunActionParams = {
+                Action: {} as RunActionParams['Action'],
+                ContextUser: mockUser,
+                Params: [
+                    { Name: 'TemplateID', Value: 'tmpl-close', Type: 'Input' },
+                    { Name: 'DryRun', Value: 'false', Type: 'Input' },
+                ],
+                Filters: [],
+            };
+            const deniedRes = await action.Run(deniedParams);
+            expect(deniedRes.Success).toBe(false);
+            expect(deniedRes.ResultCode).toBe('POLICY_DENIED');
+            expect(executeSpy).not.toHaveBeenCalled();
+
+            const dryParams: RunActionParams = {
+                Action: {} as RunActionParams['Action'],
+                ContextUser: mockUser,
+                Params: [
+                    { Name: 'TemplateID', Value: 'tmpl-close', Type: 'Input' },
+                    { Name: 'DryRun', Value: 'true', Type: 'Input' },
+                ],
+                Filters: [],
+            };
+            const dryRes = await action.Run(dryParams);
+            expect(dryRes.Success).toBe(true);
+            expect(dryRes.ResultCode).toBe('SUCCESS');
+            expect(executeSpy).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    it('blocks executing-agent live rollovers with APPROVAL_REQUIRED when RequireApprovalForDestructiveActions is enabled', async () => {
+        const executeSpy = vi.spyOn(TasksRunRecurringPlaybooksOperation.prototype, 'Execute');
+        const engine = AgentUserPolicyEngine.Instance;
+        engine.SetCachedPolicy(
+            makePolicy({
+                DefaultDataAccessMode: 'UserCeiling',
+                RequireApprovalForDestructiveActions: true,
+            }),
+        );
+
+        const action = new RunRecurringPlaybooksAction();
+        await engine.RunWithExecutingAgentContext(AGENT_COS, async () => {
+            const params: RunActionParams = {
+                Action: {} as RunActionParams['Action'],
+                ContextUser: mockUser,
+                Params: [
+                    { Name: 'TemplateID', Value: 'tmpl-close', Type: 'Input' },
+                    { Name: 'DryRun', Value: 'false', Type: 'Input' },
+                ],
+                Filters: [],
+            };
+            const res = await action.Run(params);
+            expect(res.Success).toBe(false);
+            expect(res.ResultCode).toBe('APPROVAL_REQUIRED');
+            expect(executeSpy).not.toHaveBeenCalled();
+        });
     });
 });

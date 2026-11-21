@@ -108,6 +108,7 @@
     grid-template-columns: minmax(280px, 360px) 1fr;
     gap: 20px;
     align-items: start;
+    padding-block-end: 80px;
 }
 
 @media (max-width: 900px) {
@@ -359,7 +360,7 @@
     padding: 16px;
     border-radius: var(--mj-radius-md);
     background: var(--mj-status-info-bg);
-    border-inline-start: 3px solid var(--mj-brand-primary);
+    border: 1px solid var(--mj-border-default);
 }
 
 .cos-reviewer-byline {

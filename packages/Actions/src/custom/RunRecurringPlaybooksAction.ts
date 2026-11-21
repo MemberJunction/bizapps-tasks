@@ -5,6 +5,19 @@ import {
     TasksRunRecurringPlaybooksOperation,
     type TemplateRoleAssignmentInput,
 } from '@mj-biz-apps/tasks-core';
+import {
+    checkTypedPolicyGuard,
+    failResult,
+    TASKS_ENTITY,
+} from './action-helpers.js';
+
+const POLICY_CODE_PREFIX = /^\[(POLICY_DENIED|APPROVAL_REQUIRED|POLICY_DEFERRED)\]\s*/;
+
+function extractPolicyResultCode(message: string | undefined, fallback: string): string {
+    if (!message) return fallback;
+    const match = POLICY_CODE_PREFIX.exec(message);
+    return match ? match[1] : fallback;
+}
 
 /**
  * Action: `Run Recurring Playbooks` (`DriverClass: RunRecurringPlaybooksAction`).
@@ -15,6 +28,8 @@ import {
  */
 @RegisterClass(BaseAction, 'RunRecurringPlaybooksAction')
 export class RunRecurringPlaybooksAction extends BaseAction {
+    public static override readonly AuthorizesCaller = true;
+
     protected override async InternalRunAction(params: RunActionParams): Promise<ActionResultSimple> {
         const user = params.ContextUser;
         if (!user) {
@@ -29,6 +44,17 @@ export class RunRecurringPlaybooksAction extends BaseAction {
         const allMirroredCompanies = readBoolParam(params, 'AllMirroredCompanies', !orgIdsRaw);
         const dryRun = readBoolParam(params, 'DryRun', false);
         const roleAssignmentsRaw = readStringParam(params, 'RoleAssignmentsJSON');
+
+        const guard = await checkTypedPolicyGuard({
+            params,
+            entityName: TASKS_ENTITY,
+            operation: dryRun ? 'Read' : 'Create',
+            actionName: 'Run Recurring Playbooks',
+            isDestructive: !dryRun,
+        });
+        if (!guard.Allowed) {
+            return guard.Failure ?? failResult('POLICY_DENIED', 'Blocked by agent user policy.', params);
+        }
 
         if (!templateID) {
             return { Success: false, ResultCode: 'MISSING_PARAMS', Message: 'TemplateID is required' };
@@ -74,10 +100,11 @@ export class RunRecurringPlaybooksAction extends BaseAction {
             );
 
             if (!result.Success || !result.Output) {
+                const message = result.ErrorMessage ?? 'Recurring playbook execution failed';
                 return {
                     Success: false,
-                    ResultCode: result.ResultCode ?? 'ERROR',
-                    Message: result.ErrorMessage ?? 'Recurring playbook execution failed',
+                    ResultCode: extractPolicyResultCode(message, result.ResultCode ?? 'ERROR'),
+                    Message: message,
                 };
             }
 
@@ -97,10 +124,11 @@ export class RunRecurringPlaybooksAction extends BaseAction {
                 Message: `Recurring playbook '${periodKey}': ${output.LaunchedCount} launched (${output.TotalTasksCreated} tasks), ${output.SkippedCount} skipped, ${output.FailedCount} failed.`,
             };
         } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
             return {
                 Success: false,
-                ResultCode: 'ERROR',
-                Message: err instanceof Error ? err.message : String(err),
+                ResultCode: extractPolicyResultCode(message, 'ERROR'),
+                Message: message,
             };
         }
     }
