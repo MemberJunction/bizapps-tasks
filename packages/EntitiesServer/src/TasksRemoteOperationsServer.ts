@@ -5,7 +5,14 @@ import {
     RunView,
     UserInfo,
 } from '@memberjunction/core';
-import { RegisterClass } from '@memberjunction/global';
+import {
+    AgentUserPolicyEngine,
+    TypedActionPolicyGuard,
+    type AgentEntityCrudOperation,
+    type AgentPolicyVerdict,
+    type TypedActionPolicyResultCode,
+} from '@memberjunction/ai-core-plus';
+import { RegisterClass, UUIDsEqual } from '@memberjunction/global';
 import {
     TASKS_BULK_UPDATE_OP_KEY,
     TASKS_INSTANTIATE_TEMPLATE_OP_KEY,
@@ -36,6 +43,103 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_BULK_TASKS = 500;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const TASKS_ENTITY_NAME = 'MJ_BizApps_Tasks: Tasks';
+
+const POLICY_VERDICT_RANK: Record<AgentPolicyVerdict, number> = {
+    Allow: 0,
+    RequireApproval: 1,
+    DeferUntilNextWindow: 2,
+    Deny: 3,
+};
+
+function policyVerdictToResultCode(verdict: Exclude<AgentPolicyVerdict, 'Allow'>): TypedActionPolicyResultCode {
+    if (verdict === 'Deny') return 'POLICY_DENIED';
+    if (verdict === 'DeferUntilNextWindow') return 'POLICY_DEFERRED';
+    return 'APPROVAL_REQUIRED';
+}
+
+/**
+ * Enforces `AgentUserPolicyEngine` + `TypedActionPolicyGuard` when a Tasks remotable
+ * operation executes inside an active agent run (including inherited parent policy ceilings).
+ * Direct UI/human calls have no active executing agent chain and pass straight through
+ * with zero overhead.
+ */
+async function enforceAgentPolicyForTasksRemoteOp(params: {
+    operationKey: string;
+    entityOperation: AgentEntityCrudOperation;
+    destructive: boolean;
+    writeFields?: readonly string[];
+    provider: IMetadataProvider;
+    user: UserInfo;
+}): Promise<void> {
+    const engine = AgentUserPolicyEngine.Instance;
+    const agentChain = engine.GetEffectivePolicyAgentChain();
+    if (agentChain.length === 0) {
+        return;
+    }
+
+    const entityOutcome = await TypedActionPolicyGuard.CheckEntityAccess({
+        entityName: TASKS_ENTITY_NAME,
+        operation: params.entityOperation,
+        contextUser: params.user,
+        provider: params.provider,
+        writeFields: params.writeFields,
+    });
+    if (!entityOutcome.Allowed) {
+        const code = entityOutcome.ResultCode ?? 'POLICY_DENIED';
+        const message =
+            entityOutcome.Message ??
+            `Operation '${params.operationKey}' on '${TASKS_ENTITY_NAME}' (${params.entityOperation}) blocked by agent user policy.`;
+        throw new Error(`[${code}] ${message}`);
+    }
+
+    if (!params.user?.ID) {
+        throw new Error(`[POLICY_DENIED] Operation '${params.operationKey}' requires a valid ContextUser.`);
+    }
+
+    let strictestVerdict: AgentPolicyVerdict = 'Allow';
+    let strictestReason = '';
+
+    for (const agentId of agentChain) {
+        let policy = engine.GetCachedPolicy(agentId, params.user.ID, params.provider);
+        if (!policy) {
+            const lookup = await engine.ResolvePolicyForAgentAndUser(
+                agentId,
+                params.user.ID,
+                params.user,
+                { provider: params.provider },
+            );
+            if (lookup.status === 'error') {
+                throw new Error(
+                    `[POLICY_DENIED] Policy check failed closed for '${params.operationKey}': ${lookup.errorMessage}`,
+                );
+            }
+            policy = lookup.policy;
+        }
+        if (!policy) {
+            continue;
+        }
+
+        const evalResult = engine.EvaluateActionExecution({
+            actionName: params.operationKey,
+            isDestructive: params.destructive,
+            contextUser: params.user,
+            policy,
+        });
+        if (POLICY_VERDICT_RANK[evalResult.verdict] > POLICY_VERDICT_RANK[strictestVerdict]) {
+            strictestVerdict = evalResult.verdict;
+            strictestReason = evalResult.reason;
+        }
+    }
+
+    if (strictestVerdict !== 'Allow') {
+        const code = policyVerdictToResultCode(strictestVerdict);
+        const reason =
+            strictestReason ||
+            `Operation '${params.operationKey}' blocked by agent user policy (${code}).`;
+        throw new Error(`[${code}] ${reason}`);
+    }
+}
 
 function assertUuid(value: string, label: string): string {
     const trimmed = value.trim();
@@ -135,6 +239,25 @@ export class TasksBulkUpdateServerOperation extends TasksBulkUpdateOperation {
         provider: IMetadataProvider,
         user: UserInfo,
     ): Promise<TasksBulkUpdateOutput> {
+        const bulkWriteFields: string[] = [];
+        if (input?.Status) bulkWriteFields.push('Status', 'PercentComplete', 'CompletedAt');
+        if (input?.Priority) bulkWriteFields.push('Priority');
+        if (input?.DueDateMode && input.DueDateMode !== 'unchanged') bulkWriteFields.push('DueAt');
+        if (input?.StartDateMode && input.StartDateMode !== 'unchanged') bulkWriteFields.push('StartedAt');
+        if (input?.OrganizationMode && input.OrganizationMode !== 'unchanged') bulkWriteFields.push('OrganizationID');
+        if (input?.CategoryMode && input.CategoryMode !== 'unchanged') bulkWriteFields.push('CategoryID');
+        if (input?.TypeID) bulkWriteFields.push('TypeID');
+        if (input?.TaskTypeStatusID) bulkWriteFields.push('TaskTypeStatusID');
+
+        await enforceAgentPolicyForTasksRemoteOp({
+            operationKey: TASKS_BULK_UPDATE_OP_KEY,
+            entityOperation: 'Update',
+            destructive: true,
+            writeFields: bulkWriteFields.length > 0 ? bulkWriteFields : undefined,
+            provider,
+            user,
+        });
+
         const rawIds = input?.TaskIDs ?? [];
         if (!Array.isArray(rawIds) || rawIds.length === 0) {
             throw new Error('TaskIDs must contain at least one task ID.');
@@ -352,8 +475,8 @@ export class TasksBulkUpdateServerOperation extends TasksBulkUpdateOperation {
                     const matchesTarget = (a: mjBizAppsTasksTaskAssignmentEntity): boolean =>
                         assigneeEntityID !== null &&
                         assigneeRecordID !== null &&
-                        a.AssigneeEntityID.toLowerCase() === assigneeEntityID.toLowerCase() &&
-                        a.AssigneeRecordID.toLowerCase() === assigneeRecordID.toLowerCase();
+                        UUIDsEqual(a.AssigneeEntityID, assigneeEntityID) &&
+                        UUIDsEqual(a.AssigneeRecordID, assigneeRecordID);
 
                     if (assigneeMode === 'clear') {
                         for (const existing of existingAssignments) {
@@ -473,6 +596,14 @@ export class TasksInstantiateTemplateServerOperation extends TasksInstantiateTem
         provider: IMetadataProvider,
         user: UserInfo,
     ): Promise<TasksInstantiateTemplateOutput> {
+        await enforceAgentPolicyForTasksRemoteOp({
+            operationKey: TASKS_INSTANTIATE_TEMPLATE_OP_KEY,
+            entityOperation: 'Create',
+            destructive: false,
+            provider,
+            user,
+        });
+
         const templateID = assertUuid(input?.TemplateID ?? '', 'TemplateID');
         const startDate = parseIsoDate(input?.StartDate ?? '', 'StartDate');
         const inputOrgID = input?.OrganizationID ? assertUuid(input.OrganizationID, 'OrganizationID') : null;
@@ -664,6 +795,15 @@ export class TasksRunRecurringPlaybooksServerOperation extends TasksRunRecurring
         provider: IMetadataProvider,
         user: UserInfo,
     ): Promise<TasksRunRecurringPlaybooksOutput> {
+        const dryRun = Boolean(input?.DryRun);
+        await enforceAgentPolicyForTasksRemoteOp({
+            operationKey: TASKS_RUN_RECURRING_PLAYBOOKS_OP_KEY,
+            entityOperation: dryRun ? 'Read' : 'Create',
+            destructive: !dryRun,
+            provider,
+            user,
+        });
+
         const templateID = assertUuid(input?.TemplateID ?? '', 'TemplateID');
         if (!input?.AnchorDate) {
             throw new Error('AnchorDate is required.');
@@ -677,7 +817,6 @@ export class TasksRunRecurringPlaybooksServerOperation extends TasksRunRecurring
             );
         }
 
-        const dryRun = Boolean(input.DryRun);
         const rv = RunView.FromMetadataProvider(provider);
 
         // Resolve target organizations

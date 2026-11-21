@@ -142,6 +142,8 @@ interface MockEntity {
     CompletionNotes?: string | null;
     TypeID?: string;
     Type?: string;
+    OrganizationID?: string | null;
+    Organization?: string | null;
     TaskID?: string;
     PersonID?: string;
     Content?: string;
@@ -316,6 +318,60 @@ describe('FindTasksAction', () => {
         expect(res).toMatchObject({ Success: false, ResultCode: 'POLICY_DENIED' });
         expect(runViewMock).not.toHaveBeenCalled();
     });
+
+    it('filters by canonical OrganizationID and resolves OrganizationName case-insensitively', async () => {
+        // 1. By OrganizationName (prefix/exact lookup against MJ_BizApps_Common: Organizations)
+        runViewMock
+            .mockResolvedValueOnce({ Success: true, Results: [{ TaskID: TASK_1 }] }) // assignments
+            .mockResolvedValueOnce({ Success: true, Results: [{ ID: TYPE_GENERAL, Name: 'General', Code: 'GENERAL' }] }) // task types
+            .mockResolvedValueOnce({ Success: true, Results: [{ ID: ORG_1, Name: 'Acme Enterprise Corp' }] }) // org lookup
+            .mockResolvedValueOnce({
+                Success: true,
+                Results: [
+                    {
+                        ID: TASK_1,
+                        Name: 'Acme Q4 Renewal',
+                        Status: 'Open',
+                        Priority: 'High',
+                        TypeID: TYPE_GENERAL,
+                        Type: 'General',
+                        OrganizationID: ORG_1,
+                        Organization: 'Acme Enterprise Corp',
+                        PercentComplete: 10,
+                    },
+                ],
+            });
+
+        const params = makeParams({ OrganizationName: 'acme enterprise' });
+        const res = await run(new FindTasksAction(), makeRunParams(USER_ALICE, params));
+
+        expect(res).toMatchObject({ Success: true, ResultCode: 'SUCCESS' });
+        expect(runViewMock.mock.calls[2][0].EntityName).toBe('MJ_BizApps_Common: Organizations');
+        expect(runViewMock.mock.calls[3][0].ExtraFilter).toContain(`OrganizationID = '${ORG_1}'`);
+        const tasks = JSON.parse(String(params.find((p) => p.Name === 'Tasks')?.Value));
+        expect(tasks).toHaveLength(1);
+        expect(tasks[0].OrganizationID).toBe(ORG_1);
+        expect(tasks[0].Organization).toBe('Acme Enterprise Corp');
+
+        // 2. Ambiguous OrganizationName returns AMBIGUOUS with Candidates
+        runViewMock.mockReset();
+        runViewMock
+            .mockResolvedValueOnce({ Success: true, Results: [{ TaskID: TASK_1 }] })
+            .mockResolvedValueOnce({ Success: true, Results: [{ ID: TYPE_GENERAL, Name: 'General', Code: 'GENERAL' }] })
+            .mockResolvedValueOnce({
+                Success: true,
+                Results: [
+                    { ID: ORG_1, Name: 'Acme Enterprise Corp' },
+                    { ID: '88888888-8888-4888-8888-888888888802', Name: 'Acme Labs Inc' },
+                ],
+            });
+
+        const ambigParams = makeParams({ OrganizationName: 'Acme' });
+        const ambigRes = await run(new FindTasksAction(), makeRunParams(USER_ALICE, ambigParams));
+        expect(ambigRes).toMatchObject({ Success: false, ResultCode: 'AMBIGUOUS' });
+        const candidates = JSON.parse(String(ambigParams.find((p) => p.Name === 'Candidates')?.Value));
+        expect(candidates).toHaveLength(2);
+    });
 });
 
 describe('GetTaskAction', () => {
@@ -431,6 +487,35 @@ describe('CreateTaskAction', () => {
                 contextUser: expect.objectContaining({ ID: SYSTEM_USER_ID }),
             }),
         );
+    });
+
+    it('resolves OrganizationName, stamps task.OrganizationID, and returns OrganizationID output param', async () => {
+        runViewMock
+            .mockResolvedValueOnce({ Success: true, Results: [{ ID: ORG_1, Name: 'Apex Cloud Systems' }] }) // org lookup
+            .mockResolvedValueOnce({ Success: true, Results: [{ ID: TYPE_GENERAL, Name: 'General', Code: 'GENERAL' }] }); // task types
+
+        const taskEntity = makeEntity({ ID: TASK_1, Status: 'Open', Priority: 'Medium' });
+        getEntityObjectMock.mockResolvedValueOnce(taskEntity);
+
+        const params = makeParams({
+            Name: 'Finalize Apex monthly close checklist',
+            OrganizationName: 'Apex Cloud',
+        });
+        const res = await run(new CreateTaskAction(), makeRunParams(USER_ALICE, params));
+
+        expect(res).toMatchObject({ Success: true, ResultCode: 'SUCCESS' });
+        expect(checkEntityAccessMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                entityName: 'MJ_BizApps_Tasks: Tasks',
+                operation: 'Create',
+                writeFields: expect.arrayContaining(['OrganizationID']),
+            }),
+        );
+        expect(taskEntity.OrganizationID).toBe(ORG_1);
+        expect(params.find((p) => p.Name === 'OrganizationID')?.Value).toBe(ORG_1);
+        const createdTask = JSON.parse(String(params.find((p) => p.Name === 'Task')?.Value));
+        expect(createdTask.OrganizationID).toBe(ORG_1);
+        expect(createdTask.Organization).toBe('Apex Cloud Systems');
     });
 });
 
@@ -663,5 +748,45 @@ describe('AddTaskUpdateAction, FindSimilarTasksAction & GetMyTasksBriefingAction
             PendingApprovals: 1,
             UnreviewedWorkReports: 1,
         });
+    });
+
+    it('scopes GetMyTasksBriefingAction by OrganizationName and returns OrganizationID/Organization on items', async () => {
+        const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+        runViewMock
+            .mockResolvedValueOnce({ Success: true, Results: [{ ID: ORG_1, Name: 'Acme Enterprise Corp' }] }) // org lookup
+            .mockResolvedValueOnce({ Success: true, Results: [{ TaskID: TASK_1 }] }) // assigned tasks
+            .mockResolvedValueOnce({ Success: true, Results: [{ ID: TYPE_GENERAL, Name: 'General', Code: 'GENERAL', IsApproval: false }] }) // task types
+            .mockResolvedValueOnce({
+                Success: true,
+                Results: [
+                    {
+                        ID: TASK_1,
+                        Name: 'Acme SLA Audit',
+                        Status: 'Open',
+                        Priority: 'High',
+                        DueAt: yesterday,
+                        TypeID: TYPE_GENERAL,
+                        Type: 'General',
+                        OrganizationID: ORG_1,
+                        Organization: 'Acme Enterprise Corp',
+                        PercentComplete: 25,
+                        CreatedByPersonID: PERSON_ALICE,
+                    },
+                ],
+            }) // active tasks filtered by org
+            .mockResolvedValueOnce({ Success: true, Results: [] }); // unreviewed work reports
+
+        const params = makeParams({ OrganizationName: 'Acme Enterprise Corp' });
+        const res = await run(new GetMyTasksBriefingAction(), makeRunParams(USER_ALICE, params));
+
+        expect(res).toMatchObject({ Success: true, ResultCode: 'SUCCESS' });
+        expect(runViewMock.mock.calls[3][0].ExtraFilter).toContain(`OrganizationID = '${ORG_1}'`);
+        const briefing = JSON.parse(String(params.find((p) => p.Name === 'Briefing')?.Value));
+        expect(briefing.OrganizationID).toBe(ORG_1);
+        expect(briefing.OrganizationName).toBe('Acme Enterprise Corp');
+        expect(briefing.OverdueTasks).toHaveLength(1);
+        expect(briefing.OverdueTasks[0].OrganizationID).toBe(ORG_1);
+        expect(briefing.OverdueTasks[0].Organization).toBe('Acme Enterprise Corp');
     });
 });

@@ -82,7 +82,7 @@ DELETE FROM "${mjSchema}"."EntityDocument"
 WHERE "ID" = 'A36A7ED6-7681-42EC-80B5-9B51B7C7CC38';
 
 -- 5. Remove V2 typed Actions (Tasks, Meetings, Work Report reads, Execute Assigned Agent)
---    (Action IDs: Find Tasks, Get Task, Create Task, Update Task, Complete Task, Assign Task, Add Task Update, Find Similar Tasks, Get My Tasks Briefing, Get Work Report, List Work Reports, Get My Upcoming Meetings, Prepare Meeting Brief, Process Meeting Transcript, Accept Meeting Commitments, Get Meeting Notes, Execute Assigned Agent)
+--    (Action IDs: Find Tasks, Get Task, Create Task, Update Task, Mark Task Complete, Assign Task, Add Task Update, Find Similar Tasks, Get My Tasks Briefing, Get Work Report, List Work Reports, Get My Upcoming Meetings, Prepare Meeting Brief, Process Meeting Transcript, Accept Meeting Commitments, Get Meeting Notes, Execute Assigned Agent)
 UPDATE "${mjSchema}"."ProcessRunDetail"
 SET "ActionExecutionLogID" = NULL
 WHERE "ActionExecutionLogID" IN (

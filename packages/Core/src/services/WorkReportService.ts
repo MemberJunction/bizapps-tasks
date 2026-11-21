@@ -292,6 +292,7 @@ interface AIAgentRequestEntity extends BaseEntity {
     Request: string;
     Status: string;
     Priority: number;
+    RequestedAt: Date;
     ExpiresAt: Date | null;
     Comments: string | null;
 }
@@ -1926,6 +1927,7 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
         reqEntity.Request = promptText;
         reqEntity.Status = 'Requested';
         reqEntity.Priority = 50;
+        reqEntity.RequestedAt = new Date();
         reqEntity.ExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
         reqEntity.Comments = JSON.stringify({
             Kind: 'WorkReportSupervisorReview',

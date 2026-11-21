@@ -35,6 +35,8 @@ const ALL_BUNDLES = [
     'timesheets',
     'meetings',
     'task-org-bulk-ops',
+    'task-cos-typed-skills',
+    'task-cos-live',
 ];
 
 const args = process.argv.slice(2);
@@ -79,6 +81,7 @@ if (useGraphQL) {
     user = UserCache.Users.find((u) => u?.Type?.trim().toLowerCase() === 'owner') ?? UserCache.Users[0];
     if (!user) throw new Error('No context user in UserCache.');
 
+    process.env.MJ_IT_LOAD_ENTITIES_SERVER = process.env.MJ_IT_LOAD_ENTITIES_SERVER ?? '1';
     await import('../packages/IntegrationTests/dist/index.js');
     console.log(`\n  Tasks integration (SQL Server → ${DB_HOST || 'localhost'}:${DB_PORT ?? 1433}/${DB_DATABASE})\n`);
 }

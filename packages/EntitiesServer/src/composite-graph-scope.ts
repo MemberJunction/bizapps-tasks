@@ -9,12 +9,14 @@ import type {
  * In-flight parent entities currently executing a composite graph ValidateAsync() / Save().
  *
  * Scoped strictly via try/finally around the parent's own ValidateAsync() and Save() calls
- * so entries never outlive the parent operation. Child entity server subclasses check member
- * identity (`parent.Collection.Items.includes(child)`) before consulting an in-flight parent,
- * making it impossible for an unrelated standalone child save to observe or spoof an in-flight parent.
+ * using per-entity reference counts so re-entrant nesting (e.g., Save() invoking ValidateAsync()
+ * before validating/saving child RelatedRecordCollection items) keeps the parent registered
+ * until the outermost Save() exits. Child entity server subclasses check member identity
+ * (`parent.Collection.Items.includes(child)`) before consulting an in-flight parent, making
+ * it impossible for an unrelated standalone child save to observe or spoof an in-flight parent.
  */
-const activeTaskGraphSaves = new Map<string, Set<mjBizAppsTasksTaskCheckInEntity>>();
-const activeWorkReportGraphs = new Map<string, Set<mjBizAppsTasksWorkReportEntity>>();
+const activeTaskGraphSaves = new Map<string, Map<mjBizAppsTasksTaskCheckInEntity, number>>();
+const activeWorkReportGraphs = new Map<string, Map<mjBizAppsTasksWorkReportEntity, number>>();
 
 /**
  * Registers the check-in entities participating in a parent Task's composite graph save.
@@ -28,19 +30,27 @@ export function EnterTaskCheckInGraphScope(
         return () => {};
     }
     const key = NormalizeUUID(taskID);
-    let set = activeTaskGraphSaves.get(key);
-    if (!set) {
-        set = new Set();
-        activeTaskGraphSaves.set(key, set);
+    let counts = activeTaskGraphSaves.get(key);
+    if (!counts) {
+        counts = new Map();
+        activeTaskGraphSaves.set(key, counts);
     }
     for (const ci of checkIns) {
-        set.add(ci);
+        counts.set(ci, (counts.get(ci) ?? 0) + 1);
     }
+    let released = false;
     return () => {
+        if (released) return;
+        released = true;
         const current = activeTaskGraphSaves.get(key);
         if (!current) return;
         for (const ci of checkIns) {
-            current.delete(ci);
+            const next = (current.get(ci) ?? 0) - 1;
+            if (next <= 0) {
+                current.delete(ci);
+            } else {
+                current.set(ci, next);
+            }
         }
         if (current.size === 0) {
             activeTaskGraphSaves.delete(key);
@@ -57,8 +67,8 @@ export function IsCheckInInParentTaskGraph(
     checkIn: mjBizAppsTasksTaskCheckInEntity,
 ): boolean {
     if (!taskID) return false;
-    const set = activeTaskGraphSaves.get(NormalizeUUID(taskID));
-    return set ? set.has(checkIn) : false;
+    const counts = activeTaskGraphSaves.get(NormalizeUUID(taskID));
+    return counts ? (counts.get(checkIn) ?? 0) > 0 : false;
 }
 
 /**
@@ -73,16 +83,24 @@ export function EnterWorkReportGraphScope(
         return () => {};
     }
     const key = NormalizeUUID(id);
-    let set = activeWorkReportGraphs.get(key);
-    if (!set) {
-        set = new Set();
-        activeWorkReportGraphs.set(key, set);
+    let counts = activeWorkReportGraphs.get(key);
+    if (!counts) {
+        counts = new Map();
+        activeWorkReportGraphs.set(key, counts);
     }
-    set.add(report);
+    counts.set(report, (counts.get(report) ?? 0) + 1);
+    let released = false;
     return () => {
+        if (released) return;
+        released = true;
         const current = activeWorkReportGraphs.get(key);
         if (!current) return;
-        current.delete(report);
+        const next = (current.get(report) ?? 0) - 1;
+        if (next <= 0) {
+            current.delete(report);
+        } else {
+            current.set(report, next);
+        }
         if (current.size === 0) {
             activeWorkReportGraphs.delete(key);
         }
@@ -99,9 +117,10 @@ export function FindInFlightParentWorkReportForItem(
     item: mjBizAppsTasksWorkReportItemEntity,
 ): mjBizAppsTasksWorkReportEntity | null {
     if (!workReportID) return null;
-    const set = activeWorkReportGraphs.get(NormalizeUUID(workReportID));
-    if (!set) return null;
-    for (const report of set) {
+    const counts = activeWorkReportGraphs.get(NormalizeUUID(workReportID));
+    if (!counts) return null;
+    for (const [report, depth] of counts.entries()) {
+        if (depth <= 0) continue;
         const items = report.Items?.Items;
         if (Array.isArray(items) && items.includes(item)) {
             return report;

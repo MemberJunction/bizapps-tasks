@@ -1388,7 +1388,7 @@
             "ValueType": "Scalar",
             "IsArray": false,
             "IsRequired": false,
-            "Description": "Optional MJ_BizApps_Common: Organizations UUID filter."
+            "Description": "Optional MJ_BizApps_Common: Organizations UUID filter (matches Task.OrganizationID; covers external orgs and mirrored LinkedCompanyID internal companies)."
           },
           "primaryKey": {
             "ID": "4A7243CA-E272-4894-BEB7-CC161E0DB2C2"
@@ -1396,6 +1396,20 @@
           "sync": {
             "lastModified": "2026-11-20T22:08:58.824Z",
             "checksum": "56c207e7dc0814cd74b955c5bad031e3695b01e0200cbd0ab6eeb8036f6fd055"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "OrganizationName",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional case-insensitive exact or prefix MJ_BizApps_Common: Organizations name filter (resolved against both external orgs and mirrored LinkedCompanyID internal companies)."
+          },
+          "primaryKey": {
+            "ID": "18D0BF71-68B9-488F-BDC2-5735D36E284A"
           }
         },
         {
@@ -1580,6 +1594,20 @@
             "lastModified": "2026-11-20T22:08:58.936Z",
             "checksum": "c5e0b88b665dc179370ce67bd4927513c173afdc27fcef1f0d28f9e84ab06f68"
           }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Candidates",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "JSON array of matching Organization candidates when OrganizationName is AMBIGUOUS."
+          },
+          "primaryKey": {
+            "ID": "A4C1B79A-3889-4B6B-87C9-FEC9DE8A6D34"
+          }
         }
       ],
       "MJ: Action Result Codes": [
@@ -1596,6 +1624,17 @@
           "sync": {
             "lastModified": "2026-11-20T22:08:58.942Z",
             "checksum": "dad854e751eb39f04608d44569aef8cb165f8cdc098543705db494339b7c5f12"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "AMBIGUOUS",
+            "IsSuccess": false,
+            "Description": "Multiple active Organizations matched OrganizationName; see Candidates."
+          },
+          "primaryKey": {
+            "ID": "D3E51954-B888-4C8F-9A8B-08CAE6871EFC"
           }
         },
         {
@@ -2073,11 +2112,11 @@
           "fields": {
             "ActionID": "@parent:ID",
             "Name": "OrganizationID",
-            "Type": "Input",
+            "Type": "Both",
             "ValueType": "Scalar",
             "IsArray": false,
             "IsRequired": false,
-            "Description": "Optional MJ_BizApps_Common: Organizations UUID to scope the task."
+            "Description": "Optional MJ_BizApps_Common: Organizations UUID stamped on Task.OrganizationID; returns the resolved OrganizationID on output."
           },
           "primaryKey": {
             "ID": "43F8412D-2DB5-4306-91D5-6DC7BF1C6598"
@@ -2085,6 +2124,20 @@
           "sync": {
             "lastModified": "2026-11-20T22:08:59.181Z",
             "checksum": "aba15bc450e87c140f71e1d01478d33f533091958b8451407bcf921bdfeb8211"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "OrganizationName",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional case-insensitive exact or prefix MJ_BizApps_Common: Organizations name resolved and stamped on Task.OrganizationID (covers both external orgs and mirrored LinkedCompanyID internal companies)."
+          },
+          "primaryKey": {
+            "ID": "08BEA2DD-4C58-4AAE-B801-8D6D1B133A4B"
           }
         },
         {
@@ -2880,7 +2933,7 @@
   },
   {
     "fields": {
-      "Name": "Complete Task",
+      "Name": "Mark Task Complete",
       "CategoryID": "@lookup:MJ: Action Categories.Name=Tasks",
       "Description": "Marks a task Completed (PercentComplete = 100, CompletedAt = now), records an optional completion note, handles already-completed tasks idempotently (ALREADY_COMPLETED), and wakes the Chief of Staff for assignees of any downstream tasks that become unblocked.",
       "Type": "Custom",
@@ -4346,6 +4399,34 @@
         {
           "fields": {
             "ActionID": "@parent:ID",
+            "Name": "OrganizationID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional MJ_BizApps_Common: Organizations UUID to scope the tasks briefing to one organization or mirrored internal company."
+          },
+          "primaryKey": {
+            "ID": "8EC3A0C5-859C-4FA8-AC29-6495292E9794"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "OrganizationName",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional case-insensitive exact or prefix MJ_BizApps_Common: Organizations name to scope the tasks briefing (covers both external orgs and mirrored LinkedCompanyID internal companies)."
+          },
+          "primaryKey": {
+            "ID": "0DD40435-D514-4088-9344-7EC2615A360D"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
             "Name": "Briefing",
             "Type": "Output",
             "ValueType": "Scalar",
@@ -4378,6 +4459,20 @@
             "lastModified": "2026-11-20T22:09:00.363Z",
             "checksum": "a812344856f4d521bebf60ff9667b825bd02e9020d4b9ae98356d272e7de6b77"
           }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Candidates",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "JSON array of matching Organization candidates when OrganizationName is AMBIGUOUS."
+          },
+          "primaryKey": {
+            "ID": "C4FD1E51-8816-4FE9-AF3B-4DD6E7E884D6"
+          }
         }
       ],
       "MJ: Action Result Codes": [
@@ -4394,6 +4489,28 @@
           "sync": {
             "lastModified": "2026-11-20T22:09:00.369Z",
             "checksum": "edacc1f4342f64641eec7e3982db1b7a9685a5a163c62f75d1abe8d49b0f61e0"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "NOT_FOUND",
+            "IsSuccess": false,
+            "Description": "Specified OrganizationName was not found."
+          },
+          "primaryKey": {
+            "ID": "627BC158-CC01-42D6-A860-067A9ED9DBA5"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "AMBIGUOUS",
+            "IsSuccess": false,
+            "Description": "Multiple active Organizations matched OrganizationName; see Candidates."
+          },
+          "primaryKey": {
+            "ID": "F35E2B1E-21E3-47DB-8FC3-2C585A98E710"
           }
         },
         {
@@ -6886,6 +7003,39 @@
           },
           "primaryKey": {
             "ID": "B7E41C20-9A1F-4D83-8C5A-1F2E3D4C5B22"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "POLICY_DENIED",
+            "IsSuccess": false,
+            "Description": "Blocked by the user agent policy."
+          },
+          "primaryKey": {
+            "ID": "43E69FD7-5015-4211-82FB-F210972F05BB"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "POLICY_DEFERRED",
+            "IsSuccess": false,
+            "Description": "Deferred until the next allowed policy time window."
+          },
+          "primaryKey": {
+            "ID": "FBE20087-FA06-474E-B241-22F194C17E46"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "APPROVAL_REQUIRED",
+            "IsSuccess": false,
+            "Description": "Requires explicit human approval per agent user policy."
+          },
+          "primaryKey": {
+            "ID": "2DE0561D-C81E-47DC-89FA-9E7B052E8C04"
           }
         }
       ]

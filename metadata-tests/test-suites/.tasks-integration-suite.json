@@ -151,6 +151,17 @@
           "primaryKey": {
             "ID": "830B6849-A21D-40A7-AFE8-B7E85C40D9FC"
           }
+        },
+        {
+          "fields": {
+            "SuiteID": "@parent:ID",
+            "TestID": "@lookup:MJ: Tests.Name=TSK-10 - Chief of Staff Live Agent Tasks, Transcripts, and Policy Enforcement",
+            "Sequence": 10,
+            "Status": "Active"
+          },
+          "primaryKey": {
+            "ID": "2CC185F0-B023-408B-BCAA-506A57483962"
+          }
         }
       ]
     },
