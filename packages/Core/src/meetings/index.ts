@@ -9,3 +9,6 @@ export * from './agenda-template.js';
 export * from './entity-names.js';
 export * from './proposed-tasks.js';
 export * from './ai-prompt-execution.js';
+export * from './transcript-parsing.js';
+export * from './transcript-source.js';
+export * from './task-similarity.js';

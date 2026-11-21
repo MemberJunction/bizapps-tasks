@@ -1,0 +1,117 @@
+[
+  {
+    "fields": {
+      "Name": "Chief of Staff Meetings & Transcripts",
+      "Description": "Prepare pre-meeting briefs with live calendar re-checks, ingest meeting transcripts via pluggable transcript sources, extract decisions, deduplicate commitments over a 30-day window, and accept confirmed action items. Installed by BizApps Tasks.",
+      "Instructions": "@file:templates/meetings.skill.md",
+      "Status": "Active",
+      "ActivationMode": "Auto",
+      "Category": "Productivity",
+      "IconClass": "fa-solid fa-calendar-check",
+      "CreatedByUserID": "@lookup:MJ: Users.Name=System"
+    },
+    "relatedEntities": {
+      "MJ: AI Agent Skills": [
+        {
+          "fields": {
+            "AgentID": "@lookup:MJ: AI Agents.Name=Chief of Staff",
+            "SkillID": "@parent:ID",
+            "Status": "Active",
+            "AllowMetadataSyncUpdate": true
+          },
+          "primaryKey": {
+            "ID": "DCA34837-3A1D-4AB7-A7C6-9B6192DC8606"
+          },
+          "sync": {
+            "lastModified": "2026-11-20T22:09:05.724Z",
+            "checksum": "591a1f357a8b3456ab40970d75895d198e046d5ac09526a13498f9b2ec98d3f0"
+          }
+        }
+      ],
+      "MJ: AI Skill Actions": [
+        {
+          "fields": {
+            "SkillID": "@parent:ID",
+            "ActionID": "@lookup:MJ: Actions.Name=Get My Upcoming Meetings",
+            "Role": "Tool",
+            "ExposeToModel": true
+          },
+          "primaryKey": {
+            "ID": "6E71BA6F-DE09-4CE9-BC8F-A18C0E370651"
+          },
+          "sync": {
+            "lastModified": "2026-11-20T22:09:05.733Z",
+            "checksum": "907b57e762801efbb92455aa857c1c0ccd231244b168aaaf7292ccfe50dec388"
+          }
+        },
+        {
+          "fields": {
+            "SkillID": "@parent:ID",
+            "ActionID": "@lookup:MJ: Actions.Name=Prepare Meeting Brief",
+            "Role": "Tool",
+            "ExposeToModel": true
+          },
+          "primaryKey": {
+            "ID": "9034C876-AB4F-4240-918F-58D7362529F4"
+          },
+          "sync": {
+            "lastModified": "2026-11-20T22:09:05.741Z",
+            "checksum": "eab895f1740661584d1498a7739057340a9041aa3c49bd5a406a76cf2e86ecff"
+          }
+        },
+        {
+          "fields": {
+            "SkillID": "@parent:ID",
+            "ActionID": "@lookup:MJ: Actions.Name=Process Meeting Transcript",
+            "Role": "Tool",
+            "ExposeToModel": true
+          },
+          "primaryKey": {
+            "ID": "2471D9A8-B2F1-487F-966C-184FFF46BDD6"
+          },
+          "sync": {
+            "lastModified": "2026-11-20T22:09:05.747Z",
+            "checksum": "50a83ff449483c7f7ce22bb2d41e28dac23119ae358e4c4500bd808452105ff3"
+          }
+        },
+        {
+          "fields": {
+            "SkillID": "@parent:ID",
+            "ActionID": "@lookup:MJ: Actions.Name=Accept Meeting Commitments",
+            "Role": "Tool",
+            "ExposeToModel": true
+          },
+          "primaryKey": {
+            "ID": "7C9E07AE-4244-4032-B15A-C6234906CAFC"
+          },
+          "sync": {
+            "lastModified": "2026-11-20T22:09:05.754Z",
+            "checksum": "5e4b4fccc57686ef185089a7893fe5267915137dc06c5c2147cbb23e486c8e25"
+          }
+        },
+        {
+          "fields": {
+            "SkillID": "@parent:ID",
+            "ActionID": "@lookup:MJ: Actions.Name=Get Meeting Notes",
+            "Role": "Tool",
+            "ExposeToModel": true
+          },
+          "primaryKey": {
+            "ID": "701AD4AB-289A-4E5E-8F65-DD49048803A8"
+          },
+          "sync": {
+            "lastModified": "2026-11-20T22:09:05.760Z",
+            "checksum": "13efc134193ae80e9cca5f9238c34fab81bcecd4431e33b7bd4a91d99ef21c00"
+          }
+        }
+      ]
+    },
+    "primaryKey": {
+      "ID": "7838EB28-0D2F-45BB-AEBC-C1B9527EBA27"
+    },
+    "sync": {
+      "lastModified": "2026-11-20T22:09:05.715Z",
+      "checksum": "4443f77c927ee20a81deac94d1ddfd50b6c85198021b187a1f190f20899a07a4"
+    }
+  }
+]

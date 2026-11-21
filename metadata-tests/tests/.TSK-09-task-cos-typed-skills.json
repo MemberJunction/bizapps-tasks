@@ -1,0 +1,24 @@
+{
+  "fields": {
+    "TypeID": "@lookup:MJ: Test Types.Name=Integration Test",
+    "Name": "TSK-09 - Chief of Staff Typed Skills, Transcripts, and Rhythms",
+    "Description": "Verifies Chief of Staff Tasks & To-dos and Meetings & Transcripts skills (zero raw SQL / zero generic CRUD), all typed Task/Work Report/Meeting actions with TypedActionPolicyGuard enforcement, Tasks Entity Document, offered Rhythm Templates, Agent Task OnAssign execution hook, and clean V2 teardown.",
+    "InputDefinition": {},
+    "ExpectedOutcomes": {
+      "summary": "Chief of Staff activates typed Tasks, Work Reports, and Meetings skills with full MJ: Action Params, 30-day similarity dedup prevents duplicate tasks, offered rhythms never auto-enable, and V2 teardown removes all V2 rows without affecting V1."
+    },
+    "Configuration": {
+      "tier": "deterministic",
+      "transport": "server",
+      "checks": [
+        {
+          "type": "task-cos-typed-skills"
+        }
+      ]
+    },
+    "Status": "Active"
+  },
+  "primaryKey": {
+    "ID": "ECDBA37C-37E5-40F5-8562-C064C6CA1CF5"
+  }
+}
