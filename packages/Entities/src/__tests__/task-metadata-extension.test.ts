@@ -220,23 +220,30 @@ describe('PRIORITY TaskType ExtensionEntity metadata & standalone/Planning resil
 
         const planningPresentRegistry: EntityRegistryLike = {
             Entities: [
-                { ID: 'tasks-id', Name: 'MJ_BizApps_Tasks: Tasks', ParentID: null },
-                { ID: 'priority-id', Name: PRIORITY_EXTENSION_ENTITY, ParentID: 'tasks-id' },
+                { ID: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', Name: 'MJ_BizApps_Tasks: Tasks', ParentID: null },
+                { ID: '11111111-2222-4333-8444-555555555555', Name: PRIORITY_EXTENSION_ENTITY, ParentID: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee' },
+            ],
+        };
+        const differentlyCasedUuidRegistry: EntityRegistryLike = {
+            Entities: [
+                { ID: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', Name: 'MJ_BizApps_Tasks: Tasks', ParentID: null },
+                { ID: '11111111-2222-4333-8444-555555555555', Name: PRIORITY_EXTENSION_ENTITY, ParentID: 'AAAAAAAA-BBBB-4CCC-8DDD-EEEEEEEEEEEE' },
             ],
         };
         const planningAbsentRegistry: EntityRegistryLike = {
             Entities: [
-                { ID: 'tasks-id', Name: 'MJ_BizApps_Tasks: Tasks', ParentID: null },
+                { ID: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', Name: 'MJ_BizApps_Tasks: Tasks', ParentID: null },
             ],
         };
         const nonChildRegistry: EntityRegistryLike = {
             Entities: [
-                { ID: 'tasks-id', Name: 'MJ_BizApps_Tasks: Tasks', ParentID: null },
-                { ID: 'priority-id', Name: PRIORITY_EXTENSION_ENTITY, ParentID: null },
+                { ID: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', Name: 'MJ_BizApps_Tasks: Tasks', ParentID: null },
+                { ID: '11111111-2222-4333-8444-555555555555', Name: PRIORITY_EXTENSION_ENTITY, ParentID: null },
             ],
         };
 
         expect(IsTaskTypeExtensionEntityAvailable(priorityTaskType, planningPresentRegistry)).toBe(true);
+        expect(IsTaskTypeExtensionEntityAvailable(priorityTaskType, differentlyCasedUuidRegistry)).toBe(true);
         expect(IsTaskTypeExtensionEntityAvailable(priorityTaskType, planningAbsentRegistry)).toBe(false);
         expect(IsTaskTypeExtensionEntityAvailable(priorityTaskType, nonChildRegistry)).toBe(false);
         expect(IsTaskTypeExtensionEntityAvailable(priorityTaskType, null)).toBe(false);

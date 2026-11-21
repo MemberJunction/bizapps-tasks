@@ -4,19 +4,132 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChangeDetectorRef, Injector, SimpleChange, runInInjectionContext } from '@angular/core';
-import { MJGlobal } from '@memberjunction/global';
+import type { RunViewParams } from '@memberjunction/core';
+import { MJGlobal, UUIDsEqual } from '@memberjunction/global';
 import { BaseFormComponent } from '@memberjunction/ng-base-forms';
 import { BaseResourceComponent } from '@memberjunction/ng-shared';
 
-const { runViewMock, getEntityObjectMock, entitiesMock } = vi.hoisted(() => ({
-    runViewMock: vi.fn(),
-    getEntityObjectMock: vi.fn(),
-    entitiesMock: [
+interface MockEntityMetadata {
+    ID: string;
+    Name: string;
+    Icon: string;
+    DisplayNameOrName: string;
+}
+
+interface MockTaskListRow {
+    ID: string;
+    Name: string;
+    Description: string | null;
+    Status: string;
+    Priority: string;
+    DueAt: string | null;
+    PercentComplete: number | null;
+    HoursEstimated: number | null;
+    ParentID: string | null;
+    TaskTypeStatus: string | null;
+}
+
+type MockRunViewRow =
+    | TaskTypeOption
+    | MockTaskListRow;
+
+interface MockRunViewResult<T = MockRunViewRow> {
+    Success: boolean;
+    Results: T[];
+}
+
+interface MockCollectionItem {
+    Save: () => Promise<boolean>;
+    AssigneeEntityID?: string;
+    AssigneeRecordID?: string;
+    Status?: string;
+    RoleID?: string | null;
+    TagID?: string;
+    EntityID?: string;
+    RecordID?: string;
+    Description?: string | null;
+}
+
+interface MockRelatedCollection {
+    readonly Items: MockCollectionItem[];
+    Load: () => Promise<boolean>;
+    Create: () => Promise<MockCollectionItem>;
+    Remove: (item: MockCollectionItem) => boolean;
+    Clear: () => void;
+}
+
+interface TaskEntityStub {
+    ID: string;
+    Name: string;
+    Description: string | null;
+    Status: string;
+    Priority: string;
+    StartedAt: Date | null;
+    DueAt: Date | null;
+    PercentComplete: number;
+    HoursEstimated: number | null;
+    HoursActual: number | null;
+    BlockedReason: string | null;
+    CompletionNotes: string | null;
+    TypeID: string;
+    TaskTypeStatusID: string | null;
+    CategoryID: string | null;
+    OrganizationID: string | null;
+    ParentID: string | null;
+    BaselineValue: number | null;
+    TargetValue: number | null;
+    CurrentValue: number | null;
+    UnitOfMeasure: string | null;
+    MetricDirection: string;
+    PlanningPeriod: string | null;
+    CheckInCadence: string;
+    CreatedByPersonID: string | null;
+    Sequence: number;
+    NewRecord: () => void;
+    InnerLoad: () => Promise<boolean>;
+    Save: () => Promise<boolean>;
+    LatestResult: { CompleteMessage: string };
+    Assignments: MockRelatedCollection;
+    TagLinks: MockRelatedCollection;
+    Links: MockRelatedCollection;
+}
+
+interface TaskAssignmentStub {
+    NewRecord: () => void;
+    Save: () => Promise<boolean>;
+    TaskID: string;
+    AssigneeEntityID: string;
+    AssigneeRecordID: string;
+}
+
+interface TaskLinkStub {
+    NewRecord: () => void;
+    Save: () => Promise<boolean>;
+    TaskID: string;
+    EntityID: string;
+    RecordID: string;
+    Description: string;
+}
+
+type MockEntityStub = TaskEntityStub | TaskAssignmentStub | TaskLinkStub;
+
+interface CompositeKeyPairStub {
+    FieldName: string;
+    Value: string;
+}
+
+const { runViewMock, getEntityObjectMock, entitiesMock } = vi.hoisted(() => {
+    const entities: MockEntityMetadata[] = [
         { ID: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', Name: 'MJ_BizApps_Common: People', Icon: 'fa-solid fa-user', DisplayNameOrName: 'People' },
         { ID: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', Name: 'MJ_BizApps_Tasks: Tasks', Icon: 'fa-solid fa-list-check', DisplayNameOrName: 'Tasks' },
         { ID: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', Name: 'MJ_BizApps_Common: Organizations', Icon: 'fa-solid fa-building', DisplayNameOrName: 'Organizations' },
-    ],
-}));
+    ];
+    return {
+        runViewMock: vi.fn<[RunViewParams], Promise<MockRunViewResult>>(),
+        getEntityObjectMock: vi.fn<[string], Promise<MockEntityStub>>(),
+        entitiesMock: entities,
+    };
+});
 
 vi.mock('@memberjunction/core', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@memberjunction/core')>();
@@ -24,8 +137,8 @@ vi.mock('@memberjunction/core', async (importOriginal) => {
         Entities: entitiesMock,
         Roles: [],
         EntityByName: (name: string) => entitiesMock.find((e) => e.Name === name),
-        EntityByID: (id: string) => entitiesMock.find((e) => e.ID.toLowerCase() === id.toLowerCase()),
-        GetEntityObject: (...args: unknown[]) => getEntityObjectMock(...args),
+        EntityByID: (id: string) => entitiesMock.find((e) => UUIDsEqual(e.ID, id)),
+        GetEntityObject: (entityName: string) => getEntityObjectMock(entityName),
     };
     return {
         ...actual,
@@ -33,21 +146,21 @@ vi.mock('@memberjunction/core', async (importOriginal) => {
             static FromMetadataProvider() {
                 return new this();
             }
-            RunView(...args: unknown[]) {
-                return runViewMock(...args);
+            RunView(params: RunViewParams): Promise<MockRunViewResult> {
+                return runViewMock(params);
             }
         },
         Metadata: Object.assign(
             class {
                 Entities = entitiesMock;
-                GetEntityObject(...args: unknown[]) {
-                    return getEntityObjectMock(...args);
+                GetEntityObject(entityName: string) {
+                    return getEntityObjectMock(entityName);
                 }
             },
             { Provider: provider },
         ),
         CompositeKey: class {
-            constructor(public KeyValuePairs: unknown[]) {}
+            constructor(public KeyValuePairs: CompositeKeyPairStub[]) {}
             static FromID(id: string) {
                 return new this([{ FieldName: 'ID', Value: id }]);
             }
@@ -70,6 +183,9 @@ import { TasksDashboardPageComponent } from '../pages/tasks-dashboard.page';
 import {
     ResolveDefaultGenericTaskTypeID,
     SelectDefaultGenericTaskTypeID,
+    SelectGenericQuickAddTaskTypeID,
+    type TaskTypeLookupRow,
+    type TaskTypeRunViewLike,
 } from '../task-type-filter.helper';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -224,15 +340,15 @@ function createInContext<T>(factory: () => T): T {
     return runInInjectionContext(injector, factory);
 }
 
-function makeCollection() {
-    const items: Record<string, unknown>[] = [];
+function makeCollection(): MockRelatedCollection {
+    const items: MockCollectionItem[] = [];
     return {
         get Items() {
             return items;
         },
         Load: vi.fn(async () => true),
         Create: vi.fn(async () => {
-            const child: Record<string, unknown> = { Save: vi.fn(async () => true) };
+            const child: MockCollectionItem = { Save: vi.fn(async () => true) };
             items.push(child);
             return child;
         }),
@@ -243,33 +359,33 @@ function makeCollection() {
     };
 }
 
-function makeTaskEntityStub(overrides: Record<string, unknown> = {}) {
+function makeTaskEntityStub(overrides: Partial<TaskEntityStub> = {}): TaskEntityStub {
     return {
         ID: '11111111-1111-4111-8111-111111111111',
         Name: '',
-        Description: null as string | null,
+        Description: null,
         Status: 'Open',
         Priority: 'Medium',
-        StartedAt: null as Date | null,
-        DueAt: null as Date | null,
+        StartedAt: null,
+        DueAt: null,
         PercentComplete: 0,
-        HoursEstimated: null as number | null,
-        HoursActual: null as number | null,
-        BlockedReason: null as string | null,
-        CompletionNotes: null as string | null,
+        HoursEstimated: null,
+        HoursActual: null,
+        BlockedReason: null,
+        CompletionNotes: null,
         TypeID: '',
-        TaskTypeStatusID: null as string | null,
-        CategoryID: null as string | null,
-        OrganizationID: null as string | null,
-        ParentID: null as string | null,
-        BaselineValue: null as number | null,
-        TargetValue: null as number | null,
-        CurrentValue: null as number | null,
-        UnitOfMeasure: null as string | null,
+        TaskTypeStatusID: null,
+        CategoryID: null,
+        OrganizationID: null,
+        ParentID: null,
+        BaselineValue: null,
+        TargetValue: null,
+        CurrentValue: null,
+        UnitOfMeasure: null,
         MetricDirection: 'Increase',
-        PlanningPeriod: null as string | null,
+        PlanningPeriod: null,
         CheckInCadence: 'Weekly',
-        CreatedByPersonID: null as string | null,
+        CreatedByPersonID: null,
         Sequence: 0,
         NewRecord: vi.fn(),
         InnerLoad: vi.fn(async () => true),
@@ -282,12 +398,34 @@ function makeTaskEntityStub(overrides: Record<string, unknown> = {}) {
     };
 }
 
-function setupDefaultLookupRunView(taskTypes: TaskTypeOption[] = MIXED_TASK_TYPES) {
-    runViewMock.mockImplementation(async (params: { EntityName: string }) => {
+function setupDefaultLookupRunView(taskTypes: TaskTypeOption[] = MIXED_TASK_TYPES): void {
+    runViewMock.mockImplementation(async (params: RunViewParams): Promise<MockRunViewResult> => {
         if (params.EntityName === 'MJ_BizApps_Tasks: Task Types') {
             return { Success: true, Results: taskTypes };
         }
         return { Success: true, Results: [] };
+    });
+}
+
+async function initEditPanelViaLifecycle(
+    panel: TaskEditPanelComponent,
+    previousTaskId: string | null = null,
+    expectedTaskName?: string,
+): Promise<void> {
+    panel.ngOnChanges({
+        TaskID: new SimpleChange(previousTaskId, panel.TaskID, previousTaskId === null),
+    });
+    await vi.waitFor(() => {
+        expect(panel.taskTypes.length).toBeGreaterThan(0);
+        if (panel.TaskID) {
+            expect(panel.isNew).toBe(false);
+            expect(panel.loading).toBe(false);
+            if (expectedTaskName !== undefined) {
+                expect(panel.form.Name).toBe(expectedTaskName);
+            }
+        } else {
+            expect(panel.form.TypeID.length).toBeGreaterThan(0);
+        }
     });
 }
 
@@ -296,7 +434,7 @@ beforeEach(() => {
 });
 
 describe('Generic Task Type Creation Filtering', () => {
-    it('SelectDefaultGenericTaskTypeID and ResolveDefaultGenericTaskTypeID exclude PRIORITY, Planning ExtensionEntity, and inactive OKR types', async () => {
+    it('SelectDefaultGenericTaskTypeID, SelectGenericQuickAddTaskTypeID, and ResolveDefaultGenericTaskTypeID exclude PRIORITY, Planning ExtensionEntity, and inactive OKR types and compare UUIDs case-insensitively', async () => {
         expect(SelectDefaultGenericTaskTypeID(MIXED_TASK_TYPES)).toBe(TT_GENERAL_ID);
 
         const withoutGeneral = MIXED_TASK_TYPES.filter((t) => t.ID !== TT_GENERAL_ID);
@@ -307,19 +445,30 @@ describe('Generic Task Type Creation Filtering', () => {
         );
         expect(SelectDefaultGenericTaskTypeID(planningOnly)).toBeNull();
 
+        // Explicit valid generic default is retained across differently-cased UUIDs
+        expect(SelectGenericQuickAddTaskTypeID(MIXED_TASK_TYPES, TT_DELIVERABLE_ID.toUpperCase())).toBe(TT_DELIVERABLE_ID);
+        // Planning-owned or inactive OKR defaults fall back to GENERAL
+        expect(SelectGenericQuickAddTaskTypeID(MIXED_TASK_TYPES, TT_PRIORITY_ID.toUpperCase())).toBe(TT_GENERAL_ID);
+        expect(SelectGenericQuickAddTaskTypeID(MIXED_TASK_TYPES, TT_PLANNING_CUSTOM_ID)).toBe(TT_GENERAL_ID);
+        expect(SelectGenericQuickAddTaskTypeID(MIXED_TASK_TYPES, TT_KEY_RESULT_ID)).toBe(TT_GENERAL_ID);
+        expect(SelectGenericQuickAddTaskTypeID(planningOnly, TT_PRIORITY_ID)).toBeNull();
+
         setupDefaultLookupRunView(MIXED_TASK_TYPES);
-        const resolved = await ResolveDefaultGenericTaskTypeID({
-            RunView: (p: unknown) => runViewMock(p),
-        } as never);
-        expect(resolved).toBe(TT_GENERAL_ID);
+        const runViewDouble: TaskTypeRunViewLike = {
+            RunView: <T = TaskTypeLookupRow>(p: RunViewParams) =>
+                runViewMock(p) as Promise<{ Success: boolean; Results: T[] }>,
+        };
+        expect(await ResolveDefaultGenericTaskTypeID(runViewDouble)).toBe(TT_GENERAL_ID);
+        expect(await ResolveDefaultGenericTaskTypeID(runViewDouble, TT_DELIVERABLE_ID.toUpperCase())).toBe(TT_DELIVERABLE_ID);
+        expect(await ResolveDefaultGenericTaskTypeID(runViewDouble, TT_PRIORITY_ID)).toBe(TT_GENERAL_ID);
     });
 
-    it('TaskEditPanelComponent hides PRIORITY, external Planning ExtensionEntity, and inactive OKR types in creatableTaskTypes while keeping generic types selectable', async () => {
+    it('TaskEditPanelComponent hides PRIORITY, external Planning ExtensionEntity, and inactive OKR types in creatableTaskTypes while handling differently-cased UUIDs', async () => {
         setupDefaultLookupRunView();
         const panel = createInContext(() => new TaskEditPanelComponent());
         panel.DefaultTypeID = TT_PRIORITY_ID;
 
-        await (panel as unknown as { init: () => Promise<void> }).init();
+        await initEditPanelViaLifecycle(panel);
 
         const creatableCodes = panel.creatableTaskTypes.map((t) => t.Code);
         expect(creatableCodes).toEqual([
@@ -346,6 +495,13 @@ describe('Generic Task Type Creation Filtering', () => {
         panel.selectTaskType(MIXED_TASK_TYPES.find((t) => t.Code === 'DELIVERABLE')!);
         expect(panel.form.TypeID).toBe(TT_DELIVERABLE_ID);
         expect(panel.form.Priority).toBe('High');
+
+        // Differently-cased valid generic DefaultTypeID is matched via UUIDsEqual and normalized
+        const upperCasePanel = createInContext(() => new TaskEditPanelComponent());
+        upperCasePanel.DefaultTypeID = TT_DELIVERABLE_ID.toUpperCase();
+        await initEditPanelViaLifecycle(upperCasePanel);
+        expect(upperCasePanel.form.TypeID).toBe(TT_DELIVERABLE_ID);
+        expect(upperCasePanel.activeTaskType?.Code).toBe('DELIVERABLE');
     });
 
     it('TaskEditPanelComponent allows viewing/inspecting existing PRIORITY and legacy KEY_RESULT tasks as read-only locked type', async () => {
@@ -353,7 +509,7 @@ describe('Generic Task Type Creation Filtering', () => {
         const existingPriorityTask = makeTaskEntityStub({
             ID: '22222222-2222-4222-8222-222222222222',
             Name: 'Q4 Revenue Priority',
-            TypeID: TT_PRIORITY_ID,
+            TypeID: TT_PRIORITY_ID.toUpperCase(),
             Status: 'InProgress',
             Priority: 'High',
         });
@@ -361,7 +517,7 @@ describe('Generic Task Type Creation Filtering', () => {
 
         const panel = createInContext(() => new TaskEditPanelComponent());
         panel.TaskID = existingPriorityTask.ID;
-        await (panel as unknown as { init: () => Promise<void> }).init();
+        await initEditPanelViaLifecycle(panel, null, 'Q4 Revenue Priority');
 
         expect(panel.isNew).toBe(false);
         expect(panel.activeTaskType?.Code).toBe('PRIORITY');
@@ -378,7 +534,7 @@ describe('Generic Task Type Creation Filtering', () => {
         });
         getEntityObjectMock.mockResolvedValueOnce(existingLegacyKr);
         panel.TaskID = existingLegacyKr.ID;
-        await (panel as unknown as { init: () => Promise<void> }).init();
+        await initEditPanelViaLifecycle(panel, existingPriorityTask.ID, 'Legacy KR');
 
         expect(panel.activeTaskType?.Code).toBe('KEY_RESULT');
         expect(panel.ActiveArchetype).toBe('key-result');
@@ -394,7 +550,7 @@ describe('Generic Task Type Creation Filtering', () => {
         getEntityObjectMock.mockResolvedValueOnce(persistedStore);
 
         const createPanel = createInContext(() => new TaskEditPanelComponent());
-        await (createPanel as unknown as { init: () => Promise<void> }).init();
+        await initEditPanelViaLifecycle(createPanel);
 
         const deliverable = createPanel.creatableTaskTypes.find((t) => t.Code === 'DELIVERABLE')!;
         createPanel.selectTaskType(deliverable);
@@ -441,8 +597,8 @@ describe('Generic Task Type Creation Filtering', () => {
         expect(reopenPanel.form.PlanningPeriod).toBe('Q4 2026');
     });
 
-    it('TaskListComponent filters Planning-owned types out of quick-add and bulkTaskTypeOptions while displaying all existing tasks', async () => {
-        runViewMock.mockImplementation(async (params: { EntityName: string }) => {
+    it('TaskListComponent filters Planning-owned types out of quick-add, quick-capture, and bulkTaskTypeOptions even when QuickAddDefaultTypeID is explicitly set', async () => {
+        runViewMock.mockImplementation(async (params: RunViewParams): Promise<MockRunViewResult> => {
             if (params.EntityName === 'MJ_BizApps_Tasks: Task Types') {
                 return { Success: true, Results: MIXED_TASK_TYPES };
             }
@@ -482,27 +638,93 @@ describe('Generic Task Type Creation Filtering', () => {
         expect(bulkLabels).not.toContain('Priority Objective');
         expect(bulkLabels).not.toContain('Key Result');
 
-        // Quick-add ignores PRIORITY and selects GENERAL
-        const quickTask = makeTaskEntityStub();
-        getEntityObjectMock.mockResolvedValueOnce(quickTask);
+        // 1. Unset QuickAddDefaultTypeID -> resolves GENERAL
+        const quickDefaultTask = makeTaskEntityStub();
+        getEntityObjectMock.mockResolvedValueOnce(quickDefaultTask);
+        list.QuickAddDefaultTypeID = null;
         list.quickAddName = 'Follow up with finance';
         await list.quickAddTask();
-        expect(quickTask.TypeID).toBe(TT_GENERAL_ID);
+        expect(quickDefaultTask.TypeID).toBe(TT_GENERAL_ID);
 
-        // Natural-language quick-capture also selects GENERAL
-        const qcTask = makeTaskEntityStub();
-        getEntityObjectMock.mockResolvedValueOnce(qcTask);
+        // 2. QuickAddDefaultTypeID set to PRIORITY -> falls back to GENERAL
+        const quickPriorityTask = makeTaskEntityStub();
+        getEntityObjectMock.mockResolvedValueOnce(quickPriorityTask);
+        list.QuickAddDefaultTypeID = TT_PRIORITY_ID;
+        list.quickAddName = 'Attempt priority quick-add';
+        await list.quickAddTask();
+        expect(quickPriorityTask.TypeID).toBe(TT_GENERAL_ID);
+
+        // 3. QuickAddDefaultTypeID set to custom Planning ExtensionEntity -> falls back to GENERAL
+        const quickPlanningCustomTask = makeTaskEntityStub();
+        getEntityObjectMock.mockResolvedValueOnce(quickPlanningCustomTask);
+        list.QuickAddDefaultTypeID = TT_PLANNING_CUSTOM_ID;
+        list.quickAddName = 'Attempt custom planning quick-add';
+        await list.quickAddTask();
+        expect(quickPlanningCustomTask.TypeID).toBe(TT_GENERAL_ID);
+
+        // 4. QuickAddDefaultTypeID set to inactive OKR type -> falls back to GENERAL
+        const quickInactiveOkrTask = makeTaskEntityStub();
+        getEntityObjectMock.mockResolvedValueOnce(quickInactiveOkrTask);
+        list.QuickAddDefaultTypeID = TT_KEY_RESULT_ID;
+        list.quickAddName = 'Attempt inactive KR quick-add';
+        await list.quickAddTask();
+        expect(quickInactiveOkrTask.TypeID).toBe(TT_GENERAL_ID);
+
+        // 5. QuickAddDefaultTypeID set to valid generic type (differently-cased UUID) -> retains DELIVERABLE
+        const quickDeliverableTask = makeTaskEntityStub();
+        getEntityObjectMock.mockResolvedValueOnce(quickDeliverableTask);
+        list.QuickAddDefaultTypeID = TT_DELIVERABLE_ID.toUpperCase();
+        list.quickAddName = 'Ship Q4 deliverable';
+        await list.quickAddTask();
+        expect(quickDeliverableTask.TypeID).toBe(TT_DELIVERABLE_ID);
+
+        // 6. onQuickCaptureSubmit with unset, PRIORITY, custom Planning ExtensionEntity, inactive OKR, and valid generic defaults
+        const capturePayloads: Array<{ defaultTypeId: string | null; expectedTypeId: string; title: string }> = [
+            { defaultTypeId: null, expectedTypeId: TT_GENERAL_ID, title: 'Review contract' },
+            { defaultTypeId: TT_PRIORITY_ID, expectedTypeId: TT_GENERAL_ID, title: 'Capture with PRIORITY default' },
+            { defaultTypeId: TT_PLANNING_CUSTOM_ID, expectedTypeId: TT_GENERAL_ID, title: 'Capture with Planning ExtensionEntity default' },
+            { defaultTypeId: TT_KEY_RESULT_ID, expectedTypeId: TT_GENERAL_ID, title: 'Capture with inactive KR default' },
+            { defaultTypeId: TT_DELIVERABLE_ID.toUpperCase(), expectedTypeId: TT_DELIVERABLE_ID, title: 'Capture with valid Deliverable default' },
+        ];
+
+        for (const scenario of capturePayloads) {
+            const qcTask = makeTaskEntityStub();
+            getEntityObjectMock.mockResolvedValueOnce(qcTask);
+            list.QuickAddDefaultTypeID = scenario.defaultTypeId;
+            await list.onQuickCaptureSubmit({
+                RawText: `${scenario.title} !high`,
+                Title: scenario.title,
+                Priority: 'High',
+                DueAt: null,
+                AssigneeQuery: null,
+                TagNames: [],
+                HoursEstimated: null,
+                LinkedRecord: null,
+            });
+            expect(qcTask.TypeID).toBe(scenario.expectedTypeId);
+        }
+
+        // 7. Rejects quickAddTask and onQuickCaptureSubmit cleanly when no eligible generic types exist
+        const planningOnlyTypes = MIXED_TASK_TYPES.filter((t) =>
+            [TT_PRIORITY_ID, TT_PLANNING_CUSTOM_ID, TT_PRIORITY_OBJECTIVE_ID, TT_KEY_RESULT_ID].includes(t.ID),
+        );
+        setupDefaultLookupRunView(planningOnlyTypes);
+        getEntityObjectMock.mockClear();
+
+        list.QuickAddDefaultTypeID = TT_PRIORITY_ID;
+        list.quickAddName = 'Blocked quick-add';
+        await list.quickAddTask();
         await list.onQuickCaptureSubmit({
-            RawText: 'Review contract !high',
-            Title: 'Review contract',
-            Priority: 'High',
+            RawText: 'Blocked quick-capture',
+            Title: 'Blocked quick-capture',
+            Priority: 'Medium',
             DueAt: null,
             AssigneeQuery: null,
             TagNames: [],
             HoursEstimated: null,
             LinkedRecord: null,
         });
-        expect(qcTask.TypeID).toBe(TT_GENERAL_ID);
+        expect(getEntityObjectMock).not.toHaveBeenCalled();
     });
 
     it('MyTasksPageComponent, TasksDashboardPageComponent, and ConnectedTasksHostComponent filter Planning-owned types on create/bulk while preserving task visibility', async () => {
@@ -513,7 +735,7 @@ describe('Generic Task Type Creation Filtering', () => {
         myTasksPage.PersonID = 'person-1';
         vi.spyOn(myTasksPage, 'LoadMyWork').mockResolvedValue();
         const myQuickTask = makeTaskEntityStub();
-        const myAssignment = {
+        const myAssignment: TaskAssignmentStub = {
             NewRecord: vi.fn(),
             Save: vi.fn(async () => true),
             TaskID: '',
@@ -534,9 +756,9 @@ describe('Generic Task Type Creation Filtering', () => {
         });
         expect(myQuickTask.TypeID).toBe(TT_GENERAL_ID);
 
-        // TasksDashboardPageComponent.LoadCategoriesAndTypes
+        // TasksDashboardPageComponent initialized via public RefreshAll()
         const dashboard = createInContext(() => new TasksDashboardPageComponent());
-        await (dashboard as unknown as { LoadCategoriesAndTypes: () => Promise<void> }).LoadCategoriesAndTypes();
+        await dashboard.RefreshAll();
         const dashBulkLabels = dashboard.BulkTaskTypeOptions.map((o) => o.Label);
         expect(dashBulkLabels).toContain('General');
         expect(dashBulkLabels).not.toContain('Priority');
@@ -549,7 +771,7 @@ describe('Generic Task Type Creation Filtering', () => {
         connectedHost.RecordID = 'org-1';
         vi.spyOn(connectedHost, 'Refresh').mockResolvedValue();
         const connectedTask = makeTaskEntityStub();
-        const linkEntity = {
+        const linkEntity: TaskLinkStub = {
             NewRecord: vi.fn(),
             Save: vi.fn(async () => true),
             TaskID: '',
