@@ -1324,7 +1324,7 @@ export const mjBizAppsTasksTaskCheckInSchema = z.object({
         * * Display Name: Task
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
-        * * Description: The task, priority objective, or key result this check-in updates.`),
+        * * Description: The measurable task or deliverable this check-in updates.`),
     AuthorPersonID: z.string().nullable().describe(`
         * * Field Name: AuthorPersonID
         * * Display Name: Author Person
@@ -2638,7 +2638,7 @@ export const mjBizAppsTasksTaskTypeSchema = z.object({
         * * Field Name: ExtensionEntity
         * * Display Name: Extension Entity
         * * SQL Data Type: nvarchar(255)
-        * * Description: Optional MemberJunction Entity name (e.g. MJ_BizApps_Tasks_GitHub: GitHub Issue Tasks) of the disjoint IS-A child of MJ_BizApps_Tasks: Tasks provisioned for tasks of this type. Read declaratively by Task SubtypeSelector (TypeID.ExtensionEntity).`),
+        * * Description: Optional MemberJunction Entity name (e.g. MJ_BizApps_Tasks_GitHub: Git Hub Issue Tasks, MJ_BizApps_Planning: Priority Tasks) of the disjoint IS-A child of MJ_BizApps_Tasks: Tasks provisioned for tasks of this type. Read declaratively by Task SubtypeSelector (TypeID.ExtensionEntity).`),
     RequiresAssigneeDecision: z.boolean().describe(`
         * * Field Name: RequiresAssigneeDecision
         * * Display Name: Requires Assignee Decision
@@ -2831,32 +2831,32 @@ export const mjBizAppsTasksTaskSchema = z.object({
     *   * OffTrack
     *   * OnTrack
     *   * Paused
-        * * Description: Qualitative health status for priority/OKR tracking: OnTrack, AtRisk, OffTrack, Completed, or Paused.`),
+        * * Description: Qualitative health status for measurable or tracked tasks: OnTrack, AtRisk, OffTrack, Completed, or Paused.`),
     ConfidenceScore: z.number().nullable().describe(`
         * * Field Name: ConfidenceScore
         * * Display Name: Confidence Score
         * * SQL Data Type: int
-        * * Description: Owner confidence score (0-100) that this task, key result, or objective will hit its target on time.`),
+        * * Description: Owner confidence score (0-100) that this task will achieve its target or deliverable on time.`),
     BaselineValue: z.number().nullable().describe(`
         * * Field Name: BaselineValue
         * * Display Name: Baseline Value
         * * SQL Data Type: decimal(18, 4)
-        * * Description: Starting baseline value for measurable key results or quantitative deliverables.`),
+        * * Description: Starting baseline value for a measurable task or quantitative deliverable.`),
     TargetValue: z.number().nullable().describe(`
         * * Field Name: TargetValue
         * * Display Name: Target Value
         * * SQL Data Type: decimal(18, 4)
-        * * Description: Target goal value for measurable key results or quantitative deliverables.`),
+        * * Description: Target goal value for a measurable task or quantitative deliverable.`),
     CurrentValue: z.number().nullable().describe(`
         * * Field Name: CurrentValue
         * * Display Name: Current Value
         * * SQL Data Type: decimal(18, 4)
-        * * Description: Latest actual measured value for this key result or deliverable, updated automatically by TaskCheckIn records.`),
+        * * Description: Latest actual measured value for a measurable task or deliverable, updated automatically by TaskCheckIn records.`),
     UnitOfMeasure: z.string().nullable().describe(`
         * * Field Name: UnitOfMeasure
         * * Display Name: Unit of Measure
         * * SQL Data Type: nvarchar(50)
-        * * Description: Unit of measure for BaselineValue, TargetValue, and CurrentValue (e.g., %, USD, Days, Customers, NPS).`),
+        * * Description: Unit of measure for BaselineValue, TargetValue, and CurrentValue on measurable tasks (e.g., %, USD, Hours, Days, Items, NPS).`),
     MetricDirection: z.union([z.literal('Decrease'), z.literal('Increase'), z.literal('Maintain')]).nullable().describe(`
         * * Field Name: MetricDirection
         * * Display Name: Metric Direction
@@ -2866,18 +2866,18 @@ export const mjBizAppsTasksTaskSchema = z.object({
     *   * Decrease
     *   * Increase
     *   * Maintain
-        * * Description: Direction of improvement for quantitative metrics: Increase, Decrease, or Maintain.`),
+        * * Description: Direction of improvement for quantitative task metrics: Increase, Decrease, or Maintain.`),
     RollupWeight: z.number().describe(`
         * * Field Name: RollupWeight
         * * Display Name: Rollup Weight
         * * SQL Data Type: decimal(8, 2)
         * * Default Value: 1.00
-        * * Description: Relative weight (default 1.00) when rolling up child task or key result progress into a parent objective.`),
+        * * Description: Relative weight (default 1.00) when rolling up child task progress, health, and confidence into a parent task.`),
     PlanningPeriod: z.string().nullable().describe(`
         * * Field Name: PlanningPeriod
         * * Display Name: Planning Period
         * * SQL Data Type: nvarchar(50)
-        * * Description: Planning horizon or OKR cycle identifier (e.g., 2026-Q4, FY2027, H1-2026).`),
+        * * Description: Tracking period or cycle identifier for scheduled or measurable tasks (e.g., 2026-Q4, FY2027, H1-2026).`),
     CheckInCadence: z.union([z.literal('BiWeekly'), z.literal('Daily'), z.literal('Monthly'), z.literal('None'), z.literal('Quarterly'), z.literal('Weekly')]).nullable().describe(`
         * * Field Name: CheckInCadence
         * * Display Name: Check-In Cadence
@@ -2890,17 +2890,17 @@ export const mjBizAppsTasksTaskSchema = z.object({
     *   * None
     *   * Quarterly
     *   * Weekly
-        * * Description: Expected progress check-in frequency: Daily, Weekly, BiWeekly, Monthly, Quarterly, or None.`),
+        * * Description: Expected progress check-in frequency for this task: Daily, Weekly, BiWeekly, Monthly, Quarterly, or None.`),
     LastCheckInAt: z.date().nullable().describe(`
         * * Field Name: LastCheckInAt
         * * Display Name: Last Check-In At
         * * SQL Data Type: datetimeoffset
-        * * Description: Timestamp when the most recent TaskCheckIn was recorded for this task.`),
+        * * Description: Timestamp when the most recent Task Check In progress update was recorded for this task.`),
     NextCheckInDueAt: z.date().nullable().describe(`
         * * Field Name: NextCheckInDueAt
         * * Display Name: Next Check-In Due At
         * * SQL Data Type: datetimeoffset
-        * * Description: Timestamp when the next progress check-in is due based on CheckInCadence; used by Chief of Staff to nudge owners.`),
+        * * Description: Timestamp when the next progress check-in is due based on CheckInCadence; used for scheduled check-in reminders.`),
     OrganizationID: z.string().nullable().describe(`
         * * Field Name: OrganizationID
         * * Display Name: Organization

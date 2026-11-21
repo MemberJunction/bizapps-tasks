@@ -3210,13 +3210,13 @@ export class mjBizAppsTasksTaskCategoryResolver extends ResolverBase {
 //****************************************************************************
 // ENTITY CLASS for MJ_BizApps_Tasks: Task Check Ins
 //****************************************************************************
-@ObjectType({ description: "Structured periodic progress check-ins for tasks, priorities, and OKRs, authored by users or AI agents such as Chief of Staff." })
+@ObjectType({ description: "Structured periodic progress check-ins for tasks and measurable deliverables, authored by users or AI agents." })
 export class mjBizAppsTasksTaskCheckIn_ {
     @Field() 
     @MaxLength(36)
     ID: string;
         
-    @Field({nullable: true, description: "The task, priority objective, or key result this check-in updates."}) 
+    @Field({nullable: true, description: "The measurable task or deliverable this check-in updates."}) 
     @MaxLength(36)
     TaskID?: string;
         
@@ -7026,7 +7026,7 @@ export class mjBizAppsTasksTaskType_ {
     @Field(() => Boolean, {nullable: true, description: "When true, tasks of this type are approvals: they appear in the approvals inbox of each assignee, who records a decision on them."}) 
     IsApproval?: boolean;
         
-    @Field({nullable: true, description: "Optional MemberJunction Entity name (e.g. MJ_BizApps_Tasks_GitHub: GitHub Issue Tasks) of the disjoint IS-A child of MJ_BizApps_Tasks: Tasks provisioned for tasks of this type. Read declaratively by Task SubtypeSelector (TypeID.ExtensionEntity)."}) 
+    @Field({nullable: true, description: "Optional MemberJunction Entity name (e.g. MJ_BizApps_Tasks_GitHub: Git Hub Issue Tasks, MJ_BizApps_Planning: Priority Tasks) of the disjoint IS-A child of MJ_BizApps_Tasks: Tasks provisioned for tasks of this type. Read declaratively by Task SubtypeSelector (TypeID.ExtensionEntity)."}) 
     @MaxLength(255)
     ExtensionEntity?: string;
         
@@ -7376,45 +7376,45 @@ export class mjBizAppsTasksTask_ {
     @Field({nullable: true, description: "Timestamp when this task was last scored by the predictive SLA breach model."}) 
     PredictedSLAScoredAt?: Date;
         
-    @Field({nullable: true, description: "Qualitative health status for priority/OKR tracking: OnTrack, AtRisk, OffTrack, Completed, or Paused."}) 
+    @Field({nullable: true, description: "Qualitative health status for measurable or tracked tasks: OnTrack, AtRisk, OffTrack, Completed, or Paused."}) 
     @MaxLength(20)
     HealthStatus?: string;
         
-    @Field(() => Int, {nullable: true, description: "Owner confidence score (0-100) that this task, key result, or objective will hit its target on time."}) 
+    @Field(() => Int, {nullable: true, description: "Owner confidence score (0-100) that this task will achieve its target or deliverable on time."}) 
     ConfidenceScore?: number;
         
-    @Field(() => Float, {nullable: true, description: "Starting baseline value for measurable key results or quantitative deliverables."}) 
+    @Field(() => Float, {nullable: true, description: "Starting baseline value for a measurable task or quantitative deliverable."}) 
     BaselineValue?: number;
         
-    @Field(() => Float, {nullable: true, description: "Target goal value for measurable key results or quantitative deliverables."}) 
+    @Field(() => Float, {nullable: true, description: "Target goal value for a measurable task or quantitative deliverable."}) 
     TargetValue?: number;
         
-    @Field(() => Float, {nullable: true, description: "Latest actual measured value for this key result or deliverable, updated automatically by TaskCheckIn records."}) 
+    @Field(() => Float, {nullable: true, description: "Latest actual measured value for a measurable task or deliverable, updated automatically by TaskCheckIn records."}) 
     CurrentValue?: number;
         
-    @Field({nullable: true, description: "Unit of measure for BaselineValue, TargetValue, and CurrentValue (e.g., %, USD, Days, Customers, NPS)."}) 
+    @Field({nullable: true, description: "Unit of measure for BaselineValue, TargetValue, and CurrentValue on measurable tasks (e.g., %, USD, Hours, Days, Items, NPS)."}) 
     @MaxLength(50)
     UnitOfMeasure?: string;
         
-    @Field({nullable: true, description: "Direction of improvement for quantitative metrics: Increase, Decrease, or Maintain."}) 
+    @Field({nullable: true, description: "Direction of improvement for quantitative task metrics: Increase, Decrease, or Maintain."}) 
     @MaxLength(20)
     MetricDirection?: string;
         
-    @Field(() => Float, {nullable: true, description: "Relative weight (default 1.00) when rolling up child task or key result progress into a parent objective."}) 
+    @Field(() => Float, {nullable: true, description: "Relative weight (default 1.00) when rolling up child task progress, health, and confidence into a parent task."}) 
     RollupWeight?: number;
         
-    @Field({nullable: true, description: "Planning horizon or OKR cycle identifier (e.g., 2026-Q4, FY2027, H1-2026)."}) 
+    @Field({nullable: true, description: "Tracking period or cycle identifier for scheduled or measurable tasks (e.g., 2026-Q4, FY2027, H1-2026)."}) 
     @MaxLength(50)
     PlanningPeriod?: string;
         
-    @Field({nullable: true, description: "Expected progress check-in frequency: Daily, Weekly, BiWeekly, Monthly, Quarterly, or None."}) 
+    @Field({nullable: true, description: "Expected progress check-in frequency for this task: Daily, Weekly, BiWeekly, Monthly, Quarterly, or None."}) 
     @MaxLength(20)
     CheckInCadence?: string;
         
-    @Field({nullable: true, description: "Timestamp when the most recent TaskCheckIn was recorded for this task."}) 
+    @Field({nullable: true, description: "Timestamp when the most recent Task Check In progress update was recorded for this task."}) 
     LastCheckInAt?: Date;
         
-    @Field({nullable: true, description: "Timestamp when the next progress check-in is due based on CheckInCadence; used by Chief of Staff to nudge owners."}) 
+    @Field({nullable: true, description: "Timestamp when the next progress check-in is due based on CheckInCadence; used for scheduled check-in reminders."}) 
     NextCheckInDueAt?: Date;
         
     @Field({nullable: true, description: "Optional owning or scoping Organization for this task (supports both internal legal entities mirrored from MJ: Companies via Organization.LinkedCompanyID and external client/partner organizations). Child sub-tasks inherit their parent OrganizationID by default."}) 

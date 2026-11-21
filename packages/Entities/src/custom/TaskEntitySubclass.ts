@@ -5,6 +5,13 @@ import { mjBizAppsTasksTaskEntity } from "../generated/entity_subclasses.js";
 /**
  * Custom entity subclass for MJ_BizApps_Tasks: Tasks.
  *
+ * Supports generic measurable task tracking via inherited strongly-typed properties
+ * (`BaselineValue`, `TargetValue`, `CurrentValue`, `UnitOfMeasure`, `MetricDirection`,
+ * `PlanningPeriod`, `HealthStatus`, `ConfidenceScore`, `RollupWeight`, `CheckInCadence`,
+ * `LastCheckInAt`, `NextCheckInDueAt`) and the `CheckIns` related-record collection
+ * (`MJ_BizApps_Tasks: Task Check Ins`), as well as declarative IS-A subtype extensions
+ * resolved via `TypeID.ExtensionEntity`.
+ *
  * Client-safe logic ONLY: field validation and in-record status-transition
  * side-effects (StartedAt/CompletedAt/PercentComplete). Server-only side-effects
  * (activity logging, sub-task rollup) live in TaskEntityServer.
