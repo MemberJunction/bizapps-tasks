@@ -7,6 +7,12 @@
  *   node test-harnesses/integration.mjs
  *   node test-harnesses/integration.mjs time-entries timers agent-effort time-reporting timesheets
  *   IT_TRANSPORT=graphql node test-harnesses/integration.mjs task-world
+ *
+ * Opt-in bundles (not in the default list):
+ *   MJ_IT_LOAD_ENTITIES_SERVER=1 node test-harnesses/integration.mjs workflow-human-tasks
+ *     Workflow Human steps and agents' questions answered through the BizAppsTasks human-task
+ *     provider, on MJ's real task-graph dispatcher. Direct database only; needs an MJ build that
+ *     has the human-task provider contract (MJ #6763, #6777).
  */
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

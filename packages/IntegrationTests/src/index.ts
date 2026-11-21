@@ -38,6 +38,7 @@ export * from './checks/task-work-bus-and-reports.checks.js';
 export * from './checks/task-hook-routing.checks.js';
 export * from './checks/time-entries.checks.js';
 export * from './checks/timers.checks.js';
+export * from './checks/workflow-human-tasks.checks.js';
 export * from './checks/agent-effort.checks.js';
 export * from './checks/time-reporting.checks.js';
 export * from './checks/timesheets.checks.js';
