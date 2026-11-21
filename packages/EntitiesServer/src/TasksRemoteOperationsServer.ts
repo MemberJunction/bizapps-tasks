@@ -725,7 +725,10 @@ export class TasksRunRecurringPlaybooksServerOperation extends TasksRunRecurring
         }
 
         const marker = buildPeriodMarker(periodKey, templateID);
-        const escapedMarker = marker.replace(/'/g, "''");
+        // Quote-doubling alone leaves `%`, `_` and `[` live as LIKE wildcards, and
+        // PERIOD_KEY_PATTERN permits `_` — so a key like `2026_12` would also match
+        // `2026-12` and wrongly skip a playbook run. Bracket-escape the wildcards too.
+        const escapedMarker = marker.replace(/'/g, "''").replace(/[[%_]/g, '[$&]');
         const results: RecurringPlaybookOrgResult[] = [];
         let launchedCount = 0;
         let skippedCount = 0;
