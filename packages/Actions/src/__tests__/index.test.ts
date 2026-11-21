@@ -11,17 +11,21 @@ vi.mock('@memberjunction/global', async (importOriginal) => {
         RegisterClass: () => () => {},
     };
 });
-vi.mock('@memberjunction/core', () => ({
-    BaseEntity: class {},
-    BaseRemotableOperation: class {},
-    CompositeKey: class { constructor(public KeyValuePairs: Array<{ FieldName: string; Value: string }> = []) {} },
-    LogError: () => {},
-    LogStatus: () => {},
-    Metadata: class {},
-    RunView: class {},
-    RunQuery: class {},
-    UserInfo: class {},
-}));
+vi.mock('@memberjunction/core', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@memberjunction/core')>();
+    return {
+        ...actual,
+        BaseEntity: class {},
+        BaseRemotableOperation: class {},
+        CompositeKey: class { constructor(public KeyValuePairs: Array<{ FieldName: string; Value: string }> = []) {} },
+        LogError: () => {},
+        LogStatus: () => {},
+        Metadata: class {},
+        RunView: class {},
+        RunQuery: class {},
+        UserInfo: class {},
+    };
+});
 vi.mock('@memberjunction/core-entities', () => ({
     MJAIAgentRunEntity: class {},
 }));
@@ -82,7 +86,8 @@ describe('@mj-biz-apps/tasks-actions', () => {
         expect(mod.ZoomTranscriptSource).toBeDefined();
         expect(mod.AttachedFileTranscriptSource).toBeDefined();
         expect(mod.MeetingTranscriptService).toBeDefined();
-        // Agent Task OnAssign hook
+        // Agent Task OnAssign hook & Recurring Playbooks
         expect(mod.ExecuteAssignedAgentAction).toBeDefined();
+        expect(mod.RunRecurringPlaybooksAction).toBeDefined();
     });
 });

@@ -1,6 +1,7 @@
 import { Component, EventEmitter, Input, Output, ViewChild, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { BaseEntity, type IMetadataProvider } from '@memberjunction/core';
+import type { TasksInstantiateTemplateOutput } from '@mj-biz-apps/tasks-core';
 import { OpenTaskRecord } from '../../open-task-record';
 import { TaskPanelComponent, TaskViewMode } from '../task-panel/task-panel.component';
 import { TaskTemplateWizardComponent } from '../task-template-wizard/task-template-wizard.component';
@@ -274,7 +275,7 @@ export class TaskDashboardComponent implements OnInit {
     }
 
     /** @internal */
-    onTemplateCreated(_tasks: BaseEntity[]): void {
+    onTemplateCreated(_result: TasksInstantiateTemplateOutput | BaseEntity[]): void {
         this.closePanel();
         this.RefreshCurrentView();
     }

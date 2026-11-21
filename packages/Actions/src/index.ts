@@ -6,4 +6,5 @@ export * from './custom/WorkReportActions.js';
 export * from './custom/TaskTypedActions.js';
 export * from './custom/MeetingTypedActions.js';
 export * from './custom/ExecuteAssignedAgentAction.js';
+export * from './custom/RunRecurringPlaybooksAction.js';
 export * from './meetings/index.js';

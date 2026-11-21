@@ -10,11 +10,11 @@
     <!-- ========================================
          FIELD PANELS
          ======================================== -->
-    <!-- Details Section -->
+    <!-- Meeting Details Section -->
     <mj-collapsible-panel
-        SectionKey="details"
-        SectionName="Details"
-        Icon="fa fa-align-left"
+        SectionKey="meetingDetails"
+        SectionName="Meeting Details"
+        Icon="fa fa-info-circle"
         [Form]="this"
         [FormContext]="formContext">
         <mj-form-field 
@@ -42,6 +42,16 @@
             [FormContext]="formContext"
             LinkType="Record"
         ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Recurrence Section -->
+    <mj-collapsible-panel
+        SectionKey="recurrence"
+        SectionName="Recurrence"
+        Icon="fa fa-redo"
+        [Form]="this"
+        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -59,6 +69,16 @@
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Status and Timing Section -->
+    <mj-collapsible-panel
+        SectionKey="statusAndTiming"
+        SectionName="Status and Timing"
+        Icon="fa fa-clock"
+        [Form]="this"
+        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -91,6 +111,48 @@
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="ActualStartedAt"
+            Type="datepicker"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="ActualEndedAt"
+            Type="datepicker"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="CancelledAt"
+            Type="datepicker"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="CancellationReason"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Location and Virtual Section -->
+    <mj-collapsible-panel
+        SectionKey="locationAndVirtual"
+        SectionName="Location and Virtual"
+        Icon="fa fa-map-marker-alt"
+        [Form]="this"
+        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -140,6 +202,16 @@
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- People and Access Section -->
+    <mj-collapsible-panel
+        SectionKey="peopleAndAccess"
+        SectionName="People and Access"
+        Icon="fa fa-users"
+        [Form]="this"
+        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -160,35 +232,22 @@
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
-            FieldName="ActualStartedAt"
-            Type="datepicker"
-            [EditMode]="EditMode"
-            [FormContext]="formContext"
-        ></mj-form-field>
-        <mj-form-field 
-            [Record]="record"
-            [ShowLabel]="true"
-            FieldName="ActualEndedAt"
-            Type="datepicker"
-            [EditMode]="EditMode"
-            [FormContext]="formContext"
-        ></mj-form-field>
-        <mj-form-field 
-            [Record]="record"
-            [ShowLabel]="true"
-            FieldName="CancelledAt"
-            Type="datepicker"
-            [EditMode]="EditMode"
-            [FormContext]="formContext"
-        ></mj-form-field>
-        <mj-form-field 
-            [Record]="record"
-            [ShowLabel]="true"
-            FieldName="CancellationReason"
+            FieldName="CreatedByPersonID"
             Type="textbox"
             [EditMode]="EditMode"
             [FormContext]="formContext"
+            LinkType="Record"
         ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Notes and Recording Section -->
+    <mj-collapsible-panel
+        SectionKey="notesAndRecording"
+        SectionName="Notes and Recording"
+        Icon="fa fa-file-alt"
+        [Form]="this"
+        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -206,15 +265,16 @@
             [FormContext]="formContext"
             LinkType="Record"
         ></mj-form-field>
-        <mj-form-field 
-            [Record]="record"
-            [ShowLabel]="true"
-            FieldName="CreatedByPersonID"
-            Type="textbox"
-            [EditMode]="EditMode"
-            [FormContext]="formContext"
-            LinkType="Record"
-        ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- System Metadata Section -->
+    <mj-collapsible-panel
+        SectionKey="systemMetadata"
+        SectionName="System Metadata"
+        Icon="fa fa-cog"
+        [Form]="this"
+        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -244,7 +304,7 @@
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksMeetingAgendaItemsMeetingID"
         SectionName="Meeting Agenda Items (Meeting ID)"
-        Icon="fa fa-table"
+        Icon="fa fa-tasks"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"
@@ -269,7 +329,7 @@
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksMeetingAgendaItemsDeferredToMeetingID"
         SectionName="Meeting Agenda Items (Deferred To Meeting ID)"
-        Icon="fa fa-table"
+        Icon="fa fa-tasks"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"
@@ -294,7 +354,7 @@
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksMeetingAttendees"
         SectionName="Meeting Attendees"
-        Icon="fa fa-table"
+        Icon="fa fa-users"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"
@@ -319,7 +379,7 @@
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksMeetingNotes"
         SectionName="Meeting Notes"
-        Icon="fa fa-table"
+        Icon="fa fa-file-alt"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"

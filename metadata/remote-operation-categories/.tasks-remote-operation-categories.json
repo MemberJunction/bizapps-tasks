@@ -8,5 +8,15 @@
     "primaryKey": {
       "ID": "A1B2C3D4-5555-4A55-8555-555555555500"
     }
+  },
+  {
+    "fields": {
+      "Name": "Tasks and Playbooks",
+      "Description": "Remote operations for bulk task mutations, multi-entity template playbooks, and scheduled recurring close/rollover launches.",
+      "ParentID": null
+    },
+    "primaryKey": {
+      "ID": "B7E41C20-9A1F-4D83-8C5A-1F2E3D4C5B00"
+    }
   }
 ]

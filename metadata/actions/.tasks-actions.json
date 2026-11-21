@@ -6629,5 +6629,266 @@
       "lastModified": "2026-11-20T22:08:58.214Z",
       "checksum": "a2f7ec862c9a5782c40d7917f6787b8b6310b0f60b47bafc17f086220cdf39b7"
     }
+  },
+  {
+    "fields": {
+      "Name": "Run Recurring Playbooks",
+      "CategoryID": "@lookup:MJ: Action Categories.Name=Tasks",
+      "Description": "Idempotently launches a Task Template playbook (such as Month-End Financial Close) across explicit Organizations or every active mirrored internal Company for a fiscal PeriodKey. Backed by BizAppsTasks.RunRecurringPlaybooks.",
+      "Type": "Custom",
+      "DriverClass": "RunRecurringPlaybooksAction",
+      "IconClass": "fa-solid fa-calendar-check",
+      "UserPrompt": "Launch a recurring playbook template across one or more organizations or all mirrored companies for a fiscal period.",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "B7E41C20-9A1F-4D83-8C5A-1F2E3D4C5B10"
+    },
+    "relatedEntities": {
+      "MJ: Action Params": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "TemplateID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": true,
+            "Description": "UUID of the MJ_BizApps_Tasks: Task Templates record to instantiate."
+          },
+          "primaryKey": {
+            "ID": "B7E41C20-9A1F-4D83-8C5A-1F2E3D4C5B11"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "AnchorDate",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Kickoff date (YYYY-MM-DD) for relative due-date offsets. Defaults to today."
+          },
+          "primaryKey": {
+            "ID": "B7E41C20-9A1F-4D83-8C5A-1F2E3D4C5B12"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "PeriodKey",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Idempotency key (e.g., '2026-12' or '2026-Q4'). Defaults to AnchorDate YYYY-MM."
+          },
+          "primaryKey": {
+            "ID": "B7E41C20-9A1F-4D83-8C5A-1F2E3D4C5B13"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "OrganizationIDs",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional JSON array or comma-separated list of Organization UUIDs."
+          },
+          "primaryKey": {
+            "ID": "B7E41C20-9A1F-4D83-8C5A-1F2E3D4C5B14"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "AllMirroredCompanies",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "DefaultValue": "true",
+            "Description": "When true and OrganizationIDs is omitted, targets every active Organization mirrored from MJ: Companies."
+          },
+          "primaryKey": {
+            "ID": "B7E41C20-9A1F-4D83-8C5A-1F2E3D4C5B15"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "CategoryID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional Task Category UUID override."
+          },
+          "primaryKey": {
+            "ID": "B7E41C20-9A1F-4D83-8C5A-1F2E3D4C5B16"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "RoleAssignmentsJSON",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional JSON array of { RoleID, EntityName, RecordID } role bindings."
+          },
+          "primaryKey": {
+            "ID": "B7E41C20-9A1F-4D83-8C5A-1F2E3D4C5B17"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "DryRun",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "DefaultValue": "false",
+            "Description": "When true, evaluates targets and idempotency without creating tasks."
+          },
+          "primaryKey": {
+            "ID": "B7E41C20-9A1F-4D83-8C5A-1F2E3D4C5B18"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "LaunchedCount",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Number of organizations for which the playbook was launched."
+          },
+          "primaryKey": {
+            "ID": "B7E41C20-9A1F-4D83-8C5A-1F2E3D4C5B19"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "SkippedCount",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Number of organizations skipped because the PeriodKey already existed."
+          },
+          "primaryKey": {
+            "ID": "B7E41C20-9A1F-4D83-8C5A-1F2E3D4C5B1A"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "FailedCount",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Number of organizations that encountered an error."
+          },
+          "primaryKey": {
+            "ID": "B7E41C20-9A1F-4D83-8C5A-1F2E3D4C5B1B"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "TotalTasksCreated",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Total number of Task records created across all organizations."
+          },
+          "primaryKey": {
+            "ID": "B7E41C20-9A1F-4D83-8C5A-1F2E3D4C5B1C"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "ResultJSON",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Full serialized TasksRunRecurringPlaybooksOutput payload."
+          },
+          "primaryKey": {
+            "ID": "B7E41C20-9A1F-4D83-8C5A-1F2E3D4C5B1D"
+          }
+        }
+      ],
+      "MJ: Action Result Codes": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "SUCCESS",
+            "IsSuccess": true,
+            "Description": "All target organizations processed without errors."
+          },
+          "primaryKey": {
+            "ID": "B7E41C20-9A1F-4D83-8C5A-1F2E3D4C5B1E"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "PARTIAL_FAILURE",
+            "IsSuccess": false,
+            "Description": "One or more target organizations failed while others succeeded."
+          },
+          "primaryKey": {
+            "ID": "B7E41C20-9A1F-4D83-8C5A-1F2E3D4C5B1F"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "MISSING_PARAMS",
+            "IsSuccess": false,
+            "Description": "TemplateID was not provided."
+          },
+          "primaryKey": {
+            "ID": "B7E41C20-9A1F-4D83-8C5A-1F2E3D4C5B20"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "INVALID_PARAMS",
+            "IsSuccess": false,
+            "Description": "RoleAssignmentsJSON was not a valid JSON array."
+          },
+          "primaryKey": {
+            "ID": "B7E41C20-9A1F-4D83-8C5A-1F2E3D4C5B21"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "ERROR",
+            "IsSuccess": false,
+            "Description": "Execution error while running recurring playbooks."
+          },
+          "primaryKey": {
+            "ID": "B7E41C20-9A1F-4D83-8C5A-1F2E3D4C5B22"
+          }
+        }
+      ]
+    }
   }
 ]

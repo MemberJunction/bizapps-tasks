@@ -10,10 +10,10 @@
     <!-- ========================================
          FIELD PANELS
          ======================================== -->
-    <!-- Details Section -->
+    <!-- Agenda Item Details Section -->
     <mj-collapsible-panel
-        SectionKey="details"
-        SectionName="Details"
+        SectionKey="agendaItemDetails"
+        SectionName="Agenda Item Details"
         Icon="fa fa-align-left"
         [Form]="this"
         [FormContext]="formContext">
@@ -77,14 +77,34 @@
             [FormContext]="formContext"
             LinkType="Record"
         ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Planning and Timing Section -->
+    <mj-collapsible-panel
+        SectionKey="planningAndTiming"
+        SectionName="Planning and Timing"
+        Icon="fa fa-clock"
+        [Form]="this"
+        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
-            [ShowLabel]="true"
+            [ShowLabel]="false"
             FieldName="DurationMinutes"
             Type="number"
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Execution Tracking Section -->
+    <mj-collapsible-panel
+        SectionKey="executionTracking"
+        SectionName="Execution Tracking"
+        Icon="fa fa-check-circle"
+        [Form]="this"
+        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -126,6 +146,66 @@
             [FormContext]="formContext"
             LinkType="Record"
         ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- Hierarchy Details Section -->
+    <mj-collapsible-panel
+        SectionKey="hierarchyDetails"
+        SectionName="Hierarchy Details"
+        Icon="fa fa-sitemap"
+        [Form]="this"
+        [FormContext]="formContext">
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="RootParentID"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="ParentIDDepth"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="ParentIDPath"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="ParentIDIsLeaf"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="ParentIDChildCount"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+
+    </mj-collapsible-panel>
+
+    <!-- System Metadata Section -->
+    <mj-collapsible-panel
+        SectionKey="systemMetadata"
+        SectionName="System Metadata"
+        Icon="fa fa-cog"
+        [Form]="this"
+        [FormContext]="formContext">
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="true"
@@ -155,7 +235,7 @@
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksMeetingAgendaItems"
         SectionName="Meeting Agenda Items"
-        Icon="fa fa-table"
+        Icon="fa fa-tasks"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"
@@ -180,7 +260,7 @@
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksMeetingNotes"
         SectionName="Meeting Notes"
-        Icon="fa fa-table"
+        Icon="fa fa-file-alt"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"

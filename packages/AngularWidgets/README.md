@@ -21,3 +21,21 @@ The meeting widgets of BizApps Tasks (the meetings plan, § 5), with no Explorer
 
 `format.ts` says when a meeting is in two zones through Intl; `series-rule.ts` writes and reads the editor's RRULE subset.
 Colours come from MemberJunction's semantic tokens (`tokens.ts`), so light and dark follow the host.
+
+## Tasks Widgets (`src/lib/tasks`)
+
+Standalone, Router-free, `@memberjunction/ng-shared`-free task UI primitives styled exclusively with `--mj-*` design tokens and CSS `@container` queries:
+
+| Widget | Selector | Purpose |
+|---|---|---|
+| `TaskBulkActionDockComponent` | `<mjt-bulk-action-dock>` | Single-row floating Asana-grade bulk action bar with upward popovers for **Reassign** (Person / MJ Role replace/add/clear), **Redate** (set date, shift ±N days, clear), **Status**, **Org**, and **More Fields** |
+| `TaskQuickCaptureComponent` | `<mjt-quick-capture>` | Natural-language quick capture input with live parsed preview chips |
+| `TaskCompletionRingComponent` | `<mjt-completion-ring>` | Tactile 1-click completion ring separate from bulk-select checkboxes |
+| `TaskWorkflowStepperComponent` | `<mjt-workflow-stepper>` | Interactive `TaskTypeStatus` stage pipeline stepper |
+| `TaskUrgencyStripComponent` | `<mjt-urgency-strip>` | Conditional KPI pill strip (Overdue, Blocked, Pending Approvals, SLA Risk) |
+| `TaskApprovalCardComponent` | `<mjt-approval-card>` | Inline decision card (`Approve` / `Approve with Conditions` / `Reject`) |
+| `TaskAdaptiveSpotlightComponent` | `<mjt-adaptive-spotlight>` | Archetype-aware form spotlight (Effort Burn, SLA Risk, Blockers; 0px collapse on plain General tasks) |
+| `TaskOkrCheckInComponent` | `<mjt-okr-checkin>` | Metric progress display + inline `TaskCheckIn` composer for OKR Key Results |
+| `TaskCommandPaletteComponent` | `<mjt-command-palette>` | `⌘J` keyboard quick-jump palette built on `<mj-dialog>` |
+| `TaskMobileMilestoneStackComponent` | `<mjt-mobile-milestone-stack>` | Chronological mobile milestone cards replacing wide Gantt charts on phones |
+| `ConnectedTasksWidgetComponent` | `<mjt-connected-tasks>` | Embeddable task list widget for attaching tasks to any MJ entity form |
