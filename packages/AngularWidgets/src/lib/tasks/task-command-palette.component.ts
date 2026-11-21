@@ -47,11 +47,28 @@ import type { TaskCommandPaletteItem } from './task-models';
                                 [attr.aria-selected]="i === ActiveIndex"
                                 (mouseenter)="ActiveIndex = i"
                                 (click)="select(item)">
-                                <i [class]="item.IconClass + ' mjt-cmdk-row-ic'" aria-hidden="true"></i>
+                                @if (item.Group === 'Tasks' && item.Status) {
+                                    <span
+                                        class="mjt-cmdk-ring"
+                                        [class.is-progress]="item.Status === 'InProgress'"
+                                        [class.is-done]="item.Status === 'Completed'"
+                                        [class.is-blocked]="item.Status === 'Blocked'"
+                                        [attr.aria-label]="formatStatusText(item.Status)">
+                                        @if (item.Status === 'Completed') {
+                                            <i class="fa-solid fa-check" aria-hidden="true"></i>
+                                        } @else if (item.Status === 'Blocked') {
+                                            <i class="fa-solid fa-exclamation" aria-hidden="true"></i>
+                                        } @else if (item.Status === 'InProgress') {
+                                            <span class="mjt-cmdk-ring-dot" aria-hidden="true"></span>
+                                        }
+                                    </span>
+                                } @else {
+                                    <i [class]="item.IconClass + ' mjt-cmdk-row-ic'" aria-hidden="true"></i>
+                                }
                                 <div class="mjt-cmdk-row-copy">
                                     <span class="mjt-cmdk-row-label">{{ item.Label }}</span>
                                     @if (item.Subtitle) {
-                                        <span class="mjt-cmdk-row-sub">{{ item.Subtitle }}</span>
+                                        <span class="mjt-cmdk-row-sub">{{ formatSubtitle(item.Subtitle) }}</span>
                                     }
                                 </div>
                                 <span class="mjt-pill mjt-pill--neutral">{{ item.Group }}</span>
@@ -61,6 +78,14 @@ import type { TaskCommandPaletteItem } from './task-models';
                             </button>
                         }
                     }
+                </div>
+
+                <div class="mjt-cmdk-footer" aria-hidden="true">
+                    <span class="mjt-cmdk-hints">
+                        <kbd class="mjt-kbd">↑↓</kbd> Navigate
+                        <kbd class="mjt-kbd">↵</kbd> Open
+                    </span>
+                    <span class="mjt-cmdk-count mjt-mono">{{ FilteredItems.length }} of {{ Items.length }} items</span>
                 </div>
             </div>
         </mj-dialog>
@@ -139,6 +164,53 @@ import type { TaskCommandPaletteItem } from './task-models';
             font-size: 13px;
             flex-shrink: 0;
         }
+        .mjt-cmdk-ring {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 2px solid var(--mj-border-strong);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 9px;
+            color: var(--mj-text-inverse);
+        }
+        .mjt-cmdk-ring.is-progress {
+            border-color: var(--mj-brand-primary);
+        }
+        .mjt-cmdk-ring-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--mj-brand-primary);
+        }
+        .mjt-cmdk-ring.is-done {
+            background: var(--mj-status-success);
+            border-color: var(--mj-status-success);
+        }
+        .mjt-cmdk-ring.is-blocked {
+            background: var(--mj-status-error);
+            border-color: var(--mj-status-error);
+        }
+        .mjt-cmdk-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding-top: 8px;
+            border-top: 1px solid var(--mj-border-default);
+            font-size: 11.5px;
+            color: var(--mj-text-muted);
+        }
+        .mjt-cmdk-hints {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .mjt-cmdk-count {
+            font-size: 11px;
+        }
         .mjt-cmdk-row-copy {
             flex: 1;
             min-width: 0;
@@ -208,6 +280,17 @@ export class TaskCommandPaletteComponent {
         this.Query = '';
         this.ActiveIndex = 0;
         this.ItemSelected.emit(item);
+    }
+
+    public formatStatusText(status: string): string {
+        return status.replace(/([a-z])([A-Z])/g, '$1 $2');
+    }
+
+    public formatSubtitle(subtitle: string): string {
+        return subtitle
+            .replace(/\bInProgress\b/g, 'In Progress')
+            .replace(/\bNotStarted\b/g, 'Not Started')
+            .replace(/\bStatusChange\b/g, 'Status Change');
     }
 
     public onClose(): void {

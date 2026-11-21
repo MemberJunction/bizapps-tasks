@@ -111,10 +111,11 @@ import type { TaskUrgencyFilterKey } from './task-models';
             color: var(--mj-status-warning-text);
             border-color: color-mix(in srgb, var(--mj-status-warning) 28%, transparent);
         }
+        /* Standard MJE brand tokens (no purple) — retained class name for backwards compatibility */
         .mjt-urg-pill--violet {
-            background: color-mix(in srgb, var(--mj-text-violet, #6d28d9) 12%, var(--mj-bg-surface));
-            color: var(--mj-text-violet, #6d28d9);
-            border-color: color-mix(in srgb, var(--mj-text-violet, #6d28d9) 26%, transparent);
+            background: color-mix(in oklab, var(--mj-brand-primary) 12%, var(--mj-bg-surface));
+            color: var(--mj-brand-primary);
+            border-color: color-mix(in oklab, var(--mj-brand-primary) 28%, transparent);
         }
         .mjt-urg-pill--info {
             background: var(--mj-status-info-bg);

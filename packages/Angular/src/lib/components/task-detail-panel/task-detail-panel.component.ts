@@ -22,6 +22,8 @@ import {
     type TabConfig,
 } from '@memberjunction/ng-ui-components';
 import {
+    FormatTaskActivityTypeLabel,
+    FormatTaskStatusLabel,
     ResolveTaskUiArchetype,
     TaskOrchestrationService,
     TaskService,
@@ -145,15 +147,16 @@ export class BeforeCommentPostedEvent {
                         </div>
 
                         <div class="mjt-insp-actions">
+                            @if (!ReadOnly) {
+                                <span class="mjt-autosave-pill" [class.is-saving]="autoSaveState === 'saving'" role="status">
+                                    <i class="fa-solid" [class.fa-spinner]="autoSaveState === 'saving'" [class.fa-spin]="autoSaveState === 'saving'" [class.fa-check]="autoSaveState !== 'saving'" aria-hidden="true"></i>
+                                    <span>{{ autoSaveState === 'saving' ? 'Saving...' : 'Auto-saved' }}</span>
+                                </span>
+                            }
                             <button type="button" mjButton variant="outline" size="sm" (click)="onOpenFullRecord()" title="Open full Task record">
                                 <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
                                 <span>Open Form</span>
                             </button>
-                            @if (!ReadOnly) {
-                                <button type="button" mjButton variant="flat" size="sm" (click)="EditRequested.emit(TaskID!)" title="Open full edit drawer">
-                                    <i class="fa-solid fa-pen" aria-hidden="true"></i>
-                                </button>
-                            }
                             @if (ShowDelete && !ReadOnly) {
                                 @if (!confirmingDelete) {
                                     <button type="button" mjButton variant="flat" size="sm" aria-label="Delete task" (click)="confirmingDelete = true">
@@ -274,13 +277,22 @@ export class BeforeCommentPostedEvent {
                         </div>
                     }
 
-                    <!-- Description -->
-                    @if (taskEntity.Description) {
-                        <div class="mjt-block">
-                            <span class="mjt-block-label">Description</span>
-                            <p class="mjt-desc">{{ taskEntity.Description }}</p>
-                        </div>
-                    }
+                    <!-- Inline Editable Description -->
+                    <div class="mjt-block">
+                        <label class="mjt-block-label" for="mjtInspDesc">Description</label>
+                        @if (ReadOnly) {
+                            <p class="mjt-desc">{{ taskEntity.Description || 'No description yet.' }}</p>
+                        } @else {
+                            <textarea
+                                id="mjtInspDesc"
+                                rows="3"
+                                class="mjt-desc-input"
+                                [(ngModel)]="draftDescription"
+                                [disabled]="busy"
+                                placeholder="Add context, links, or acceptance criteria..."
+                                (blur)="saveInlineDescription()"></textarea>
+                        }
+                    </div>
 
                     <!-- Connected Business Records -->
                     <div class="mjt-block">
@@ -306,23 +318,15 @@ export class BeforeCommentPostedEvent {
                         }
                     </div>
 
-                    <!-- Assignees with 1-Click Status Dot Cycling -->
+                    <!-- Assignees with Tappable Status Pill (32px desktop / 34px mobile) -->
                     <div class="mjt-block">
-                        <span class="mjt-block-label">Assignees <span class="mjt-hint">(click status dot to cycle)</span></span>
+                        <span class="mjt-block-label">Assignees</span>
                         @if (assignees.length === 0) {
                             <span class="mjt-muted">Unassigned</span>
                         } @else {
                             <div class="mjt-assignee-list">
                                 @for (a of assignees; track a.AssignmentID) {
                                     <div class="mjt-assignee-row">
-                                        <button
-                                            type="button"
-                                            class="mjt-dot-btn"
-                                            [class]="'mjt-dot--' + a.Status.toLowerCase()"
-                                            [disabled]="ReadOnly || busy"
-                                            [title]="'Status: ' + a.Status + ' — click to cycle'"
-                                            (click)="cycleAssigneeStatus(a)">
-                                        </button>
                                         <span
                                             class="mjt-assignee-name"
                                             mjRecordLink
@@ -334,7 +338,17 @@ export class BeforeCommentPostedEvent {
                                         @if (a.RoleName) {
                                             <span class="mjt-role-tag">{{ a.RoleName }}</span>
                                         }
-                                        <span class="mjt-assignee-status">{{ formatStatus(a.Status) }}</span>
+                                        <button
+                                            type="button"
+                                            class="mjt-assignee-status-pill"
+                                            [class]="'mjt-status-pill--' + a.Status.toLowerCase()"
+                                            [disabled]="ReadOnly || busy"
+                                            [title]="'Assignee status: ' + formatStatus(a.Status) + ' — click to cycle'"
+                                            (click)="cycleAssigneeStatus(a)">
+                                            <span class="mjt-status-dot" aria-hidden="true"></span>
+                                            <span>{{ formatStatus(a.Status) }}</span>
+                                            <i class="fa-solid fa-caret-down mjt-status-caret" aria-hidden="true"></i>
+                                        </button>
                                     </div>
                                 }
                             </div>
@@ -380,7 +394,8 @@ export class BeforeCommentPostedEvent {
                                     type="text"
                                     class="mjt-inline-inp"
                                     [(ngModel)]="newSubtaskTitle"
-                                    placeholder="+ Break down into a sub-task..."
+                                    placeholder="Break down into a sub-task..."
+                                    aria-label="New sub-task title"
                                     (keydown.enter)="addSubtask()" />
                                 <button type="button" mjButton variant="outline" size="sm" [disabled]="!newSubtaskTitle.trim() || busy" (click)="addSubtask()">
                                     Add
@@ -448,10 +463,27 @@ export class BeforeCommentPostedEvent {
             color: var(--mj-text-primary);
         }
         .mjt-insp {
-            padding: 16px 20px 28px;
+            padding: 16px 20px 80px;
             display: flex;
             flex-direction: column;
             gap: 14px;
+        }
+        .mjt-autosave-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 9px;
+            border-radius: var(--mj-radius-full, 9999px);
+            background: var(--mj-status-success-bg);
+            color: var(--mj-status-success-text);
+            border: 1px solid color-mix(in oklab, var(--mj-status-success) 28%, transparent);
+            font-size: 11px;
+            font-weight: var(--mj-font-semibold, 600);
+        }
+        .mjt-autosave-pill.is-saving {
+            background: var(--mj-status-info-bg);
+            color: var(--mj-status-info-text);
+            border-color: color-mix(in oklab, var(--mj-status-info) 28%, transparent);
         }
         .mjt-insp-loading {
             padding: 48px 16px;
@@ -581,6 +613,29 @@ export class BeforeCommentPostedEvent {
             line-height: 1.5;
             white-space: pre-wrap;
         }
+        .mjt-desc-input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px 10px;
+            border: 1px solid var(--mj-border-subtle);
+            border-radius: var(--mj-radius-md, 8px);
+            background: var(--mj-bg-surface-sunken);
+            color: var(--mj-text-primary);
+            font-family: inherit;
+            font-size: var(--mj-text-sm, 14px);
+            line-height: 1.5;
+            resize: vertical;
+            transition: border-color 140ms ease, background 140ms ease;
+        }
+        .mjt-desc-input:hover:not(:disabled) {
+            border-color: var(--mj-border-strong);
+        }
+        .mjt-desc-input:focus {
+            outline: none;
+            background: var(--mj-bg-surface);
+            border-color: var(--mj-brand-primary);
+            box-shadow: 0 0 0 3px color-mix(in oklab, var(--mj-brand-primary) 16%, transparent);
+        }
         .mjt-muted {
             font-size: var(--mj-text-xs, 12px);
             color: var(--mj-text-muted);
@@ -640,18 +695,56 @@ export class BeforeCommentPostedEvent {
             background: var(--mj-bg-surface-sunken);
             border: 1px solid var(--mj-border-subtle);
         }
-        .mjt-dot-btn {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            border: none;
+        .mjt-assignee-status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            min-height: 32px;
+            padding: 4px 10px;
+            border-radius: var(--mj-radius-full, 9999px);
+            border: 1px solid var(--mj-border-default);
+            background: var(--mj-bg-surface);
+            color: var(--mj-text-primary);
+            font-family: inherit;
+            font-size: 11.5px;
+            font-weight: var(--mj-font-semibold, 600);
             cursor: pointer;
-            padding: 0;
             flex-shrink: 0;
+            transition: border-color 140ms ease, background 140ms ease;
         }
-        .mjt-dot--pending { background: var(--mj-border-strong); }
-        .mjt-dot--inprogress { background: var(--mj-brand-primary); }
-        .mjt-dot--completed { background: var(--mj-status-success); }
+        .mjt-assignee-status-pill:hover:not(:disabled) {
+            border-color: var(--mj-brand-primary);
+        }
+        .mjt-assignee-status-pill:disabled { opacity: 0.6; cursor: not-allowed; }
+        .mjt-status-dot {
+            width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+            background: var(--mj-text-muted);
+        }
+        .mjt-status-caret { font-size: 10px; opacity: 0.7; }
+        .mjt-status-pill--pending {
+            background: var(--mj-bg-surface);
+            color: var(--mj-text-secondary);
+        }
+        .mjt-status-pill--pending .mjt-status-dot {
+            background: transparent;
+            border: 2px solid var(--mj-text-muted);
+            box-sizing: border-box;
+        }
+        .mjt-status-pill--inprogress {
+            background: var(--mj-status-info-bg);
+            color: var(--mj-status-info-text);
+            border-color: color-mix(in oklab, var(--mj-status-info) 30%, transparent);
+        }
+        .mjt-status-pill--inprogress .mjt-status-dot { background: var(--mj-brand-primary); }
+        .mjt-status-pill--completed {
+            background: var(--mj-status-success-bg);
+            color: var(--mj-status-success-text);
+            border-color: color-mix(in oklab, var(--mj-status-success) 30%, transparent);
+        }
+        .mjt-status-pill--completed .mjt-status-dot { background: var(--mj-status-success); }
+        @media (max-width: 640px) {
+            .mjt-assignee-status-pill { min-height: 34px; padding: 5px 12px; }
+        }
         .mjt-assignee-name,
         .mjt-sub-name {
             flex: 1;
@@ -753,6 +846,8 @@ export class TaskDetailPanelComponent implements OnChanges {
 
     public taskEntity: mjBizAppsTasksTaskEntity | null = null;
     public draftTitle = '';
+    public draftDescription = '';
+    public autoSaveState: 'idle' | 'saving' | 'saved' = 'saved';
     public confirmingDelete = false;
     public parentTaskName: string | null = null;
     public assignees: InspectorAssigneeRow[] = [];
@@ -808,7 +903,7 @@ export class TaskDetailPanelComponent implements OnChanges {
     }
 
     public formatStatus(status: string): string {
-        return status?.replace(/([a-z])([A-Z])/g, '$1 $2') ?? '';
+        return FormatTaskStatusLabel(status);
     }
 
     private createRunView(): RunView {
@@ -852,6 +947,8 @@ export class TaskDetailPanelComponent implements OnChanges {
                     await entity.InnerLoad(CompositeKey.FromID(this.TaskID));
                     this.taskEntity = entity;
                     this.draftTitle = entity.Name ?? '';
+                    this.draftDescription = entity.Description ?? '';
+                    this.autoSaveState = 'saved';
                 }
             }
 
@@ -1090,8 +1187,8 @@ export class TaskDetailPanelComponent implements OnChanges {
                 Type: 'activity',
                 Timestamp: new Date(a.__mj_CreatedAt),
                 PersonName: a.PersonID ? personMap.get(a.PersonID.toLowerCase()) : undefined,
-                ActivityType: a.ActivityType,
-                Content: a.Description ?? a.ActivityType,
+                ActivityType: FormatTaskActivityTypeLabel(a.ActivityType),
+                Content: a.Description ?? FormatTaskActivityTypeLabel(a.ActivityType),
             });
         }
         for (const c of commentRows) {
@@ -1130,10 +1227,31 @@ export class TaskDetailPanelComponent implements OnChanges {
             return;
         }
         this.busy = true;
+        this.autoSaveState = 'saving';
         this.cdr.markForCheck();
         try {
             this.taskEntity.Name = clean;
             if (await this.taskEntity.Save()) {
+                this.autoSaveState = 'saved';
+                this.TaskMutated.emit(this.taskEntity.ID);
+            }
+        } finally {
+            this.busy = false;
+            this.cdr.markForCheck();
+        }
+    }
+
+    public async saveInlineDescription(): Promise<void> {
+        if (!this.taskEntity || this.ReadOnly) return;
+        const next = this.draftDescription.trim() || null;
+        if (next === (this.taskEntity.Description?.trim() || null)) return;
+        this.busy = true;
+        this.autoSaveState = 'saving';
+        this.cdr.markForCheck();
+        try {
+            this.taskEntity.Description = next;
+            if (await this.taskEntity.Save()) {
+                this.autoSaveState = 'saved';
                 this.TaskMutated.emit(this.taskEntity.ID);
             }
         } finally {

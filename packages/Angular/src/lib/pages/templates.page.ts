@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, OnInit, Output, inject } from '@angular/core';
 import { RunView } from '@memberjunction/core';
 import {
     MJButtonDirective,
@@ -144,6 +144,7 @@ interface TemplateCard {
     `,
     styles: [`
         :host { display: block; width: 100%; height: 100%; }
+        mj-card-grid { display: block; padding-bottom: 80px; }
         .mjt-tpl-loading { padding: 36px; text-align: center; color: var(--mj-text-muted); }
         .mjt-step-pill {
             font-family: var(--mj-font-family-mono, monospace);
@@ -175,6 +176,8 @@ interface TemplateCard {
     `],
 })
 export class TemplatesPageComponent implements OnInit {
+    @Output() DrawerOpenChange = new EventEmitter<boolean>();
+
     public Templates: TemplateCard[] = [];
     public Loading = false;
     public ShowWizard = false;
@@ -249,12 +252,14 @@ export class TemplatesPageComponent implements OnInit {
     public OpenLauncher(templateID: string | null): void {
         this.SelectedTemplateID = templateID;
         this.ShowWizard = true;
+        this.DrawerOpenChange.emit(true);
         this.cdr.markForCheck();
     }
 
     public CloseWizard(): void {
         this.ShowWizard = false;
         this.SelectedTemplateID = null;
+        this.DrawerOpenChange.emit(false);
         this.cdr.markForCheck();
     }
 }

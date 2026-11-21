@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component, ViewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, OnDestroy, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RegisterClass } from '@memberjunction/global';
 import { BaseResourceComponent } from '@memberjunction/ng-shared';
@@ -20,16 +20,22 @@ import { TemplatesPageComponent } from '../pages/templates.page';
     standalone: true,
     imports: [CommonModule, TasksDashboardPageComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `<bizapps-tasks-dashboard-page #page></bizapps-tasks-dashboard-page>`,
+    template: `<bizapps-tasks-dashboard-page #page (DrawerOpenChange)="OnDrawerOpenChange($event)"></bizapps-tasks-dashboard-page>`,
     styles: [`:host { display: block; width: 100%; height: 100%; }`],
 })
 @RegisterClass(BaseResourceComponent, 'TasksSectionResource')
-export class TasksSectionResource extends BaseResourceComponent implements AfterViewInit {
+export class TasksSectionResource extends BaseResourceComponent implements AfterViewInit, OnDestroy {
     @ViewChild('page') private page?: TasksDashboardPageComponent;
+    private drawerOpen = false;
 
     override ngOnInit(): void {
         super.ngOnInit();
         this.NotifyLoadComplete();
+    }
+
+    public OnDrawerOpenChange(isOpen: boolean): void {
+        this.drawerOpen = isOpen;
+        this.publishAgentContext();
     }
 
     public ngAfterViewInit(): void {
@@ -37,7 +43,7 @@ export class TasksSectionResource extends BaseResourceComponent implements After
         this.navigationService?.SetAgentClientTools(this, [
             {
                 Name: 'SwitchTasksView',
-                Description: 'Switch the Projects & All Work view between list, kanban, or gantt.',
+                Description: 'Switch the All Work view between list, kanban, or gantt.',
                 ParameterSchema: {
                     type: 'object',
                     properties: {
@@ -86,20 +92,29 @@ export class TasksSectionResource extends BaseResourceComponent implements After
         ]);
     }
 
+    override ngOnDestroy(): void {
+        if (this.drawerOpen) {
+            this.drawerOpen = false;
+            this.publishAgentContext();
+        }
+        super.ngOnDestroy();
+    }
+
     private publishAgentContext(): void {
         this.navigationService?.SetAgentContext(this, {
-            Surface: 'BizApps Tasks — Projects & All Work',
+            Surface: 'BizApps Tasks — All Work',
             ViewMode: this.page?.ViewMode ?? 'list',
             SelectedCategoryID: this.page?.SelectedCategoryID ?? null,
             SearchText: this.page?.SearchText ?? '',
             ActiveTasks: this.page?.KPIs.TotalActive ?? 0,
             OverdueTasks: this.page?.KPIs.Overdue ?? 0,
             BlockedTasks: this.page?.KPIs.Blocked ?? 0,
+            SuppressChatOverlay: this.drawerOpen,
         });
     }
 
     async GetResourceDisplayName(_data: ResourceData): Promise<string> {
-        return 'Tasks';
+        return 'All Work';
     }
 
     async GetResourceIconClass(_data: ResourceData): Promise<string> {
@@ -118,24 +133,35 @@ export class TasksSectionResource extends BaseResourceComponent implements After
     standalone: true,
     imports: [CommonModule, MyTasksPageComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `<bizapps-my-tasks-page #page></bizapps-my-tasks-page>`,
+    template: `<bizapps-my-tasks-page #page (DrawerOpenChange)="OnDrawerOpenChange($event)"></bizapps-my-tasks-page>`,
     styles: [`:host { display: block; width: 100%; height: 100%; }`],
 })
 @RegisterClass(BaseResourceComponent, 'MyTasksSectionResource')
-export class MyTasksSectionResource extends BaseResourceComponent implements AfterViewInit {
+export class MyTasksSectionResource extends BaseResourceComponent implements AfterViewInit, OnDestroy {
     @ViewChild('page') private page?: MyTasksPageComponent;
+    private drawerOpen = false;
 
     override ngOnInit(): void {
         super.ngOnInit();
         this.NotifyLoadComplete();
     }
 
-    public ngAfterViewInit(): void {
+    public OnDrawerOpenChange(isOpen: boolean): void {
+        this.drawerOpen = isOpen;
+        this.publishAgentContext();
+    }
+
+    private publishAgentContext(): void {
         this.navigationService?.SetAgentContext(this, {
             Surface: 'BizApps Tasks — My Work',
             TaskCount: this.page?.AllTasks.length ?? 0,
             UrgencyFilter: this.page?.UrgencyFilter ?? '',
+            SuppressChatOverlay: this.drawerOpen,
         });
+    }
+
+    public ngAfterViewInit(): void {
+        this.publishAgentContext();
         this.navigationService?.SetAgentClientTools(this, [
             {
                 Name: 'FilterMyWorkUrgency',
@@ -152,6 +178,7 @@ export class MyTasksSectionResource extends BaseResourceComponent implements Aft
                     if (this.page) {
                         this.page.UrgencyFilter = bucket;
                         this.page.cdr.markForCheck();
+                        this.publishAgentContext();
                     }
                     return { Success: true, Message: bucket ? `Filtered to ${bucket}.` : 'Cleared urgency filter.' };
                 },
@@ -166,6 +193,14 @@ export class MyTasksSectionResource extends BaseResourceComponent implements Aft
                 },
             },
         ]);
+    }
+
+    override ngOnDestroy(): void {
+        if (this.drawerOpen) {
+            this.drawerOpen = false;
+            this.publishAgentContext();
+        }
+        super.ngOnDestroy();
     }
 
     async GetResourceDisplayName(_data: ResourceData): Promise<string> {
@@ -248,23 +283,34 @@ export class ApprovalsSectionResource extends BaseResourceComponent implements A
     standalone: true,
     imports: [CommonModule, TemplatesPageComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `<bizapps-templates-page #page></bizapps-templates-page>`,
+    template: `<bizapps-templates-page #page (DrawerOpenChange)="OnDrawerOpenChange($event)"></bizapps-templates-page>`,
     styles: [`:host { display: block; width: 100%; height: 100%; }`],
 })
 @RegisterClass(BaseResourceComponent, 'TemplatesSectionResource')
-export class TemplatesSectionResource extends BaseResourceComponent implements AfterViewInit {
+export class TemplatesSectionResource extends BaseResourceComponent implements AfterViewInit, OnDestroy {
     @ViewChild('page') private page?: TemplatesPageComponent;
+    private drawerOpen = false;
 
     override ngOnInit(): void {
         super.ngOnInit();
         this.NotifyLoadComplete();
     }
 
-    public ngAfterViewInit(): void {
+    public OnDrawerOpenChange(isOpen: boolean): void {
+        this.drawerOpen = isOpen;
+        this.publishAgentContext();
+    }
+
+    private publishAgentContext(): void {
         this.navigationService?.SetAgentContext(this, {
             Surface: 'BizApps Tasks — Templates',
             TemplateCount: this.page?.Templates.length ?? 0,
+            SuppressChatOverlay: this.drawerOpen,
         });
+    }
+
+    public ngAfterViewInit(): void {
+        this.publishAgentContext();
         this.navigationService?.SetAgentClientTools(this, [
             {
                 Name: 'SearchTemplates',
@@ -283,6 +329,14 @@ export class TemplatesSectionResource extends BaseResourceComponent implements A
                 },
             },
         ]);
+    }
+
+    override ngOnDestroy(): void {
+        if (this.drawerOpen) {
+            this.drawerOpen = false;
+            this.publishAgentContext();
+        }
+        super.ngOnDestroy();
     }
 
     async GetResourceDisplayName(_data: ResourceData): Promise<string> {

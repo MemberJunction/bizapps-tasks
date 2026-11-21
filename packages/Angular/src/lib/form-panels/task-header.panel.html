@@ -36,7 +36,7 @@
             <div class="mjt-hero__copy">
                 <div class="mjt-hero__title-row">
                     <h1 class="mjt-hero__title" [class.is-done]="Record.Status === 'Completed'">{{ Title }}</h1>
-                    <span [class]="StatusClass">{{ Record.Status || 'Open' }}</span>
+                    <span [class]="StatusClass">{{ StatusLabel }}</span>
                     <span [class]="PriorityClass">{{ Record.Priority || 'Medium' }}</span>
                     @if (Record.Type) {
                         <span

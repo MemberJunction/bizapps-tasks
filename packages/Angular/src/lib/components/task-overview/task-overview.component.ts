@@ -20,6 +20,8 @@ import {
     MJProgressBarComponent,
 } from '@memberjunction/ng-ui-components';
 import {
+    FormatTaskActivityTypeLabel,
+    FormatTaskStatusLabel,
     ResolveTaskUiArchetype,
     TaskOrchestrationService,
     TaskService,
@@ -57,6 +59,15 @@ interface ActivitySummary {
     RecordID?: string;
 }
 
+interface CheckInTrendRow {
+    ID: string;
+    CheckInAt: Date;
+    NewValue: number | null;
+    HealthStatus: string | null;
+    ConfidenceScore: number | null;
+    Summary: string | null;
+}
+
 /**
  * Context-Adaptive Living Task Overview (`slot: 'before-fields'`).
  *
@@ -89,49 +100,100 @@ interface ActivitySummary {
             </mjt-adaptive-spotlight>
 
             <mj-card-grid>
-                <!-- Card 1: Subtasks & Execution Velocity -->
-                <mj-card Title="Execution Velocity" Subtitle="Progress & Work Breakdown" Icon="fa-solid fa-bars-progress">
-                    <ng-template mjCardTools>
-                        <span class="mjt-code">{{ PercentComplete }}% Complete</span>
-                    </ng-template>
+                <!-- Card 1: Recent Check-In Trend on Key Results (avoids duplicating top OKR progress) OR Execution Velocity -->
+                @if (SpotlightData?.Archetype === 'key-result') {
+                    <mj-card Title="Recent Check-In Trend" Subtitle="Metric Trajectory & Confidence" Icon="fa-solid fa-chart-line">
+                        <ng-template mjCardTools>
+                            <span class="mjt-code">{{ CheckIns.length }} Check-Ins</span>
+                        </ng-template>
 
-                    <div class="mjt-progress-section">
-                        <div class="mjt-progress-row">
-                            <div class="mjt-progress-header">
-                                <span>Task Completion</span>
-                                <span class="mjt-code">{{ PercentComplete }}%</span>
-                            </div>
-                            <mj-progress-bar [Value]="PercentComplete"></mj-progress-bar>
+                        <div class="mjt-deck">
+                            @if (CheckIns.length > 0) {
+                                @for (ci of CheckIns; track ci.ID) {
+                                    <div class="mjt-checkin-row">
+                                        <div class="mjt-checkin-top">
+                                            <span class="mjt-code">
+                                                {{ ci.NewValue != null ? (ci.NewValue + (Record?.UnitOfMeasure ? ' ' + Record?.UnitOfMeasure : '')) : '—' }}
+                                            </span>
+                                            <span class="mjt-checkin-health" [class]="'mjt-health--' + (ci.HealthStatus || 'ontrack').toLowerCase()">
+                                                {{ formatStatus(ci.HealthStatus || 'OnTrack') }}
+                                            </span>
+                                            @if (ci.ConfidenceScore != null) {
+                                                <span class="mjt-checkin-conf">{{ ci.ConfidenceScore }}% conf</span>
+                                            }
+                                            <span class="mjt-checkin-date">{{ formatShortDate(ci.CheckInAt) }}</span>
+                                        </div>
+                                        @if (ci.Summary) {
+                                            <p class="mjt-checkin-summary">{{ ci.Summary }}</p>
+                                        }
+                                    </div>
+                                }
+                            } @else {
+                                <div class="mjt-empty-state">No check-ins recorded yet. Log your first update above.</div>
+                            }
                         </div>
 
-                        @if (TotalSubtasksCount > 0) {
+                        <ng-template mjCardFooter>
+                            <div class="mjt-foot-metrics">
+                                <div class="card-metric">
+                                    <span class="card-metric__label">Status</span>
+                                    <span class="card-metric__val">{{ formatStatus(Record?.Status) }}</span>
+                                </div>
+                                <div class="card-metric">
+                                    <span class="card-metric__label">Cadence</span>
+                                    <span class="card-metric__val">{{ formatStatus(Record?.CheckInCadence || 'Weekly') }}</span>
+                                </div>
+                                <div class="card-metric">
+                                    <span class="card-metric__label">Priority</span>
+                                    <span class="card-metric__val">{{ Record?.Priority || 'Medium' }}</span>
+                                </div>
+                            </div>
+                        </ng-template>
+                    </mj-card>
+                } @else {
+                    <mj-card Title="Execution Velocity" Subtitle="Progress & Work Breakdown" Icon="fa-solid fa-bars-progress">
+                        <ng-template mjCardTools>
+                            <span class="mjt-code">{{ PercentComplete }}% Complete</span>
+                        </ng-template>
+
+                        <div class="mjt-progress-section">
                             <div class="mjt-progress-row">
                                 <div class="mjt-progress-header">
-                                    <span>Sub-tasks Completed</span>
-                                    <span class="mjt-code">{{ CompletedSubtasksCount }} of {{ TotalSubtasksCount }}</span>
+                                    <span>Task Completion</span>
+                                    <span class="mjt-code">{{ PercentComplete }}%</span>
                                 </div>
-                                <mj-progress-bar [Value]="SubtaskPercent"></mj-progress-bar>
+                                <mj-progress-bar [Value]="PercentComplete"></mj-progress-bar>
                             </div>
-                        }
-                    </div>
 
-                    <ng-template mjCardFooter>
-                        <div class="mjt-foot-metrics">
-                            <div class="card-metric">
-                                <span class="card-metric__label">Sub-tasks</span>
-                                <span class="card-metric__val">{{ TotalSubtasksCount }} Total</span>
-                            </div>
-                            <div class="card-metric">
-                                <span class="card-metric__label">Status</span>
-                                <span class="card-metric__val">{{ Record?.Status || 'Open' }}</span>
-                            </div>
-                            <div class="card-metric">
-                                <span class="card-metric__label">Priority</span>
-                                <span class="card-metric__val">{{ Record?.Priority || 'Medium' }}</span>
-                            </div>
+                            @if (TotalSubtasksCount > 0) {
+                                <div class="mjt-progress-row">
+                                    <div class="mjt-progress-header">
+                                        <span>Sub-tasks Completed</span>
+                                        <span class="mjt-code">{{ CompletedSubtasksCount }} of {{ TotalSubtasksCount }}</span>
+                                    </div>
+                                    <mj-progress-bar [Value]="SubtaskPercent"></mj-progress-bar>
+                                </div>
+                            }
                         </div>
-                    </ng-template>
-                </mj-card>
+
+                        <ng-template mjCardFooter>
+                            <div class="mjt-foot-metrics">
+                                <div class="card-metric">
+                                    <span class="card-metric__label">Sub-tasks</span>
+                                    <span class="card-metric__val">{{ TotalSubtasksCount }} Total</span>
+                                </div>
+                                <div class="card-metric">
+                                    <span class="card-metric__label">Status</span>
+                                    <span class="card-metric__val">{{ formatStatus(Record?.Status) }}</span>
+                                </div>
+                                <div class="card-metric">
+                                    <span class="card-metric__label">Priority</span>
+                                    <span class="card-metric__val">{{ Record?.Priority || 'Medium' }}</span>
+                                </div>
+                            </div>
+                        </ng-template>
+                    </mj-card>
+                }
 
                 <!-- Card 2: Dependencies & Blockers -->
                 <mj-card Title="Dependencies & Blockers" Subtitle="Upstream Tasks & Path Health" Icon="fa-solid fa-link">
@@ -156,7 +218,7 @@ interface ActivitySummary {
                                         </div>
                                         <div class="mjt-deck-item__text">
                                             <h4>{{ dep.DependsOnTaskName }}</h4>
-                                            <p>{{ dep.DependencyType }} &bull; {{ dep.DependsOnTaskStatus }}</p>
+                                            <p>{{ formatActivityType(dep.DependencyType) }} &bull; {{ formatStatus(dep.DependsOnTaskStatus) }}</p>
                                         </div>
                                     </div>
                                     <span class="mjt-code">{{ dep.IsBlocking ? 'Blocking' : 'Linked' }}</span>
@@ -203,7 +265,7 @@ interface ActivitySummary {
                                         <i class="fa-solid fa-bolt" aria-hidden="true"></i>
                                     </div>
                                     <div class="mjt-timeline-item__content">
-                                        <h5>{{ act.ActivityType }}</h5>
+                                        <h5>{{ formatActivityType(act.ActivityType) }}</h5>
                                         <p>{{ act.Description }} &bull; {{ act.User }}</p>
                                     </div>
                                 </div>
@@ -371,6 +433,33 @@ interface ActivitySummary {
             font-weight: var(--mj-font-semibold, 600);
             color: var(--mj-brand-primary);
         }
+        .mjt-checkin-row {
+            padding: 8px 10px;
+            border-radius: var(--mj-radius-md, 8px);
+            background: var(--mj-bg-surface-sunken);
+            border: 1px solid var(--mj-border-default);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .mjt-checkin-top {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .mjt-checkin-health {
+            padding: 1px 7px;
+            border-radius: var(--mj-radius-full, 9999px);
+            font-size: 10.5px;
+            font-weight: var(--mj-font-semibold, 600);
+        }
+        .mjt-health--ontrack { background: var(--mj-status-success-bg); color: var(--mj-status-success-text); }
+        .mjt-health--atrisk { background: var(--mj-status-warning-bg); color: var(--mj-status-warning-text); }
+        .mjt-health--offtrack { background: var(--mj-status-error-bg); color: var(--mj-status-error-text); }
+        .mjt-checkin-conf { font-size: 11px; color: var(--mj-text-secondary); }
+        .mjt-checkin-date { margin-left: auto; font-size: 11px; color: var(--mj-text-muted); }
+        .mjt-checkin-summary { margin: 0; font-size: 11.5px; color: var(--mj-text-secondary); line-height: 1.4; }
         .mjt-empty-state {
             font-size: var(--mj-text-xs, 12px);
             color: var(--mj-text-muted);
@@ -414,6 +503,7 @@ export class TaskOverviewComponent implements OnInit, OnChanges {
     public CompletedSubtasksCount = 0;
     public Dependencies: DependencySummary[] = [];
     public Activities: ActivitySummary[] = [];
+    public CheckIns: CheckInTrendRow[] = [];
     public SpotlightData: TaskAdaptiveSpotlightInput | null = null;
     public IsLoading = false;
     public Busy = false;
@@ -421,6 +511,18 @@ export class TaskOverviewComponent implements OnInit, OnChanges {
     private cdr = inject(ChangeDetectorRef);
     private navService = inject(NavigationService, { optional: true });
     private orchestration = new TaskOrchestrationService();
+
+    public formatStatus(status: string | null | undefined): string {
+        return FormatTaskStatusLabel(status);
+    }
+
+    public formatActivityType(activityType: string | null | undefined): string {
+        return FormatTaskActivityTypeLabel(activityType);
+    }
+
+    public formatShortDate(date: Date): string {
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
 
     public get PercentComplete(): number {
         return Math.round(this.Record?.PercentComplete ?? 0);
@@ -458,7 +560,7 @@ export class TaskOverviewComponent implements OnInit, OnChanges {
 
         try {
             const id = EscapeSQLString(this.Record.ID);
-            const [subtaskResult, depResult, actResult, typeResult, linksMap] = await Promise.all([
+            const [subtaskResult, depResult, actResult, typeResult, linksMap, checkInResult] = await Promise.all([
                 new RunView().RunView<{ ID: string; Status: string }>({
                     EntityName: 'MJ_BizApps_Tasks: Tasks',
                     ExtraFilter: `ParentID = '${id}'`,
@@ -501,7 +603,30 @@ export class TaskOverviewComponent implements OnInit, OnChanges {
                       })
                     : Promise.resolve(null),
                 LoadTaskRecordLinks([this.Record.ID]).catch(() => new Map<string, TaskRecordLink[]>()),
+                new RunView().RunView<{
+                    ID: string;
+                    CheckInAt: Date;
+                    NewValue: number | null;
+                    HealthStatus: string | null;
+                    ConfidenceScore: number | null;
+                    Summary: string | null;
+                }>({
+                    EntityName: 'MJ_BizApps_Tasks: Task Check Ins',
+                    ExtraFilter: `TaskID = '${id}'`,
+                    OrderBy: 'CheckInAt DESC',
+                    MaxRows: 5,
+                    ResultType: 'simple',
+                }).catch(() => null),
             ]);
+
+            this.CheckIns = (checkInResult?.Results ?? []).map((c) => ({
+                ID: c.ID,
+                CheckInAt: new Date(c.CheckInAt),
+                NewValue: c.NewValue ?? null,
+                HealthStatus: c.HealthStatus ?? null,
+                ConfidenceScore: c.ConfidenceScore ?? null,
+                Summary: c.Summary ?? null,
+            }));
 
             const subs = subtaskResult?.Results ?? [];
             this.TotalSubtasksCount = subs.length;

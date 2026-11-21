@@ -136,12 +136,12 @@ import type {
             gap: 8px;
         }
         .mjt-spot-card--error {
-            border-left: 3px solid var(--mj-status-error);
-            background: color-mix(in srgb, var(--mj-status-error-bg) 45%, var(--mj-bg-surface));
+            border-color: var(--mj-status-error-border, var(--mj-status-error));
+            background: color-mix(in oklab, var(--mj-status-error-bg) 52%, var(--mj-bg-surface));
         }
         .mjt-spot-card--warn {
-            border-left: 3px solid var(--mj-status-warning);
-            background: color-mix(in srgb, var(--mj-status-warning-bg) 45%, var(--mj-bg-surface));
+            border-color: var(--mj-status-warning-border, var(--mj-status-warning));
+            background: color-mix(in oklab, var(--mj-status-warning-bg) 52%, var(--mj-bg-surface));
         }
         .mjt-spot-head {
             display: flex;

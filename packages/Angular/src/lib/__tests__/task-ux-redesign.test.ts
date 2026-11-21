@@ -8,7 +8,10 @@ import { TaskGanttComponent } from '../components/task-gantt/task-gantt.componen
 import { TaskHeaderPanel } from '../form-panels/task-header.panel';
 import { TaskEditPanelComponent } from '../components/task-edit-panel/task-edit-panel.component';
 import { TaskTemplateWizardComponent } from '../components/task-template-wizard/task-template-wizard.component';
+import { TasksDashboardPageComponent } from '../pages/tasks-dashboard.page';
+import { ApprovalsPageComponent } from '../pages/approvals.page';
 import {
+    SAVED_TASK_VIEWS_SETTING,
     TasksBulkUpdateOperation,
     TasksInstantiateTemplateOperation,
 } from '@mj-biz-apps/tasks-core';
@@ -342,5 +345,116 @@ describe('Task UX Redesign L3 Components', () => {
         } finally {
             execSpy.mockRestore();
         }
+    });
+
+    it('TasksDashboardPageComponent persists Saved Filter Views via UserInfoEngine and runs lifted Bulk Dock mutations', async () => {
+        const setSettingSpy = vi.spyOn(UserInfoEngine.Instance, 'SetSettingDebounced').mockImplementation(() => {});
+        const execSpy = vi.spyOn(TasksBulkUpdateOperation.prototype, 'Execute').mockResolvedValue({
+            Success: true,
+            Output: {
+                TotalRequested: 2,
+                UpdatedCount: 2,
+                FailedCount: 0,
+                UpdatedTaskIDs: ['t1', 't2'],
+                Failures: [],
+            },
+        });
+
+        try {
+            const injector = Injector.create({
+                providers: [{ provide: ChangeDetectorRef, useValue: createCdr() }],
+            });
+            const page = runInInjectionContext(injector, () => new TasksDashboardPageComponent());
+            vi.spyOn(page, 'LoadKPIs').mockResolvedValue();
+
+            page.SelectedCategoryID = 'cat-finance';
+            page.SearchText = 'reconcile';
+            page.FilterValues = { organizationId: 'org-acme', status: 'Open', priority: 'High' };
+            page.ViewMode = 'kanban';
+            page.NewViewName = 'Acme Month-End Close';
+            page.SaveCurrentView();
+
+            expect(page.SavedViews).toHaveLength(1);
+            expect(page.SavedViews[0].Name).toBe('Acme Month-End Close');
+            expect(setSettingSpy).toHaveBeenCalledWith(SAVED_TASK_VIEWS_SETTING, expect.stringContaining('Acme Month-End Close'));
+
+            // Clear filters and re-apply saved view
+            page.ResetFilters();
+            expect(page.SearchText).toBe('');
+            page.ApplySavedView(page.SavedViews[0]);
+            expect(page.SelectedCategoryID).toBe('cat-finance');
+            expect(page.SearchText).toBe('reconcile');
+            expect(page.FilterValues['organizationId']).toBe('org-acme');
+            expect(page.ViewMode).toBe('kanban');
+
+            // Lifted Bulk Dock runs server-side operation across Board/Gantt/List selections
+            page.OnSelectedTaskIDsChange(['t1', 't2']);
+            await page.OnBulkDockAction({ Kind: 'status', Status: 'InProgress' });
+            expect(execSpy).toHaveBeenCalledWith({ TaskIDs: ['t1', 't2'], Status: 'InProgress' });
+            expect(page.SelectedTaskIDs).toEqual([]);
+            expect(page.BulkSuccess).toContain('Updated 2 tasks');
+
+            page.DeleteSavedView(page.SavedViews[0].ID);
+            expect(page.SavedViews).toHaveLength(0);
+        } finally {
+            setSettingSpy.mockRestore();
+            execSpy.mockRestore();
+        }
+    });
+
+    it('TaskKanbanComponent and TaskGanttComponent support multi-select for the shared Bulk Action Dock', () => {
+        const injector = Injector.create({
+            providers: [{ provide: ChangeDetectorRef, useValue: createCdr() }],
+        });
+
+        const kanban = runInInjectionContext(injector, () => new TaskKanbanComponent());
+        kanban.EnableBulkSelect = true;
+        kanban.cards = [
+            { ID: 'k1', Title: 'Task 1', ColumnKey: 'Open' },
+            { ID: 'k2', Title: 'Task 2', ColumnKey: 'Open' },
+            { ID: 'k3', Title: 'Task 3', ColumnKey: 'InProgress' },
+        ];
+        const emittedKanban: string[][] = [];
+        kanban.SelectedIDsChange.subscribe((ids) => emittedKanban.push(ids));
+        kanban.ToggleSelectAllVisible();
+        expect(kanban.SelectedIDs).toEqual(['k1', 'k2', 'k3']);
+        expect(emittedKanban.at(-1)).toEqual(['k1', 'k2', 'k3']);
+
+        const gantt = runInInjectionContext(injector, () => new TaskGanttComponent());
+        gantt.EnableBulkSelect = true;
+        expect(gantt.EffectiveColumns[0].Name).toBe('mjt_select');
+        expect(gantt.EffectiveGridWidth).toBeGreaterThanOrEqual(596);
+        gantt.items = [
+            { ID: 'g1', Name: 'Close Step 1', StartDate: new Date(), Duration: 2 },
+            { ID: 'g2', Name: 'Close Step 2', StartDate: new Date(), Duration: 2 },
+        ];
+        gantt.ToggleSelectAllVisible();
+        expect(gantt.SelectedIDs).toEqual(['g1', 'g2']);
+    });
+
+    it('ApprovalsPageComponent navigates queue with arrows and prefills Outcome with A/R without auto-committing (WCAG 2.1.4)', () => {
+        const injector = Injector.create({
+            providers: [{ provide: ChangeDetectorRef, useValue: createCdr() }],
+        });
+        const page = runInInjectionContext(injector, () => new ApprovalsPageComponent());
+        const prefillSpy = vi.fn();
+        const quickDecisionSpy = vi.spyOn(page, 'OnQuickDecision');
+        page.decisionPanel = { PrefillOutcome: prefillSpy } as unknown as ApprovalsPageComponent['decisionPanel'];
+        page.PendingApprovals = [
+            { ID: 'a1', Name: 'Approve Budget', Description: null, DueAt: null, ParentID: null, Status: 'Open', Priority: 'High', PercentComplete: 0 },
+            { ID: 'a2', Name: 'Approve Vendor', Description: null, DueAt: null, ParentID: null, Status: 'Open', Priority: 'Medium', PercentComplete: 0 },
+        ];
+        page.SelectedTaskID = 'a1';
+
+        page.onShortcut({ key: 'ArrowDown', preventDefault: vi.fn(), target: { tagName: 'DIV' } } as unknown as KeyboardEvent);
+        expect(page.SelectedTaskID).toBe('a2');
+
+        page.onShortcut({ key: 'a', preventDefault: vi.fn(), target: { tagName: 'DIV' } } as unknown as KeyboardEvent);
+        expect(prefillSpy).toHaveBeenCalledWith('Approved');
+        expect(quickDecisionSpy).not.toHaveBeenCalled();
+
+        page.onShortcut({ key: 'r', preventDefault: vi.fn(), target: { tagName: 'DIV' } } as unknown as KeyboardEvent);
+        expect(prefillSpy).toHaveBeenCalledWith('Rejected');
+        expect(quickDecisionSpy).not.toHaveBeenCalled();
     });
 });

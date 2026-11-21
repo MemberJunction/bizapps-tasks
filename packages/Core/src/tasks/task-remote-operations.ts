@@ -13,6 +13,12 @@ export const TASKS_BULK_UPDATE_OP_KEY = 'BizAppsTasks.BulkUpdateTasks';
  */
 export const TASKS_INSTANTIATE_TEMPLATE_OP_KEY = 'BizAppsTasks.InstantiateTemplate';
 
+/**
+ * Stable registry key for scheduled / recurring multi-entity Playbook launches
+ * (e.g., Month-End / Quarter-End Financial Close rollovers across mirrored Companies).
+ */
+export const TASKS_RUN_RECURRING_PLAYBOOKS_OP_KEY = 'BizAppsTasks.RunRecurringPlaybooks';
+
 export type TaskBulkStatus = mjBizAppsTasksTaskEntity['Status'];
 export type TaskBulkPriority = mjBizAppsTasksTaskEntity['Priority'];
 
@@ -166,4 +172,79 @@ export class TasksInstantiateTemplateOperation extends BaseRemotableOperation<
     public readonly ExposeAsMCPTool = true;
     public readonly ToolDescription =
         'Instantiate a Task Template playbook on the server with relative due dates, hierarchy, dependencies, role assignments, and target Organization scoping.';
+}
+
+/**
+ * Input payload for `BizAppsTasks.RunRecurringPlaybooks` — idempotently launches a reusable
+ * playbook (such as Month-End Financial Close) across one or more target Organizations or every
+ * mirrored internal Company (`Organization.LinkedCompanyID IS NOT NULL`).
+ */
+export interface TasksRunRecurringPlaybooksInput {
+    /** `MJ_BizApps_Tasks: Task Templates.ID` to instantiate per target Organization. */
+    TemplateID: string;
+    /** Kickoff anchor date (`YYYY-MM-DD` or ISO string) used to calculate relative due dates. */
+    AnchorDate: string;
+    /**
+     * Stable period idempotency key (e.g., `'2026-12'`, `'2026-Q4'`). Any Organization that
+     * already has a root task tagged with `[Period:<PeriodKey>]` from this template is skipped
+     * so scheduled jobs never double-spawn work.
+     */
+    PeriodKey: string;
+    /** Explicit list of `MJ_BizApps_Common: Organizations.ID` UUIDs to launch for. */
+    OrganizationIDs?: string[];
+    /**
+     * When `true` and `OrganizationIDs` is omitted, targets every active Organization mirrored
+     * from `MJ: Companies` (`LinkedCompanyID IS NOT NULL`).
+     */
+    AllMirroredCompanies?: boolean;
+    /** Optional category override (falls back to template default). */
+    CategoryID?: string | null;
+    /** Optional default role placeholder mappings applied to every launched organization. */
+    RoleAssignments?: TemplateRoleAssignmentInput[];
+    /** When `true`, resolves targets & checks idempotency without creating any rows. */
+    DryRun?: boolean;
+}
+
+/** Per-organization outcome emitted by `BizAppsTasks.RunRecurringPlaybooks`. */
+export interface RecurringPlaybookOrgResult {
+    OrganizationID: string;
+    OrganizationName: string;
+    Status: 'created' | 'skipped' | 'dry-run' | 'failed';
+    CreatedCount: number;
+    CreatedTaskIDs: string[];
+    Reason?: string;
+}
+
+/** Aggregate summary returned by `BizAppsTasks.RunRecurringPlaybooks`. */
+export interface TasksRunRecurringPlaybooksOutput {
+    TemplateID: string;
+    PeriodKey: string;
+    AnchorDate: string;
+    DryRun: boolean;
+    TargetOrganizations: number;
+    LaunchedCount: number;
+    SkippedCount: number;
+    FailedCount: number;
+    TotalTasksCreated: number;
+    Results: RecurringPlaybookOrgResult[];
+}
+
+/**
+ * Typed Remotable Operation shell for scheduled / recurring multi-entity Playbook rollovers
+ * (callable from UI, Flow Agents, MCP, or MJ Scheduled Jobs).
+ */
+export class TasksRunRecurringPlaybooksOperation extends BaseRemotableOperation<
+    TasksRunRecurringPlaybooksInput,
+    TasksRunRecurringPlaybooksOutput
+> {
+    public readonly OperationKey = TASKS_RUN_RECURRING_PLAYBOOKS_OP_KEY;
+    public readonly AuthorizedWriteEntities = [
+        'MJ_BizApps_Tasks: Tasks',
+        'MJ_BizApps_Tasks: Task Assignments',
+        'MJ_BizApps_Tasks: Task Dependencies',
+    ] as const;
+    public readonly ExposeAsAgentTool = true;
+    public readonly ExposeAsMCPTool = true;
+    public readonly ToolDescription =
+        'Idempotently instantiate a recurring Task Template playbook (such as Month-End Close) across explicit Organizations or all mirrored internal Companies for a fiscal PeriodKey.';
 }

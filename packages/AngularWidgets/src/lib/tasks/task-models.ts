@@ -182,6 +182,8 @@ export interface TaskCommandPaletteItem {
     IconClass: string;
     Shortcut?: string;
     TaskID?: string;
+    /** Optional task status so the palette renders an accurate status ring instead of a generic check icon. */
+    Status?: TaskStatusValue | null;
 }
 
 /** Urgency filter key emitted when the user clicks a pill in `<mjt-urgency-strip>`. */

@@ -149,35 +149,42 @@ export class BeforeTaskSaveEvent {
                             </div>
                         }
 
-                        <!-- 2. Primary Title & 1-line Description -->
+                        <!-- 2. Primary Title & Description (WCAG 3.3.2 persistent visible labels) -->
                         <div class="mjt-ep-hero-fields">
-                            <input
-                                type="text"
-                                name="name"
-                                class="mjt-ep-title-input"
-                                [(ngModel)]="form.Name"
-                                [disabled]="ReadOnly"
-                                required
-                                placeholder="What needs to get done?"
-                                aria-label="Task title" />
-                            <textarea
-                                name="desc"
-                                rows="2"
-                                class="mjt-ep-desc-input"
-                                [(ngModel)]="form.Description"
-                                [disabled]="ReadOnly"
-                                placeholder="Add context, links, or acceptance criteria (optional)..."></textarea>
+                            <div class="mjt-ep-field">
+                                <label for="mjtEpTitle">Task title <span class="mjt-req" aria-hidden="true">*</span></label>
+                                <input
+                                    id="mjtEpTitle"
+                                    type="text"
+                                    name="name"
+                                    class="mjt-ep-title-input"
+                                    [(ngModel)]="form.Name"
+                                    [disabled]="ReadOnly"
+                                    required
+                                    placeholder="What needs to get done?" />
+                            </div>
+                            <div class="mjt-ep-field">
+                                <label for="mjtEpDesc">Description (optional)</label>
+                                <textarea
+                                    id="mjtEpDesc"
+                                    name="desc"
+                                    rows="2"
+                                    class="mjt-ep-desc-input"
+                                    [(ngModel)]="form.Description"
+                                    [disabled]="ReadOnly"
+                                    placeholder="Add context, links, or acceptance criteria..."></textarea>
+                            </div>
                         </div>
 
                         <!-- 3. Quick Metadata Strip (When / Priority / Category / Status) -->
                         <div class="mjt-ep-quick-grid">
                             <div class="mjt-ep-field">
-                                <label>Due Date</label>
-                                <input type="date" name="dueAt" class="mjt-ep-input" [(ngModel)]="form.DueAt" [disabled]="ReadOnly" />
+                                <label for="mjtEpDue">Due date</label>
+                                <input id="mjtEpDue" type="date" name="dueAt" class="mjt-ep-input" [(ngModel)]="form.DueAt" [disabled]="ReadOnly" />
                             </div>
                             <div class="mjt-ep-field">
-                                <label>Priority</label>
-                                <select name="priority" class="mjt-ep-input" [(ngModel)]="form.Priority" [disabled]="ReadOnly">
+                                <label for="mjtEpPriority">Priority</label>
+                                <select id="mjtEpPriority" name="priority" class="mjt-ep-input" [(ngModel)]="form.Priority" [disabled]="ReadOnly">
                                     <option value="Low">Low</option>
                                     <option value="Medium">Medium</option>
                                     <option value="High">High</option>
@@ -185,8 +192,8 @@ export class BeforeTaskSaveEvent {
                                 </select>
                             </div>
                             <div class="mjt-ep-field">
-                                <label>Category</label>
-                                <select name="category" class="mjt-ep-input" [(ngModel)]="form.CategoryID" [disabled]="ReadOnly">
+                                <label for="mjtEpCategory">Category</label>
+                                <select id="mjtEpCategory" name="category" class="mjt-ep-input" [(ngModel)]="form.CategoryID" [disabled]="ReadOnly">
                                     <option [ngValue]="null">None</option>
                                     @for (cat of categories; track cat.ID) {
                                         <option [value]="cat.ID">{{ cat.Name }}</option>
@@ -194,8 +201,8 @@ export class BeforeTaskSaveEvent {
                                 </select>
                             </div>
                             <div class="mjt-ep-field">
-                                <label>Status</label>
-                                <select name="status" class="mjt-ep-input" [(ngModel)]="form.Status" [disabled]="ReadOnly">
+                                <label for="mjtEpStatus">Status</label>
+                                <select id="mjtEpStatus" name="status" class="mjt-ep-input" [(ngModel)]="form.Status" [disabled]="ReadOnly">
                                     <option value="Open">Open</option>
                                     <option value="InProgress">In Progress</option>
                                     <option value="Blocked">Blocked</option>
@@ -205,8 +212,8 @@ export class BeforeTaskSaveEvent {
                             </div>
                             @if (organizations.length > 0) {
                                 <div class="mjt-ep-field mjt-span-2">
-                                    <label>Organization / Company</label>
-                                    <select name="organization" class="mjt-ep-input" [(ngModel)]="form.OrganizationID" [disabled]="ReadOnly">
+                                    <label for="mjtEpOrg">Organization / Company</label>
+                                    <select id="mjtEpOrg" name="organization" class="mjt-ep-input" [(ngModel)]="form.OrganizationID" [disabled]="ReadOnly">
                                         <option [ngValue]="null">None (Global / Unscoped)</option>
                                         @for (org of organizations; track org.ID) {
                                             <option [value]="org.ID">{{ org.LinkedCompanyID ? '★ ' + org.Name + ' (Company)' : org.Name }}</option>
@@ -629,8 +636,9 @@ export class BeforeTaskSaveEvent {
         .mjt-ep-hero-fields {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 10px;
         }
+        .mjt-req { color: var(--mj-status-error-text); }
         .mjt-ep-title-input {
             width: 100%;
             padding: 8px 10px;
@@ -743,15 +751,15 @@ export class BeforeTaskSaveEvent {
         .mjt-ep-adaptive {
             padding: 12px 14px;
             border-radius: var(--mj-radius-md, 8px);
-            border: 1px solid var(--mj-border-default);
-            border-left: 3px solid var(--mj-brand-primary);
-            background: var(--mj-bg-surface-sunken);
+            border: 1px solid color-mix(in oklab, var(--mj-brand-primary) 26%, var(--mj-border-default));
+            background: color-mix(in oklab, var(--mj-brand-primary) 4%, var(--mj-bg-surface-sunken));
             display: flex;
             flex-direction: column;
             gap: 10px;
         }
         .mjt-ep-adaptive--violet {
-            border-left-color: var(--mj-text-violet, #7c3aed);
+            border-color: color-mix(in oklab, var(--mj-brand-primary) 34%, var(--mj-border-default));
+            background: color-mix(in oklab, var(--mj-brand-primary) 6%, var(--mj-bg-surface));
         }
         .mjt-ep-adaptive-title {
             display: flex;
@@ -1306,7 +1314,7 @@ export class TaskEditPanelComponent implements OnChanges {
             return;
         }
 
-        const palette = ['#0076b6', '#7c3aed', '#16a34a', '#d97706', '#dc2626', '#0891b2'];
+        const palette = ['#0076b6', '#0d9488', '#16a34a', '#d97706', '#dc2626', '#0891b2'];
         const color = palette[this.allTags.length % palette.length];
 
         this.creatingTag = true;

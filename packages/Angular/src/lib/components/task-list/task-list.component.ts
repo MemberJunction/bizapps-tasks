@@ -214,7 +214,7 @@ export class BeforeStatusChangeEvent {
                         </label>
                     </div>
                 }
-                <div class="mjt-tree-list" role="list">
+                <div class="mjt-tree-list" role="list" [class.has-selection]="selectedIDs.length > 0">
                     @for (task of filteredTasks; track task.ID) {
                         @if (task.Depth === 0 || isParentExpanded(task)) {
                             <div
@@ -343,7 +343,7 @@ export class BeforeStatusChangeEvent {
                 </div>
             }
 
-            @if (!ReadOnly) {
+            @if (!ReadOnly && !ExternalBulkDock) {
                 <mjt-bulk-action-dock
                     [SelectedCount]="selectedIDs.length"
                     [TotalCount]="filteredTasks.length"
@@ -448,7 +448,7 @@ export class BeforeStatusChangeEvent {
         .mjt-unassigned-chip {
             font-size: 11px; color: var(--mj-text-muted); font-style: italic; white-space: nowrap;
         }
-        .mjt-tree-list { display: flex; flex-direction: column; gap: 6px; }
+        .mjt-tree-list { display: flex; flex-direction: column; gap: 6px; padding-bottom: 80px; }
         .mjt-row-wrap { min-width: 0; }
         .mjt-row {
             display: flex; align-items: center; justify-content: space-between; gap: 12px;
@@ -459,15 +459,17 @@ export class BeforeStatusChangeEvent {
         .mjt-row:hover { border-color: var(--mj-brand-primary); background: var(--mj-bg-surface-hover); }
         .mjt-row.is-selected {
             border-color: var(--mj-brand-primary);
-            background: var(--mj-surface-base-bg-selected, color-mix(in srgb, var(--mj-brand-primary) 8%, var(--mj-bg-surface)));
+            background: var(--mj-surface-base-bg-selected, color-mix(in oklab, var(--mj-brand-primary) 8%, var(--mj-bg-surface)));
         }
         .mjt-row.is-done .mjt-row-title { text-decoration: line-through; color: var(--mj-text-muted); }
         .mjt-row-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
         .mjt-bulk-chk {
             width: 15px; height: 15px; accent-color: var(--mj-brand-primary); cursor: pointer; flex-shrink: 0;
-            opacity: 0.45; transition: opacity 140ms ease;
+            opacity: 0; transition: opacity 140ms ease;
         }
         .mjt-row:hover .mjt-bulk-chk,
+        .mjt-row:focus-within .mjt-bulk-chk,
+        .mjt-tree-list.has-selection .mjt-bulk-chk,
         .mjt-bulk-chk:checked { opacity: 1; }
         .mjt-exp-btn {
             width: 22px; height: 22px; border: none; background: transparent; color: var(--mj-text-muted);
@@ -509,11 +511,24 @@ export class BeforeStatusChangeEvent {
         .mjt-pri-badge {
             font-size: 11px; font-weight: var(--mj-font-semibold, 600); padding: 2px 8px;
             border-radius: var(--mj-radius-full, 9999px);
+            border: 1px solid transparent;
         }
-        .mjt-pri--critical { background: var(--mj-status-error-bg); color: var(--mj-status-error-text); }
-        .mjt-pri--high { background: var(--mj-status-warning-bg); color: var(--mj-status-warning-text); }
-        .mjt-pri--medium { background: var(--mj-status-info-bg); color: var(--mj-status-info-text); }
-        .mjt-pri--low { background: var(--mj-bg-surface-sunken); color: var(--mj-text-secondary); }
+        .mjt-pri--critical {
+            background: var(--mj-status-error-bg); color: var(--mj-status-error-text);
+            border-color: color-mix(in oklab, var(--mj-status-error) 28%, transparent);
+        }
+        .mjt-pri--high {
+            background: var(--mj-status-warning-bg); color: var(--mj-status-warning-text);
+            border-color: color-mix(in oklab, var(--mj-status-warning) 30%, transparent);
+        }
+        .mjt-pri--medium {
+            background: var(--mj-status-info-bg); color: var(--mj-status-info-text);
+            border-color: color-mix(in oklab, var(--mj-status-info) 26%, transparent);
+        }
+        .mjt-pri--low {
+            background: var(--mj-bg-surface-sunken); color: var(--mj-text-secondary);
+            border-color: var(--mj-border-default);
+        }
         .mjt-due-lbl {
             display: inline-flex; align-items: center; gap: 4px; font-size: var(--mj-text-xs, 12px);
             color: var(--mj-text-muted); white-space: nowrap;
@@ -522,14 +537,17 @@ export class BeforeStatusChangeEvent {
         .mjt-due-lbl.is-soon { color: var(--mj-status-warning-text); font-weight: var(--mj-font-semibold, 600); }
         .mjt-assignee-pill {
             width: 24px; height: 24px; border-radius: 50%;
-            background: color-mix(in srgb, var(--mj-brand-primary) 14%, var(--mj-bg-surface));
+            background: color-mix(in oklab, var(--mj-brand-primary) 14%, var(--mj-bg-surface));
             color: var(--mj-brand-primary); font-size: 10px; font-weight: var(--mj-font-bold, 700);
             display: inline-flex; align-items: center; justify-content: center;
+        }
+        @media (max-width: 768px) {
+            .mjt-select-strip,
+            .mjt-bulk-chk { display: none; }
         }
         @media (max-width: 640px) {
             .mjt-row { flex-direction: column; align-items: stretch; gap: 8px; }
             .mjt-row-right { justify-content: flex-start; padding-left: 30px; }
-            .mjt-bulk-chk { opacity: 1; }
         }
     `],
 })
@@ -552,6 +570,8 @@ export class TaskListComponent implements OnInit, OnChanges {
     @Input() QuickAddDefaultTypeID: string | null = null;
     @Input() AssigneeScope: string | string[] | null = null;
     @Input() ReadOnly = false;
+    @Input() ExternalBulkDock = false;
+    @Input() SelectedIDs: string[] | null = null;
 
     private _pendingSuggestionsOnly = false;
     private isInitialized = false;
@@ -575,6 +595,8 @@ export class TaskListComponent implements OnInit, OnChanges {
     }
 
     @Output() PendingSuggestionsOnlyChange = new EventEmitter<boolean>();
+    @Output() SelectedIDsChange = new EventEmitter<string[]>();
+    @Output() VisibleTaskIDsChange = new EventEmitter<string[]>();
     @Output() BeforeTaskSelected = new EventEmitter<BeforeTaskSelectedEvent>();
     @Output() AfterTaskSelected = new EventEmitter<TaskRow>();
     @Output() TaskDoubleClicked = new EventEmitter<TaskRow>();
@@ -666,6 +688,10 @@ export class TaskListComponent implements OnInit, OnChanges {
             this.searchText = this.SearchText ?? '';
             this.applyFilters();
         }
+        if (changes['SelectedIDs'] && this.SelectedIDs !== null) {
+            this.selectedIDs = [...this.SelectedIDs];
+            this.cdr.markForCheck();
+        }
         if (
             (changes['AssigneeFilter'] && !changes['AssigneeFilter'].firstChange) ||
             (changes['DueDateFilter'] && !changes['DueDateFilter'].firstChange)
@@ -688,6 +714,7 @@ export class TaskListComponent implements OnInit, OnChanges {
 
     public ClearSelection(): void {
         this.selectedIDs = [];
+        this.SelectedIDsChange.emit([]);
         this.cdr.markForCheck();
     }
 
@@ -733,6 +760,7 @@ export class TaskListComponent implements OnInit, OnChanges {
                 }
                 this.selectedIDs = merged;
                 this.lastCheckedTaskID = taskID;
+                this.SelectedIDsChange.emit([...this.selectedIDs]);
                 this.cdr.markForCheck();
                 return;
             }
@@ -747,6 +775,7 @@ export class TaskListComponent implements OnInit, OnChanges {
         } else {
             this.selectedIDs = this.filteredTasks.map((t) => t.ID);
         }
+        this.SelectedIDsChange.emit([...this.selectedIDs]);
         this.cdr.markForCheck();
     }
 
@@ -756,6 +785,7 @@ export class TaskListComponent implements OnInit, OnChanges {
         } else {
             this.selectedIDs = [...this.selectedIDs, taskID];
         }
+        this.SelectedIDsChange.emit([...this.selectedIDs]);
         this.cdr.markForCheck();
     }
 
@@ -858,6 +888,7 @@ export class TaskListComponent implements OnInit, OnChanges {
             }
         }
         this.filteredTasks = list;
+        this.VisibleTaskIDsChange.emit(list.map((t) => t.ID));
         this.cdr.markForCheck();
     }
 

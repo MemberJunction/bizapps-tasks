@@ -3,6 +3,7 @@ import { CompositeKey, Metadata, RunView } from '@memberjunction/core';
 import { EscapeSQLString, RegisterClassEx } from '@memberjunction/global';
 import { BaseFormPanel } from '@memberjunction/ng-base-forms';
 import { UserInfoEngine } from '@memberjunction/core-entities';
+import { FormatTaskStatusLabel } from '@mj-biz-apps/tasks-core';
 import type { mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
 import type { TaskStatusValue, TaskWidgetLinkedRecord, TaskWidgetTypeStatus } from '@mj-biz-apps/tasks-ng-widgets';
 import { LoadTaskRecordLinks, type TaskRecordLink } from '../task-record-links';
@@ -151,6 +152,10 @@ export class TaskHeaderPanel extends BaseFormPanel<mjBizAppsTasksTaskEntity> imp
 
     public get Title(): string {
         return this.Record?.Name || 'New Task';
+    }
+
+    public get StatusLabel(): string {
+        return FormatTaskStatusLabel(this.Record?.Status);
     }
 
     public get StatusClass(): string {

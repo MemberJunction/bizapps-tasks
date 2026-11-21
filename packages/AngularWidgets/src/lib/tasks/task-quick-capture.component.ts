@@ -25,12 +25,12 @@ import type { TaskQuickCaptureSubmitEvent, TaskWidgetLinkedRecord } from './task
                     type="text"
                     class="mjt-qc-input"
                     [(ngModel)]="DraftText"
-                    [placeholder]="Placeholder"
+                    [placeholder]="CleanPlaceholder"
                     [disabled]="Busy"
                     aria-label="Quick add task"
                     (focus)="IsFocused = true"
                     (blur)="IsFocused = false"
-                    (keydown.enter)="submit()" />
+                    (keydown.enter)="onEnterKey($event)" />
 
                 @if (ShowLinkRecordButton && !LinkedRecord) {
                     <button
@@ -87,7 +87,7 @@ import type { TaskQuickCaptureSubmitEvent, TaskWidgetLinkedRecord } from './task
                         </span>
                     }
                     @if (Parsed.AssigneeQuery) {
-                        <span class="mjt-pill mjt-pill--violet">
+                        <span class="mjt-pill mjt-pill--brand">
                             <i class="fa-solid fa-user" aria-hidden="true"></i>
                             &#64;{{ Parsed.AssigneeQuery }}
                         </span>
@@ -201,6 +201,17 @@ export class TaskQuickCaptureComponent {
 
     public DraftText = '';
     public IsFocused = false;
+
+    /** Strips any redundant leading `+ ` since the capture row already renders a `+` icon. */
+    public get CleanPlaceholder(): string {
+        return (this.Placeholder ?? '').replace(/^\s*\+\s*/, '');
+    }
+
+    public onEnterKey(event: Event): void {
+        const kb = event as KeyboardEvent;
+        if (kb.isComposing || kb.keyCode === 229) return;
+        this.submit();
+    }
 
     public get Parsed(): ParsedQuickTask {
         return ParseQuickTaskInput(this.DraftText);

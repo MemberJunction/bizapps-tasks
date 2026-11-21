@@ -1,7 +1,9 @@
 import {
+    AfterViewInit,
     ChangeDetectionStrategy,
     ChangeDetectorRef,
     Component,
+    ElementRef,
     EventEmitter,
     Input,
     OnChanges,
@@ -13,7 +15,7 @@ import {
     inject,
 } from '@angular/core';
 import { CompositeKey, Metadata, RunView } from '@memberjunction/core';
-import { EscapeSQLString } from '@memberjunction/global';
+import { EscapeSQLString, UUIDsEqual } from '@memberjunction/global';
 import { UserInfoEngine } from '@memberjunction/core-entities';
 import {
     AfterColumnResizeEventArgs,
@@ -90,9 +92,10 @@ function escapeGanttHtml(raw: string): string {
 /**
  * Critical-Path Split Gantt + Mobile Milestone Stack wrapping MJ's `<mj-gantt-chart>`.
  *
- * - Desktop & tablet (`> 768px`): full DHTMLX split-pane Gantt via `<mj-gantt-chart>` with
- *   zoom/grid/column-width persistence in `UserInfoEngine`, FS/SS/FF/SF dependency arrows,
- *   and a **Critical Path** highlight toggle powered by L0 DAG longest-path calculation.
+ * - Desktop & tablet (`> 768px`): full DHTMLX split-pane Gantt with zoom/grid/column-width
+ *   persistence in `UserInfoEngine`, hollow-slate vs solid-blue WCAG 1.4.1 legend & bar tinting,
+ *   outside labels on short 1–3 day bars, multi-select checkboxes feeding `<mjt-bulk-action-dock>`,
+ *   and Critical Path DAG highlighting.
  * - Mobile (`<= 768px`, `IsPhoneViewport()`): automatically swaps to `<mjt-mobile-milestone-stack>`
  *   so phones get chronological touch milestone cards with zero horizontal overflow.
  */
@@ -113,14 +116,27 @@ function escapeGanttHtml(raw: string): string {
         '[style.width]': '"100%"',
     },
     template: `
-        <div class="mjt-gantt-wrap" [style.height]="IsPhone ? 'auto' : Height">
+        <div
+            class="mjt-gantt-wrap"
+            [style.height]="IsPhone ? 'auto' : Height"
+            (click)="onGanttWrapClick($event)">
             @if (ShowToolbar) {
                 <div class="mjt-gantt-toolbar">
                     <div class="mjt-gantt-legend">
-                        <span class="mjt-legend-item"><span class="mjt-dot mjt-dot--open"></span> Open</span>
-                        <span class="mjt-legend-item"><span class="mjt-dot mjt-dot--prog"></span> In Progress</span>
-                        <span class="mjt-legend-item"><span class="mjt-dot mjt-dot--done"></span> Completed</span>
-                        <span class="mjt-legend-item"><span class="mjt-dot mjt-dot--blocked"></span> Blocked</span>
+                        <span class="mjt-legend-item"><span class="mjt-dot mjt-dot--open" aria-hidden="true"></span> Open</span>
+                        <span class="mjt-legend-item"><span class="mjt-dot mjt-dot--prog" aria-hidden="true"></span> In Progress</span>
+                        <span class="mjt-legend-item"><span class="mjt-dot mjt-dot--done" aria-hidden="true"></span> Completed</span>
+                        <span class="mjt-legend-item"><span class="mjt-dot mjt-dot--blocked" aria-hidden="true"></span> Blocked</span>
+                        @if (EnableBulkSelect && !IsPhone && items.length > 0) {
+                            <label class="mjt-gantt-select-all">
+                                <input
+                                    type="checkbox"
+                                    [checked]="AllVisibleSelected"
+                                    [indeterminate]="SelectedIDs.length > 0 && !AllVisibleSelected"
+                                    (change)="ToggleSelectAllVisible()" />
+                                <span>{{ SelectedIDs.length > 0 ? SelectedIDs.length + ' selected' : 'Select rows' }}</span>
+                            </label>
+                        }
                     </div>
 
                     <div class="mjt-gantt-right">
@@ -211,6 +227,12 @@ function escapeGanttHtml(raw: string): string {
             font-size: 11.5px;
         }
         .mjt-gantt-legend { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .mjt-gantt-select-all {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding-left: 10px; border-left: 1px solid var(--mj-border-default);
+            color: var(--mj-text-secondary); font-weight: 600; cursor: pointer; user-select: none;
+        }
+        .mjt-gantt-select-all input { accent-color: var(--mj-brand-primary); cursor: pointer; }
         .mjt-gantt-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .mjt-gantt-zoom { display: inline-flex; align-items: center; gap: 4px; }
         .mjt-gantt-zoom__btn {
@@ -225,14 +247,57 @@ function escapeGanttHtml(raw: string): string {
             color: var(--mj-text-secondary); font-size: 11px;
         }
         .mjt-legend-item { display: inline-flex; align-items: center; gap: 5px; color: var(--mj-text-secondary); font-weight: 500; }
-        .mjt-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-        .mjt-dot--open { background: var(--mj-status-info); }
+        .mjt-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; box-sizing: border-box; }
+        /* Hollow slate ring for Open vs solid blue dot for In Progress (WCAG 1.4.1) */
+        .mjt-dot--open { background: transparent; border: 2px solid var(--mj-text-muted); }
         .mjt-dot--prog { background: var(--mj-brand-primary); }
         .mjt-dot--done { background: var(--mj-status-success); }
         .mjt-dot--blocked { background: var(--mj-status-error); }
+
+        /* Gantt status bar tinting & crisp outside labels on short 1-3 day bars */
+        :host ::ng-deep .gantt_task_line.mjt-short-bar {
+            overflow: visible !important;
+        }
+        :host ::ng-deep .gantt_task_line.mjt-short-bar .gantt_task_content {
+            position: absolute;
+            left: calc(100% + 8px);
+            top: 0;
+            width: auto !important;
+            overflow: visible !important;
+            white-space: nowrap;
+            color: var(--mj-text-primary) !important;
+            font-weight: 600;
+            text-align: left;
+            pointer-events: none;
+        }
+        :host ::ng-deep .gantt_task_line[data-mjt-status="open"] {
+            background: color-mix(in oklab, var(--mj-text-muted) 18%, var(--mj-bg-surface)) !important;
+            border: 1.5px solid var(--mj-text-muted) !important;
+        }
+        :host ::ng-deep .gantt_task_line[data-mjt-status="open"] .gantt_task_content {
+            color: var(--mj-text-primary) !important;
+        }
+        :host ::ng-deep .gantt_task_line[data-mjt-status="completed"] {
+            background: var(--mj-status-success) !important;
+            border-color: var(--mj-status-success) !important;
+        }
+        :host ::ng-deep .gantt_task_line[data-mjt-status="blocked"] {
+            background: var(--mj-status-error) !important;
+            border-color: var(--mj-status-error) !important;
+        }
+        :host ::ng-deep .gantt_task_line[data-mjt-selected="true"] {
+            box-shadow: 0 0 0 2px var(--mj-brand-primary), 0 0 0 4px color-mix(in oklab, var(--mj-brand-primary) 22%, transparent);
+        }
+        :host ::ng-deep .mjt-gantt-row-chk {
+            width: 14px;
+            height: 14px;
+            accent-color: var(--mj-brand-primary);
+            cursor: pointer;
+            vertical-align: middle;
+        }
     `],
 })
-export class TaskGanttComponent implements OnInit, OnChanges, OnDestroy {
+export class TaskGanttComponent implements OnInit, AfterViewInit, OnChanges, OnDestroy {
     @Input() CategoryID: string | null = null;
     @Input() ParentTaskID: string | null = null;
     @Input() IncludeParentSummary = true;
@@ -248,12 +313,16 @@ export class TaskGanttComponent implements OnInit, OnChanges, OnDestroy {
     @Input() ReadOnly = true;
     @Input() ShowToolbar = true;
     @Input() Columns: GanttColumnDef[] | null = null;
+    @Input() EnableBulkSelect = false;
+    @Input() SelectedIDs: string[] = [];
 
     @Output() TaskClicked = new EventEmitter<string>();
     @Output() TaskRowClicked = new EventEmitter<TaskClickRow>();
     @Output() TaskDoubleClicked = new EventEmitter<string>();
     @Output() BeforeZoomChange = new EventEmitter<BeforeZoomChangeEventArgs>();
     @Output() AfterZoomChange = new EventEmitter<AfterZoomChangeEventArgs>();
+    @Output() SelectedIDsChange = new EventEmitter<string[]>();
+    @Output() VisibleTaskIDsChange = new EventEmitter<string[]>();
 
     @ViewChild('chart') private chart?: MjGanttChartComponent;
 
@@ -271,45 +340,153 @@ export class TaskGanttComponent implements OnInit, OnChanges, OnDestroy {
     private rawDeps: { ID: string; TaskID: string; DependsOnTaskID: string; DependencyType: mjBizAppsTasksTaskDependencyEntity['DependencyType'] }[] = [];
     private assigneesByTask = new Map<string, Array<TaskAssigneeFilterRef & { DisplayName: string; IsRole: boolean }>>();
     private orgNameByTask = new Map<string, string>();
+    private dueDateByTask = new Map<string, string>();
+    private statusByTask = new Map<string, TaskStatusValue>();
     private stopWatchingPhone: (() => void) | null = null;
     private hasCustomGridWidth = false;
+    private lastCheckedTaskID: string | null = null;
+    private barObserver: MutationObserver | null = null;
+    private decorateTimer: ReturnType<typeof setTimeout> | null = null;
+    private suppressNextTaskClickUntil = 0;
+    private captureClickListener: ((event: Event) => void) | null = null;
+    private hostRef = inject(ElementRef, { optional: true });
     private cdr = inject(ChangeDetectorRef);
 
+    private readonly selectColumn: GanttColumnDef = {
+        Name: 'mjt_select',
+        Label: '',
+        Align: 'center',
+        Width: 34,
+        Resize: false,
+        Template: (obj: { id?: string | number }) => this.renderSelectCell(obj),
+    };
+
     private readonly defaultColumns: GanttColumnDef[] = [
-        { Name: 'text', Label: 'Name', Tree: true, Width: 205 },
+        { Name: 'text', Label: 'Name', Tree: true, Width: 200 },
+        {
+            Name: 'start_date',
+            Label: 'Start',
+            Align: 'center',
+            Width: 66,
+            Template: (obj: { start_date?: Date | string }) => this.renderShortDateCell(obj?.start_date),
+        },
+        {
+            Name: 'due_date',
+            Label: 'Due',
+            Align: 'center',
+            Width: 66,
+            Template: (obj: { id?: string | number }) => this.renderDueCell(obj),
+        },
         {
             Name: 'assignee',
             Label: 'Assignee',
             Align: 'left',
-            Width: 126,
+            Width: 118,
             Template: (obj: { id?: string | number }) => this.renderAssigneeCell(obj),
         },
         {
             Name: 'organization',
             Label: 'Organization',
             Align: 'left',
-            Width: 145,
+            Width: 138,
             Template: (obj: { id?: string | number }) => this.renderOrgCell(obj),
-        },
-        { Name: 'start_date', Label: 'Start', Align: 'center', Width: 88 },
-        { Name: 'duration', Label: 'Days', Align: 'center', Width: 50 },
-        {
-            Name: 'progress',
-            Label: '%',
-            Align: 'center',
-            Width: 46,
-            Template: (obj: { progress?: number }) => `${Math.round((obj.progress || 0) * 100)}%`,
         },
     ];
 
+    public get AllVisibleSelected(): boolean {
+        return this.items.length > 0 && this.items.every((item) => this.IsSelected(item.ID));
+    }
+
     public get EffectiveColumns(): GanttColumnDef[] {
-        return this.Columns && this.Columns.length > 0 ? this.Columns : this.defaultColumns;
+        const base = this.Columns && this.Columns.length > 0 ? this.Columns : this.defaultColumns;
+        return this.EnableBulkSelect && !this.IsPhone ? [this.selectColumn, ...base] : base;
     }
 
     public get EffectiveGridWidth(): number {
-        // Ensure Name + Assignee + Organization columns are cleanly visible by default
-        // unless the user explicitly persisted a custom resized grid width.
-        return this.hasCustomGridWidth ? this.Pref.gridWidth : Math.max(this.Pref.gridWidth, 485);
+        const defaultMin = this.EnableBulkSelect ? 624 : 590;
+        return this.hasCustomGridWidth ? this.Pref.gridWidth : Math.max(this.Pref.gridWidth, defaultMin);
+    }
+
+    public IsSelected(taskID: string): boolean {
+        return this.SelectedIDs.some((id) => UUIDsEqual(id, taskID));
+    }
+
+    public ToggleSelectAllVisible(): void {
+        if (this.AllVisibleSelected) {
+            this.SelectedIDs = [];
+        } else {
+            this.SelectedIDs = this.items.map((item) => item.ID);
+        }
+        this.SelectedIDsChange.emit([...this.SelectedIDs]);
+        this.syncCheckboxStatesInDom();
+        this.cdr.markForCheck();
+    }
+
+    public onGanttWrapClick(event: MouseEvent): void {
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement) || !target.classList.contains('mjt-gantt-row-chk')) {
+            return;
+        }
+        event.stopPropagation();
+        const taskID = target.getAttribute('data-mjt-gantt-chk');
+        if (!taskID) return;
+
+        if (event.shiftKey && this.lastCheckedTaskID) {
+            const visibleIds = this.items.map((item) => item.ID);
+            const fromIdx = visibleIds.findIndex((id) => UUIDsEqual(id, this.lastCheckedTaskID));
+            const toIdx = visibleIds.findIndex((id) => UUIDsEqual(id, taskID));
+            if (fromIdx >= 0 && toIdx >= 0) {
+                const start = Math.min(fromIdx, toIdx);
+                const end = Math.max(fromIdx, toIdx);
+                const seen = new Set(this.SelectedIDs.map((id) => id.toLowerCase()));
+                const merged = [...this.SelectedIDs];
+                for (let i = start; i <= end; i++) {
+                    const id = visibleIds[i];
+                    if (!seen.has(id.toLowerCase())) {
+                        seen.add(id.toLowerCase());
+                        merged.push(id);
+                    }
+                }
+                this.SelectedIDs = merged;
+                this.lastCheckedTaskID = taskID;
+                this.SelectedIDsChange.emit([...this.SelectedIDs]);
+                this.syncCheckboxStatesInDom();
+                this.cdr.markForCheck();
+                return;
+            }
+        }
+
+        if (this.IsSelected(taskID)) {
+            this.SelectedIDs = this.SelectedIDs.filter((id) => !UUIDsEqual(id, taskID));
+        } else {
+            this.SelectedIDs = [...this.SelectedIDs, taskID];
+        }
+        this.lastCheckedTaskID = taskID;
+        this.SelectedIDsChange.emit([...this.SelectedIDs]);
+        this.syncCheckboxStatesInDom();
+        this.cdr.markForCheck();
+    }
+
+    private renderSelectCell(obj: { id?: string | number }): string {
+        const id = escapeGanttHtml(String(obj?.id ?? ''));
+        const checked = this.IsSelected(String(obj?.id ?? '')) ? ' checked' : '';
+        return `<input type="checkbox" class="mjt-gantt-row-chk" data-mjt-gantt-chk="${id}" aria-label="Select task"${checked} />`;
+    }
+
+    private renderShortDateCell(val?: Date | string): string {
+        if (!val) return '<span style="color:var(--mj-text-muted)">—</span>';
+        const d = val instanceof Date ? val : new Date(val);
+        if (Number.isNaN(d.getTime())) return '<span style="color:var(--mj-text-muted)">—</span>';
+        return escapeGanttHtml(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+    }
+
+    private renderDueCell(obj: { id?: string | number }): string {
+        const key = String(obj?.id ?? '').toLowerCase();
+        const due = this.dueDateByTask.get(key);
+        if (!due) {
+            return '<span style="color:var(--mj-text-muted)">—</span>';
+        }
+        return escapeGanttHtml(due);
     }
 
     private renderAssigneeCell(obj: { id?: string | number }): string {
@@ -347,10 +524,12 @@ export class TaskGanttComponent implements OnInit, OnChanges, OnDestroy {
 
     public ZoomIn(): void {
         this.chart?.ZoomIn();
+        this.scheduleBarDecoration();
     }
 
     public ZoomOut(): void {
         this.chart?.ZoomOut();
+        this.scheduleBarDecoration();
     }
 
     public ToggleCriticalPath(): void {
@@ -366,12 +545,14 @@ export class TaskGanttComponent implements OnInit, OnChanges, OnDestroy {
         this.ZoomLevel = event.Level;
         this.persistPref({ zoomLevel: event.Level, zoomPercent: event.Percent });
         this.AfterZoomChange.emit(event);
+        this.scheduleBarDecoration();
         this.cdr.markForCheck();
     }
 
     public OnAfterGridResize(event: AfterGridResizeEventArgs): void {
         this.hasCustomGridWidth = true;
         this.persistPref({ gridWidth: event.Width });
+        this.scheduleBarDecoration();
     }
 
     public OnAfterColumnResize(event: AfterColumnResizeEventArgs): void {
@@ -396,8 +577,35 @@ export class TaskGanttComponent implements OnInit, OnChanges, OnDestroy {
         void this.LoadData();
     }
 
+    public ngAfterViewInit(): void {
+        const root = this.hostRef?.nativeElement as HTMLElement | undefined;
+        if (root) {
+            this.captureClickListener = (event: Event) => {
+                const target = event.target as HTMLElement | null;
+                if (target?.closest?.('.mjt-gantt-row-chk, [data-column-name="mjt_select"]')) {
+                    this.suppressNextTaskClickUntil = Date.now() + 300;
+                }
+            };
+            root.addEventListener('click', this.captureClickListener, true);
+        }
+        if (root && typeof MutationObserver !== 'undefined') {
+            this.barObserver = new MutationObserver(() => {
+                this.scheduleBarDecoration();
+            });
+            this.barObserver.observe(root, { childList: true, subtree: true });
+        }
+        this.scheduleBarDecoration();
+    }
+
     public ngOnDestroy(): void {
+        const root = this.hostRef?.nativeElement as HTMLElement | undefined;
+        if (root && this.captureClickListener) {
+            root.removeEventListener('click', this.captureClickListener, true);
+            this.captureClickListener = null;
+        }
         this.stopWatchingPhone?.();
+        this.barObserver?.disconnect();
+        if (this.decorateTimer) clearTimeout(this.decorateTimer);
     }
 
     private persistPref(partial: Partial<TasksGanttPref>): void {
@@ -409,6 +617,10 @@ export class TaskGanttComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     public ngOnChanges(changes: SimpleChanges): void {
+        if (changes['SelectedIDs'] && !changes['SelectedIDs'].firstChange) {
+            this.syncCheckboxStatesInDom();
+            this.scheduleBarDecoration();
+        }
         if (
             changes['CategoryID'] ||
             changes['ParentTaskID'] ||
@@ -524,10 +736,20 @@ export class TaskGanttComponent implements OnInit, OnChanges, OnDestroy {
             }
 
             this.orgNameByTask.clear();
+            this.dueDateByTask.clear();
+            this.statusByTask.clear();
             for (const t of this.rawTasks) {
+                const key = t.ID.toLowerCase();
                 if (t.Organization) {
-                    this.orgNameByTask.set(t.ID.toLowerCase(), t.Organization);
+                    this.orgNameByTask.set(key, t.Organization);
                 }
+                if (t.DueAt) {
+                    this.dueDateByTask.set(
+                        key,
+                        new Date(t.DueAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                    );
+                }
+                this.statusByTask.set(key, t.Status);
             }
 
             this.rebuildViewModels();
@@ -637,10 +859,56 @@ export class TaskGanttComponent implements OnInit, OnChanges, OnDestroy {
             IsCriticalPath: this.CriticalPathIds.has(t.ID.toLowerCase()),
             DependencyCount: depCountByTask.get(t.ID.toLowerCase()) ?? 0,
         }));
+
+        this.VisibleTaskIDsChange.emit(filteredTasks.map((t) => t.ID));
+        this.scheduleBarDecoration();
         this.cdr.markForCheck();
     }
 
+    private scheduleBarDecoration(): void {
+        if (this.decorateTimer) clearTimeout(this.decorateTimer);
+        this.decorateTimer = setTimeout(() => {
+            this.decorateGanttBars();
+            this.syncCheckboxStatesInDom();
+        }, 60);
+    }
+
+    private decorateGanttBars(): void {
+        const root = this.hostRef?.nativeElement as HTMLElement | undefined;
+        if (!root || typeof root.querySelectorAll !== 'function') return;
+        const bars = root.querySelectorAll<HTMLElement>('.gantt_task_line[task_id]');
+        bars.forEach((bar) => {
+            const id = bar.getAttribute('task_id') ?? '';
+            const status = this.statusByTask.get(id.toLowerCase()) ?? 'Open';
+            const statusKey = status.toLowerCase();
+            if (bar.getAttribute('data-mjt-status') !== statusKey) {
+                bar.setAttribute('data-mjt-status', statusKey);
+            }
+            const selected = this.IsSelected(id) ? 'true' : 'false';
+            if (bar.getAttribute('data-mjt-selected') !== selected) {
+                bar.setAttribute('data-mjt-selected', selected);
+            }
+            const content = bar.querySelector<HTMLElement>('.gantt_task_content');
+            bar.classList.remove('mjt-short-bar');
+            const needsOutside =
+                bar.offsetWidth > 0 &&
+                (bar.offsetWidth < 136 || (content != null && content.scrollWidth > bar.clientWidth - 6));
+            bar.classList.toggle('mjt-short-bar', needsOutside);
+        });
+    }
+
+    private syncCheckboxStatesInDom(): void {
+        const root = this.hostRef?.nativeElement as HTMLElement | undefined;
+        if (!root || typeof root.querySelectorAll !== 'function') return;
+        const boxes = root.querySelectorAll<HTMLInputElement>('input.mjt-gantt-row-chk[data-mjt-gantt-chk]');
+        boxes.forEach((box) => {
+            const id = box.getAttribute('data-mjt-gantt-chk') ?? '';
+            box.checked = this.IsSelected(id);
+        });
+    }
+
     public onItemClicked(event: GanttItemClickedEvent): void {
+        if (Date.now() < this.suppressNextTaskClickUntil) return;
         if (event.Item?.ID) {
             this.TaskClicked.emit(event.Item.ID);
             this.TaskRowClicked.emit({ ID: event.Item.ID, Name: event.Item.Name ?? '' });
@@ -648,6 +916,7 @@ export class TaskGanttComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     public onItemDoubleClicked(event: GanttItemClickedEvent): void {
+        if (Date.now() < this.suppressNextTaskClickUntil) return;
         if (event.Item?.ID) {
             this.TaskDoubleClicked.emit(event.Item.ID);
         }

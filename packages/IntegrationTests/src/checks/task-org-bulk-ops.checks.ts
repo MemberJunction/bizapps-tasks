@@ -12,6 +12,7 @@ import {
 import {
     TasksBulkUpdateOperation,
     TasksInstantiateTemplateOperation,
+    TasksRunRecurringPlaybooksOperation,
 } from '@mj-biz-apps/tasks-core';
 import {
     mjBizAppsTasksTaskActivityEntity,
@@ -669,6 +670,113 @@ const checks: NamedCheck[] = [
                 }
                 await org.Delete();
                 await cleanup();
+            }
+        },
+    },
+
+    // =========================================================================
+    // TOB7: BizAppsTasks.RunRecurringPlaybooks — DryRun + multi-org rollout +
+    //       idempotent PeriodKey skip on re-run
+    // =========================================================================
+    {
+        Id: 'task-org-bulk-ops.TOB7',
+        Name: 'TOB7 — BizAppsTasks.RunRecurringPlaybooks idempotently launches multi-org close playbook for a PeriodKey',
+        RequiresMutation: true,
+        Fn: async (ctx: IntegrationCheckContext) => {
+            const { deliverableID } = await resolveShippedTaskTypes(ctx);
+            const stamp = Date.now();
+            const org1 = await createTempOrg(ctx, `CloseSub US ${stamp}`);
+            const org2 = await createTempOrg(ctx, `CloseSub UK ${stamp}`);
+            let tplID: string | null = null;
+            let itemID: string | null = null;
+            const createdTaskIDs: string[] = [];
+
+            try {
+                const tpl = await ctx.Provider.GetEntityObject<mjBizAppsTasksTaskTemplateEntity>(TASK_TEMPLATE_ENTITY, ctx.User);
+                tpl.NewRecord();
+                tpl.Name = `Month-End Close Recurring ${stamp}`;
+                tpl.TypeID = deliverableID;
+                tpl.IsActive = true;
+                await RequireSave(tpl, 'create recurring close template');
+                tplID = tpl.ID;
+
+                const item = await ctx.Provider.GetEntityObject<mjBizAppsTasksTaskTemplateItemEntity>(TASK_TEMPLATE_ITEM_ENTITY, ctx.User);
+                item.NewRecord();
+                item.TemplateID = tpl.ID;
+                item.Name = 'Reconcile Intercompany Balances';
+                item.Priority = 'High';
+                item.DaysFromStart = 2;
+                item.Sequence = 10;
+                await RequireSave(item, 'create recurring close template item');
+                itemID = item.ID;
+
+                const periodKey = `2026-12-IT-${Date.now().toString(36)}`;
+                const op = new TasksRunRecurringPlaybooksOperation();
+
+                // 1. DryRun reports 2 dry-run targets without creating tasks
+                const dry = await op.Execute(
+                    {
+                        TemplateID: tpl.ID,
+                        AnchorDate: '2026-12-01',
+                        PeriodKey: periodKey,
+                        OrganizationIDs: [org1.ID, org2.ID],
+                        DryRun: true,
+                    },
+                    { provider: ctx.Provider, user: ctx.User },
+                );
+                Assert(dry.Success && dry.Output != null, `DryRun failed: ${dry.ErrorMessage ?? 'unknown'}`);
+                AssertEqual(dry.Output.TargetOrganizations, 2, 'DryRun targets both orgs');
+                AssertEqual(dry.Output.LaunchedCount, 0, 'DryRun launches zero');
+                AssertEqual(dry.Output.Results.filter((r) => r.Status === 'dry-run').length, 2, 'Both marked dry-run');
+
+                // 2. Live run spawns close tasks for both orgs
+                const live1 = await op.Execute(
+                    {
+                        TemplateID: tpl.ID,
+                        AnchorDate: '2026-12-01',
+                        PeriodKey: periodKey,
+                        OrganizationIDs: [org1.ID, org2.ID],
+                        DryRun: false,
+                    },
+                    { provider: ctx.Provider, user: ctx.User },
+                );
+                Assert(live1.Success && live1.Output != null, `Live run 1 failed: ${live1.ErrorMessage ?? 'unknown'}`);
+                AssertEqual(live1.Output.LaunchedCount, 2, 'Launched for both orgs');
+                AssertEqual(live1.Output.SkippedCount, 0, 'Zero skipped on first run');
+                AssertEqual(live1.Output.TotalTasksCreated, 2, 'Created 1 task per org');
+                for (const r of live1.Output.Results) {
+                    createdTaskIDs.push(...r.CreatedTaskIDs);
+                }
+
+                // 3. Re-running with the same PeriodKey skips both idempotently
+                const live2 = await op.Execute(
+                    {
+                        TemplateID: tpl.ID,
+                        AnchorDate: '2026-12-01',
+                        PeriodKey: periodKey,
+                        OrganizationIDs: [org1.ID, org2.ID],
+                        DryRun: false,
+                    },
+                    { provider: ctx.Provider, user: ctx.User },
+                );
+                Assert(live2.Success && live2.Output != null, `Live run 2 failed: ${live2.ErrorMessage ?? 'unknown'}`);
+                AssertEqual(live2.Output.LaunchedCount, 0, 'Zero launched on idempotent re-run');
+                AssertEqual(live2.Output.SkippedCount, 2, 'Both orgs skipped on re-run');
+                AssertEqual(live2.Output.TotalTasksCreated, 0, 'Zero duplicate tasks created');
+            } finally {
+                for (const tid of [...createdTaskIDs].reverse()) {
+                    await deleteTaskCascade(ctx, tid);
+                }
+                if (itemID) {
+                    const e = await ctx.Provider.GetEntityObject<mjBizAppsTasksTaskTemplateItemEntity>(TASK_TEMPLATE_ITEM_ENTITY, ctx.User);
+                    if (await e.Load(itemID)) await e.Delete();
+                }
+                if (tplID) {
+                    const e = await ctx.Provider.GetEntityObject<mjBizAppsTasksTaskTemplateEntity>(TASK_TEMPLATE_ENTITY, ctx.User);
+                    if (await e.Load(tplID)) await e.Delete();
+                }
+                await org1.Delete();
+                await org2.Delete();
             }
         },
     },

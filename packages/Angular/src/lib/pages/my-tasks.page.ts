@@ -2,9 +2,11 @@ import {
     ChangeDetectionStrategy,
     ChangeDetectorRef,
     Component,
+    EventEmitter,
     HostListener,
     Input,
     OnInit,
+    Output,
     inject,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
@@ -29,6 +31,7 @@ import {
     ClassifyTaskHorizon,
     ComputeChildRollups,
     ComputeTaskUrgencyCounts,
+    FormatTaskStatusLabel,
     IsTaskOverdue,
     IsTaskSlaAtRisk,
     TaskOrchestrationService,
@@ -139,7 +142,7 @@ interface MyWorkTaskRow {
                 <div actions>
                     <bizapps-running-timer-chip [PersonID]="PersonID"></bizapps-running-timer-chip>
                     <mj-refresh-button [Loading]="Loading" (Clicked)="LoadMyWork(true)" />
-                    <button type="button" mjButton variant="outline" size="sm" (click)="ShowCmdK = true" title="Tasks Quick Jump (Cmd/Ctrl+J)" aria-label="Tasks Quick Jump">
+                    <button type="button" class="mjt-desktop-only mjt-toolbar-btn" mjButton variant="outline" size="sm" (click)="ShowCmdK = true" title="Tasks Quick Jump (Cmd/Ctrl+J)" aria-label="Tasks Quick Jump">
                         <i class="fa-solid fa-terminal" aria-hidden="true"></i>
                         <span class="action-btn-label">⌘J</span>
                     </button>
@@ -477,13 +480,15 @@ interface MyWorkTaskRow {
         .mjt-my-wrap {
             display: flex; flex-direction: column; gap: 16px;
             max-width: 1040px; width: 100%; margin: 0 auto; min-width: 0;
+            padding-bottom: 80px;
         }
+        .mjt-toolbar-btn { background: var(--mj-bg-surface-elevated, var(--mj-bg-surface)); }
         .mjt-loading { padding: 36px; text-align: center; color: var(--mj-text-muted); font-size: var(--mj-text-sm, 14px); }
         .mjt-toast-banner {
             display: flex; align-items: center; justify-content: space-between; gap: 10px;
             padding: 8px 12px; border-radius: var(--mj-radius-md, 8px);
             background: var(--mj-status-success-bg); color: var(--mj-status-success-text);
-            border: 1px solid color-mix(in srgb, var(--mj-status-success) 30%, transparent);
+            border: 1px solid color-mix(in oklab, var(--mj-status-success) 30%, transparent);
             font-size: var(--mj-text-xs, 12px); font-weight: var(--mj-font-semibold, 600);
         }
         .mjt-horizon { display: flex; flex-direction: column; gap: 8px; }
@@ -502,7 +507,7 @@ interface MyWorkTaskRow {
             font-size: var(--mj-text-xs, 12px); font-weight: var(--mj-font-bold, 700);
             text-transform: uppercase; letter-spacing: 0.05em; color: var(--mj-text-secondary);
         }
-        .mjt-horizon-title--violet { color: var(--mj-text-violet, #6d28d9); }
+        .mjt-horizon-title--violet { color: var(--mj-brand-primary); }
         .mjt-horizon-title--warn { color: var(--mj-status-warning-text); }
         .mjt-horizon-count {
             font-family: var(--mj-font-family-mono, monospace); font-size: 11px;
@@ -516,8 +521,14 @@ interface MyWorkTaskRow {
             cursor: pointer; transition: border-color 140ms ease, background 140ms ease;
         }
         .mjt-task-row:hover { border-color: var(--mj-brand-primary); background: var(--mj-bg-surface-hover); }
-        .mjt-task-row.is-overdue { border-left: 3px solid var(--mj-status-error); }
-        .mjt-task-row--blocked { border-left: 3px solid var(--mj-status-warning); }
+        .mjt-task-row.is-overdue {
+            border-color: color-mix(in oklab, var(--mj-status-error) 35%, var(--mj-border-default));
+            background: color-mix(in oklab, var(--mj-status-error-bg) 42%, var(--mj-bg-surface));
+        }
+        .mjt-task-row--blocked {
+            border-color: color-mix(in oklab, var(--mj-status-warning) 38%, var(--mj-border-default));
+            background: color-mix(in oklab, var(--mj-status-warning-bg) 42%, var(--mj-bg-surface));
+        }
         .mjt-task-row.is-done .mjt-task-name { text-decoration: line-through; color: var(--mj-text-muted); }
         .mjt-task-row-left { display: flex; align-items: flex-start; gap: 10px; flex: 1; min-width: 0; }
         .mjt-task-copy { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
@@ -550,6 +561,7 @@ interface MyWorkTaskRow {
         }
         .mjt-due.is-overdue { color: var(--mj-status-error-text); font-weight: var(--mj-font-semibold, 600); }
         @media (max-width: 640px) {
+            .mjt-desktop-only { display: none !important; }
             .mjt-task-row { flex-direction: column; align-items: stretch; gap: 8px; }
             .mjt-task-row-right { justify-content: flex-start; padding-left: 30px; }
         }
@@ -557,6 +569,7 @@ interface MyWorkTaskRow {
 })
 export class MyTasksPageComponent implements OnInit {
     @Input() Provider: IMetadataProvider | null = null;
+    @Output() DrawerOpenChange = new EventEmitter<boolean>();
     public PersonID: string | null = null;
     public PersonResolved = false;
     public PersonLookupFailed = false;
@@ -681,9 +694,10 @@ export class MyTasksPageComponent implements OnInit {
         const taskItems: TaskCommandPaletteItem[] = this.AllTasks.slice(0, 20).map((t) => ({
             ID: `task:${t.ID}`,
             Label: t.Name,
-            Subtitle: `${t.Priority} · ${t.Status}`,
+            Subtitle: `${t.Priority} · ${FormatTaskStatusLabel(t.Status)}`,
             Group: 'Tasks',
             IconClass: t.IsApproval ? 'fa-solid fa-stamp' : 'fa-regular fa-circle-check',
+            Status: t.Status,
             TaskID: t.ID,
         }));
         return [...actions, ...taskItems];
@@ -938,22 +952,26 @@ export class MyTasksPageComponent implements OnInit {
     public OpenCreate(): void {
         this.SelectedTaskID = null;
         this.PanelMode = 'edit';
+        this.DrawerOpenChange.emit(true);
         this.cdr.markForCheck();
     }
 
     public OpenInspector(taskID: string): void {
         this.SelectedTaskID = taskID;
         this.PanelMode = 'detail';
+        this.DrawerOpenChange.emit(true);
         this.cdr.markForCheck();
     }
 
     public ClosePanel(): void {
         this.PanelMode = 'none';
         this.SelectedTaskID = null;
+        this.DrawerOpenChange.emit(false);
         this.cdr.markForCheck();
     }
 
     public OpenFullRecord(taskID: string | null): void {
+        this.ClosePanel();
         OpenTaskRecord(taskID);
     }
 

@@ -23,13 +23,12 @@ import {
     type TabConfig,
 } from '@memberjunction/ng-ui-components';
 import { TaskOrchestrationService } from '@mj-biz-apps/tasks-core';
-import {
-    TaskApprovalCardComponent,
-    type TaskApprovalActionEvent,
-    type TaskPriorityValue,
-    type TaskStatusValue,
-    type TaskWidgetItem,
-    type TaskWidgetLinkedRecord,
+import type {
+    TaskApprovalActionEvent,
+    TaskPriorityValue,
+    TaskStatusValue,
+    TaskWidgetItem,
+    TaskWidgetLinkedRecord,
 } from '@mj-biz-apps/tasks-ng-widgets';
 import { NO_PERSON_MESSAGE, PERSON_LOOKUP_FAILED_MESSAGE, ResolveCurrentPersonID } from '../current-person';
 import { OpenTaskRecord } from '../open-task-record';
@@ -51,8 +50,9 @@ interface DecidedApprovalRow {
 /**
  * Approvals Gate Page — official MJ Page Chrome trio
  * (`<mj-page-layout>` + `<mj-page-header>` + `<mj-page-body>`) with Pending / Decided
- * tabs, inline 1-click `<mjt-approval-card>`, full `<bizapps-approval-decision-panel>`,
- * and `A` / `R` keyboard shortcuts for rapid governance review.
+ * tabs, a clean selectable Decision Queue on the left (zero competing inline buttons, zero
+ * left accent stripes), a single commit pane on the right (`<bizapps-approval-decision-panel>`),
+ * and WCAG 2.1.4 scoped keyboard shortcuts (`↑↓` select · `A` / `R` prefill outcome).
  */
 @Component({
     selector: 'bizapps-approvals-page',
@@ -67,7 +67,6 @@ interface DecidedApprovalRow {
         MJTabNavComponent,
         MJButtonDirective,
         MJEmptyStateComponent,
-        TaskApprovalCardComponent,
         ApprovalDecisionPanelComponent,
         RunningTimerChipComponent,
     ],
@@ -128,24 +127,85 @@ interface DecidedApprovalRow {
                             </mj-empty-state>
                         } @else {
                             <div class="mjt-app-grid">
-                                <div class="mjt-app-list">
+                                <!-- Left Pane: Clean Selectable Decision Queue (zero competing CTA buttons) -->
+                                <div class="mjt-app-list" role="listbox" aria-label="Pending approval queue">
+                                    <div class="mjt-queue-header">
+                                        <span>Decision queue ({{ PendingApprovals.length }})</span>
+                                        <span class="mjt-queue-hint">Select an item to review &amp; commit</span>
+                                    </div>
                                     @for (item of PendingApprovals; track item.ID) {
-                                        <div class="mjt-app-selectable" [class.is-selected]="SelectedTaskID === item.ID">
-                                            <mjt-approval-card
-                                                [Task]="item"
-                                                [Busy]="Busy"
-                                                (TaskClicked)="SelectedTaskID = $event; cdr.markForCheck()"
-                                                (LinkedRecordClicked)="OpenLinkedRecord($event)"
-                                                (DecisionSubmitted)="OnQuickDecision($event)">
-                                            </mjt-approval-card>
-                                        </div>
+                                        <article
+                                            class="mjt-queue-card"
+                                            role="option"
+                                            tabindex="0"
+                                            [attr.aria-selected]="SelectedTaskID === item.ID"
+                                            [class.is-selected]="SelectedTaskID === item.ID"
+                                            (click)="SelectQueueItem(item.ID)"
+                                            (keydown.enter)="SelectQueueItem(item.ID)">
+                                            <div class="mjt-queue-top">
+                                                <span class="mjt-queue-badge">
+                                                    <i class="fa-solid fa-stamp" aria-hidden="true"></i> Approval
+                                                </span>
+                                                <div class="mjt-queue-meta">
+                                                    <span class="mjt-pri-pill" [class]="'mjt-pri--' + item.Priority.toLowerCase()">
+                                                        {{ item.Priority }}
+                                                    </span>
+                                                    @if (item.DueAt) {
+                                                        <span class="mjt-queue-due">
+                                                            <i class="fa-regular fa-calendar" aria-hidden="true"></i>
+                                                            Due {{ item.DueAt | date:'MMM d' }}
+                                                        </span>
+                                                    }
+                                                </div>
+                                            </div>
+
+                                            <h4 class="mjt-queue-title">{{ item.Name }}</h4>
+
+                                            @if (item.Description) {
+                                                <p class="mjt-queue-desc">{{ item.Description }}</p>
+                                            }
+
+                                            @if (item.LinkedRecords && item.LinkedRecords.length > 0) {
+                                                <div class="mjt-queue-links">
+                                                    @for (rec of item.LinkedRecords; track rec.EntityName + ':' + rec.RecordID) {
+                                                        <button
+                                                            type="button"
+                                                            class="mjt-queue-link-chip"
+                                                            (click)="$event.stopPropagation(); OpenLinkedRecord(rec)">
+                                                            <i [class]="rec.IconClass || 'fa-solid fa-link'" aria-hidden="true"></i>
+                                                            <span>{{ rec.DisplayName }}</span>
+                                                        </button>
+                                                    }
+                                                </div>
+                                            }
+
+                                            @if (item.OnCompleteActionName || item.OnRejectActionName) {
+                                                <div class="mjt-queue-hooks">
+                                                    @if (item.OnCompleteActionName) {
+                                                        <span class="mjt-hook-tag">
+                                                            <i class="fa-solid fa-bolt" aria-hidden="true"></i>
+                                                            On approve: {{ item.OnCompleteActionName }}
+                                                        </span>
+                                                    }
+                                                    @if (item.OnRejectActionName) {
+                                                        <span class="mjt-hook-tag">
+                                                            <i class="fa-solid fa-bolt" aria-hidden="true"></i>
+                                                            On reject: {{ item.OnRejectActionName }}
+                                                        </span>
+                                                    }
+                                                </div>
+                                            }
+                                        </article>
                                     }
                                 </div>
 
+                                <!-- Right Pane: Single Authoritative Commit Pane -->
                                 @if (SelectedTaskID) {
                                     <aside class="mjt-app-detail">
                                         <div class="mjt-app-detail-bar">
-                                            <span class="mjt-app-kbd-hint">Shortcuts: <kbd>A</kbd> Approve · <kbd>R</kbd> Reject</span>
+                                            <span class="mjt-app-kbd-hint">
+                                                List focus: <kbd>↑</kbd><kbd>↓</kbd> select · <kbd>A</kbd> / <kbd>R</kbd> prefill
+                                            </span>
                                             <button type="button" mjButton variant="outline" size="sm" (click)="OpenFullRecord(SelectedTaskID)">
                                                 <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
                                                 Open Task Form
@@ -196,18 +256,102 @@ interface DecidedApprovalRow {
     `,
     styles: [`
         :host { display: block; width: 100%; height: 100%; }
-        .mjt-app-page { max-width: 1180px; width: 100%; margin: 0 auto; }
+        .mjt-app-page { max-width: 1180px; width: 100%; margin: 0 auto; padding-bottom: 80px; }
         .mjt-app-loading { padding: 36px; text-align: center; color: var(--mj-text-muted); }
         .mjt-app-grid {
             display: grid;
-            grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
-            gap: 16px;
+            grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+            gap: 18px;
             align-items: start;
         }
-        .mjt-app-list { display: flex; flex-direction: column; gap: 10px; }
-        .mjt-app-selectable.is-selected {
+        .mjt-app-list { display: flex; flex-direction: column; gap: 8px; }
+        .mjt-queue-header {
+            display: flex; align-items: center; justify-content: space-between; gap: 8px;
+            padding: 2px 2px 4px;
+            font-size: 12px; font-weight: var(--mj-font-semibold, 600); color: var(--mj-text-secondary);
+        }
+        .mjt-queue-hint { font-weight: var(--mj-font-normal, 400); color: var(--mj-text-muted); font-size: 11.5px; }
+        .mjt-queue-card {
+            display: flex; flex-direction: column; gap: 8px;
+            padding: 12px 14px;
             border-radius: var(--mj-radius-md, 8px);
-            box-shadow: 0 0 0 2px var(--mj-brand-primary);
+            background: var(--mj-bg-surface);
+            border: 1px solid var(--mj-border-default);
+            cursor: pointer;
+            transition: border-color 140ms ease, background 140ms ease;
+        }
+        .mjt-queue-card:hover {
+            border-color: var(--mj-border-strong);
+            background: var(--mj-bg-surface-hover);
+        }
+        .mjt-queue-card.is-selected {
+            border-color: var(--mj-brand-primary);
+            background: color-mix(in oklab, var(--mj-brand-primary) 7%, var(--mj-bg-surface));
+        }
+        .mjt-queue-card:focus-visible {
+            outline: 2px solid var(--mj-brand-primary);
+            outline-offset: 2px;
+        }
+        .mjt-queue-top {
+            display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+        }
+        .mjt-queue-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 2px 8px; border-radius: var(--mj-radius-full, 9999px);
+            font-size: 11px; font-weight: var(--mj-font-semibold, 600);
+            background: color-mix(in oklab, var(--mj-brand-primary) 12%, var(--mj-bg-surface));
+            color: var(--mj-brand-primary);
+            border: 1px solid color-mix(in oklab, var(--mj-brand-primary) 26%, transparent);
+        }
+        .mjt-queue-meta { display: inline-flex; align-items: center; gap: 8px; }
+        .mjt-pri-pill {
+            padding: 2px 8px; border-radius: var(--mj-radius-full, 9999px);
+            font-size: 11px; font-weight: var(--mj-font-semibold, 600);
+            border: 1px solid transparent;
+        }
+        .mjt-pri--critical {
+            background: var(--mj-status-error-bg); color: var(--mj-status-error-text);
+            border-color: color-mix(in oklab, var(--mj-status-error) 28%, transparent);
+        }
+        .mjt-pri--high {
+            background: var(--mj-status-warning-bg); color: var(--mj-status-warning-text);
+            border-color: color-mix(in oklab, var(--mj-status-warning) 30%, transparent);
+        }
+        .mjt-pri--medium {
+            background: var(--mj-status-info-bg); color: var(--mj-status-info-text);
+            border-color: color-mix(in oklab, var(--mj-status-info) 26%, transparent);
+        }
+        .mjt-pri--low {
+            background: var(--mj-bg-surface-sunken); color: var(--mj-text-secondary);
+            border-color: var(--mj-border-default);
+        }
+        .mjt-queue-due {
+            display: inline-flex; align-items: center; gap: 4px;
+            font-size: 11.5px; color: var(--mj-text-muted);
+        }
+        .mjt-queue-title {
+            margin: 0; font-size: var(--mj-text-sm, 14px);
+            font-weight: var(--mj-font-semibold, 600); color: var(--mj-text-primary); line-height: 1.35;
+        }
+        .mjt-queue-desc {
+            margin: 0; font-size: 12.5px; color: var(--mj-text-secondary); line-height: 1.45;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .mjt-queue-links,
+        .mjt-queue-hooks { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .mjt-queue-link-chip {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 2px 8px; border-radius: var(--mj-radius-sm, 4px);
+            border: 1px solid var(--mj-border-default);
+            background: var(--mj-bg-surface-sunken); color: var(--mj-text-link);
+            font-family: inherit; font-size: 11.5px; cursor: pointer;
+        }
+        .mjt-queue-link-chip:hover { border-color: var(--mj-brand-primary); }
+        .mjt-hook-tag {
+            display: inline-flex; align-items: center; gap: 4px;
+            font-size: 11px; color: var(--mj-text-muted);
+            padding: 1px 6px; border-radius: var(--mj-radius-sm, 4px);
+            background: var(--mj-bg-surface-sunken);
         }
         .mjt-app-detail { display: flex; flex-direction: column; gap: 10px; position: sticky; top: 12px; }
         .mjt-app-detail-bar {
@@ -270,20 +414,47 @@ export class ApprovalsPageComponent implements OnInit {
     public cdr = inject(ChangeDetectorRef);
     private orchestration = new TaskOrchestrationService();
 
+    /**
+     * WCAG 2.1.4 safe keyboard navigation:
+     * - ArrowUp / ArrowDown moves selection through the Decision Queue.
+     * - `A` / `R` prefills the Outcome dropdown in the right-hand commit pane without
+     *   auto-submitting, preventing accidental single-key destructive decisions.
+     */
     @HostListener('window:keydown', ['$event'])
     public onShortcut(event: KeyboardEvent): void {
-        if (this.ActiveTab !== 'pending' || !this.SelectedTaskID || this.Busy) return;
-        const tag = (event.target as HTMLElement | null)?.tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        if (this.ActiveTab !== 'pending' || this.PendingApprovals.length === 0 || this.Busy) return;
+        const target = event.target as HTMLElement | null;
+        const tag = target?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) return;
         if (event.metaKey || event.ctrlKey || event.altKey) return;
 
-        if (event.key.toLowerCase() === 'a') {
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
             event.preventDefault();
-            void this.OnQuickDecision({ TaskID: this.SelectedTaskID, OutcomeCode: 'Approved', Notes: null });
-        } else if (event.key.toLowerCase() === 'r') {
-            event.preventDefault();
-            void this.OnQuickDecision({ TaskID: this.SelectedTaskID, OutcomeCode: 'Rejected', Notes: null });
+            const curIdx = this.PendingApprovals.findIndex((a) => a.ID === this.SelectedTaskID);
+            const delta = event.key === 'ArrowDown' ? 1 : -1;
+            const nextIdx =
+                curIdx < 0
+                    ? 0
+                    : (curIdx + delta + this.PendingApprovals.length) % this.PendingApprovals.length;
+            this.SelectedTaskID = this.PendingApprovals[nextIdx].ID;
+            this.cdr.markForCheck();
+            return;
         }
+
+        if (!this.SelectedTaskID) return;
+        const lower = event.key.toLowerCase();
+        if (lower === 'a') {
+            event.preventDefault();
+            this.decisionPanel?.PrefillOutcome('Approved');
+        } else if (lower === 'r') {
+            event.preventDefault();
+            this.decisionPanel?.PrefillOutcome('Rejected');
+        }
+    }
+
+    public SelectQueueItem(taskID: string): void {
+        this.SelectedTaskID = taskID;
+        this.cdr.markForCheck();
     }
 
     public async ngOnInit(): Promise<void> {

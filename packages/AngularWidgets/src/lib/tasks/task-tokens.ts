@@ -38,28 +38,43 @@ export const TASKS_WIDGET_TOKENS_CSS = `
         border-color: var(--mj-border-default);
     }
     .mjt-pill--brand {
-        background: color-mix(in srgb, var(--mj-brand-primary) 12%, var(--mj-bg-surface));
+        background: color-mix(in oklab, var(--mj-brand-primary) 11%, var(--mj-bg-surface));
         color: var(--mj-brand-primary);
+        border-color: color-mix(in oklab, var(--mj-brand-primary) 26%, var(--mj-border-default));
     }
     .mjt-pill--success {
         background: var(--mj-status-success-bg);
         color: var(--mj-status-success-text);
+        border-color: var(--mj-status-success-border, color-mix(in oklab, var(--mj-status-success) 32%, transparent));
     }
     .mjt-pill--warning {
         background: var(--mj-status-warning-bg);
         color: var(--mj-status-warning-text);
+        border-color: var(--mj-status-warning-border, color-mix(in oklab, var(--mj-status-warning) 35%, transparent));
     }
     .mjt-pill--error {
         background: var(--mj-status-error-bg);
         color: var(--mj-status-error-text);
+        border-color: var(--mj-status-error-border, color-mix(in oklab, var(--mj-status-error) 35%, transparent));
     }
     .mjt-pill--info {
         background: var(--mj-status-info-bg);
         color: var(--mj-status-info-text);
+        border-color: var(--mj-status-info-border, color-mix(in oklab, var(--mj-brand-primary) 28%, transparent));
     }
+    /* Standard MJE brand tokens (no purple) — retained class name for backwards compatibility */
     .mjt-pill--violet {
-        background: color-mix(in srgb, var(--mj-text-violet, #6d28d9) 12%, var(--mj-bg-surface));
-        color: var(--mj-text-violet, #6d28d9);
+        background: color-mix(in oklab, var(--mj-brand-primary) 11%, var(--mj-bg-surface));
+        color: var(--mj-brand-primary);
+        border-color: color-mix(in oklab, var(--mj-brand-primary) 26%, var(--mj-border-default));
+    }
+    .mjt-btn-danger-outline {
+        background: transparent !important;
+        color: var(--mj-status-error-text) !important;
+        border: 1px solid var(--mj-status-error-border, var(--mj-status-error)) !important;
+    }
+    .mjt-btn-danger-outline:hover:not(:disabled) {
+        background: var(--mj-status-error-bg) !important;
     }
     .mjt-record-chip {
         display: inline-flex;

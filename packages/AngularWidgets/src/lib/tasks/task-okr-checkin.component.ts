@@ -60,10 +60,7 @@ import type {
                 <div class="mjt-okr-numbers">
                     <span class="mjt-okr-current mjt-mono">{{ formatMetric(Snapshot.CurrentValue) }}</span>
                     <span class="mjt-okr-target">
-                        of {{ formatMetric(Snapshot.TargetValue) }} target
-                        @if (Snapshot.BaselineValue != null) {
-                            <span class="mjt-okr-base">(baseline {{ formatMetric(Snapshot.BaselineValue) }})</span>
-                        }
+                        {{ targetSummary }}
                     </span>
                     <span class="mjt-okr-pct mjt-mono">{{ Snapshot.PercentComplete }}%</span>
                 </div>
@@ -85,8 +82,9 @@ import type {
                 <div class="mjt-okr-composer">
                     <div class="mjt-okr-grid">
                         <div class="mjt-okr-field">
-                            <label>New value {{ Snapshot.UnitOfMeasure ? '(' + Snapshot.UnitOfMeasure + ')' : '' }}</label>
+                            <label [attr.for]="'mjt-okr-val-' + Snapshot.TaskID">Current metric {{ Snapshot.UnitOfMeasure ? '(' + Snapshot.UnitOfMeasure + ')' : '' }}</label>
                             <input
+                                [id]="'mjt-okr-val-' + Snapshot.TaskID"
                                 type="number"
                                 step="any"
                                 class="mjt-field-input"
@@ -94,8 +92,8 @@ import type {
                                 [disabled]="Busy" />
                         </div>
                         <div class="mjt-okr-field">
-                            <label>Health status</label>
-                            <select class="mjt-field-select" [(ngModel)]="DraftHealth" [disabled]="Busy">
+                            <label [attr.for]="'mjt-okr-health-' + Snapshot.TaskID">Health status</label>
+                            <select [id]="'mjt-okr-health-' + Snapshot.TaskID" class="mjt-field-select" [(ngModel)]="DraftHealth" [disabled]="Busy">
                                 <option value="OnTrack">On Track</option>
                                 <option value="AtRisk">At Risk</option>
                                 <option value="OffTrack">Off Track</option>
@@ -104,8 +102,9 @@ import type {
                             </select>
                         </div>
                         <div class="mjt-okr-field">
-                            <label>Confidence (0–100%)</label>
+                            <label [attr.for]="'mjt-okr-conf-' + Snapshot.TaskID">Confidence (0–100%)</label>
                             <input
+                                [id]="'mjt-okr-conf-' + Snapshot.TaskID"
                                 type="number"
                                 min="0"
                                 max="100"
@@ -115,8 +114,9 @@ import type {
                         </div>
                     </div>
                     <div class="mjt-okr-field">
-                        <label>Check-in summary *</label>
+                        <label [attr.for]="'mjt-okr-sum-' + Snapshot.TaskID">Check-in summary *</label>
                         <textarea
+                            [id]="'mjt-okr-sum-' + Snapshot.TaskID"
                             rows="2"
                             class="mjt-field-textarea"
                             [(ngModel)]="DraftSummary"
@@ -125,12 +125,12 @@ import type {
                     </div>
                     <div class="mjt-okr-grid mjt-okr-grid--2">
                         <div class="mjt-okr-field">
-                            <label>Blockers (optional)</label>
-                            <input type="text" class="mjt-field-input" [(ngModel)]="DraftBlockers" [disabled]="Busy" placeholder="Any risks or dependencies..." />
+                            <label [attr.for]="'mjt-okr-blk-' + Snapshot.TaskID">Blockers (optional)</label>
+                            <input [id]="'mjt-okr-blk-' + Snapshot.TaskID" type="text" class="mjt-field-input" [(ngModel)]="DraftBlockers" [disabled]="Busy" placeholder="Any risks or dependencies..." />
                         </div>
                         <div class="mjt-okr-field">
-                            <label>Next steps (optional)</label>
-                            <input type="text" class="mjt-field-input" [(ngModel)]="DraftNextSteps" [disabled]="Busy" placeholder="Immediate focus for next period..." />
+                            <label [attr.for]="'mjt-okr-nxt-' + Snapshot.TaskID">Next steps (optional)</label>
+                            <input [id]="'mjt-okr-nxt-' + Snapshot.TaskID" type="text" class="mjt-field-input" [(ngModel)]="DraftNextSteps" [disabled]="Busy" placeholder="Immediate focus for next period..." />
                         </div>
                     </div>
                     <div class="mjt-okr-actions">
@@ -164,7 +164,6 @@ import type {
         .mjt-okr-card {
             background: var(--mj-bg-surface);
             border: 1px solid var(--mj-border-default);
-            border-left: 3px solid var(--mj-brand-primary);
             border-radius: var(--mj-radius-md, 8px);
             padding: 14px 16px;
             display: flex;
@@ -290,6 +289,28 @@ export class TaskOkrCheckInComponent implements OnChanges {
             this.DraftHealth = this.Snapshot.HealthStatus ?? 'OnTrack';
             this.DraftConfidence = this.Snapshot.ConfidenceScore ?? 75;
         }
+    }
+
+    public get targetSummary(): string {
+        const s = this.Snapshot;
+        if (!s || s.TargetValue == null) return '';
+        const isLower =
+            s.MetricDirection === 'Decrease' ||
+            (s.BaselineValue != null && s.TargetValue < s.BaselineValue);
+        const op = isLower ? '≤' : '≥';
+        const parts: string[] = [`Target ${op} ${this.formatMetric(s.TargetValue)}`];
+        if (s.BaselineValue != null) {
+            parts.push(`from ${this.formatMetric(s.BaselineValue)} baseline`);
+        }
+        if (s.CurrentValue != null) {
+            const diff = isLower ? s.CurrentValue - s.TargetValue : s.TargetValue - s.CurrentValue;
+            if (diff > 0) {
+                parts.push(`(${this.formatMetric(Number(diff.toFixed(2)))} remaining)`);
+            } else {
+                parts.push('(Target met)');
+            }
+        }
+        return parts.join(' · ');
     }
 
     public formatMetric(val: number | null): string {

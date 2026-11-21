@@ -92,6 +92,7 @@ import type { TaskStatusValue, TaskWidgetItem } from './task-models';
             display: flex;
             flex-direction: column;
             gap: 16px;
+            padding-bottom: 80px;
         }
         .mjt-ms-group {
             display: flex;
@@ -140,7 +141,8 @@ import type { TaskStatusValue, TaskWidgetItem } from './task-models';
             background: var(--mj-bg-surface-hover);
         }
         .mjt-ms-card.is-critical {
-            border-left: 3px solid var(--mj-status-error);
+            border-color: var(--mj-status-error-border, var(--mj-status-error));
+            background: color-mix(in oklab, var(--mj-status-error-bg) 42%, var(--mj-bg-surface));
         }
         .mjt-ms-row {
             display: flex;

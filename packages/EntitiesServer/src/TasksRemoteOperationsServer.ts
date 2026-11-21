@@ -9,6 +9,7 @@ import { RegisterClass } from '@memberjunction/global';
 import {
     TASKS_BULK_UPDATE_OP_KEY,
     TASKS_INSTANTIATE_TEMPLATE_OP_KEY,
+    TASKS_RUN_RECURRING_PLAYBOOKS_OP_KEY,
     TasksBulkUpdateFailure,
     TasksBulkUpdateInput,
     TasksBulkUpdateOperation,
@@ -16,6 +17,10 @@ import {
     TasksInstantiateTemplateInput,
     TasksInstantiateTemplateOperation,
     TasksInstantiateTemplateOutput,
+    TasksRunRecurringPlaybooksInput,
+    TasksRunRecurringPlaybooksOperation,
+    TasksRunRecurringPlaybooksOutput,
+    type RecurringPlaybookOrgResult,
 } from '@mj-biz-apps/tasks-core';
 import {
     mjBizAppsTasksTaskAssignmentEntity,
@@ -634,6 +639,195 @@ export class TasksInstantiateTemplateServerOperation extends TasksInstantiateTem
             CreatedCount: createdTaskIDs.length,
             CreatedTaskIDs: createdTaskIDs,
             OrganizationID: effectiveOrganizationID,
+        };
+    }
+}
+
+const PERIOD_KEY_PATTERN = /^[A-Za-z0-9._-]{1,40}$/;
+
+function buildPeriodMarker(periodKey: string, templateID: string): string {
+    return `[Period:${periodKey}][Template:${templateID.toLowerCase()}]`;
+}
+
+/**
+ * Server-side implementation of `BizAppsTasks.RunRecurringPlaybooks`.
+ *
+ * Idempotently launches a reusable playbook (such as Month-End Financial Close) across
+ * explicit Organization IDs or every active mirrored internal Company
+ * (`Organization.LinkedCompanyID IS NOT NULL`), guaranteeing zero duplicate task runs
+ * for a given `(TemplateID, OrganizationID, PeriodKey)`.
+ */
+@RegisterClass(BaseRemotableOperation, TASKS_RUN_RECURRING_PLAYBOOKS_OP_KEY)
+export class TasksRunRecurringPlaybooksServerOperation extends TasksRunRecurringPlaybooksOperation {
+    protected override async InternalExecute(
+        input: TasksRunRecurringPlaybooksInput,
+        provider: IMetadataProvider,
+        user: UserInfo,
+    ): Promise<TasksRunRecurringPlaybooksOutput> {
+        const templateID = assertUuid(input?.TemplateID ?? '', 'TemplateID');
+        if (!input?.AnchorDate) {
+            throw new Error('AnchorDate is required.');
+        }
+        parseIsoDate(input.AnchorDate, 'AnchorDate');
+
+        const periodKey = (input?.PeriodKey ?? '').trim();
+        if (!PERIOD_KEY_PATTERN.test(periodKey)) {
+            throw new Error(
+                `Invalid PeriodKey '${input?.PeriodKey ?? ''}'. Expected 1–40 alphanumeric/._- characters (e.g., '2026-12' or '2026-Q4').`,
+            );
+        }
+
+        const dryRun = Boolean(input.DryRun);
+        const rv = RunView.FromMetadataProvider(provider);
+
+        // Resolve target organizations
+        const targetOrgs: Array<{ ID: string; Name: string }> = [];
+        const explicitIds = Array.isArray(input.OrganizationIDs)
+            ? input.OrganizationIDs.map((id) => assertUuid(id, 'OrganizationID'))
+            : [];
+
+        if (explicitIds.length > 0) {
+            const seen = new Set<string>();
+            const deduped = explicitIds.filter((id) => {
+                const lower = id.toLowerCase();
+                if (seen.has(lower)) return false;
+                seen.add(lower);
+                return true;
+            });
+            const inClause = deduped.map((id) => `'${id}'`).join(', ');
+            const orgsRes = await rv.RunView<{ ID: string; Name: string }>({
+                EntityName: 'MJ_BizApps_Common: Organizations',
+                ExtraFilter: `ID IN (${inClause})`,
+                Fields: ['ID', 'Name'],
+                OrderBy: 'Name ASC',
+                ResultType: 'simple',
+            }, user);
+            if (!orgsRes.Success) {
+                throw new Error(`Failed loading target Organizations: ${orgsRes.ErrorMessage ?? 'unknown error'}`);
+            }
+            for (const row of orgsRes.Results ?? []) {
+                targetOrgs.push({ ID: row.ID, Name: row.Name });
+            }
+        } else if (input.AllMirroredCompanies !== false) {
+            const orgsRes = await rv.RunView<{ ID: string; Name: string }>({
+                EntityName: 'MJ_BizApps_Common: Organizations',
+                ExtraFilter: "LinkedCompanyID IS NOT NULL AND (Status IS NULL OR Status = 'Active')",
+                Fields: ['ID', 'Name'],
+                OrderBy: 'Name ASC',
+                ResultType: 'simple',
+            }, user);
+            if (!orgsRes.Success) {
+                throw new Error(`Failed loading mirrored Company Organizations: ${orgsRes.ErrorMessage ?? 'unknown error'}`);
+            }
+            for (const row of orgsRes.Results ?? []) {
+                targetOrgs.push({ ID: row.ID, Name: row.Name });
+            }
+        }
+
+        const marker = buildPeriodMarker(periodKey, templateID);
+        const escapedMarker = marker.replace(/'/g, "''");
+        const results: RecurringPlaybookOrgResult[] = [];
+        let launchedCount = 0;
+        let skippedCount = 0;
+        let failedCount = 0;
+        let totalTasksCreated = 0;
+
+        const instantiateRunner = new TasksInstantiateTemplateServerOperation();
+
+        for (const org of targetOrgs) {
+            try {
+                const existingRes = await rv.RunView<{ ID: string }>({
+                    EntityName: 'MJ_BizApps_Tasks: Tasks',
+                    ExtraFilter: `OrganizationID='${org.ID}' AND Description LIKE '%${escapedMarker}%'`,
+                    Fields: ['ID'],
+                    MaxRows: 1,
+                    ResultType: 'simple',
+                }, user);
+
+                if (existingRes.Success && (existingRes.Results?.length ?? 0) > 0) {
+                    skippedCount++;
+                    results.push({
+                        OrganizationID: org.ID,
+                        OrganizationName: org.Name,
+                        Status: 'skipped',
+                        CreatedCount: 0,
+                        CreatedTaskIDs: [],
+                        Reason: `Already instantiated for period '${periodKey}'.`,
+                    });
+                    continue;
+                }
+
+                if (dryRun) {
+                    results.push({
+                        OrganizationID: org.ID,
+                        OrganizationName: org.Name,
+                        Status: 'dry-run',
+                        CreatedCount: 0,
+                        CreatedTaskIDs: [],
+                        Reason: `Would launch template for '${org.Name}' (${periodKey}).`,
+                    });
+                    continue;
+                }
+
+                const instRes = await instantiateRunner['InternalExecute'](
+                    {
+                        TemplateID: templateID,
+                        StartDate: input.AnchorDate,
+                        CategoryID: input.CategoryID ?? null,
+                        OrganizationID: org.ID,
+                        RoleAssignments: input.RoleAssignments ?? [],
+                    },
+                    provider,
+                    user,
+                );
+
+                // Stamp the idempotency marker on the first created root task so re-runs skip cleanly
+                if (instRes.CreatedTaskIDs.length > 0) {
+                    const rootTask = await provider.GetEntityObject<mjBizAppsTasksTaskEntity>(
+                        'MJ_BizApps_Tasks: Tasks',
+                        user,
+                    );
+                    const loaded = await rootTask.InnerLoad(CompositeKey.FromID(instRes.CreatedTaskIDs[0]));
+                    if (loaded) {
+                        const existingDesc = (rootTask.Description ?? '').trim();
+                        rootTask.Description = existingDesc ? `${existingDesc}\n\n${marker}` : marker;
+                        await rootTask.Save();
+                    }
+                }
+
+                launchedCount++;
+                totalTasksCreated += instRes.CreatedCount;
+                results.push({
+                    OrganizationID: org.ID,
+                    OrganizationName: org.Name,
+                    Status: 'created',
+                    CreatedCount: instRes.CreatedCount,
+                    CreatedTaskIDs: instRes.CreatedTaskIDs,
+                });
+            } catch (err) {
+                failedCount++;
+                results.push({
+                    OrganizationID: org.ID,
+                    OrganizationName: org.Name,
+                    Status: 'failed',
+                    CreatedCount: 0,
+                    CreatedTaskIDs: [],
+                    Reason: err instanceof Error ? err.message : String(err),
+                });
+            }
+        }
+
+        return {
+            TemplateID: templateID,
+            PeriodKey: periodKey,
+            AnchorDate: input.AnchorDate,
+            DryRun: dryRun,
+            TargetOrganizations: targetOrgs.length,
+            LaunchedCount: launchedCount,
+            SkippedCount: skippedCount,
+            FailedCount: failedCount,
+            TotalTasksCreated: totalTasksCreated,
+            Results: results,
         };
     }
 }

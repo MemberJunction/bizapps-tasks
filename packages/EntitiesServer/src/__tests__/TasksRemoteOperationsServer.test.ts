@@ -3,6 +3,7 @@ import { BaseEntity, RunView, type IMetadataProvider, type RunViewParams, type R
 import {
     TasksBulkUpdateServerOperation,
     TasksInstantiateTemplateServerOperation,
+    TasksRunRecurringPlaybooksServerOperation,
 } from '../TasksRemoteOperationsServer.js';
 import { TaskEntityServer } from '../TaskEntityServer.js';
 
@@ -751,6 +752,147 @@ describe('TaskEntityServer parent OrganizationID inheritance', () => {
             expect(typeof BaseEntity).toBe('function');
         } finally {
             runViewProtoSpy.mockRestore();
+        }
+    });
+});
+
+describe('TasksRunRecurringPlaybooksServerOperation', () => {
+    it('supports DryRun, launches across mirrored companies, and skips already-launched PeriodKey idempotently', async () => {
+        const savedTasks: MockTaskRecord[] = [];
+        let idCounter = 100;
+
+        const provider = {
+            EntityByName: vi.fn(() => undefined),
+            GetEntityObject: vi.fn(async (entityName: string) => {
+                if (entityName === 'MJ_BizApps_Tasks: Task Templates') {
+                    return {
+                        ID: TEMPLATE_1,
+                        Name: 'Month-End Financial Close',
+                        TypeID: TYPE_1,
+                        CategoryID: CAT_1,
+                        OrganizationID: null,
+                        InnerLoad: async () => true,
+                    };
+                }
+                const rec = makeMockTask(`00000000-0000-4000-8000-000000000${++idCounter}`, {
+                    DueAt: null,
+                    StartedAt: null,
+                });
+                rec.InnerLoad = async (key?: { KeyValuePairs?: Array<{ Value?: string }> }) => {
+                    const targetId = key?.KeyValuePairs?.[0]?.Value;
+                    const found = targetId ? savedTasks.find((t) => t.ID === targetId) : undefined;
+                    if (found) {
+                        Object.assign(rec, { ID: found.ID, Description: found.Description, OrganizationID: found.OrganizationID });
+                    }
+                    return true;
+                };
+                rec.Save = async () => {
+                    const existingIdx = savedTasks.findIndex((t) => t.ID === rec.ID);
+                    if (existingIdx >= 0) savedTasks[existingIdx] = rec;
+                    else savedTasks.push(rec);
+                    return true;
+                };
+                return rec;
+            }),
+        } as unknown as IMetadataProvider;
+
+        const runViewSpy = vi.spyOn(RunView, 'FromMetadataProvider').mockReturnValue({
+            RunView: vi.fn(async (params: RunViewParams) => {
+                if (params.EntityName === 'MJ_BizApps_Common: Organizations') {
+                    return {
+                        Success: true,
+                        Results: [
+                            { ID: ORG_1, Name: 'Acme US Operating Co' },
+                            { ID: ORG_2, Name: 'Acme UK Ltd' },
+                        ],
+                    } as unknown as RunViewResult;
+                }
+                if (params.EntityName === 'MJ_BizApps_Tasks: Tasks') {
+                    const filter = params.ExtraFilter ?? '';
+                    // Simulate ORG_2 already having a launched close for 2026-12
+                    if (filter.includes(ORG_2)) {
+                        return {
+                            Success: true,
+                            Results: [{ ID: TASK_2 }],
+                        } as unknown as RunViewResult;
+                    }
+                    return { Success: true, Results: [] } as unknown as RunViewResult;
+                }
+                if (params.EntityName === 'MJ_BizApps_Tasks: Task Template Items') {
+                    return {
+                        Success: true,
+                        Results: [
+                            {
+                                ID: ITEM_PARENT,
+                                Name: 'Reconcile Bank Accounts',
+                                Description: 'Match statements to GL',
+                                ParentItemID: null,
+                                Priority: 'High',
+                                DaysFromStart: 2,
+                                HoursEstimated: 4,
+                                Sequence: 10,
+                            },
+                        ],
+                    } as unknown as RunViewResult;
+                }
+                return { Success: true, Results: [] } as unknown as RunViewResult;
+            }),
+        } as unknown as RunView);
+
+        try {
+            const op = new TasksRunRecurringPlaybooksServerOperation();
+
+            // 1. DryRun inspects both mirrored companies without creating rows
+            const dry = await op.ExecuteServer(
+                {
+                    TemplateID: TEMPLATE_1,
+                    AnchorDate: '2026-12-01',
+                    PeriodKey: '2026-12',
+                    AllMirroredCompanies: true,
+                    DryRun: true,
+                },
+                { provider, user: TEST_USER, emitProgress: () => {} },
+            );
+            expect(dry.Success).toBe(true);
+            expect(dry.Output?.TargetOrganizations).toBe(2);
+            expect(dry.Output?.SkippedCount).toBe(1);
+            expect(dry.Output?.LaunchedCount).toBe(0);
+            expect(dry.Output?.Results.find((r) => r.OrganizationID === ORG_1)?.Status).toBe('dry-run');
+            expect(dry.Output?.Results.find((r) => r.OrganizationID === ORG_2)?.Status).toBe('skipped');
+            expect(savedTasks).toHaveLength(0);
+
+            // 2. Live run launches ORG_1 with idempotency marker and skips ORG_2
+            const live = await op.ExecuteServer(
+                {
+                    TemplateID: TEMPLATE_1,
+                    AnchorDate: '2026-12-01',
+                    PeriodKey: '2026-12',
+                    AllMirroredCompanies: true,
+                    DryRun: false,
+                },
+                { provider, user: TEST_USER, emitProgress: () => {} },
+            );
+            expect(live.Success).toBe(true);
+            expect(live.Output?.LaunchedCount).toBe(1);
+            expect(live.Output?.SkippedCount).toBe(1);
+            expect(live.Output?.TotalTasksCreated).toBe(1);
+            expect(savedTasks[0].OrganizationID).toBe(ORG_1);
+            expect(savedTasks[0].Description).toContain('[Period:2026-12]');
+            expect(savedTasks[0].Description).toContain(`[Template:${TEMPLATE_1}]`);
+
+            // 3. Rejects missing PeriodKey
+            const invalid = await op.ExecuteServer(
+                {
+                    TemplateID: TEMPLATE_1,
+                    AnchorDate: '2026-12-01',
+                    PeriodKey: '   ',
+                },
+                { provider, user: TEST_USER, emitProgress: () => {} },
+            );
+            expect(invalid.Success).toBe(false);
+            expect(invalid.ErrorMessage).toMatch(/PeriodKey/i);
+        } finally {
+            runViewSpy.mockRestore();
         }
     });
 });

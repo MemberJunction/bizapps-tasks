@@ -22,7 +22,7 @@ import type { TaskApprovalActionEvent, TaskWidgetItem, TaskWidgetLinkedRecord } 
             <div class="mjt-app-top">
                 <div class="mjt-app-main" (click)="TaskClicked.emit(Task.ID)">
                     <div class="mjt-app-title-row">
-                        <span class="mjt-pill mjt-pill--violet">
+                        <span class="mjt-pill mjt-pill--brand">
                             <i class="fa-solid fa-stamp" aria-hidden="true"></i> Approval
                         </span>
                         <h4 class="mjt-app-title">{{ Task.Name }}</h4>
@@ -85,8 +85,9 @@ import type { TaskApprovalActionEvent, TaskWidgetItem, TaskWidgetLinkedRecord } 
                         <button
                             type="button"
                             mjButton
-                            variant="danger"
+                            variant="outline"
                             size="sm"
+                            class="mjt-btn-danger-outline"
                             [disabled]="Busy"
                             (click)="decide('Rejected', ConditionNote.trim() || null)">
                             <i class="fa-solid fa-xmark" aria-hidden="true"></i>
@@ -98,8 +99,9 @@ import type { TaskApprovalActionEvent, TaskWidgetItem, TaskWidgetLinkedRecord } 
 
             @if (ShowConditionComposer && !ReadOnly) {
                 <div class="mjt-cond-box">
-                    <label class="mjt-cond-label">Conditions / rationale</label>
+                    <label class="mjt-cond-label" [attr.for]="'mjt-cond-' + Task.ID">Conditions or rationale</label>
                     <textarea
+                        [id]="'mjt-cond-' + Task.ID"
                         rows="2"
                         class="mjt-field-textarea"
                         [(ngModel)]="ConditionNote"
@@ -134,9 +136,8 @@ import type { TaskApprovalActionEvent, TaskWidgetItem, TaskWidgetLinkedRecord } 
         TASKS_WIDGET_TOKENS_CSS,
         `
         .mjt-app-card {
-            background: var(--mj-bg-surface);
-            border: 1px solid var(--mj-border-default);
-            border-left: 3px solid var(--mj-text-violet, #7c3aed);
+            background: color-mix(in oklab, var(--mj-brand-primary) 4%, var(--mj-bg-surface));
+            border: 1px solid color-mix(in oklab, var(--mj-brand-primary) 26%, var(--mj-border-default));
             border-radius: var(--mj-radius-md, 8px);
             padding: 12px 14px;
             display: flex;
@@ -145,8 +146,7 @@ import type { TaskApprovalActionEvent, TaskWidgetItem, TaskWidgetLinkedRecord } 
             transition: border-color 140ms ease, box-shadow 140ms ease;
         }
         .mjt-app-card:hover {
-            border-color: var(--mj-border-strong);
-            border-left-color: var(--mj-text-violet, #7c3aed);
+            border-color: color-mix(in oklab, var(--mj-brand-primary) 48%, var(--mj-border-strong));
             box-shadow: var(--mj-shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.05));
         }
         .mjt-app-card.is-compact {

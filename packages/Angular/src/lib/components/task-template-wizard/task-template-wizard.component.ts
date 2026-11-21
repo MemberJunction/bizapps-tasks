@@ -84,7 +84,7 @@ interface PersonOption {
         <div class="mjt-tpl-launcher">
             <div class="mjt-tpl-scroll">
                 <div class="mjt-tpl-field">
-                    <label>Playbook Template *</label>
+                    <label for="mjtTplSelect">Playbook template <span class="mjt-req" aria-hidden="true">*</span></label>
                     @if (templates.length === 0 && !loadingTemplates) {
                         <mj-empty-state
                             Icon="fa-solid fa-copy"
@@ -93,7 +93,7 @@ interface PersonOption {
                             Size="compact">
                         </mj-empty-state>
                     } @else {
-                        <select class="mjt-tpl-input" [(ngModel)]="selectedTemplateID" (ngModelChange)="onTemplateChanged()">
+                        <select id="mjtTplSelect" class="mjt-tpl-input" [(ngModel)]="selectedTemplateID" (ngModelChange)="onTemplateChanged()">
                             <option [ngValue]="null">Choose a template...</option>
                             @for (t of templates; track t.ID) {
                                 <option [value]="t.ID">{{ t.Name }}</option>
@@ -108,16 +108,17 @@ interface PersonOption {
                 @if (selectedTemplateID) {
                     <div class="mjt-tpl-grid">
                         <div class="mjt-tpl-field">
-                            <label>Kickoff Start Date</label>
+                            <label for="mjtTplStart">Kickoff start date</label>
                             <input
+                                id="mjtTplStart"
                                 type="date"
                                 class="mjt-tpl-input"
                                 [(ngModel)]="startDateStr"
                                 (ngModelChange)="recomputePreviewDates()" />
                         </div>
                         <div class="mjt-tpl-field">
-                            <label>Category</label>
-                            <select class="mjt-tpl-input" [(ngModel)]="categoryID">
+                            <label for="mjtTplCategory">Category</label>
+                            <select id="mjtTplCategory" class="mjt-tpl-input" [(ngModel)]="categoryID">
                                 <option [ngValue]="null">None</option>
                                 @for (cat of categories; track cat.ID) {
                                     <option [value]="cat.ID">{{ cat.Name }}</option>
@@ -128,8 +129,8 @@ interface PersonOption {
 
                     @if (organizations.length > 0) {
                         <div class="mjt-tpl-field">
-                            <label>Organization / Company Scope</label>
-                            <select class="mjt-tpl-input" [(ngModel)]="organizationID">
+                            <label for="mjtTplOrg">Organization / Company scope</label>
+                            <select id="mjtTplOrg" class="mjt-tpl-input" [(ngModel)]="organizationID">
                                 <option [ngValue]="null">None (Global / Unscoped)</option>
                                 @for (org of organizations; track org.ID) {
                                     <option [value]="org.ID">{{ org.LinkedCompanyID ? '★ ' + org.Name + ' (Company)' : org.Name }}</option>
@@ -140,11 +141,11 @@ interface PersonOption {
 
                     @if (rolePlaceholders.length > 0) {
                         <div class="mjt-tpl-section">
-                            <span class="mjt-tpl-section-label">Role Assignments</span>
+                            <span class="mjt-tpl-section-label">Role assignments</span>
                             @for (rp of rolePlaceholders; track rp.RoleID) {
                                 <div class="mjt-role-row">
-                                    <span class="mjt-role-name">{{ rp.RoleName }}</span>
-                                    <select class="mjt-tpl-input" [(ngModel)]="rp.AssigneeChoice">
+                                    <label class="mjt-role-name" [attr.for]="'mjtTplRole-' + rp.RoleID">{{ rp.RoleName }}</label>
+                                    <select [id]="'mjtTplRole-' + rp.RoleID" class="mjt-tpl-input" [(ngModel)]="rp.AssigneeChoice">
                                         <option value="">Unassigned (assign later)</option>
                                         <optgroup label="People">
                                             @for (p of people; track p.ID) {
@@ -258,12 +259,11 @@ interface PersonOption {
         }
         .mjt-tpl-field label,
         .mjt-tpl-section-label {
-            font-size: 11.5px;
-            font-weight: var(--mj-font-bold, 700);
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
+            font-size: 12px;
+            font-weight: var(--mj-font-semibold, 600);
             color: var(--mj-text-secondary);
         }
+        .mjt-req { color: var(--mj-status-error-text); }
         .mjt-tpl-input {
             width: 100%;
             padding: 7px 10px;
