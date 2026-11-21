@@ -18,6 +18,7 @@ import type {
     mjBizAppsTasksTaskEntity,
     mjBizAppsTasksTaskLinkEntity,
 } from '@mj-biz-apps/tasks-entities';
+import { ResolveDefaultGenericTaskTypeID } from '../../task-type-filter.helper';
 import {
     ConnectedTasksWidgetComponent,
     type TaskApprovalActionEvent,
@@ -226,14 +227,7 @@ export class ConnectedTasksHostComponent implements OnInit, OnChanges {
         this.cdr.markForCheck();
         try {
             const rv = new RunView();
-            const typeRes = await rv.RunView<{ ID: string }>({
-                EntityName: 'MJ_BizApps_Tasks: Task Types',
-                ExtraFilter: `Code = 'GENERAL'`,
-                Fields: ['ID'],
-                MaxRows: 1,
-                ResultType: 'simple',
-            });
-            const defaultTypeId = typeRes.Results?.[0]?.ID;
+            const defaultTypeId = await ResolveDefaultGenericTaskTypeID(rv);
             if (!defaultTypeId) return;
 
             const task = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');

@@ -44,6 +44,7 @@ import type {
     mjBizAppsTasksTaskTagEntity,
     mjBizAppsTasksTaskTagLinkEntity,
 } from '@mj-biz-apps/tasks-entities';
+import { ResolveDefaultGenericTaskTypeID } from '../task-type-filter.helper';
 import {
     TaskApprovalCardComponent,
     TaskCommandPaletteComponent,
@@ -825,15 +826,7 @@ export class MyTasksPageComponent implements OnInit {
         this.Busy = true;
         this.cdr.markForCheck();
         try {
-            const typeRes = await new RunView().RunView<{ ID: string }>({
-                EntityName: 'MJ_BizApps_Tasks: Task Types',
-                ExtraFilter: 'IsActive = 1',
-                OrderBy: "CASE WHEN Code = 'GENERAL' THEN 0 ELSE 1 END, Name ASC",
-                Fields: ['ID'],
-                MaxRows: 1,
-                ResultType: 'simple',
-            });
-            const typeID = typeRes?.Results?.[0]?.ID;
+            const typeID = await ResolveDefaultGenericTaskTypeID(new RunView());
             if (!typeID) return;
 
             const task = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');

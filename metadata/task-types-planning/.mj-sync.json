@@ -1,0 +1,11 @@
+{
+  "entity": "MJ_BizApps_Tasks: Task Types",
+  "pushWhen": "@env:MJ_BIZAPPS_PLANNING_INSTALLED",
+  "filePattern": "**/.*.json",
+  "pull": {
+    "createNewFileIfNotFound": false,
+    "updateExistingRecords": true,
+    "ignoreNullFields": true,
+    "ignoreVirtualFields": true
+  }
+}

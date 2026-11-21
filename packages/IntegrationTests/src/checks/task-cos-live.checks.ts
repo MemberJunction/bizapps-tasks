@@ -21,10 +21,14 @@ import type {
 import { ActionEngineServer } from '@memberjunction/actions';
 import { AgentRunner } from '@memberjunction/ai-agents';
 import {
-    AgentUserPolicyEngine,
     type ExecuteAgentParams,
     type MJAIAgentEntityExtended,
 } from '@memberjunction/ai-core-plus';
+import {
+    ClearPolicyCacheCompat,
+    GetAgentUserPolicyEngineCompat,
+    SetCachedPolicyCompat,
+} from '@mj-biz-apps/tasks-entities-server';
 import { AIEngine } from '@memberjunction/aiengine';
 import { EscapeSQLString, IsValidUUID, UUIDsEqual } from '@memberjunction/global';
 import { SkipCheck, verifyAgentRun } from '@memberjunction/testing-integration';
@@ -622,7 +626,7 @@ const checks: NamedCheck[] = [
             const trackedRunIds: string[] = [];
             const forbiddenTitle = 'Unauthorized Live CoS Write Test';
 
-            const engine = AgentUserPolicyEngine.Instance;
+            const engine = GetAgentUserPolicyEngineCompat();
             let policyCreatedByTest = false;
             let policyId: string | null = null;
             let priorStatus: MJAIAgentUserPolicyEntity['Status'] | null = null;
@@ -658,10 +662,10 @@ const checks: NamedCheck[] = [
                 ]);
                 await RequireSave(policy, 'TCOSL4 ReadOnly Tasks entity rule policy');
                 policyId = policy.ID;
-                engine.ClearCache(agent.ID, sarahUser.ID);
-                engine.ClearCache(agent.ID, sarahUser.ID, ctx.Provider);
-                engine.SetCachedPolicy(policy);
-                engine.SetCachedPolicy(policy, ctx.Provider);
+                ClearPolicyCacheCompat(engine, agent.ID, sarahUser.ID);
+                ClearPolicyCacheCompat(engine, agent.ID, sarahUser.ID, ctx.Provider);
+                SetCachedPolicyCompat(engine, policy);
+                SetCachedPolicyCompat(engine, policy, ctx.Provider);
 
                 const run = await runLiveChiefOfStaffTurn(
                     ctx,
@@ -696,8 +700,8 @@ const checks: NamedCheck[] = [
                     );
                 }
             } finally {
-                engine.ClearCache(agent.ID, sarahUser.ID);
-                engine.ClearCache(agent.ID, sarahUser.ID, ctx.Provider);
+                ClearPolicyCacheCompat(engine, agent.ID, sarahUser.ID);
+                ClearPolicyCacheCompat(engine, agent.ID, sarahUser.ID, ctx.Provider);
                 if (policyCreatedByTest && policyId) {
                     await deleteEntityById(ctx, AI_AGENT_USER_POLICY_ENTITY, policyId);
                 } else if (policyId && priorStatus !== null && priorDefaultMode !== null) {

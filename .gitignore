@@ -4,6 +4,8 @@ build/
 *.js.map
 *.d.ts.map
 .turbo/
+*.tsbuildinfo
+.DS_Store
 .angular/
 .cache/
 .claude/

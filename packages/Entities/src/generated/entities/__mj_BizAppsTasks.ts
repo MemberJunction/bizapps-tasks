@@ -3470,7 +3470,7 @@ export class mjBizAppsTasksTaskCategoryEntity extends BaseEntity<mjBizAppsTasksT
  * * Schema: __mj_BizAppsTasks
  * * Base Table: TaskCheckIn
  * * Base View: vwTaskCheckIns
- * * @description Structured periodic progress check-ins for tasks, priorities, and OKRs, authored by users or AI agents such as Chief of Staff.
+ * * @description Structured periodic progress check-ins for tasks and measurable deliverables, authored by users or AI agents.
  * * Primary Key: ID
  * @extends {BaseEntity}
  * @class
@@ -3564,7 +3564,7 @@ export class mjBizAppsTasksTaskCheckInEntity extends BaseEntity<mjBizAppsTasksTa
     * * Display Name: Task
     * * SQL Data Type: uniqueidentifier
     * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
-    * * Description: The task, priority objective, or key result this check-in updates.
+    * * Description: The measurable task or deliverable this check-in updates.
     */
     get TaskID(): string {
         return this.Get('TaskID');
@@ -7070,7 +7070,7 @@ export class mjBizAppsTasksTaskTypeEntity extends BaseEntity<mjBizAppsTasksTaskT
     * * Field Name: ExtensionEntity
     * * Display Name: Extension Entity
     * * SQL Data Type: nvarchar(255)
-    * * Description: Optional MemberJunction Entity name (e.g. MJ_BizApps_Tasks_GitHub: GitHub Issue Tasks) of the disjoint IS-A child of MJ_BizApps_Tasks: Tasks provisioned for tasks of this type. Read declaratively by Task SubtypeSelector (TypeID.ExtensionEntity).
+    * * Description: Optional MemberJunction Entity name (e.g. MJ_BizApps_Tasks_GitHub: Git Hub Issue Tasks, MJ_BizApps_Planning: Priority Tasks) of the disjoint IS-A child of MJ_BizApps_Tasks: Tasks provisioned for tasks of this type. Read declaratively by Task SubtypeSelector (TypeID.ExtensionEntity).
     */
     get ExtensionEntity(): string | null {
         return this.Get('ExtensionEntity');
@@ -7297,10 +7297,11 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
   /**
   * Related records: MJ_BizApps_Tasks: Task Check Ins
   *
-  * Loads, validates and persists as one unit with this MJ_BizApps_Tasks: Tasks record — see
-  * guides/TRANSACTIONS_AND_BATCHING_GUIDE.md. Declared by the RelatedRecordCollection metadata on
-  * the 'MJ_BizApps_Tasks: Tasks → MJ_BizApps_Tasks: Task Check Ins' relationship; edit that row, not this file.
-  *
+  * Structured periodic progress check-ins recorded for generic measurable tasks and deliverables,
+  * ordered newest-first by CheckInAt. Loads, validates and persists as one unit with this
+  * MJ_BizApps_Tasks: Tasks record — see guides/TRANSACTIONS_AND_BATCHING_GUIDE.md. Declared by the
+  * RelatedRecordCollection metadata on the 'MJ_BizApps_Tasks: Tasks → MJ_BizApps_Tasks: Task Check Ins'
+  * relationship; edit that row, not this file.
   */
   public readonly CheckIns = this.DeclareRelatedRecords<mjBizAppsTasksTaskCheckInEntity>({
       Name: 'CheckIns',
@@ -7777,7 +7778,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     *   * OffTrack
     *   * OnTrack
     *   * Paused
-    * * Description: Qualitative health status for priority/OKR tracking: OnTrack, AtRisk, OffTrack, Completed, or Paused.
+    * * Description: Qualitative health status for measurable or tracked tasks: OnTrack, AtRisk, OffTrack, Completed, or Paused.
     */
     get HealthStatus(): 'AtRisk' | 'Completed' | 'OffTrack' | 'OnTrack' | 'Paused' | null {
         return this.Get('HealthStatus');
@@ -7790,7 +7791,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     * * Field Name: ConfidenceScore
     * * Display Name: Confidence Score
     * * SQL Data Type: int
-    * * Description: Owner confidence score (0-100) that this task, key result, or objective will hit its target on time.
+    * * Description: Owner confidence score (0-100) that this task will achieve its target or deliverable on time.
     */
     get ConfidenceScore(): number | null {
         return this.Get('ConfidenceScore');
@@ -7803,7 +7804,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     * * Field Name: BaselineValue
     * * Display Name: Baseline Value
     * * SQL Data Type: decimal(18, 4)
-    * * Description: Starting baseline value for measurable key results or quantitative deliverables.
+    * * Description: Starting baseline value for a measurable task or quantitative deliverable.
     */
     get BaselineValue(): number | null {
         return this.Get('BaselineValue');
@@ -7816,7 +7817,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     * * Field Name: TargetValue
     * * Display Name: Target Value
     * * SQL Data Type: decimal(18, 4)
-    * * Description: Target goal value for measurable key results or quantitative deliverables.
+    * * Description: Target goal value for a measurable task or quantitative deliverable.
     */
     get TargetValue(): number | null {
         return this.Get('TargetValue');
@@ -7829,7 +7830,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     * * Field Name: CurrentValue
     * * Display Name: Current Value
     * * SQL Data Type: decimal(18, 4)
-    * * Description: Latest actual measured value for this key result or deliverable, updated automatically by TaskCheckIn records.
+    * * Description: Latest actual measured value for a measurable task or deliverable, updated automatically by TaskCheckIn records.
     */
     get CurrentValue(): number | null {
         return this.Get('CurrentValue');
@@ -7842,7 +7843,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     * * Field Name: UnitOfMeasure
     * * Display Name: Unit of Measure
     * * SQL Data Type: nvarchar(50)
-    * * Description: Unit of measure for BaselineValue, TargetValue, and CurrentValue (e.g., %, USD, Days, Customers, NPS).
+    * * Description: Unit of measure for BaselineValue, TargetValue, and CurrentValue on measurable tasks (e.g., %, USD, Hours, Days, Items, NPS).
     */
     get UnitOfMeasure(): string | null {
         return this.Get('UnitOfMeasure');
@@ -7860,7 +7861,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     *   * Decrease
     *   * Increase
     *   * Maintain
-    * * Description: Direction of improvement for quantitative metrics: Increase, Decrease, or Maintain.
+    * * Description: Direction of improvement for quantitative task metrics: Increase, Decrease, or Maintain.
     */
     get MetricDirection(): 'Decrease' | 'Increase' | 'Maintain' | null {
         return this.Get('MetricDirection');
@@ -7874,7 +7875,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     * * Display Name: Rollup Weight
     * * SQL Data Type: decimal(8, 2)
     * * Default Value: 1.00
-    * * Description: Relative weight (default 1.00) when rolling up child task or key result progress into a parent objective.
+    * * Description: Relative weight (default 1.00) when rolling up child task progress, health, and confidence into a parent task.
     */
     get RollupWeight(): number {
         return this.Get('RollupWeight');
@@ -7887,7 +7888,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     * * Field Name: PlanningPeriod
     * * Display Name: Planning Period
     * * SQL Data Type: nvarchar(50)
-    * * Description: Planning horizon or OKR cycle identifier (e.g., 2026-Q4, FY2027, H1-2026).
+    * * Description: Tracking period or cycle identifier for scheduled or measurable tasks (e.g., 2026-Q4, FY2027, H1-2026).
     */
     get PlanningPeriod(): string | null {
         return this.Get('PlanningPeriod');
@@ -7908,7 +7909,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     *   * None
     *   * Quarterly
     *   * Weekly
-    * * Description: Expected progress check-in frequency: Daily, Weekly, BiWeekly, Monthly, Quarterly, or None.
+    * * Description: Expected progress check-in frequency for this task: Daily, Weekly, BiWeekly, Monthly, Quarterly, or None.
     */
     get CheckInCadence(): 'BiWeekly' | 'Daily' | 'Monthly' | 'None' | 'Quarterly' | 'Weekly' | null {
         return this.Get('CheckInCadence');
@@ -7921,7 +7922,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     * * Field Name: LastCheckInAt
     * * Display Name: Last Check-In At
     * * SQL Data Type: datetimeoffset
-    * * Description: Timestamp when the most recent TaskCheckIn was recorded for this task.
+    * * Description: Timestamp when the most recent Task Check In progress update was recorded for this task.
     */
     get LastCheckInAt(): Date | null {
         return this.Get('LastCheckInAt');
@@ -7934,7 +7935,7 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     * * Field Name: NextCheckInDueAt
     * * Display Name: Next Check-In Due At
     * * SQL Data Type: datetimeoffset
-    * * Description: Timestamp when the next progress check-in is due based on CheckInCadence; used by Chief of Staff to nudge owners.
+    * * Description: Timestamp when the next progress check-in is due based on CheckInCadence; used for scheduled check-in reminders.
     */
     get NextCheckInDueAt(): Date | null {
         return this.Get('NextCheckInDueAt');
