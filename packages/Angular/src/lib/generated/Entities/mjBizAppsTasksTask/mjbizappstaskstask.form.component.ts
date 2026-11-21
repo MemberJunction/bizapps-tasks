@@ -35,12 +35,12 @@ export class mjBizAppsTasksTaskFormComponent extends BaseFormComponent {
             { sectionKey: 'mJBizAppsTasksTaskNotificationLogs', sectionName: 'Task Notification Logs', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskDecisions', sectionName: 'Task Decisions', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskCheckIns', sectionName: 'Task Check Ins', isExpanded: false },
-            { sectionKey: 'mJBizAppsTasksWorkReportItems', sectionName: 'Work Report Items', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskAgentRuns', sectionName: 'Task Agent Runs', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskTimers', sectionName: 'Task Timers', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTimesheetApprovalsScopeTaskID', sectionName: 'Timesheet Approvals (Scope Task ID)', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTimesheetApprovalsApprovalTaskID', sectionName: 'Timesheet Approvals (Approval Task ID)', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskTimeEntries', sectionName: 'Task Time Entries', isExpanded: false },
+            { sectionKey: 'mJBizAppsTasksWorkReportItems', sectionName: 'Work Report Items', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTimeApprovers', sectionName: 'Time Approvers', isExpanded: false }
         ]);
     }

@@ -34,6 +34,7 @@ const ALL_BUNDLES = [
     'time-reporting',
     'timesheets',
     'meetings',
+    'task-org-bulk-ops',
 ];
 
 const args = process.argv.slice(2);

@@ -130,5 +130,71 @@
     "primaryKey": {
       "ID": "A1B2C3D4-5555-4A55-8555-555555555506"
     }
+  },
+  {
+    "fields": {
+      "Name": "Bulk Update Tasks",
+      "OperationKey": "BizAppsTasks.BulkUpdateTasks",
+      "CategoryID": "@lookup:MJ: Remote Operation Categories.Name=Tasks and Playbooks",
+      "Description": "Performs server-side Asana-grade bulk mutations on up to 500 tasks (reassign, set or shift due/start dates, update status, priority, organization/company scope, category, task type/stage, or attach a tag) through BaseEntity save pipelines with per-task partial-failure reporting.",
+      "InputTypeName": "TasksBulkUpdateInput",
+      "InputTypeDefinition": "@file:types/bizapps-tasks-bulk-update.input.ts",
+      "InputTypeIsArray": false,
+      "OutputTypeName": "TasksBulkUpdateOutput",
+      "OutputTypeDefinition": "@file:types/bizapps-tasks-bulk-update.output.ts",
+      "OutputTypeIsArray": false,
+      "ExecutionMode": "Sync",
+      "RequiresSystemUser": false,
+      "GenerationType": "Manual",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "B7E41C20-9A1F-4D83-8C5A-1F2E3D4C5B01"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Instantiate Template",
+      "OperationKey": "BizAppsTasks.InstantiateTemplate",
+      "CategoryID": "@lookup:MJ: Remote Operation Categories.Name=Tasks and Playbooks",
+      "Description": "Instantiates a Task Template playbook on the server with relative due-date offsets from StartDate, parent/child hierarchy, TaskDependency wiring, role placeholder assignments, and optional target Organization/Company scoping.",
+      "InputTypeName": "TasksInstantiateTemplateInput",
+      "InputTypeDefinition": "@file:types/bizapps-tasks-instantiate-template.input.ts",
+      "InputTypeIsArray": false,
+      "OutputTypeName": "TasksInstantiateTemplateOutput",
+      "OutputTypeDefinition": "@file:types/bizapps-tasks-instantiate-template.output.ts",
+      "OutputTypeIsArray": false,
+      "ExecutionMode": "Sync",
+      "RequiresSystemUser": false,
+      "GenerationType": "Manual",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "B7E41C20-9A1F-4D83-8C5A-1F2E3D4C5B02"
+    }
+  },
+  {
+    "fields": {
+      "Name": "Run Recurring Playbooks",
+      "OperationKey": "BizAppsTasks.RunRecurringPlaybooks",
+      "CategoryID": "@lookup:MJ: Remote Operation Categories.Name=Tasks and Playbooks",
+      "Description": "Idempotently instantiates a recurring Task Template playbook (such as Month-End or Quarter-End Financial Close) across explicit Organizations or every active mirrored internal Company (Organization.LinkedCompanyID IS NOT NULL) using a PeriodKey marker to prevent duplicate launches.",
+      "InputTypeName": "TasksRunRecurringPlaybooksInput",
+      "InputTypeDefinition": "@file:types/bizapps-tasks-run-recurring-playbooks.input.ts",
+      "InputTypeIsArray": false,
+      "OutputTypeName": "TasksRunRecurringPlaybooksOutput",
+      "OutputTypeDefinition": "@file:types/bizapps-tasks-run-recurring-playbooks.output.ts",
+      "OutputTypeIsArray": false,
+      "ExecutionMode": "Sync",
+      "RequiresSystemUser": false,
+      "GenerationType": "Manual",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "B7E41C20-9A1F-4D83-8C5A-1F2E3D4C5B03"
+    }
   }
 ]

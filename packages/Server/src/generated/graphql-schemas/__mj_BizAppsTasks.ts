@@ -294,12 +294,28 @@ export class mjBizAppsTasksMeetingAgendaItem_ {
     Type?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(201)
+    @MaxLength(250)
     PresenterPerson?: string;
         
     @Field({nullable: true}) 
     @MaxLength(255)
     DeferredToMeeting?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(36)
+    RootParentID?: string;
+        
+    @Field(() => Int, {nullable: true}) 
+    ParentIDDepth?: number;
+        
+    @Field({nullable: true}) 
+    ParentIDPath?: string;
+        
+    @Field(() => Boolean, {nullable: true}) 
+    ParentIDIsLeaf?: boolean;
+        
+    @Field(() => Int, {nullable: true}) 
+    ParentIDChildCount?: number;
         
     @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
     ReadableFields___?: string[];
@@ -563,7 +579,7 @@ export class mjBizAppsTasksMeetingAttendee_ {
     Meeting?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(201)
+    @MaxLength(250)
     Person?: string;
         
     @Field({nullable: true}) 
@@ -1019,7 +1035,7 @@ export class mjBizAppsTasksMeetingNote_ {
     AgendaItem?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(201)
+    @MaxLength(250)
     AuthorPerson?: string;
         
     @Field({nullable: true}) 
@@ -1281,7 +1297,7 @@ export class mjBizAppsTasksMeetingSeries_ {
     Type?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(201)
+    @MaxLength(250)
     OrganizerPerson?: string;
         
     @Field({nullable: true}) 
@@ -1289,7 +1305,7 @@ export class mjBizAppsTasksMeetingSeries_ {
     VideoProvider?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(201)
+    @MaxLength(250)
     CreatedByPerson?: string;
         
     @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
@@ -1545,7 +1561,7 @@ export class mjBizAppsTasksMeetingSeriesAttendee_ {
     Series?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(201)
+    @MaxLength(250)
     Person?: string;
         
     @Field({nullable: true}) 
@@ -2081,7 +2097,7 @@ export class mjBizAppsTasksMeeting_ {
     VideoProvider?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(201)
+    @MaxLength(250)
     OrganizerPerson?: string;
         
     @Field({nullable: true}) 
@@ -2089,7 +2105,7 @@ export class mjBizAppsTasksMeeting_ {
     TranscriptFile?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(201)
+    @MaxLength(250)
     CreatedByPerson?: string;
         
     @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
@@ -2398,7 +2414,7 @@ export class mjBizAppsTasksTaskActivity_ {
     Task?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(201)
+    @MaxLength(250)
     Person?: string;
         
     @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
@@ -2796,7 +2812,7 @@ export class mjBizAppsTasksTaskAssignment_ {
     Role?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(201)
+    @MaxLength(250)
     AssignedByPerson?: string;
         
     @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
@@ -3002,9 +3018,17 @@ export class mjBizAppsTasksTaskCategory_ {
     @Field() 
     _mj__UpdatedAt: Date;
         
+    @Field({nullable: true, description: "Optional scoping Organization for this category. NULL indicates a shared/global category available across all organizations."}) 
+    @MaxLength(36)
+    OrganizationID?: string;
+        
     @Field({nullable: true}) 
     @MaxLength(255)
     Parent?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    Organization?: string;
         
     @Field({nullable: true}) 
     @MaxLength(36)
@@ -3053,6 +3077,9 @@ export class CreatemjBizAppsTasksTaskCategoryInput {
     @Field(() => Boolean, { nullable: true })
     IsActive?: boolean;
 
+    @Field({ nullable: true })
+    OrganizationID: string | null;
+
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
 }
@@ -3083,6 +3110,9 @@ export class UpdatemjBizAppsTasksTaskCategoryInput {
 
     @Field(() => Boolean, { nullable: true })
     IsActive?: boolean;
+
+    @Field({ nullable: true })
+    OrganizationID?: string | null;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];
@@ -3241,7 +3271,7 @@ export class mjBizAppsTasksTaskCheckIn_ {
     Task?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(201)
+    @MaxLength(250)
     AuthorPerson?: string;
         
     @Field({nullable: true}) 
@@ -3487,7 +3517,7 @@ export class mjBizAppsTasksTaskComment_ {
     Task?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(201)
+    @MaxLength(250)
     Person?: string;
         
     @Field({nullable: true}) 
@@ -3891,7 +3921,7 @@ export class mjBizAppsTasksTaskDecision_ {
     Outcome?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(201)
+    @MaxLength(250)
     DecidedByPerson?: string;
         
     @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
@@ -5879,6 +5909,10 @@ export class mjBizAppsTasksTaskTemplate_ {
     @Field() 
     _mj__UpdatedAt: Date;
         
+    @Field({nullable: true, description: "Optional default Organization for tasks instantiated from this template. NULL indicates a global reusable playbook whose target Organization can be supplied at launch time."}) 
+    @MaxLength(36)
+    OrganizationID?: string;
+        
     @Field({nullable: true}) 
     @MaxLength(255)
     Category?: string;
@@ -5886,6 +5920,10 @@ export class mjBizAppsTasksTaskTemplate_ {
     @Field({nullable: true}) 
     @MaxLength(100)
     Type?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    Organization?: string;
         
     @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
     ReadableFields___?: string[];
@@ -5915,6 +5953,9 @@ export class CreatemjBizAppsTasksTaskTemplateInput {
     @Field(() => Boolean, { nullable: true })
     IsActive?: boolean;
 
+    @Field({ nullable: true })
+    OrganizationID: string | null;
+
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
 }
@@ -5942,6 +5983,9 @@ export class UpdatemjBizAppsTasksTaskTemplateInput {
 
     @Field(() => Boolean, { nullable: true })
     IsActive?: boolean;
+
+    @Field({ nullable: true })
+    OrganizationID?: string | null;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];
@@ -7373,6 +7417,10 @@ export class mjBizAppsTasksTask_ {
     @Field({nullable: true, description: "Timestamp when the next progress check-in is due based on CheckInCadence; used by Chief of Staff to nudge owners."}) 
     NextCheckInDueAt?: Date;
         
+    @Field({nullable: true, description: "Optional owning or scoping Organization for this task (supports both internal legal entities mirrored from MJ: Companies via Organization.LinkedCompanyID and external client/partner organizations). Child sub-tasks inherit their parent OrganizationID by default."}) 
+    @MaxLength(36)
+    OrganizationID?: string;
+        
     @Field({nullable: true}) 
     @MaxLength(100)
     Type?: string;
@@ -7386,12 +7434,16 @@ export class mjBizAppsTasksTask_ {
     Parent?: string;
         
     @Field({nullable: true}) 
-    @MaxLength(201)
+    @MaxLength(250)
     CreatedByPerson?: string;
         
     @Field({nullable: true}) 
     @MaxLength(100)
     TaskTypeStatus?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    Organization?: string;
         
     @Field({nullable: true}) 
     @MaxLength(36)
@@ -7537,6 +7589,9 @@ export class CreatemjBizAppsTasksTaskInput {
     @Field({ nullable: true })
     NextCheckInDueAt: Date | null;
 
+    @Field({ nullable: true })
+    OrganizationID: string | null;
+
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
 }
@@ -7651,6 +7706,9 @@ export class UpdatemjBizAppsTasksTaskInput {
 
     @Field({ nullable: true })
     NextCheckInDueAt?: Date | null;
+
+    @Field({ nullable: true })
+    OrganizationID?: string | null;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];

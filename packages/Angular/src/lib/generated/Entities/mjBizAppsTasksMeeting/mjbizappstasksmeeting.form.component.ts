@@ -16,7 +16,13 @@ export class mjBizAppsTasksMeetingFormComponent extends BaseFormComponent {
     override async ngOnInit() {
         await super.ngOnInit();
         this.initSections([
-            { sectionKey: 'details', sectionName: 'Details', isExpanded: true },
+            { sectionKey: 'meetingDetails', sectionName: 'Meeting Details', isExpanded: true },
+            { sectionKey: 'recurrence', sectionName: 'Recurrence', isExpanded: true },
+            { sectionKey: 'statusAndTiming', sectionName: 'Status and Timing', isExpanded: true },
+            { sectionKey: 'locationAndVirtual', sectionName: 'Location and Virtual', isExpanded: true },
+            { sectionKey: 'peopleAndAccess', sectionName: 'People and Access', isExpanded: true },
+            { sectionKey: 'notesAndRecording', sectionName: 'Notes and Recording', isExpanded: true },
+            { sectionKey: 'systemMetadata', sectionName: 'System Metadata', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksMeetingAgendaItemsMeetingID', sectionName: 'Meeting Agenda Items (Meeting ID)', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksMeetingAgendaItemsDeferredToMeetingID', sectionName: 'Meeting Agenda Items (Deferred To Meeting ID)', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksMeetingAttendees', sectionName: 'Meeting Attendees', isExpanded: false },

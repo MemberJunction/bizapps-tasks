@@ -16,7 +16,11 @@ export class mjBizAppsTasksTaskAssignmentFormComponent extends BaseFormComponent
     override async ngOnInit() {
         await super.ngOnInit();
         this.initSections([
-            { sectionKey: 'details', sectionName: 'Details', isExpanded: true },
+            { sectionKey: 'taskDetails', sectionName: 'Task Details', isExpanded: true },
+            { sectionKey: 'assigneeInformation', sectionName: 'Assignee Information', isExpanded: true },
+            { sectionKey: 'roleAndPermissions', sectionName: 'Role and Permissions', isExpanded: true },
+            { sectionKey: 'assignmentTracking', sectionName: 'Assignment Tracking', isExpanded: true },
+            { sectionKey: 'systemMetadata', sectionName: 'System Metadata', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksTaskDecisions', sectionName: 'Task Decisions', isExpanded: false }
         ]);
     }
