@@ -1,6 +1,6 @@
 ---
 "@mj-biz-apps/tasks-actions": patch
-"@mj-biz-apps/tasks-entities": patch
+"@mj-biz-apps/tasks-entities": minor
 "@mj-biz-apps/tasks-entities-server": patch
 ---
 
