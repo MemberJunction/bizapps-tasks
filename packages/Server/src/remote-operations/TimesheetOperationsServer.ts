@@ -2,6 +2,7 @@ import {
     BaseRemotableOperation,
     IMetadataProvider,
     IRunViewProvider,
+    LogError,
     RemoteOpServerContext,
     RunInEntityTransaction,
     RunView,
@@ -58,6 +59,9 @@ import {
     BaseTimeApproverResolver,
     PEOPLE_ENTITY,
     PeopleForUser,
+    SanctionApprovalAssignment,
+    SanctionApprovalWithdrawal,
+    SanctionOnBehalfCreator,
     TIMESHEET_APPROVAL_TASK_TYPE_CODE,
 } from '@mj-biz-apps/tasks-entities-server';
 import {
@@ -93,6 +97,20 @@ function formatPersonName(row: PersonNameRow | undefined, fallbackId: string): s
     if (row.DisplayName?.trim()) return row.DisplayName.trim();
     const parts = [row.FirstName?.trim(), row.LastName?.trim()].filter(Boolean);
     return parts.length > 0 ? parts.join(' ') : fallbackId;
+}
+
+/**
+ * Saves an approval task this operation just set to `Cancelled` because its timesheet was resubmitted
+ * or withdrawn. The server withdraws the request, so it vouches for the cancel: whoever is submitting
+ * (the owner, or a manager for them) need hold nothing on the task. A cancel that does not save is
+ * logged and the operation carries on, as it always has: the part is already closed, so a decision
+ * on the leftover task changes nothing.
+ */
+async function saveWithdrawnApprovalTask(task: mjBizAppsTasksTaskEntity): Promise<void> {
+    SanctionApprovalWithdrawal(task);
+    if (!(await task.Save())) {
+        LogError(`TimesheetOperations: approval task ${task.ID} was not cancelled: ${task.LatestResult?.CompleteMessage ?? 'unknown error'}`);
+    }
 }
 
 /**
@@ -754,7 +772,7 @@ export class SubmitTimesheetOperationServer extends TasksSubmitTimesheetOperatio
                             if (await oldTask.Load(oldPart.ApprovalTaskID)) {
                                 if (oldTask.Status !== 'Completed' && oldTask.Status !== 'Cancelled') {
                                     oldTask.Status = 'Cancelled';
-                                    await oldTask.Save();
+                                    await saveWithdrawnApprovalTask(oldTask);
                                 }
                             }
                         }
@@ -837,7 +855,9 @@ export class SubmitTimesheetOperationServer extends TasksSubmitTimesheetOperatio
                     approvalTask.TypeID = approvalTaskTypeID!;
                     approvalTask.Status = 'Open';
                     approvalTask.Priority = 'Medium';
+                    // The timesheet's owner asks for the approval, also when a manager submits it for them.
                     approvalTask.CreatedByPersonID = targetPersonID!;
+                    SanctionOnBehalfCreator(approvalTask);
                     if (part.ScopeTaskID) {
                         approvalTask.ParentID = part.ScopeTaskID;
                     }
@@ -864,6 +884,9 @@ export class SubmitTimesheetOperationServer extends TasksSubmitTimesheetOperatio
                             assignment.AssigneeRecordID = approverPersonID;
                             assignment.Status = 'Pending';
                             assignment.AssignedByPersonID = targetPersonID!;
+                            // The approver resolver chose this person, not the user submitting: a manager
+                            // submitting a report's timesheet is often its approver.
+                            SanctionApprovalAssignment(assignment);
                             const asgnSaved = await assignment.Save();
                             if (!asgnSaved) {
                                 const msg =
@@ -1060,7 +1083,7 @@ export class WithdrawTimesheetOperationServer extends TasksWithdrawTimesheetOper
                         if (await approvalTask.Load(part.ApprovalTaskID)) {
                             if (approvalTask.Status !== 'Completed' && approvalTask.Status !== 'Cancelled') {
                                 approvalTask.Status = 'Cancelled';
-                                await approvalTask.Save();
+                                await saveWithdrawnApprovalTask(approvalTask);
                             }
                         }
                     }
