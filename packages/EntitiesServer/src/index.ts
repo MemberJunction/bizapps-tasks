@@ -55,14 +55,6 @@ export {
     TasksInstantiateTemplateServerOperation,
     TasksRunRecurringPlaybooksServerOperation,
 } from './TasksRemoteOperationsServer.js';
-export {
-    ClearPolicyCacheCompat,
-    EnsureAgentUserPolicyEngineCompat,
-    GetAgentUserPolicyEngineCompat,
-    RunWithExecutingAgentContextCompat,
-    SetCachedPolicyCompat,
-    type AgentUserPolicyEngineCompat,
-} from './ai-policy-compat.js';
 export { TaskDecisionRefusal, DeciderAssignments, type TaskDecisionFacts, type DecisionAssignmentFact } from './TaskDecisionAuthority.js';
 export {
     ApprovalAssignmentAddRefusal,
