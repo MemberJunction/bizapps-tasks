@@ -290,34 +290,40 @@ describe('StartTimerOperationServer & StopTimerOperationServer', () => {
     });
 
     it('StartTimer atomically stops an existing timer on another task and starts the new timer', async () => {
-        const oldTimer = {
-            ID: TIMER_1_ID,
-            TaskID: TASK_1_ID,
-            PersonID: PERSON_ID,
-            StartedAt: new Date(Date.now() - 30 * 60_000),
-            Notes: 'Earlier task work',
-            IsBillable: true,
-            Delete: vi.fn(async () => true),
-        };
-        runViewMock.mockImplementation((params: { EntityName: string }) => {
-            if (params.EntityName === 'MJ_BizApps_Tasks: Tasks') {
-                return Promise.resolve({ Success: true, Results: [{ ID: TASK_2_ID, Name: 'Task 2' }] });
-            }
-            if (params.EntityName === 'MJ_BizApps_Tasks: Task Timers') {
-                return Promise.resolve({ Success: true, Results: [oldTimer] });
-            }
-            return Promise.resolve({ Success: true, Results: [] });
-        });
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-11-07T15:00:00Z'));
+        try {
+            const oldTimer = {
+                ID: TIMER_1_ID,
+                TaskID: TASK_1_ID,
+                PersonID: PERSON_ID,
+                StartedAt: new Date(Date.now() - 30 * 60_000),
+                Notes: 'Earlier task work',
+                IsBillable: true,
+                Delete: vi.fn(async () => true),
+            };
+            runViewMock.mockImplementation((params: { EntityName: string }) => {
+                if (params.EntityName === 'MJ_BizApps_Tasks: Tasks') {
+                    return Promise.resolve({ Success: true, Results: [{ ID: TASK_2_ID, Name: 'Task 2' }] });
+                }
+                if (params.EntityName === 'MJ_BizApps_Tasks: Task Timers') {
+                    return Promise.resolve({ Success: true, Results: [oldTimer] });
+                }
+                return Promise.resolve({ Success: true, Results: [] });
+            });
 
-        const { provider, created } = makeProvider();
-        const op = new StartTimerOperationServer();
-        const res = await op.Execute({ TaskID: TASK_2_ID, Notes: 'New work' }, provider, makeUser(), dummyContext);
-        expect(res.Success).toBe(true);
-        expect(res.AutoStoppedEntryIDs?.length).toBe(1);
-        expect(res.AutoStoppedMinutes).toBeGreaterThanOrEqual(29);
-        expect(oldTimer.Delete).toHaveBeenCalledTimes(1);
-        const timerCreated = created.find((c) => c.EntityName === 'MJ_BizApps_Tasks: Task Timers');
-        expect(timerCreated?.TaskID).toBe(TASK_2_ID);
+            const { provider, created } = makeProvider();
+            const op = new StartTimerOperationServer();
+            const res = await op.Execute({ TaskID: TASK_2_ID, Notes: 'New work' }, provider, makeUser(), dummyContext);
+            expect(res.Success).toBe(true);
+            expect(res.AutoStoppedEntryIDs?.length).toBe(1);
+            expect(res.AutoStoppedMinutes).toBeGreaterThanOrEqual(29);
+            expect(oldTimer.Delete).toHaveBeenCalledTimes(1);
+            const timerCreated = created.find((c) => c.EntityName === 'MJ_BizApps_Tasks: Task Timers');
+            expect(timerCreated?.TaskID).toBe(TASK_2_ID);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it('StopTimer splits a cross-midnight timer into per-day TaskTimeEntry rows and deletes the timer', async () => {
