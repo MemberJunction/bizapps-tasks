@@ -126,7 +126,9 @@ describe('TaskEntityServer — recording the creator', () => {
         expect(people.filters).toEqual([`LinkedUserID = '${USER_ID}' OR ID = '${LINKED_PERSON}'`]);
     });
 
-    it('keeps a creator the caller supplied, without a lookup (accounting records the batch builder)', async () => {
+    // Save only records a missing creator. Whether a creator the caller named may stand is the async
+    // rule's question (TaskEntityServer.approval.test.ts): this fake BaseEntity.Save does not validate.
+    it('does not replace a creator the caller supplied (accounting records the batch builder)', async () => {
         const t = newTask();
         t.CreatedByPersonID = OTHER_PERSON;
         await t.Save();
@@ -173,7 +175,7 @@ describe('TaskEntityServer — a recorded creator cannot change', () => {
         expect(t.Validate().Success).toBe(false);
     });
 
-    it('allows recording a creator on a task that never had one', () => {
+    it('leaves recording a creator on a task that never had one to the async rule, which lets only server code do it', () => {
         const t = newTask();
         t.IsSaved = true;
         creatorField(t, null, OTHER_PERSON);
@@ -187,7 +189,7 @@ describe('TaskEntityServer — a recorded creator cannot change', () => {
         expect(t.Validate().Success).toBe(true);
     });
 
-    it('allows any creator on a new task', () => {
+    it('leaves who a new task\'s creator may be to the async rule', () => {
         const t = newTask();
         creatorField(t, null, OTHER_PERSON);
         expect(t.Validate().Success).toBe(true);

@@ -409,11 +409,10 @@ export class MeetingNotesService {
             throw new Error(`The note's proposed tasks were not updated: ${entityFailure(note)}`);
         }
 
-        const createdByPersonId =
-            overrides.createdByPersonId ??
-            callerPersonId ??
-            note.AuthorPersonID ??
-            null;
+        // The task's creator is whoever accepts the proposal, not the note's author: the tasks server
+        // refuses a task created in someone else's name (bizapps-tasks#209). A caller with no Person
+        // leaves it empty, and the server records nobody.
+        const createdByPersonId = overrides.createdByPersonId ?? callerPersonId ?? null;
 
         const dueAtRaw = overrides.dueAt !== undefined ? overrides.dueAt : existing.dueAt;
         const dueAt = parseDueDate(dueAtRaw);
