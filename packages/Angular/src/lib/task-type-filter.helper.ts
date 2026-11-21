@@ -1,6 +1,8 @@
-import type { RunView } from '@memberjunction/core';
+import type { RunViewParams } from '@memberjunction/core';
+import { UUIDsEqual } from '@memberjunction/global';
 import {
     FilterGenericCreatableTaskTypes,
+    IsGenericCreatableTaskType,
     type TaskTypeClassificationInput,
 } from '@mj-biz-apps/tasks-entities';
 
@@ -11,6 +13,11 @@ export type TaskTypeLookupRow = TaskTypeClassificationInput & {
     ID: string;
     Name: string;
 };
+
+/** Minimal structural subset of `RunView` needed to query TaskType metadata without type casts. */
+export interface TaskTypeRunViewLike {
+    RunView<T = TaskTypeLookupRow>(params: RunViewParams): Promise<{ Success: boolean; Results: T[] } | undefined>;
+}
 
 /**
  * Selects the default TaskType ID eligible for generic task creation from a candidate list.
@@ -29,10 +36,38 @@ export function SelectDefaultGenericTaskTypeID(
 }
 
 /**
- * Queries active `MJ_BizApps_Tasks: Task Types` via the provided `RunView` instance
- * and returns the default generic creatable TaskType ID (preferring `GENERAL`).
+ * Validates an optional requested default TaskType ID against generic creation rules
+ * (`IsGenericCreatableTaskType`, matching IDs via `UUIDsEqual`), retaining valid generic
+ * defaults and falling back to `SelectDefaultGenericTaskTypeID` when the requested type
+ * is Planning-owned (`PRIORITY`, `MJ_BizApps_Planning:*` `ExtensionEntity`), inactive,
+ * legacy OKR, or missing.
  */
-export async function ResolveDefaultGenericTaskTypeID(rv: RunView): Promise<string | null> {
+export function SelectGenericQuickAddTaskTypeID(
+    taskTypes: ReadonlyArray<TaskTypeClassificationInput & { ID: string }>,
+    requestedTypeID?: string | null,
+): string | null {
+    const requested = requestedTypeID?.trim();
+    if (requested) {
+        const match = taskTypes.find((t) => UUIDsEqual(t.ID, requested));
+        if (match && IsGenericCreatableTaskType(match)) {
+            return match.ID;
+        }
+    }
+    return SelectDefaultGenericTaskTypeID(taskTypes);
+}
+
+/**
+ * Queries active `MJ_BizApps_Tasks: Task Types` via the provided `RunView` instance
+ * and returns an eligible generic creatable TaskType ID.
+ *
+ * When `requestedTypeID` is supplied, validates it against the loaded TaskType metadata
+ * before assigning/saving — retaining valid generic defaults and falling back to `GENERAL`
+ * (or rejecting when no generic types are available) for Planning-owned or inactive OKR types.
+ */
+export async function ResolveDefaultGenericTaskTypeID(
+    rv: TaskTypeRunViewLike,
+    requestedTypeID?: string | null,
+): Promise<string | null> {
     const res = await rv.RunView<TaskTypeLookupRow>({
         EntityName: 'MJ_BizApps_Tasks: Task Types',
         ExtraFilter: 'IsActive = 1',
@@ -40,5 +75,12 @@ export async function ResolveDefaultGenericTaskTypeID(rv: RunView): Promise<stri
         Fields: [...GENERIC_TASK_TYPE_FIELDS],
         ResultType: 'simple',
     });
-    return SelectDefaultGenericTaskTypeID(res?.Results ?? []);
+    if (!res) {
+        const trimmed = requestedTypeID?.trim();
+        return trimmed ? trimmed : null;
+    }
+    if (!res.Success) {
+        return null;
+    }
+    return SelectGenericQuickAddTaskTypeID(res.Results ?? [], requestedTypeID);
 }

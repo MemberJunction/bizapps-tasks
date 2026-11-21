@@ -1,3 +1,5 @@
+import { UUIDsEqual } from '@memberjunction/global';
+
 /**
  * Helpers for classifying `MJ_BizApps_Tasks: Task Types` records, resolving
  * `ExtensionEntity` IS-A metadata, and filtering task types eligible for
@@ -210,7 +212,7 @@ export function IsTaskTypeExtensionEntityAvailable(
         return childEntity.ParentEntity.trim().toLowerCase() === parentEntityName.trim().toLowerCase();
     }
     if (childEntity.ParentID && parentEntity?.ID) {
-        return childEntity.ParentID.toLowerCase() === parentEntity.ID.toLowerCase();
+        return UUIDsEqual(childEntity.ParentID, parentEntity.ID);
     }
     // When only entity names are present without ParentID/ParentEntity, presence in registry suffices.
     return childEntity.ParentID === undefined && childEntity.ParentEntity === undefined;

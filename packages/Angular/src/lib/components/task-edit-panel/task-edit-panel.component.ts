@@ -986,7 +986,7 @@ export class TaskEditPanelComponent implements OnChanges {
     }
 
     public get activeTaskType(): TaskTypeOption | undefined {
-        return this.taskTypes.find((t) => t.ID === this.form.TypeID);
+        return this.taskTypes.find((t) => UUIDsEqual(t.ID, this.form.TypeID));
     }
 
     /** True when editing an existing task whose Type is Planning-owned or inactive legacy OKR. */
@@ -1026,9 +1026,8 @@ export class TaskEditPanelComponent implements OnChanges {
 
     public get activeTypeStatuses(): TaskWidgetTypeStatus[] {
         if (!this.form.TypeID) return [];
-        const target = this.form.TypeID.toLowerCase();
         return this.allTypeStatuses
-            .filter((s) => s.TaskTypeID.toLowerCase() === target)
+            .filter((s) => UUIDsEqual(s.TaskTypeID, this.form.TypeID))
             .sort((a, b) => a.Sequence - b.Sequence);
     }
 
@@ -1100,13 +1099,15 @@ export class TaskEditPanelComponent implements OnChanges {
             this.selectedTags = [];
             this.linkedRecords = [];
             const creatable = this.creatableTaskTypes;
-            const requestedAllowed = this.form.TypeID
-                ? creatable.some((t) => t.ID.toLowerCase() === this.form.TypeID.toLowerCase())
-                : false;
-            if ((!this.form.TypeID || !requestedAllowed) && creatable.length > 0) {
+            const matchedRequested = this.form.TypeID
+                ? creatable.find((t) => UUIDsEqual(t.ID, this.form.TypeID))
+                : undefined;
+            if (matchedRequested) {
+                this.form.TypeID = matchedRequested.ID;
+            } else if (creatable.length > 0) {
                 const general = creatable.find((t) => t.Code === 'GENERAL') ?? creatable[0];
                 this.form.TypeID = general.ID;
-            } else if (!requestedAllowed) {
+            } else {
                 this.form.TypeID = '';
             }
             this.cdr.markForCheck();
@@ -1151,7 +1152,7 @@ export class TaskEditPanelComponent implements OnChanges {
     public onLinkedRecordAdded(record: TaskWidgetLinkedRecord): void {
         this.showLinkPicker = false;
         const exists = this.linkedRecords.some(
-            (r) => r.EntityName === record.EntityName && r.RecordID.toLowerCase() === record.RecordID.toLowerCase(),
+            (r) => r.EntityName === record.EntityName && UUIDsEqual(r.RecordID, record.RecordID),
         );
         if (!exists) {
             this.linkedRecords = [...this.linkedRecords, record];
@@ -1298,7 +1299,7 @@ export class TaskEditPanelComponent implements OnChanges {
             ResultType: 'simple',
         });
         this.assignees = (result?.Results ?? []).map((a) => {
-            const isRole = Boolean(this.rolesEntityID && a.AssigneeEntityID.toLowerCase() === this.rolesEntityID.toLowerCase());
+            const isRole = Boolean(this.rolesEntityID && UUIDsEqual(a.AssigneeEntityID, this.rolesEntityID));
             return {
                 AssigneeKind: isRole ? 'role' : 'person',
                 AssigneeRecordID: a.AssigneeRecordID,

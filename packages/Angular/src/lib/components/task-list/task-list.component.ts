@@ -1065,8 +1065,8 @@ export class TaskListComponent implements OnInit, OnChanges {
         return new RunView();
     }
 
-    private async resolveDefaultQuickAddTypeID(): Promise<string | null> {
-        return ResolveDefaultGenericTaskTypeID(this.createRunView());
+    private async resolveQuickAddTypeId(): Promise<string | null> {
+        return ResolveDefaultGenericTaskTypeID(this.createRunView(), this.QuickAddDefaultTypeID);
     }
 
     public async quickAddTask(): Promise<void> {
@@ -1075,10 +1075,7 @@ export class TaskListComponent implements OnInit, OnChanges {
         this.quickAdding = true;
         this.cdr.markForCheck();
         try {
-            let typeID = this.QuickAddDefaultTypeID;
-            if (!typeID) {
-                typeID = await this.resolveDefaultQuickAddTypeID();
-            }
+            const typeID = await this.resolveQuickAddTypeId();
             if (!typeID) return;
 
             const entity = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
@@ -1116,10 +1113,7 @@ export class TaskListComponent implements OnInit, OnChanges {
         this.quickAdding = true;
         this.cdr.markForCheck();
         try {
-            let typeID = this.QuickAddDefaultTypeID;
-            if (!typeID) {
-                typeID = await this.resolveDefaultQuickAddTypeID();
-            }
+            const typeID = await this.resolveQuickAddTypeId();
             if (!typeID) return;
 
             const entity = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
@@ -1308,7 +1302,7 @@ export class TaskListComponent implements OnInit, OnChanges {
                 tagMap.set(t.ID.toLowerCase(), { Name: t.Name, Color: t.ColorCode ?? '#0076b6' });
             }
 
-            const rolesEntityID = this.ProviderToUse.EntityByName?.('MJ: Roles')?.ID?.toLowerCase() ?? null;
+            const rolesEntityID = this.ProviderToUse.EntityByName?.('MJ: Roles')?.ID ?? null;
             const assigneesByTask = new Map<
                 string,
                 { Name: string; Role: string; Status: string; RecordID: string; EntityName: string; IsRole: boolean }[]
@@ -1316,7 +1310,7 @@ export class TaskListComponent implements OnInit, OnChanges {
             for (const a of assignmentsRes?.Results ?? []) {
                 const key = a.TaskID.toLowerCase();
                 const list = assigneesByTask.get(key) ?? [];
-                const isRole = Boolean(rolesEntityID && a.AssigneeEntityID.toLowerCase() === rolesEntityID);
+                const isRole = Boolean(rolesEntityID && UUIDsEqual(a.AssigneeEntityID, rolesEntityID));
                 const displayName =
                     personMap.get(a.AssigneeRecordID.toLowerCase()) ??
                     RoleAssigneeName(a.AssigneeEntityID, a.AssigneeRecordID) ??
