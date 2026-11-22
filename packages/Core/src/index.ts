@@ -7,6 +7,7 @@ export * from './services/TimeTrackingService.js';
 export * from './services/WorkReportService.js';
 export * from './services/ChiefOfStaffWakeRegistry.js';
 export * from './config/TasksSettings.js';
+export * from './config/TasksLimits.js';
 export * from './config/TasksAuthorizations.js';
 export * from './time/DurationFormatting.js';
 export * from './time/SplitIntervalByBusinessDay.js';
