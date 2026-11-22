@@ -7,6 +7,7 @@ import {
     PEOPLE_ENTITY_NAME,
     rankSimilarTasks,
     ResolveBriefingContributorBounds,
+    RunWithBriefingContributorTimeout,
     SerializeBriefingPayloadWithLimit,
     TasksLimitsResolver,
     WorkReportService,
@@ -2030,23 +2031,26 @@ export class GetMyTasksBriefingAction extends BaseAction {
 
         try {
             const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
-            const callerPerson = await resolveCallerPerson(user);
-            if (!callerPerson) {
-                return failResult(
-                    'NO_PERSON_RECORD',
-                    'No active MJ_BizApps_Common: People record is linked to your user account.',
-                    params,
-                );
-            }
-
             const bounds = ResolveBriefingContributorBounds({
                 HorizonDays: getNumberParam(params, 'HorizonDays'),
                 MaxItems: getNumberParam(params, 'MaxItems'),
             });
-            const horizonDays = bounds.HorizonDays;
-            const maxItems = bounds.MaxItems;
-            const organizationID = getStringParam(params, 'OrganizationID');
-            const organizationName = getStringParam(params, 'OrganizationName');
+
+            return await RunWithBriefingContributorTimeout(
+                async () => {
+                    const callerPerson = await resolveCallerPerson(user);
+                    if (!callerPerson) {
+                        return failResult(
+                            'NO_PERSON_RECORD',
+                            'No active MJ_BizApps_Common: People record is linked to your user account.',
+                            params,
+                        );
+                    }
+
+                    const horizonDays = bounds.HorizonDays;
+                    const maxItems = bounds.MaxItems;
+                    const organizationID = getStringParam(params, 'OrganizationID');
+                    const organizationName = getStringParam(params, 'OrganizationName');
 
             let resolvedOrg: { ID: string; Name: string } | null = null;
             if (organizationID || organizationName) {
@@ -2150,6 +2154,7 @@ export class GetMyTasksBriefingAction extends BaseAction {
                         EntityName: TASK_ASSIGNMENTS_ENTITY,
                         ExtraFilter: `TaskID IN (${createdOnlyIds.map((id) => `'${EscapeSQLString(id)}'`).join(', ')})`,
                         Fields: ['TaskID'],
+                        MaxRows: limits.ResourceGuards.LargeTreeQueryMaxRows,
                         ResultType: 'simple',
                     },
                     user,
@@ -2297,9 +2302,13 @@ export class GetMyTasksBriefingAction extends BaseAction {
                 ],
                 bounds.MaxContributorChars,
             );
-            setOutputParam(params, 'Briefing', serialized.Json);
-            setOutputParam(params, 'Summary', summary);
-            return successResult(summary, params);
+                    setOutputParam(params, 'Briefing', serialized.Json);
+                    setOutputParam(params, 'Summary', summary);
+                    return successResult(summary, params);
+                },
+                bounds.ContributorTimeoutMs,
+                'GetMyTasksBriefingAction',
+            );
         } catch (err) {
             return failResult('ERROR', err instanceof Error ? err.message : String(err), params);
         }

@@ -319,4 +319,91 @@ describe('Actions Limits Resolution (@mj-biz-apps/tasks-actions)', () => {
         expect(meetingsPayload.HorizonDays).toBe(11);
         expect(meetingsPayload.LookbackDays).toBe(6);
     });
+
+    it('bounds delegated task assignment lookup with LargeTreeQueryMaxRows in GetMyTasksBriefingAction', async () => {
+        TasksLimitsResolver.Instance.RegisterConfigOverrides({
+            ResourceGuards: {
+                LargeTreeQueryMaxRows: 333,
+            },
+        });
+
+        runViewMock.mockImplementation(async (params: { EntityName: string; MaxRows?: number }) => {
+            recordedRunViews.push({ EntityName: params.EntityName, MaxRows: params.MaxRows });
+            if (params.EntityName === 'MJ_BizApps_Common: People') {
+                return {
+                    Success: true,
+                    Results: [{ ID: PERSON_ID, FirstName: 'Pat', LastName: 'Doe', Email: 'pat@example.com' }],
+                };
+            }
+            if (params.EntityName === 'MJ_BizApps_Tasks: Tasks') {
+                return {
+                    Success: true,
+                    Results: [
+                        {
+                            ID: '30000000-0000-4000-8000-000000000003',
+                            Name: 'Delegated Task',
+                            Status: 'In Progress',
+                            Priority: 'Normal',
+                            DueAt: null,
+                            PercentComplete: 0,
+                            TypeID: '40000000-0000-4000-8000-000000000004',
+                            Type: 'Standard',
+                            Category: null,
+                            OrganizationID: null,
+                            Organization: null,
+                            ParentID: null,
+                            BlockedReason: null,
+                            HealthStatus: 'On Track',
+                            CreatedByPersonID: PERSON_ID,
+                        },
+                    ],
+                };
+            }
+            return { Success: true, Results: [] };
+        });
+
+        const action = new TestableGetMyTasksBriefingAction();
+        const result = await action.Run(makeParams());
+        expect(result.Success).toBe(true);
+
+        const taskAssignmentQueries = recordedRunViews.filter(
+            (c) => c.EntityName === 'MJ_BizApps_Tasks: Task Assignments',
+        );
+        expect(taskAssignmentQueries.some((c) => c.MaxRows === 333)).toBe(true);
+    });
+
+    it('enforces Briefing.ContributorTimeoutMs across GetMyTasksBriefingAction, GetMyMeetingsBriefingAction, and GetMyWorkReportsBriefingAction', async () => {
+        TasksLimitsResolver.Instance.RegisterConfigOverrides({
+            Briefing: {
+                ContributorTimeoutMs: 100,
+            },
+        });
+
+        runViewMock.mockImplementation(async (params: { EntityName: string; MaxRows?: number }) => {
+            recordedRunViews.push({ EntityName: params.EntityName, MaxRows: params.MaxRows });
+            if (params.EntityName === 'MJ_BizApps_Common: People') {
+                return {
+                    Success: true,
+                    Results: [{ ID: PERSON_ID, FirstName: 'Pat', LastName: 'Doe', Email: 'pat@example.com' }],
+                };
+            }
+            await new Promise((resolve) => setTimeout(resolve, 250));
+            return { Success: true, Results: [] };
+        });
+
+        const tasksRes = await new TestableGetMyTasksBriefingAction().Run(makeParams());
+        expect(tasksRes.Success).toBe(false);
+        expect(tasksRes.ResultCode).toBe('ERROR');
+        expect(tasksRes.Message).toMatch(/GetMyTasksBriefingAction timed out after 100ms/);
+
+        const meetingsRes = await new TestableGetMyMeetingsBriefingAction().Run(makeParams());
+        expect(meetingsRes.Success).toBe(false);
+        expect(meetingsRes.ResultCode).toBe('ERROR');
+        expect(meetingsRes.Message).toMatch(/GetMyMeetingsBriefingAction timed out after 100ms/);
+
+        const workReportsRes = await new TestableGetMyWorkReportsBriefingAction().Run(makeParams());
+        expect(workReportsRes.Success).toBe(false);
+        expect(workReportsRes.ResultCode).toBe('ERROR');
+        expect(workReportsRes.Message).toMatch(/GetMyWorkReportsBriefingAction timed out after 100ms/);
+    });
 });

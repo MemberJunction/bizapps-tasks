@@ -8,6 +8,7 @@ import {
     GetLocalDayWindow,
     IsPrivilegedWorkReportUser,
     ResolveBriefingContributorBounds,
+    RunWithBriefingContributorTimeout,
     SerializeBriefingPayloadWithLimit,
     TasksLimitsResolver,
     WorkReportService,
@@ -651,7 +652,9 @@ export class GetMyWorkReportsBriefingAction extends BaseAction {
             const lookbackDays = bounds.LookbackDays;
             const maxItems = bounds.MaxItems;
 
-            const callerPerson = await WorkReportService.Instance.ResolvePersonForUser(user);
+            return await RunWithBriefingContributorTimeout(
+                async () => {
+                    const callerPerson = await WorkReportService.Instance.ResolvePersonForUser(user);
             if (!callerPerson?.ID) {
                 return failResult(
                     'NO_PERSON_RECORD',
@@ -791,9 +794,13 @@ export class GetMyWorkReportsBriefingAction extends BaseAction {
                 ['MyDraftReports', 'MySubmittedReports', 'DirectReportsAwaitingReview'],
                 bounds.MaxContributorChars,
             );
-            setOutputParam(params, 'Briefing', serialized.Json);
-            setOutputParam(params, 'Summary', summary);
-            return successResult(summary, params);
+                    setOutputParam(params, 'Briefing', serialized.Json);
+                    setOutputParam(params, 'Summary', summary);
+                    return successResult(summary, params);
+                },
+                bounds.ContributorTimeoutMs,
+                'GetMyWorkReportsBriefingAction',
+            );
         } catch (err) {
             const mapped = mapWorkReportServiceError(err instanceof Error ? err.message : String(err));
             return failResult(mapped.code, mapped.message, params);

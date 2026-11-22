@@ -10,6 +10,7 @@ import {
     MeetingNotesService,
     parseProposedTasks,
     ResolveBriefingContributorBounds,
+    RunWithBriefingContributorTimeout,
     SerializeBriefingPayloadWithLimit,
     serializeProposedTasks,
     TasksLimitsResolver,
@@ -1204,7 +1205,9 @@ export class GetMyMeetingsBriefingAction extends BaseAction {
             const lookbackDays = bounds.LookbackDays;
             const maxItems = bounds.MaxItems;
 
-            const callerPerson = await resolveCallerPerson(user);
+            return await RunWithBriefingContributorTimeout(
+                async () => {
+                    const callerPerson = await resolveCallerPerson(user);
             const rv = new RunView();
 
             const attendeeClauses: string[] = [];
@@ -1551,9 +1554,13 @@ export class GetMyMeetingsBriefingAction extends BaseAction {
                 ['UpcomingMeetings', 'RecentCompletedMeetingsNeedingFollowUp', 'OpenMeetingFollowUpTasks'],
                 bounds.MaxContributorChars,
             );
-            setOutputParam(params, 'Briefing', serialized.Json);
-            setOutputParam(params, 'Summary', summary);
-            return successResult(summary, params);
+                    setOutputParam(params, 'Briefing', serialized.Json);
+                    setOutputParam(params, 'Summary', summary);
+                    return successResult(summary, params);
+                },
+                bounds.ContributorTimeoutMs,
+                'GetMyMeetingsBriefingAction',
+            );
         } catch (err) {
             return failResult('ERROR', err instanceof Error ? err.message : String(err), params);
         }
