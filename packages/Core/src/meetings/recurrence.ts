@@ -7,6 +7,7 @@ type RRuleModule = typeof import('rrule');
 const rruleExports: RRuleModule = 'RRule' in rruleModule && rruleModule.RRule ? rruleModule : (rruleModule as unknown as { default: RRuleModule }).default;
 const { RRule, rrulestr } = rruleExports;
 import { isValidTimeZone } from './meeting-times.js';
+import { TasksLimitsResolver } from '../config/TasksLimits.js';
 
 /**
  * A series' rule, expanded in the series' own time zone (the meetings plan, § 2.2 and § 3): the rule is an RFC 5545
@@ -90,7 +91,11 @@ function fromFloating(floating: Date, zone: string): Date {
  * The occurrences of a series whose start falls in the window, inclusive, oldest first, at most `max` of them.
  * Throws when the rule or the zone is wrong; check with recurrenceRuleProblem and isValidTimeZone first.
  */
-export function expandOccurrences(series: SeriesRecurrence, window: { from: Date; through: Date }, max = 500): SeriesOccurrence[] {
+export function expandOccurrences(
+    series: SeriesRecurrence,
+    window: { from: Date; through: Date },
+    max: number = TasksLimitsResolver.Instance.GetCurrentLimits().RunawayGuards.MaxSeriesOccurrences,
+): SeriesOccurrence[] {
     const problem = recurrenceRuleProblem(series.rule);
     if (problem) throw new Error(problem);
     if (!isValidTimeZone(series.timeZone)) throw new Error(`"${series.timeZone}" is not a time zone.`);

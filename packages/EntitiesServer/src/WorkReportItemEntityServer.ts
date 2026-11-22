@@ -23,6 +23,7 @@ import { EscapeSQLString, IsValidUUID, RegisterClass, UUIDsEqual } from '@member
 import { mjBizAppsTasksWorkReportItemEntity } from '@mj-biz-apps/tasks-entities';
 import {
     IsPrivilegedWorkReportUser,
+    TasksLimitsResolver,
     WORK_REPORTS_ENTITY_NAME,
     WorkReportService,
     type WorkReportProvider,
@@ -133,7 +134,7 @@ export class WorkReportItemEntityServer extends mjBizAppsTasksWorkReportItemEnti
                 EntityName: WORK_REPORTS_ENTITY_NAME,
                 ExtraFilter: `ID = '${EscapeSQLString(workReportID)}'`,
                 Fields: ['ID', 'PersonID', 'Status'],
-                MaxRows: 1,
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
                 ResultType: 'simple',
                 BypassCache: true,
             },

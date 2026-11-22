@@ -8,6 +8,7 @@ import {
     normalizeTranscriptText,
     parseProposedTasks,
     ResolveTranscriptSource,
+    TasksLimitsResolver,
     type CommitmentCandidate,
     type DeduplicatedMatchedCommitment,
     type DeduplicatedNewCommitment,
@@ -113,6 +114,7 @@ export class MeetingTranscriptService {
             throw new Error(`Meeting '${input.MeetingID}' was not found or is not accessible.`);
         }
 
+        const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
         const rv = RunView.FromMetadataProvider(this.provider);
         const attendeesRes = await rv.RunView<
             Pick<mjBizAppsTasksMeetingAttendeeEntity, 'PersonID' | 'Email' | 'DisplayName' | 'Role'>
@@ -122,7 +124,7 @@ export class MeetingTranscriptService {
                 ExtraFilter: `MeetingID = '${EscapeSQLString(meeting.ID)}'`,
                 Fields: ['PersonID', 'Email', 'DisplayName', 'Role'],
                 ResultType: 'simple',
-                MaxRows: 200,
+                MaxRows: limits.ResourceGuards.WorkflowBatchMaxRows,
             },
             contextUser,
         );
@@ -202,7 +204,13 @@ export class MeetingTranscriptService {
         const proposals = parseProposedTasks(note.ProposedTasks);
         const decisions = extractDecisionsFromText(`${fetched.PlainText}\n${note.Body ?? ''}`);
 
-        const windowDays = Math.max(1, Math.min(365, input.WindowDays ?? 30));
+        const windowDays = Math.max(
+            1,
+            Math.min(
+                limits.RunawayGuards.FindSimilarTasksMaxWindowDays,
+                input.WindowDays ?? limits.Tuning.FindSimilarDefaultWindowDays,
+            ),
+        );
         const existingTasks = await this.loadRecentTaskCandidates(windowDays, contextUser);
 
         const commitmentCandidates: CommitmentCandidate[] = proposals.map((p) => ({
@@ -253,6 +261,7 @@ export class MeetingTranscriptService {
         }
 
         // 2. Load video provider configuration if attached to the meeting
+        const singleRowMax = TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow;
         let providerRow: Pick<mjBizAppsTasksVideoProviderEntity, 'Code' | 'CredentialID' | 'Configuration' | 'SupportsTranscripts'> | null = null;
         if (meeting.VideoProviderID && IsValidUUID(meeting.VideoProviderID)) {
             const rv = RunView.FromMetadataProvider(this.provider);
@@ -263,7 +272,7 @@ export class MeetingTranscriptService {
                     EntityName: VIDEO_PROVIDERS_ENTITY,
                     ExtraFilter: `ID = '${EscapeSQLString(meeting.VideoProviderID)}'`,
                     Fields: ['Code', 'CredentialID', 'Configuration', 'SupportsTranscripts'],
-                    MaxRows: 1,
+                    MaxRows: singleRowMax,
                     ResultType: 'simple',
                 },
                 contextUser,
@@ -301,7 +310,7 @@ export class MeetingTranscriptService {
                         EntityName: VIDEO_PROVIDERS_ENTITY,
                         ExtraFilter: `Code = 'ZOOM' AND IsActive = 1`,
                         Fields: ['CredentialID', 'Configuration'],
-                        MaxRows: 1,
+                        MaxRows: singleRowMax,
                         ResultType: 'simple',
                     },
                     contextUser,
@@ -358,6 +367,7 @@ export class MeetingTranscriptService {
         windowDays: number,
         contextUser: UserInfo,
     ): Promise<TaskSimilarityCandidate[]> {
+        const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
         const rv = RunView.FromMetadataProvider(this.provider);
         const cutoff = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000).toISOString();
         const tasksRes = await rv.RunView<RawCandidateTaskRow>(
@@ -366,7 +376,7 @@ export class MeetingTranscriptService {
                 ExtraFilter: `Status IN ('Open', 'InProgress', 'Blocked') OR __mj_UpdatedAt >= '${EscapeSQLString(cutoff)}'`,
                 Fields: ['ID', 'Name', 'Description', 'Status', 'Priority', 'DueAt', '__mj_UpdatedAt'],
                 OrderBy: '__mj_UpdatedAt DESC',
-                MaxRows: 250,
+                MaxRows: limits.ResourceGuards.BriefingTasksMaxRows,
                 ResultType: 'simple',
             },
             contextUser,
@@ -384,7 +394,7 @@ export class MeetingTranscriptService {
                     ExtraFilter: `TaskID IN (${inList})`,
                     Fields: ['TaskID', 'AssigneeRecordID'],
                     ResultType: 'simple',
-                    MaxRows: 1000,
+                    MaxRows: limits.ResourceGuards.LargeTreeQueryMaxRows,
                 },
                 contextUser,
             );

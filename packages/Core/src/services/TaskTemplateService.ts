@@ -14,6 +14,7 @@ import type {
     mjBizAppsTasksTaskTemplateItemEntity,
 } from "@mj-biz-apps/tasks-entities";
 import { GuidLiteral } from "./sql-guards.js";
+import { TasksLimitsResolver } from "../config/TasksLimits.js";
 
 /** A provider that can instantiate entities and run views. */
 export type TaskTemplateProvider = IMetadataProvider & IRunViewProvider;
@@ -213,7 +214,8 @@ export class TaskTemplateService {
         }
 
         // Subsequent passes: place items whose parent is already placed
-        let maxIterations = remaining.length + 1;
+        const sortIterationCap = TasksLimitsResolver.Instance.GetCurrentLimits().RunawayGuards.MaxTemplateSortIterations;
+        let maxIterations = Math.min(remaining.length + 1, sortIterationCap);
         while (remaining.length > 0 && maxIterations-- > 0) {
             for (let i = remaining.length - 1; i >= 0; i--) {
                 const parentID = remaining[i].ParentItemID;

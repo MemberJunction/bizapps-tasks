@@ -15,6 +15,7 @@ import {
     COS_TASKS_INBOX_WORKSTREAM_KEY,
     MEETING_ATTENDEE_ENTITY,
     MEETING_ENTITY,
+    TasksLimitsResolver,
 } from '@mj-biz-apps/tasks-core';
 import type { mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
 import { IsPeopleEntity, PEOPLE_ENTITY } from './UserPeople.js';
@@ -82,6 +83,7 @@ async function resolveUserIDsForPersonIDs(
         ? `LinkedEntityID = '${EscapeSQLString(peopleEntityID)}' AND LinkedEntityRecordID IN (${inList}) AND IsActive = 1`
         : `LinkedEntityRecordID IN (${inList}) AND IsActive = 1`;
 
+    const broadQueryMax = TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.BroadEntityQueryMaxRows;
     const [usersRes, peopleRes] = await Promise.all([
         runViewCompat<{ ID: string }>(
             {
@@ -89,7 +91,7 @@ async function resolveUserIDsForPersonIDs(
                 ExtraFilter: userFilter,
                 Fields: ['ID'],
                 ResultType: 'simple',
-                MaxRows: 500,
+                MaxRows: broadQueryMax,
             },
             user,
             provider,
@@ -101,7 +103,7 @@ async function resolveUserIDsForPersonIDs(
                 ExtraFilter: `ID IN (${inList}) AND LinkedUserID IS NOT NULL`,
                 Fields: ['ID', 'LinkedUserID'],
                 ResultType: 'simple',
-                MaxRows: 500,
+                MaxRows: broadQueryMax,
             },
             user,
             provider,
@@ -144,7 +146,7 @@ async function resolveUserIDsForRoleIDs(
             ExtraFilter: `RoleID IN (${inList})`,
             Fields: ['UserID'],
             ResultType: 'simple',
-            MaxRows: 500,
+            MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.BroadEntityQueryMaxRows,
         },
         user,
         provider,
@@ -220,7 +222,7 @@ export async function resolveTaskAssigneeUserIDsByTask(input: {
             ExtraFilter: `TaskID IN (${inList})`,
             Fields: ['TaskID', 'AssigneeEntityID', 'AssigneeRecordID'],
             ResultType: 'simple',
-            MaxRows: 1000,
+            MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.LargeTreeQueryMaxRows,
         },
         input.actingUser,
         input.provider,
@@ -326,7 +328,7 @@ export async function wakeAssigneesForTaskAssignment(input: {
             EntityName: TASKS_ENTITY,
             ExtraFilter: `ID = '${EscapeSQLString(input.taskID)}'`,
             Fields: ['Name'],
-            MaxRows: 1,
+            MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
             ResultType: 'simple',
         },
         input.actingUser,
@@ -486,7 +488,7 @@ async function findNewlyUnblockedDownstreamTasks(
             EntityName: TASK_DEPENDENCIES_ENTITY,
             ExtraFilter: `DependsOnTaskID = '${EscapeSQLString(completedTaskID)}'`,
             Fields: ['TaskID'],
-            MaxRows: 100,
+            MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.StandardBatchMaxRows,
             ResultType: 'simple',
         },
         actingUser,
@@ -594,6 +596,7 @@ export async function wakeMeetingParticipantsForTranscript(input: {
         let organizerPersonID = input.organizerPersonID ?? null;
         let hasTranscriptFile = input.hasTranscriptFile;
 
+        const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
         if (!meetingName || !organizerPersonID) {
             const meetingRes = await runViewCompat<{
                 Name: string;
@@ -604,7 +607,7 @@ export async function wakeMeetingParticipantsForTranscript(input: {
                     EntityName: MEETING_ENTITY,
                     ExtraFilter: `ID = '${EscapeSQLString(input.meetingID)}'`,
                     Fields: ['Name', 'OrganizerPersonID', 'TranscriptFileID'],
-                    MaxRows: 1,
+                    MaxRows: limits.ResourceGuards.DefaultLookupSingleRow,
                     ResultType: 'simple',
                 },
                 input.actingUser,
@@ -625,7 +628,7 @@ export async function wakeMeetingParticipantsForTranscript(input: {
                 EntityName: MEETING_ATTENDEE_ENTITY,
                 ExtraFilter: `MeetingID = '${EscapeSQLString(input.meetingID)}'`,
                 Fields: ['PersonID', 'UserID'],
-                MaxRows: 200,
+                MaxRows: limits.ResourceGuards.WorkflowBatchMaxRows,
                 ResultType: 'simple',
             },
             input.actingUser,

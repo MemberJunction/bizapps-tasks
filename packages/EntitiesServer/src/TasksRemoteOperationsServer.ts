@@ -24,6 +24,7 @@ import {
     TasksInstantiateTemplateInput,
     TasksInstantiateTemplateOperation,
     TasksInstantiateTemplateOutput,
+    TasksLimitsResolver,
     TasksRunRecurringPlaybooksInput,
     TasksRunRecurringPlaybooksOperation,
     TasksRunRecurringPlaybooksOutput,
@@ -41,7 +42,6 @@ import {
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const MAX_BULK_TASKS = 500;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const TASKS_ENTITY_NAME = 'MJ_BizApps_Tasks: Tasks';
 
@@ -202,7 +202,8 @@ function topologicalSortTemplateItems(items: TemplateItemRow[]): TemplateItemRow
     }
 
     // Subsequent passes: place items once their parent is placed
-    let guard = remaining.length + 1;
+    const sortCap = TasksLimitsResolver.Instance.GetCurrentLimits().RunawayGuards.MaxTemplateSortIterations;
+    let guard = Math.min(remaining.length + 1, sortCap);
     while (remaining.length > 0 && guard-- > 0) {
         let progressed = false;
         for (let i = 0; i < remaining.length; ) {
@@ -273,8 +274,10 @@ export class TasksBulkUpdateServerOperation extends TasksBulkUpdateOperation {
                 uniqueIds.push(id);
             }
         }
-        if (uniqueIds.length > MAX_BULK_TASKS) {
-            throw new Error(`Bulk update supports at most ${MAX_BULK_TASKS} tasks per call (received ${uniqueIds.length}).`);
+        const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
+        const maxBulkTasks = limits.RunawayGuards.MaxBulkTasks;
+        if (uniqueIds.length > maxBulkTasks) {
+            throw new Error(`Bulk update supports at most ${maxBulkTasks} tasks per call (received ${uniqueIds.length}).`);
         }
 
         const dueDateMode = input.DueDateMode ?? 'unchanged';
@@ -539,7 +542,7 @@ export class TasksBulkUpdateServerOperation extends TasksBulkUpdateOperation {
                         EntityName: 'MJ_BizApps_Tasks: Task Tag Links',
                         ExtraFilter: `TaskID = '${taskID}' AND TagID = '${targetAddTagID}'`,
                         Fields: ['ID'],
-                        MaxRows: 1,
+                        MaxRows: limits.ResourceGuards.DefaultLookupSingleRow,
                         ResultType: 'simple',
                     }, user);
                     if (existingTagRes.Success && (existingTagRes.Results?.length ?? 0) === 0) {
@@ -882,7 +885,7 @@ export class TasksRunRecurringPlaybooksServerOperation extends TasksRunRecurring
                     EntityName: 'MJ_BizApps_Tasks: Tasks',
                     ExtraFilter: `OrganizationID='${org.ID}' AND Description LIKE '%${escapedMarker}%'`,
                     Fields: ['ID'],
-                    MaxRows: 1,
+                    MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
                     ResultType: 'simple',
                 }, user);
 

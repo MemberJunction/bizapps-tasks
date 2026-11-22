@@ -6,6 +6,10 @@ import { EscapeSQLString, IsValidUUID, NormalizeUUID, RegisterClass, UUIDsEqual 
 import {
     PEOPLE_ENTITY_NAME,
     rankSimilarTasks,
+    ResolveBriefingContributorBounds,
+    RunWithBriefingContributorTimeout,
+    SerializeBriefingPayloadWithLimit,
+    TasksLimitsResolver,
     WorkReportService,
     type TaskSimilarityCandidate,
 } from '@mj-biz-apps/tasks-core';
@@ -174,7 +178,7 @@ async function loadAllTaskTypes(contextUser: UserInfo): Promise<TaskTypeLookupRo
             EntityName: TASK_TYPES_ENTITY,
             Fields: ['ID', 'Name', 'Code', 'IsApproval'],
             ResultType: 'simple',
-            MaxRows: 200,
+            MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.WorkflowBatchMaxRows,
         },
         contextUser,
     );
@@ -214,7 +218,7 @@ async function getCallerAssignedTaskIDs(
             ExtraFilter: clauses.join(' OR '),
             Fields: ['TaskID'],
             ResultType: 'simple',
-            MaxRows: 1000,
+            MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.LargeTreeQueryMaxRows,
         },
         contextUser,
     );
@@ -289,9 +293,10 @@ export class FindTasksAction extends BaseAction {
             const statusParams = getStringListParam(params, 'Status');
             const searchText = getStringParam(params, 'SearchText', 'Query');
             const dueBefore = getDateParam(params, 'DueBefore');
+            const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
             const dueAfter = getDateParam(params, 'DueAfter');
-            const maxRowsRaw = getNumberParam(params, 'MaxRows', 'Limit') ?? 25;
-            const maxRows = Math.max(1, Math.min(100, Math.round(maxRowsRaw)));
+            const maxRowsRaw = getNumberParam(params, 'MaxRows', 'Limit') ?? limits.ResourceGuards.FindTasksDefaultMaxRows;
+            const maxRows = Math.max(1, Math.min(limits.ResourceGuards.FindTasksMaxRowsCeiling, Math.round(maxRowsRaw)));
 
             if (categoryID && !IsValidUUID(categoryID)) {
                 return failResult('VALIDATION_ERROR', 'CategoryID must be a valid UUID.', params);
@@ -474,7 +479,11 @@ export class FindTasksAction extends BaseAction {
             // Optional semantic + lexical search
             let semanticScores: Map<string, number> | null = null;
             if (searchText) {
-                semanticScores = await trySemanticTaskSearch(searchText, Math.max(maxRows * 2, 40), user);
+                semanticScores = await trySemanticTaskSearch(
+                    searchText,
+                    Math.max(maxRows * 2, limits.ResourceGuards.FindTasksSemanticSearchFloor),
+                    user,
+                );
                 const escaped = EscapeSQLString(searchText);
                 const semanticIds = Array.from(semanticScores.keys()).filter((id) => IsValidUUID(id));
                 if (semanticIds.length > 0) {
@@ -515,7 +524,7 @@ export class FindTasksAction extends BaseAction {
                         '__mj_UpdatedAt',
                     ],
                     OrderBy: 'DueAt ASC, __mj_UpdatedAt DESC',
-                    MaxRows: searchText ? Math.min(200, maxRows * 3) : maxRows,
+                    MaxRows: searchText ? Math.min(limits.ResourceGuards.FindTasksSearchFetchCeiling, maxRows * 3) : maxRows,
                     ResultType: 'simple',
                 },
                 user,
@@ -597,6 +606,7 @@ export class GetTaskAction extends BaseAction {
         if (!guard.Allowed) return guard.Failure;
 
         try {
+            const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
             const rv = new RunView();
             const escapedId = EscapeSQLString(taskID);
             const [
@@ -613,7 +623,7 @@ export class GetTaskAction extends BaseAction {
                     {
                         EntityName: TASKS_ENTITY,
                         ExtraFilter: `ID = '${escapedId}'`,
-                        MaxRows: 1,
+                        MaxRows: limits.ResourceGuards.DefaultLookupSingleRow,
                         ResultType: 'simple',
                     },
                     user,
@@ -623,7 +633,7 @@ export class GetTaskAction extends BaseAction {
                         EntityName: TASK_ASSIGNMENTS_ENTITY,
                         ExtraFilter: `TaskID = '${escapedId}'`,
                         Fields: ['ID', 'TaskID', 'AssigneeEntityID', 'AssigneeEntity', 'AssigneeRecordID', 'RoleID', 'Role', 'RoleNotes', 'Status', 'AssignedAt'],
-                        MaxRows: 50,
+                        MaxRows: limits.ResourceGuards.StandardListMaxRows,
                         ResultType: 'simple',
                     },
                     user,
@@ -633,7 +643,7 @@ export class GetTaskAction extends BaseAction {
                         EntityName: TASK_DEPENDENCIES_ENTITY,
                         ExtraFilter: `TaskID = '${escapedId}'`,
                         Fields: ['ID', 'TaskID', 'DependsOnTaskID', 'DependsOnTask', 'DependencyType'],
-                        MaxRows: 50,
+                        MaxRows: limits.ResourceGuards.StandardListMaxRows,
                         ResultType: 'simple',
                     },
                     user,
@@ -643,7 +653,7 @@ export class GetTaskAction extends BaseAction {
                         EntityName: TASK_DEPENDENCIES_ENTITY,
                         ExtraFilter: `DependsOnTaskID = '${escapedId}'`,
                         Fields: ['ID', 'TaskID', 'Task', 'DependsOnTaskID', 'DependencyType'],
-                        MaxRows: 50,
+                        MaxRows: limits.ResourceGuards.StandardListMaxRows,
                         ResultType: 'simple',
                     },
                     user,
@@ -654,7 +664,7 @@ export class GetTaskAction extends BaseAction {
                         ExtraFilter: `TaskID = '${escapedId}'`,
                         Fields: ['ID', 'PersonID', 'Person', 'Content', '__mj_CreatedAt'],
                         OrderBy: '__mj_CreatedAt DESC',
-                        MaxRows: 5,
+                        MaxRows: limits.ResourceGuards.RecentContextMaxRows,
                         ResultType: 'simple',
                     },
                     user,
@@ -665,7 +675,7 @@ export class GetTaskAction extends BaseAction {
                         ExtraFilter: `TaskID = '${escapedId}'`,
                         Fields: ['ID', 'AuthorPerson', 'HealthStatus', 'ConfidenceScore', 'PercentComplete', 'Summary', 'Blockers', 'NextSteps', 'CheckInAt'],
                         OrderBy: 'CheckInAt DESC',
-                        MaxRows: 5,
+                        MaxRows: limits.ResourceGuards.RecentContextMaxRows,
                         ResultType: 'simple',
                     },
                     user,
@@ -675,7 +685,7 @@ export class GetTaskAction extends BaseAction {
                         EntityName: TASK_LINKS_ENTITY,
                         ExtraFilter: `TaskID = '${escapedId}'`,
                         Fields: ['ID', 'EntityID', 'Entity', 'RecordID', 'Description'],
-                        MaxRows: 10,
+                        MaxRows: limits.ResourceGuards.CandidateLookupMaxRows,
                         ResultType: 'simple',
                     },
                     user,
@@ -686,7 +696,7 @@ export class GetTaskAction extends BaseAction {
                         ExtraFilter: `ParentID = '${escapedId}'`,
                         Fields: ['ID', 'Name', 'Status', 'Priority', 'DueAt', 'PercentComplete', 'Type', 'Category', 'OrganizationID', 'Organization', 'ParentID', 'BlockedReason', 'HealthStatus'],
                         OrderBy: 'Sequence ASC, DueAt ASC',
-                        MaxRows: 25,
+                        MaxRows: limits.ResourceGuards.RelatedSearchMaxRows,
                         ResultType: 'simple',
                     },
                     user,
@@ -1047,6 +1057,7 @@ export class CreateTaskAction extends BaseAction {
         callerPersonID: string,
         user: UserInfo,
     ): Promise<TaskSummaryRow | null> {
+        const singleRowMax = TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow;
         const rv = new RunView();
         const marker = `${CLIENT_REQUEST_KEY_PREFIX}${clientRequestKey}`;
         const actRes = await rv.RunView<{ TaskID: string }>(
@@ -1058,7 +1069,7 @@ export class CreateTaskAction extends BaseAction {
                     `AND NewValue = '${EscapeSQLString(marker)}'`,
                 Fields: ['TaskID'],
                 OrderBy: '__mj_CreatedAt DESC',
-                MaxRows: 1,
+                MaxRows: singleRowMax,
                 ResultType: 'simple',
             },
             user,
@@ -1070,7 +1081,7 @@ export class CreateTaskAction extends BaseAction {
             {
                 EntityName: TASKS_ENTITY,
                 ExtraFilter: `ID = '${EscapeSQLString(existingTaskID)}'`,
-                MaxRows: 1,
+                MaxRows: singleRowMax,
                 ResultType: 'simple',
             },
             user,
@@ -1343,7 +1354,7 @@ export class CompleteTaskAction extends BaseAction {
                 EntityName: TASK_DEPENDENCIES_ENTITY,
                 ExtraFilter: `DependsOnTaskID = '${EscapeSQLString(completedTaskID)}'`,
                 Fields: ['TaskID', 'Task'],
-                MaxRows: 100,
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.StandardBatchMaxRows,
                 ResultType: 'simple',
             },
             actingUser,
@@ -1470,13 +1481,14 @@ export class AssignTaskAction extends BaseAction {
         }
 
         try {
+            const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
             const rv = new RunView();
             const taskRes = await rv.RunView<{ ID: string; Name: string }>(
                 {
                     EntityName: TASKS_ENTITY,
                     ExtraFilter: `ID = '${EscapeSQLString(taskID)}'`,
                     Fields: ['ID', 'Name'],
-                    MaxRows: 1,
+                    MaxRows: limits.ResourceGuards.DefaultLookupSingleRow,
                     ResultType: 'simple',
                 },
                 user,
@@ -1564,7 +1576,7 @@ export class AssignTaskAction extends BaseAction {
                     EntityName: TASK_ASSIGNMENTS_ENTITY,
                     ExtraFilter: `TaskID = '${EscapeSQLString(taskID)}'`,
                     ResultType: 'entity_object',
-                    MaxRows: 100,
+                    MaxRows: limits.ResourceGuards.StandardBatchMaxRows,
                 },
                 user,
             );
@@ -1647,7 +1659,7 @@ export class AssignTaskAction extends BaseAction {
                 EntityName: TASK_ROLES_ENTITY,
                 ExtraFilter: `LOWER(Name) = LOWER('${EscapeSQLString(canonicalName)}')`,
                 Fields: ['ID', 'Name'],
-                MaxRows: 1,
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
                 ResultType: 'simple',
             },
             user,
@@ -1665,6 +1677,7 @@ export class AssignTaskAction extends BaseAction {
         | { Status: 'NOT_FOUND'; Message: string }
         | { Status: 'AMBIGUOUS'; Candidates: RawNamedEntityRow[]; Message: string }
     > {
+        const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
         const rv = new RunView();
         if (id) {
             if (!IsValidUUID(id)) {
@@ -1675,7 +1688,7 @@ export class AssignTaskAction extends BaseAction {
                     EntityName: entityName,
                     ExtraFilter: `ID = '${EscapeSQLString(id)}'`,
                     Fields: ['ID', 'Name'],
-                    MaxRows: 1,
+                    MaxRows: limits.ResourceGuards.DefaultLookupSingleRow,
                     ResultType: 'simple',
                 },
                 user,
@@ -1693,7 +1706,7 @@ export class AssignTaskAction extends BaseAction {
                 EntityName: entityName,
                 ExtraFilter: `LOWER(Name) LIKE LOWER('%${EscapeSQLString(name.trim())}%')`,
                 Fields: ['ID', 'Name'],
-                MaxRows: 10,
+                MaxRows: limits.ResourceGuards.CandidateLookupMaxRows,
                 ResultType: 'simple',
             },
             user,
@@ -1789,7 +1802,7 @@ export class AddTaskUpdateAction extends BaseAction {
                     EntityName: TASKS_ENTITY,
                     ExtraFilter: `ID = '${EscapeSQLString(taskID)}'`,
                     Fields: ['ID', 'Name'],
-                    MaxRows: 1,
+                    MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
                     ResultType: 'simple',
                 },
                 user,
@@ -1887,12 +1900,13 @@ export class FindSimilarTasksAction extends BaseAction {
         if (!guard.Allowed) return guard.Failure;
 
         try {
-            const windowDaysRaw = getNumberParam(params, 'WindowDays') ?? 30;
-            const windowDays = Math.max(1, Math.min(365, Math.round(windowDaysRaw)));
+            const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
+            const windowDaysRaw = getNumberParam(params, 'WindowDays') ?? limits.Tuning.FindSimilarDefaultWindowDays;
+            const windowDays = Math.max(1, Math.min(limits.RunawayGuards.FindSimilarTasksMaxWindowDays, Math.round(windowDaysRaw)));
             const minScoreRaw = getNumberParam(params, 'MinScore') ?? 0.35;
             const minScore = Math.max(0.05, Math.min(1, minScoreRaw));
-            const limitRaw = getNumberParam(params, 'Limit', 'MaxRows') ?? 5;
-            const limit = Math.max(1, Math.min(25, Math.round(limitRaw)));
+            const limitRaw = getNumberParam(params, 'Limit', 'MaxRows') ?? limits.Tuning.DefaultTaskSimilarityLimit;
+            const limit = Math.max(1, Math.min(limits.RunawayGuards.FindSimilarTasksMaxLimit, Math.round(limitRaw)));
             const assigneePersonIDParam = getStringParam(params, 'AssigneePersonID');
             const assigneeEmailParam = getStringParam(params, 'AssigneeEmail');
 
@@ -1916,12 +1930,12 @@ export class FindSimilarTasksAction extends BaseAction {
                         ExtraFilter: `Status IN ('Open', 'InProgress', 'Blocked') OR __mj_UpdatedAt >= '${EscapeSQLString(cutoff)}'`,
                         Fields: ['ID', 'Name', 'Description', 'Status', 'Priority', 'DueAt', '__mj_UpdatedAt'],
                         OrderBy: '__mj_UpdatedAt DESC',
-                        MaxRows: 250,
+                        MaxRows: limits.ResourceGuards.BriefingTasksMaxRows,
                         ResultType: 'simple',
                     },
                     user,
                 ),
-                trySemanticTaskSearch(text, 25, user),
+                trySemanticTaskSearch(text, limits.RunawayGuards.FindSimilarTasksMaxLimit, user),
             ]);
 
             if (!tasksRes.Success) {
@@ -2016,21 +2030,27 @@ export class GetMyTasksBriefingAction extends BaseAction {
         if (!taskGuard.Allowed) return taskGuard.Failure;
 
         try {
-            const callerPerson = await resolveCallerPerson(user);
-            if (!callerPerson) {
-                return failResult(
-                    'NO_PERSON_RECORD',
-                    'No active MJ_BizApps_Common: People record is linked to your user account.',
-                    params,
-                );
-            }
+            const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
+            const bounds = ResolveBriefingContributorBounds({
+                HorizonDays: getNumberParam(params, 'HorizonDays'),
+                MaxItems: getNumberParam(params, 'MaxItems'),
+            });
 
-            const horizonDaysRaw = getNumberParam(params, 'HorizonDays') ?? 7;
-            const horizonDays = Math.max(1, Math.min(30, Math.round(horizonDaysRaw)));
-            const maxItemsRaw = getNumberParam(params, 'MaxItems') ?? 10;
-            const maxItems = Math.max(1, Math.min(50, Math.round(maxItemsRaw)));
-            const organizationID = getStringParam(params, 'OrganizationID');
-            const organizationName = getStringParam(params, 'OrganizationName');
+            return await RunWithBriefingContributorTimeout(
+                async () => {
+                    const callerPerson = await resolveCallerPerson(user);
+                    if (!callerPerson) {
+                        return failResult(
+                            'NO_PERSON_RECORD',
+                            'No active MJ_BizApps_Common: People record is linked to your user account.',
+                            params,
+                        );
+                    }
+
+                    const horizonDays = bounds.HorizonDays;
+                    const maxItems = bounds.MaxItems;
+                    const organizationID = getStringParam(params, 'OrganizationID');
+                    const organizationName = getStringParam(params, 'OrganizationName');
 
             let resolvedOrg: { ID: string; Name: string } | null = null;
             if (organizationID || organizationName) {
@@ -2104,7 +2124,7 @@ export class GetMyTasksBriefingAction extends BaseAction {
                         'CreatedByPersonID',
                     ],
                     OrderBy: 'DueAt ASC',
-                    MaxRows: 250,
+                    MaxRows: limits.ResourceGuards.BriefingTasksMaxRows,
                     ResultType: 'simple',
                 },
                 user,
@@ -2134,6 +2154,7 @@ export class GetMyTasksBriefingAction extends BaseAction {
                         EntityName: TASK_ASSIGNMENTS_ENTITY,
                         ExtraFilter: `TaskID IN (${createdOnlyIds.map((id) => `'${EscapeSQLString(id)}'`).join(', ')})`,
                         Fields: ['TaskID'],
+                        MaxRows: limits.ResourceGuards.LargeTreeQueryMaxRows,
                         ResultType: 'simple',
                     },
                     user,
@@ -2268,9 +2289,26 @@ export class GetMyTasksBriefingAction extends BaseAction {
                 `${waitingOnOthers.length} waiting on others, ${pendingApprovals.length} pending approval(s), ` +
                 `${unreviewedWorkReports.length} unreviewed work report(s).`;
 
-            setOutputParam(params, 'Briefing', JSON.stringify(briefing));
-            setOutputParam(params, 'Summary', summary);
-            return successResult(summary, params);
+            const serialized = SerializeBriefingPayloadWithLimit(
+                briefing,
+                [
+                    'OverdueTasks',
+                    'DueTodayTasks',
+                    'UpcomingTasks',
+                    'BlockedTasks',
+                    'WaitingOnOthersTasks',
+                    'PendingApprovalTasks',
+                    'UnreviewedWorkReports',
+                ],
+                bounds.MaxContributorChars,
+            );
+                    setOutputParam(params, 'Briefing', serialized.Json);
+                    setOutputParam(params, 'Summary', summary);
+                    return successResult(summary, params);
+                },
+                bounds.ContributorTimeoutMs,
+                'GetMyTasksBriefingAction',
+            );
         } catch (err) {
             return failResult('ERROR', err instanceof Error ? err.message : String(err), params);
         }

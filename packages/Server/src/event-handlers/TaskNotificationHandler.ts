@@ -31,7 +31,7 @@ import { ActionEngineServer } from '@memberjunction/actions';
 import { IsValidUUID, MJEventType, MJGlobal, MJEvent, UUIDsEqual } from '@memberjunction/global';
 import { Subscription } from 'rxjs';
 import { ResolveUserIDForPerson, ResolveUserIDsForPeople } from '@mj-biz-apps/common-entities';
-import { GuidLiteral } from '@mj-biz-apps/tasks-core';
+import { GuidLiteral, TasksLimitsResolver } from '@mj-biz-apps/tasks-core';
 import {
     mjBizAppsTasksTaskEntity,
     type mjBizAppsTasksTaskAssignmentEntity,
@@ -386,12 +386,13 @@ async function sendAssignmentNotification(
 ): Promise<void> {
     if (!IsValidUUID(taskID)) return;
 
+    const singleRowMax = TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow;
     const rv = new RunView();
     const taskResult = await rv.RunView<{ Name: string; Priority: mjBizAppsTasksTaskEntity['Priority']; DueAt: string | null }>({
         EntityName: TASKS_ENTITY,
         ExtraFilter: `ID=${GuidLiteral(taskID, 'TaskID')}`,
         ResultType: 'simple',
-        MaxRows: 1,
+        MaxRows: singleRowMax,
     }, contextUser);
 
     const task = taskResult?.Results?.[0];
@@ -408,7 +409,7 @@ async function sendAssignmentNotification(
             EntityName: 'MJ_BizApps_Tasks: Task Roles',
             ExtraFilter: `ID=${GuidLiteral(roleID, 'RoleID')}`,
             ResultType: 'simple',
-            MaxRows: 1,
+            MaxRows: singleRowMax,
         }, contextUser);
         const roleName = roleResult?.Results?.[0]?.Name;
         if (roleName) roleStr = ` Role: ${roleName}.`;
@@ -469,14 +470,16 @@ async function handleCommentSave(event: BaseEntityEvent): Promise<void> {
     const content = comment.Content ?? '';
     if (!taskID || !IsValidUUID(taskID)) return;
 
-    const preview = content.length > 100 ? content.substring(0, 100) + '...' : content;
+    const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
+    const previewMax = limits.Briefing.NotificationPreviewMaxChars;
+    const preview = content.length > previewMax ? content.substring(0, previewMax) + '...' : content;
 
     const rv = new RunView();
     const taskResult = await rv.RunView<{ Name: string }>({
         EntityName: TASKS_ENTITY,
         ExtraFilter: `ID=${GuidLiteral(taskID, 'TaskID')}`,
         ResultType: 'simple',
-        MaxRows: 1,
+        MaxRows: limits.ResourceGuards.DefaultLookupSingleRow,
     }, contextUser);
     const taskName = taskResult?.Results?.[0]?.Name ?? 'a task';
 
@@ -522,7 +525,7 @@ async function invokeTaskTypeAction(
         EntityName: 'MJ_BizApps_Tasks: Task Types',
         ExtraFilter: `ID=${GuidLiteral(typeID, 'TypeID')}`,
         ResultType: 'simple',
-        MaxRows: 1,
+        MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
     }, contextUser);
 
     const taskType = typeResult?.Results?.[0];
@@ -600,7 +603,7 @@ async function invokeTaskTypeActionByTaskID(
         EntityName: TASKS_ENTITY,
         ExtraFilter: `ID=${GuidLiteral(taskID, 'TaskID')}`,
         ResultType: 'entity_object',
-        MaxRows: 1,
+        MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
     }, contextUser);
     const task = result?.Results?.[0];
     if (task) {
@@ -713,7 +716,7 @@ async function getPersonName(personID: string, contextUser: UserInfo): Promise<s
         ExtraFilter: `ID=${GuidLiteral(personID, 'PersonID')}`,
         Fields: ['ID', 'FirstName', 'LastName'],
         ResultType: 'simple',
-        MaxRows: 1,
+        MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
     }, contextUser);
 
     const p = result?.Results?.[0];

@@ -28,7 +28,7 @@ import {
     type UserInfo,
 } from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
-import { GuidLiteral as guid, TasksSettings } from '@mj-biz-apps/tasks-core';
+import { GuidLiteral as guid, TasksLimitsResolver, TasksSettings } from '@mj-biz-apps/tasks-core';
 import { mjBizAppsTasksTaskDecisionEntity } from '@mj-biz-apps/tasks-entities';
 import { TaskDecisionRefusal, type DecisionAssignmentFact, type TaskDecisionFacts } from './TaskDecisionAuthority.js';
 import { IsPeopleEntity as isPeopleEntity, PEOPLE_ENTITY, PeopleFilterForUser } from './UserPeople.js';
@@ -98,7 +98,14 @@ export class TaskDecisionEntityServer extends mjBizAppsTasksTaskDecisionEntity {
         // When PreventSelfApproval is off, first check if the task's TaskType sets RequiresAssigneeDecision (D13)
         if (!preventSelfApproval) {
             const taskRes = await rv.RunView<{ TypeID: string; CreatedByPersonID: string | null }>(
-                { EntityName: TASK_ENTITY, ExtraFilter: `ID = ${taskFilter}`, Fields: ['ID', 'TypeID', 'CreatedByPersonID'], MaxRows: 1, ResultType: 'simple', BypassCache: true },
+                {
+                    EntityName: TASK_ENTITY,
+                    ExtraFilter: `ID = ${taskFilter}`,
+                    Fields: ['ID', 'TypeID', 'CreatedByPersonID'],
+                    MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
+                    ResultType: 'simple',
+                    BypassCache: true,
+                },
                 user,
             );
             if (!taskRes?.Success) throw new Error(taskRes?.ErrorMessage ?? 'a lookup returned no result');
@@ -193,7 +200,7 @@ export class TaskDecisionEntityServer extends mjBizAppsTasksTaskDecisionEntity {
                 EntityName: TASK_TYPE_ENTITY,
                 ExtraFilter: `ID = ${guid(typeID, 'TypeID')}`,
                 Fields: ['IsApproval', 'RequiresAssigneeDecision'],
-                MaxRows: 1,
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
                 ResultType: 'simple',
                 BypassCache: true,
             },
@@ -211,8 +218,9 @@ export class TaskDecisionEntityServer extends mjBizAppsTasksTaskDecisionEntity {
     private async holdsExemptRole(rv: RunView, provider: IMetadataProvider, user: UserInfo): Promise<boolean> {
         const roleName = TasksSettings.SelfApprovalExemptRole(provider);
         if (!roleName) return false;
+        const singleRowMax = TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow;
         const roleRes = await rv.RunView<{ ID: string }>(
-            { EntityName: ROLES_ENTITY, ExtraFilter: `Name = '${roleName.replace(/'/g, "''")}'`, Fields: ['ID'], MaxRows: 1, ResultType: 'simple', BypassCache: true },
+            { EntityName: ROLES_ENTITY, ExtraFilter: `Name = '${roleName.replace(/'/g, "''")}'`, Fields: ['ID'], MaxRows: singleRowMax, ResultType: 'simple', BypassCache: true },
             user,
         );
         if (!roleRes?.Success) throw new Error(roleRes?.ErrorMessage ?? 'the role lookup returned no result');
@@ -222,7 +230,7 @@ export class TaskDecisionEntityServer extends mjBizAppsTasksTaskDecisionEntity {
             return false;
         }
         const heldRes = await rv.RunView<{ ID: string }>(
-            { EntityName: USER_ROLES_ENTITY, ExtraFilter: `UserID = ${guid(user.ID, 'UserID')} AND RoleID = ${guid(role.ID, 'RoleID')}`, Fields: ['ID'], MaxRows: 1, ResultType: 'simple', BypassCache: true },
+            { EntityName: USER_ROLES_ENTITY, ExtraFilter: `UserID = ${guid(user.ID, 'UserID')} AND RoleID = ${guid(role.ID, 'RoleID')}`, Fields: ['ID'], MaxRows: singleRowMax, ResultType: 'simple', BypassCache: true },
             user,
         );
         if (!heldRes?.Success) throw new Error(heldRes?.ErrorMessage ?? 'the user role lookup returned no result');

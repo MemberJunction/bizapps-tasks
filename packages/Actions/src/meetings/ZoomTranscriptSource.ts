@@ -3,6 +3,7 @@ import { CredentialEngine } from '@memberjunction/credentials';
 import { RegisterClass } from '@memberjunction/global';
 import {
     parseWebVttTranscript,
+    TasksLimitsResolver,
     TranscriptSourceBase,
     type FetchedTranscript,
     type TranscriptMeetingContext,
@@ -42,8 +43,6 @@ interface ZoomTranscriptConfigValues {
     accountId?: string;
 }
 
-const ZOOM_TIMEOUT_MS = 15_000;
-const TOKEN_SAFETY_MARGIN_MS = 60_000;
 const zoomTranscriptTokenCache = new Map<string, { accessToken: string; expiresAtMs: number }>();
 
 /** Clears the in-process Zoom transcript OAuth token cache (useful in unit tests). */
@@ -119,6 +118,7 @@ export class ZoomTranscriptSource extends TranscriptSourceBase {
             return null;
         }
 
+        const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
         const accessToken = await this.fetchAccessToken();
         const url = `https://api.zoom.us/v2/meetings/${encodeURIComponent(zoomMeetingId)}/recordings`;
         const response = await fetch(url, {
@@ -127,7 +127,7 @@ export class ZoomTranscriptSource extends TranscriptSourceBase {
                 Authorization: `Bearer ${accessToken}`,
                 Accept: 'application/json',
             },
-            signal: AbortSignal.timeout(ZOOM_TIMEOUT_MS),
+            signal: AbortSignal.timeout(limits.ResourceGuards.ZoomApiTimeoutMs),
         });
 
         // 404 or 400 (code 3301: recording does not exist yet) means transcript isn't ready yet
@@ -139,7 +139,7 @@ export class ZoomTranscriptSource extends TranscriptSourceBase {
             if (response.status === 400 && detail.includes('3301')) {
                 return null;
             }
-            throw new Error(`Zoom recordings lookup failed (${response.status}): ${detail.slice(0, 300)}`);
+            throw new Error(`Zoom recordings lookup failed (${response.status}): ${detail.slice(0, limits.Tuning.HttpErrorDetailMaxChars)}`);
         }
 
         const data = (await response.json()) as ZoomRecordingsResponse;
@@ -189,6 +189,7 @@ export class ZoomTranscriptSource extends TranscriptSourceBase {
             );
         }
 
+        const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
         const accessToken = await this.fetchAccessToken();
         const response = await fetch(downloadUrl, {
             method: 'GET',
@@ -196,12 +197,12 @@ export class ZoomTranscriptSource extends TranscriptSourceBase {
                 Authorization: `Bearer ${accessToken}`,
                 Accept: 'text/vtt, text/plain, */*',
             },
-            signal: AbortSignal.timeout(ZOOM_TIMEOUT_MS),
+            signal: AbortSignal.timeout(limits.ResourceGuards.ZoomApiTimeoutMs),
         });
 
         if (!response.ok) {
             const detail = await response.text();
-            throw new Error(`Zoom transcript download failed (${response.status}): ${detail.slice(0, 300)}`);
+            throw new Error(`Zoom transcript download failed (${response.status}): ${detail.slice(0, limits.Tuning.HttpErrorDetailMaxChars)}`);
         }
 
         const rawVtt = await response.text();
@@ -223,6 +224,7 @@ export class ZoomTranscriptSource extends TranscriptSourceBase {
             return cached.accessToken;
         }
 
+        const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
         const basic = btoa(`${this.clientId}:${this.clientSecret}`);
         const tokenUrl = `https://zoom.us/oauth/token?grant_type=account_credentials&account_id=${encodeURIComponent(this.accountId)}`;
         const response = await fetch(tokenUrl, {
@@ -231,12 +233,12 @@ export class ZoomTranscriptSource extends TranscriptSourceBase {
                 Authorization: `Basic ${basic}`,
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
-            signal: AbortSignal.timeout(ZOOM_TIMEOUT_MS),
+            signal: AbortSignal.timeout(limits.ResourceGuards.ZoomApiTimeoutMs),
         });
 
         if (!response.ok) {
             const detail = await response.text();
-            throw new Error(`Zoom OAuth token request failed (${response.status}): ${detail.slice(0, 300)}`);
+            throw new Error(`Zoom OAuth token request failed (${response.status}): ${detail.slice(0, limits.Tuning.HttpErrorDetailMaxChars)}`);
         }
 
         const data = (await response.json()) as ZoomTokenResponse;
@@ -244,7 +246,7 @@ export class ZoomTranscriptSource extends TranscriptSourceBase {
             throw new Error('Zoom OAuth token response did not contain an access_token.');
         }
 
-        const ttlMs = Math.max(0, (Number(data.expires_in) || 3600) * 1000 - TOKEN_SAFETY_MARGIN_MS);
+        const ttlMs = Math.max(0, (Number(data.expires_in) || 3600) * 1000 - limits.Tuning.ZoomTokenSafetyMarginMs);
         zoomTranscriptTokenCache.set(cacheKey, {
             accessToken: data.access_token,
             expiresAtMs: Date.now() + ttlMs,

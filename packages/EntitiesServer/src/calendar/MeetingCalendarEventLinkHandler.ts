@@ -3,7 +3,7 @@ import { BaseCalendarEventLinkHandler, type CalendarLinkChange } from '@memberju
 import type { CalendarEventAttendee } from '@memberjunction/communication-types';
 import { RegisterClass } from '@memberjunction/global';
 import type { mjBizAppsTasksMeetingAttendeeEntity, mjBizAppsTasksMeetingEntity } from '@mj-biz-apps/tasks-entities';
-import { MEETING_ATTENDEE_ENTITY, MEETING_ENTITY, PEOPLE_ENTITY } from '@mj-biz-apps/tasks-core';
+import { MEETING_ATTENDEE_ENTITY, MEETING_ENTITY, PEOPLE_ENTITY, TasksLimitsResolver } from '@mj-biz-apps/tasks-core';
 
 interface PersonEmailLookup {
     ID: string;
@@ -110,7 +110,7 @@ export class MeetingCalendarEventLinkHandler extends BaseCalendarEventLinkHandle
                 EntityName: MEETING_ATTENDEE_ENTITY,
                 ExtraFilter: `MeetingID = '${meetingId}'`,
                 ResultType: 'entity_object',
-                MaxRows: 1000,
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.LargeTreeQueryMaxRows,
             },
             contextUser,
         );

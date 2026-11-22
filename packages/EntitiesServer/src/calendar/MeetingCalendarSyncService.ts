@@ -19,6 +19,7 @@ import {
     MEETING_ATTENDEE_ENTITY,
     MEETING_ENTITY,
     PEOPLE_ENTITY,
+    TasksLimitsResolver,
     TasksSettings,
     VIDEO_PROVIDER_ENTITY,
 } from '@mj-biz-apps/tasks-core';
@@ -272,7 +273,7 @@ export class MeetingCalendarSyncService {
                         ExtraFilter: `ID = '${linkedUserId}'`,
                         Fields: ['Email'],
                         ResultType: 'simple',
-                        MaxRows: 1,
+                        MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
                     },
                     contextUser,
                 );
@@ -371,7 +372,7 @@ export class MeetingCalendarSyncService {
                 ExtraFilter: `Entity = '${MEETING_ENTITY}' AND Status = 'Active' AND (RecordID = '${meetingId}' OR RecordID = '${compactKey}')`,
                 Fields: ['ID'],
                 ResultType: 'simple',
-                MaxRows: 1,
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
             },
             contextUser,
         );
@@ -385,7 +386,7 @@ export class MeetingCalendarSyncService {
                 ExtraFilter: `MeetingID = '${meetingId}'`,
                 Fields: ['PersonID', 'Email', 'DisplayName', 'Person', 'Role'],
                 ResultType: 'simple',
-                MaxRows: 1000,
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.LargeTreeQueryMaxRows,
             },
             contextUser,
         );

@@ -1,7 +1,7 @@
 import { BaseEntity, RunView, ValidationErrorInfo, ValidationErrorType, type EntityDeleteOptions, type IMetadataProvider, type ValidationResult } from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
 import { mjBizAppsTasksMeetingAgendaItemEntity, mjBizAppsTasksMeetingLinkEntity } from '@mj-biz-apps/tasks-entities';
-import { MEETING_AGENDA_ITEM_ENTITY, MEETING_LINK_ENTITY, MEETING_SERIES_ENTITY, agendaParentProblem, type AgendaNode } from '@mj-biz-apps/tasks-core';
+import { MEETING_AGENDA_ITEM_ENTITY, MEETING_LINK_ENTITY, MEETING_SERIES_ENTITY, TasksLimitsResolver, agendaParentProblem, type AgendaNode } from '@mj-biz-apps/tasks-core';
 import { mjBizAppsTasksMeetingSeriesEntity } from '@mj-biz-apps/tasks-entities';
 import { callerAndMeeting, callerOwnsMeeting, meetingCaller, movedFromMeetingRefusal, valueBefore } from './meeting-caller.js';
 
@@ -39,7 +39,13 @@ export class MeetingAgendaItemEntityServer extends mjBizAppsTasksMeetingAgendaIt
         if (this.ParentID) {
             const provider = this.ProviderToUse as unknown as IMetadataProvider;
             const rows = await RunView.FromMetadataProvider(provider).RunView<AgendaNode>(
-                { EntityName: MEETING_AGENDA_ITEM_ENTITY, ExtraFilter: `MeetingID = '${this.MeetingID}'`, Fields: ['ID', 'MeetingID', 'ParentID', 'Sequence'], ResultType: 'simple', MaxRows: 2000 },
+                {
+                    EntityName: MEETING_AGENDA_ITEM_ENTITY,
+                    ExtraFilter: `MeetingID = '${this.MeetingID}'`,
+                    Fields: ['ID', 'MeetingID', 'ParentID', 'Sequence'],
+                    ResultType: 'simple',
+                    MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.SeriesMaterializationMaxRows,
+                },
                 this.ContextCurrentUser,
             );
             if (!rows.Success) return fail(result, 'ParentID', `The agenda could not be read: ${rows.ErrorMessage}`);
@@ -62,7 +68,13 @@ export class MeetingAgendaItemEntityServer extends mjBizAppsTasksMeetingAgendaIt
 
     private async parentElsewhere(provider: IMetadataProvider): Promise<AgendaNode[]> {
         const rows = await RunView.FromMetadataProvider(provider).RunView<AgendaNode>(
-            { EntityName: MEETING_AGENDA_ITEM_ENTITY, ExtraFilter: `ID = '${this.ParentID}'`, Fields: ['ID', 'MeetingID', 'ParentID', 'Sequence'], ResultType: 'simple', MaxRows: 1 },
+            {
+                EntityName: MEETING_AGENDA_ITEM_ENTITY,
+                ExtraFilter: `ID = '${this.ParentID}'`,
+                Fields: ['ID', 'MeetingID', 'ParentID', 'Sequence'],
+                ResultType: 'simple',
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
+            },
             this.ContextCurrentUser,
         );
         return rows.Success ? rows.Results : [];

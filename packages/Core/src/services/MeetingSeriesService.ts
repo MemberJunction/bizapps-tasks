@@ -9,6 +9,7 @@ import type {
 } from '@mj-biz-apps/tasks-entities';
 import { MEETING_ATTENDEE_ENTITY, MEETING_ENTITY, MEETING_LINK_ENTITY, MEETING_SERIES_ATTENDEE_ENTITY, MEETING_SERIES_ENTITY, entityFailure } from '../meetings/entity-names.js';
 import { expandOccurrences, seriesHasEnded } from '../meetings/recurrence.js';
+import { TasksLimitsResolver } from '../config/TasksLimits.js';
 
 export interface MaterializeOptions {
     /** How far ahead occurrences are made. Default 90 days. */
@@ -28,7 +29,8 @@ export interface MaterializeResult {
     ended: boolean;
 }
 
-export const DEFAULT_HORIZON_DAYS = 90;
+export const DEFAULT_HORIZON_DAYS: number =
+    TasksLimitsResolver.Instance.GetCurrentLimits().Tuning.DefaultSeriesHorizonDays;
 
 type OccurrenceRow = Pick<mjBizAppsTasksMeetingEntity, 'ID' | 'OccurrenceStartsAt' | 'StartsAt' | 'Status' | 'OrganizerPersonID'>;
 
@@ -70,7 +72,8 @@ export class MeetingSeriesService {
         if (series.Status !== 'Active') return result;
 
         const now = options.now ?? new Date();
-        const through = new Date(now.getTime() + (options.horizonDays ?? DEFAULT_HORIZON_DAYS) * 86400000);
+        const defaultHorizonDays = TasksLimitsResolver.Instance.GetCurrentLimits().Tuning.DefaultSeriesHorizonDays;
+        const through = new Date(now.getTime() + (options.horizonDays ?? defaultHorizonDays) * 86400000);
         const recurrence = { rule: series.RecurrenceRule, timeZone: series.TimeZone, firstStartsAt: series.FirstStartsAt, durationMinutes: series.DurationMinutes };
         const slots = expandOccurrences(recurrence, { from: now, through });
         const existing = await this.futureOccurrences(series.ID, now, contextUser);
@@ -177,7 +180,7 @@ export class MeetingSeriesService {
                 ExtraFilter: `SeriesID = '${seriesId}' AND StartsAt >= '${now.toISOString()}' AND Status IN ('Draft', 'Scheduled', 'Postponed')`,
                 Fields: ['ID', 'Status'],
                 ResultType: 'simple',
-                MaxRows: 2000,
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.SeriesMaterializationMaxRows,
             },
             contextUser,
         );
@@ -207,7 +210,7 @@ export class MeetingSeriesService {
                 ExtraFilter: `SeriesID = '${seriesId}' AND OccurrenceStartsAt >= '${from.toISOString()}'`,
                 Fields: ['ID', 'OccurrenceStartsAt', 'StartsAt', 'Status', 'OrganizerPersonID'],
                 ResultType: 'simple',
-                MaxRows: 2000,
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.SeriesMaterializationMaxRows,
             },
             contextUser,
         );
@@ -221,7 +224,12 @@ export class MeetingSeriesService {
 
     async seriesAttendees(seriesId: string, contextUser: UserInfo): Promise<mjBizAppsTasksMeetingSeriesAttendeeEntity[]> {
         const res = await RunView.FromMetadataProvider(this.provider).RunView<mjBizAppsTasksMeetingSeriesAttendeeEntity>(
-            { EntityName: MEETING_SERIES_ATTENDEE_ENTITY, ExtraFilter: `SeriesID = '${seriesId}'`, ResultType: 'entity_object', MaxRows: 1000 },
+            {
+                EntityName: MEETING_SERIES_ATTENDEE_ENTITY,
+                ExtraFilter: `SeriesID = '${seriesId}'`,
+                ResultType: 'entity_object',
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.LargeTreeQueryMaxRows,
+            },
             contextUser,
         );
         if (!res.Success) throw new Error(`The series' attendees could not be read: ${res.ErrorMessage}`);
@@ -230,7 +238,12 @@ export class MeetingSeriesService {
 
     async seriesLinks(seriesId: string, contextUser: UserInfo): Promise<mjBizAppsTasksMeetingLinkEntity[]> {
         const res = await RunView.FromMetadataProvider(this.provider).RunView<mjBizAppsTasksMeetingLinkEntity>(
-            { EntityName: MEETING_LINK_ENTITY, ExtraFilter: `SeriesID = '${seriesId}'`, ResultType: 'entity_object', MaxRows: 1000 },
+            {
+                EntityName: MEETING_LINK_ENTITY,
+                ExtraFilter: `SeriesID = '${seriesId}'`,
+                ResultType: 'entity_object',
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.LargeTreeQueryMaxRows,
+            },
             contextUser,
         );
         if (!res.Success) throw new Error(`The series' links could not be read: ${res.ErrorMessage}`);
@@ -285,7 +298,13 @@ export class MeetingSeriesService {
     private async ensureAttendees(meetingId: string, attendees: readonly mjBizAppsTasksMeetingSeriesAttendeeEntity[], contextUser: UserInfo): Promise<boolean> {
         if (!attendees.length) return false;
         const existing = await RunView.FromMetadataProvider(this.provider).RunView<{ PersonID: string | null; Email: string | null }>(
-            { EntityName: MEETING_ATTENDEE_ENTITY, ExtraFilter: `MeetingID = '${meetingId}'`, Fields: ['PersonID', 'Email'], ResultType: 'simple', MaxRows: 1000 },
+            {
+                EntityName: MEETING_ATTENDEE_ENTITY,
+                ExtraFilter: `MeetingID = '${meetingId}'`,
+                Fields: ['PersonID', 'Email'],
+                ResultType: 'simple',
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.LargeTreeQueryMaxRows,
+            },
             contextUser,
         );
         if (!existing.Success) throw new Error(`The occurrence's attendees could not be read: ${existing.ErrorMessage}`);
@@ -316,7 +335,13 @@ export class MeetingSeriesService {
     private async ensureLinks(meetingId: string, links: readonly mjBizAppsTasksMeetingLinkEntity[], contextUser: UserInfo): Promise<boolean> {
         if (!links.length) return false;
         const existing = await RunView.FromMetadataProvider(this.provider).RunView<{ EntityID: string; RecordID: string }>(
-            { EntityName: MEETING_LINK_ENTITY, ExtraFilter: `MeetingID = '${meetingId}'`, Fields: ['EntityID', 'RecordID'], ResultType: 'simple', MaxRows: 1000 },
+            {
+                EntityName: MEETING_LINK_ENTITY,
+                ExtraFilter: `MeetingID = '${meetingId}'`,
+                Fields: ['EntityID', 'RecordID'],
+                ResultType: 'simple',
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.LargeTreeQueryMaxRows,
+            },
             contextUser,
         );
         if (!existing.Success) throw new Error(`The occurrence's links could not be read: ${existing.ErrorMessage}`);

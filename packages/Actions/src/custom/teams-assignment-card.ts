@@ -56,17 +56,38 @@ export type AssignmentCardInput = {
     TaskLink: string | null;
 };
 
+export type AdaptiveCardBodyBlock =
+    | { type: 'TextBlock'; text: string; weight: string; size: string; wrap: boolean }
+    | { type: 'FactSet'; facts: Array<{ title: string; value: string }> };
+
+export type AdaptiveCardPayload = {
+    $schema: string;
+    type: 'AdaptiveCard';
+    version: string;
+    body: AdaptiveCardBodyBlock[];
+    actions?: Array<{ type: 'Action.OpenUrl'; title: string; url: string }>;
+};
+
+export type TeamsAssignmentMessagePayload = {
+    type: 'message';
+    attachments: Array<{
+        contentType: string;
+        contentUrl: null;
+        content: AdaptiveCardPayload;
+    }>;
+};
+
 /**
  * Teams message payload carrying an Adaptive Card. Both connector and Workflows webhooks
  * accept this `message` + `attachments` shape.
  */
-export function BuildAssignmentCardPayload(input: AssignmentCardInput): Record<string, unknown> {
+export function BuildAssignmentCardPayload(input: AssignmentCardInput): TeamsAssignmentMessagePayload {
     const heading = input.TaskTypeName ? `New ${EscapeTeamsMarkdown(input.TaskTypeName.toLowerCase())}` : 'New task assigned';
     const facts = [
         { title: 'Task', value: EscapeTeamsMarkdown(input.TaskName) },
         ...(input.AssigneeName ? [{ title: 'Assigned to', value: EscapeTeamsMarkdown(input.AssigneeName) }] : []),
     ];
-    const card: Record<string, unknown> = {
+    const card: AdaptiveCardPayload = {
         $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
         type: 'AdaptiveCard',
         version: '1.4',

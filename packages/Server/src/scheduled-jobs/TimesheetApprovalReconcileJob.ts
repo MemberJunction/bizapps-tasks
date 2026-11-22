@@ -22,6 +22,7 @@ import {
     mjBizAppsTasksTimesheetApprovalEntity,
 } from '@mj-biz-apps/tasks-entities';
 import { ApplyTimesheetApprovalOutcomeForTask } from '@mj-biz-apps/tasks-entities-server';
+import { TasksLimitsResolver } from '@mj-biz-apps/tasks-core/limits';
 
 /** Summary returned by {@link ReconcileStaleTimesheetApprovals}. */
 export interface TimesheetApprovalReconcileSummary {
@@ -38,13 +39,15 @@ export interface TimesheetApprovalReconcileSummary {
  */
 export async function ReconcileStaleTimesheetApprovals(
     contextUser: UserInfo,
-    maxRows: number = 200,
+    maxRows?: number,
     mdProvider?: IMetadataProvider | null,
     rvProvider?: IRunViewProvider | null,
 ): Promise<TimesheetApprovalReconcileSummary> {
+    const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
     const md = mdProvider ?? Metadata.Provider;
     const rv = new RunView(rvProvider ?? null);
-    const cap = Math.max(1, Math.min(1000, maxRows));
+    const effectiveMaxRows = maxRows ?? limits.ResourceGuards.ReconcileTimesheetApprovalsDefaultMaxRows;
+    const cap = Math.max(1, Math.min(limits.ResourceGuards.ReconcileTimesheetApprovalsMaxRowsCeiling, effectiveMaxRows));
 
     const pendingRes = await rv.RunView<mjBizAppsTasksTimesheetApprovalEntity>(
         {
@@ -133,7 +136,9 @@ export async function ReconcileStaleTimesheetApprovals(
 export class TimesheetApprovalReconcileJob extends BaseScheduledJob {
     public override async Execute(context: ScheduledJobExecutionContext): Promise<ScheduledJobResult> {
         try {
-            const summary = await ReconcileStaleTimesheetApprovals(context.ContextUser, 200);
+            const defaultMaxRows =
+                TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.ReconcileTimesheetApprovalsDefaultMaxRows;
+            const summary = await ReconcileStaleTimesheetApprovals(context.ContextUser, defaultMaxRows);
             if (summary.RepairedCount > 0) {
                 this.log(
                     `Reconciled ${summary.RepairedCount} stale timesheet approval part(s): ${summary.RepairedPartIDs.join(', ')}`,

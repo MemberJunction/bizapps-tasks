@@ -14,6 +14,7 @@ import type {
     mjBizAppsTasksWorkReportEntity,
     mjBizAppsTasksWorkReportItemEntity,
 } from '@mj-biz-apps/tasks-entities';
+import { TasksLimitsResolver } from '../config/TasksLimits.js';
 
 export type WorkReportStatus = mjBizAppsTasksWorkReportEntity['Status'];
 export type WorkReportItemSection = mjBizAppsTasksWorkReportItemEntity['Section'];
@@ -46,8 +47,6 @@ const PRIVILEGED_ROLE_NAMES = new Set([
     'system administrator',
     'administration',
 ]);
-
-const MAX_SUPERVISOR_CHAIN_DEPTH = 3;
 
 export type WorkReportProvider = IMetadataProvider & IRunViewProvider;
 
@@ -744,7 +743,7 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
                     EntityName: PEOPLE_ENTITY_NAME,
                     ExtraFilter: `ID = '${EscapeSQLString(userWithLink.LinkedEntityRecordID)}' AND Status = 'Active'`,
                     Fields: ['ID', 'FirstName', 'LastName', 'Email', 'LinkedUserID'],
-                    MaxRows: 1,
+                    MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
                     ResultType: 'simple',
                 },
                 user,
@@ -770,7 +769,7 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
                     EntityName: PEOPLE_ENTITY_NAME,
                     ExtraFilter: `LinkedUserID = '${EscapeSQLString(user.ID)}' AND Status = 'Active'`,
                     Fields: ['ID', 'FirstName', 'LastName', 'Email', 'LinkedUserID'],
-                    MaxRows: 1,
+                    MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
                     ResultType: 'simple',
                 },
                 user,
@@ -797,7 +796,7 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
                     EntityName: PEOPLE_ENTITY_NAME,
                     ExtraFilter: `LOWER(Email) = LOWER('${EscapeSQLString(email)}') AND Status = 'Active'`,
                     Fields: ['ID', 'FirstName', 'LastName', 'Email', 'LinkedUserID'],
-                    MaxRows: 5,
+                    MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.RecentContextMaxRows,
                     ResultType: 'simple',
                 },
                 user,
@@ -839,13 +838,16 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
             throw new Error(`Invalid authorPersonID: '${authorPersonID}'`);
         }
 
+        const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
+        const singleRowMax = limits.ResourceGuards.DefaultLookupSingleRow;
+        const maxSupervisorChainDepth = limits.RunawayGuards.MaxSupervisorChainDepth;
         const rv = this.createRunView(provider);
         const personRes = await rv.RunView<RawPersonRow>(
             {
                 EntityName: PEOPLE_ENTITY_NAME,
                 ExtraFilter: `ID = '${EscapeSQLString(authorPersonID)}'`,
                 Fields: ['ID', 'FirstName', 'LastName', 'Email', 'LinkedUserID'],
-                MaxRows: 1,
+                MaxRows: singleRowMax,
                 ResultType: 'simple',
             },
             contextUser,
@@ -890,7 +892,7 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
                 EntityName: EMPLOYEES_ENTITY_NAME,
                 ExtraFilter: `LOWER(Email) = LOWER('${EscapeSQLString(authorEmail)}') AND Active = 1`,
                 Fields: ['ID', 'FirstName', 'LastName', 'Email', 'SupervisorID', 'Active'],
-                MaxRows: 1,
+                MaxRows: singleRowMax,
                 ResultType: 'simple',
             },
             contextUser,
@@ -915,7 +917,7 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
         const visitedEmployeeIDs = new Set<string>([NormalizeUUID(empRow.ID)]);
         let currentSupervisorEmpID: string | null = empRow.SupervisorID;
 
-        for (let depth = 0; depth < MAX_SUPERVISOR_CHAIN_DEPTH && currentSupervisorEmpID; depth++) {
+        for (let depth = 0; depth < maxSupervisorChainDepth && currentSupervisorEmpID; depth++) {
             const normalizedEmpID = NormalizeUUID(currentSupervisorEmpID);
             if (visitedEmployeeIDs.has(normalizedEmpID)) {
                 break;
@@ -931,7 +933,7 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
                     EntityName: EMPLOYEES_ENTITY_NAME,
                     ExtraFilter: `ID = '${EscapeSQLString(currentSupervisorEmpID)}'`,
                     Fields: ['ID', 'FirstName', 'LastName', 'Email', 'SupervisorID', 'Active'],
-                    MaxRows: 1,
+                    MaxRows: singleRowMax,
                     ResultType: 'simple',
                 },
                 contextUser,
@@ -963,7 +965,7 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
                         EntityName: USERS_ENTITY_NAME,
                         ExtraFilter: `LOWER(Email) = LOWER('${EscapeSQLString(supEmail)}') AND IsActive = 1`,
                         Fields: ['ID', 'Name', 'Email'],
-                        MaxRows: 1,
+                        MaxRows: singleRowMax,
                         ResultType: 'simple',
                     },
                     contextUser,
@@ -994,7 +996,7 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
                         EntityName: PEOPLE_ENTITY_NAME,
                         ExtraFilter: supPersonFilter,
                         Fields: ['ID', 'FirstName', 'LastName', 'Email', 'LinkedUserID'],
-                        MaxRows: 5,
+                        MaxRows: limits.ResourceGuards.RecentContextMaxRows,
                         ResultType: 'simple',
                     },
                     contextUser,
@@ -1059,13 +1061,14 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
             return [];
         }
 
+        const singleRowMax = TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow;
         const rv = this.createRunView(provider);
         const supPersonRes = await rv.RunView<RawPersonRow>(
             {
                 EntityName: PEOPLE_ENTITY_NAME,
                 ExtraFilter: `ID = '${EscapeSQLString(supervisorPersonID)}'`,
                 Fields: ['ID', 'Email', 'LinkedUserID'],
-                MaxRows: 1,
+                MaxRows: singleRowMax,
                 ResultType: 'simple',
             },
             contextUser,
@@ -1088,7 +1091,7 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
                 EntityName: EMPLOYEES_ENTITY_NAME,
                 ExtraFilter: `LOWER(Email) = LOWER('${EscapeSQLString(supEmail)}') AND Active = 1`,
                 Fields: ['ID', 'Email'],
-                MaxRows: 1,
+                MaxRows: singleRowMax,
                 ResultType: 'simple',
             },
             contextUser,
@@ -1501,7 +1504,7 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
                         `AND PeriodStart = '${EscapeSQLString(startLabel)}' ` +
                         `AND PeriodEnd = '${EscapeSQLString(endLabel)}'`,
                     Fields: ['ID', 'Status'],
-                    MaxRows: 1,
+                    MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
                     ResultType: 'simple',
                 },
                 params.ContextUser,
@@ -1872,6 +1875,7 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
         const workReportsEntity = findEntityByName(md, WORK_REPORTS_ENTITY_NAME);
         const requestContextUser = params.ServiceContextUser ?? params.ContextUser;
 
+        const singleRowMax = TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow;
         // Look up the Chief of Staff agent ID if available
         let cosAgentID: string | null = null;
         const cosAgentRes = await rv.RunView<RawAgentRow>(
@@ -1879,7 +1883,7 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
                 EntityName: AI_AGENTS_ENTITY_NAME,
                 ExtraFilter: `Name = 'Chief of Staff'`,
                 Fields: ['ID'],
-                MaxRows: 1,
+                MaxRows: singleRowMax,
                 ResultType: 'simple',
             },
             params.ContextUser,
@@ -1899,7 +1903,7 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
                     EntityName: AI_AGENT_REQUEST_TYPES_ENTITY_NAME,
                     ExtraFilter: `Name IN ('Approval', 'Information', 'Confirmation')`,
                     Fields: ['ID', 'Name'],
-                    MaxRows: 1,
+                    MaxRows: singleRowMax,
                     ResultType: 'simple',
                 },
                 params.ContextUser,

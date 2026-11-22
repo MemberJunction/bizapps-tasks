@@ -23,7 +23,7 @@ import {
     ValidationResult,
 } from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
-import { AncestorRunIDsFor, GuidLiteral as guid, UserCanManageTimeEntries } from '@mj-biz-apps/tasks-core';
+import { AncestorRunIDsFor, GuidLiteral as guid, TasksLimitsResolver, UserCanManageTimeEntries } from '@mj-biz-apps/tasks-core';
 import { mjBizAppsTasksTaskAgentRunEntity } from '@mj-biz-apps/tasks-entities';
 
 export const TASK_AGENT_RUN_ENTITY = 'MJ_BizApps_Tasks: Task Agent Runs';
@@ -122,7 +122,7 @@ export class TaskAgentRunEntityServer extends mjBizAppsTasksTaskAgentRunEntity {
                 EntityName: AI_AGENT_RUNS_ENTITY,
                 ExtraFilter: `ID = ${runLit}`,
                 Fields: ['ID', 'UserID', 'ParentRunID', 'ParentRunIDPath'],
-                MaxRows: 1,
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
                 ResultType: 'simple',
                 BypassCache: true,
             },

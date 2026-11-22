@@ -1,5 +1,6 @@
 import { CompositeKey, IMetadataProvider, IRunViewProvider, Metadata, RunView, UserInfo } from "@memberjunction/core";
 import { EscapeSQLString } from "@memberjunction/global";
+import { TasksLimitsResolver } from "../config/TasksLimits.js";
 import type {
     mjBizAppsTasksTaskEntity,
     mjBizAppsTasksTaskDecisionEntity,
@@ -343,7 +344,7 @@ export class TaskOrchestrationService {
             EntityName: TASK_DECISION_OUTCOMES_ENTITY,
             ExtraFilter: `Code = '${EscapeSQLString(code)}'`,
             ResultType: 'entity_object',
-            MaxRows: 1,
+            MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
         }, contextUser);
 
         const outcome = result?.Results?.[0];

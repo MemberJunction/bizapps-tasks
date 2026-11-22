@@ -1,4 +1,5 @@
 import { RunView, type IMetadataProvider, type UserInfo } from '@memberjunction/core';
+import { TasksLimitsResolver } from '../config/TasksLimits.js';
 
 export const AI_PROMPTS_ENTITY = 'MJ: AI Prompts';
 export const FILES_ENTITY = 'MJ: Files';
@@ -52,7 +53,7 @@ export async function resolveMeetingPromptId(
                 ExtraFilter: `Name = '${promptName.replace(/'/g, "''")}' AND Status = 'Active'`,
                 Fields: ['ID'],
                 ResultType: 'simple',
-                MaxRows: 1,
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
             },
             contextUser,
         );

@@ -31,6 +31,7 @@ import { BusinessTimeZoneEngine, ToCalendarDay, type CalendarDay } from '@mj-biz
 import {
     DeriveIntervalMinutes,
     GuidLiteral as guid,
+    TasksLimitsResolver,
     TasksSettings,
     TimeEntryRefusal,
     UserCanManageTimeEntries,
@@ -213,7 +214,7 @@ export class TaskTimeEntryEntityServer extends mjBizAppsTasksTaskTimeEntryEntity
                         EntityName: TASK_ENTITY,
                         ExtraFilter: `ID = ${taskLit}`,
                         Fields: ['ID'],
-                        MaxRows: 1,
+                        MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
                         ResultType: 'simple',
                         BypassCache: true,
                     },

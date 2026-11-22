@@ -13,7 +13,7 @@ import {
     mjBizAppsTasksTimesheetApprovalEntity,
     mjBizAppsTasksTimesheetEntity,
 } from '@mj-biz-apps/tasks-entities';
-import { TimesheetStatusFromParts } from '@mj-biz-apps/tasks-core';
+import { TasksLimitsResolver, TimesheetStatusFromParts } from '@mj-biz-apps/tasks-core';
 import { SanctionApprovalWithdrawal } from './ApprovalSanctions.js';
 import { PrimaryPersonIDForUser } from './UserPeople.js';
 
@@ -66,6 +66,7 @@ export async function ApplyTimesheetApprovalOutcomeForTask(
         };
     }
 
+    const singleRowMax = TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow;
     const md = mdProvider ?? Metadata.Provider;
     const rv = new RunView(rvProvider ?? null);
     const safeTaskID = taskID.replace(/'/g, "''");
@@ -73,7 +74,7 @@ export async function ApplyTimesheetApprovalOutcomeForTask(
     const partRes = await rv.RunView<mjBizAppsTasksTimesheetApprovalEntity>({
         EntityName: 'MJ_BizApps_Tasks: Timesheet Approvals',
         ExtraFilter: `ApprovalTaskID='${safeTaskID}' AND Status='Pending'`,
-        MaxRows: 1,
+        MaxRows: singleRowMax,
         ResultType: 'entity_object',
     }, contextUser);
 
@@ -96,7 +97,7 @@ export async function ApplyTimesheetApprovalOutcomeForTask(
         EntityName: 'MJ_BizApps_Tasks: Task Decisions',
         ExtraFilter: `TaskID='${safeTaskID}'`,
         OrderBy: 'DecidedAt DESC',
-        MaxRows: 1,
+        MaxRows: singleRowMax,
         ResultType: 'simple',
     }, contextUser);
     const latestDecision = decRes.Results?.[0];

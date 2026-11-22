@@ -6,6 +6,7 @@ import {
     RunView,
     UserInfo,
 } from '@memberjunction/core';
+import { TasksLimitsResolver } from '@mj-biz-apps/tasks-core';
 
 /**
  * Result of verifying that a polymorphic `(EntityID, RecordID)` target exists.
@@ -71,7 +72,7 @@ export async function VerifyPolymorphicRecordExists(
         EntityName: entityInfo.Name,
         ExtraFilter: `${pkField}='${safeVal}'`,
         Fields: [pkField],
-        MaxRows: 1,
+        MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
         ResultType: 'simple',
     }, contextUser ?? undefined);
 

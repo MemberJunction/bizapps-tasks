@@ -1,6 +1,7 @@
 import { type UserInfo } from '@memberjunction/core';
 import { CredentialEngine } from '@memberjunction/credentials';
 import { RegisterClass } from '@memberjunction/global';
+import { TasksLimitsResolver } from '@mj-biz-apps/tasks-core/limits';
 import {
     VideoProviderBase,
     type VideoMeetingInput,
@@ -38,8 +39,6 @@ interface ZoomCredentialValues {
     waitingRoom?: boolean;
 }
 
-const ZOOM_FETCH_TIMEOUT_MS = 15_000;
-const TOKEN_SAFETY_MARGIN_MS = 60_000;
 const tokenCache = new Map<string, { accessToken: string; expiresAtMs: number }>();
 
 export function clearZoomTokenCache(): void {
@@ -128,7 +127,7 @@ export class ZoomVideoProvider extends VideoProviderBase {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(body),
-            signal: AbortSignal.timeout(ZOOM_FETCH_TIMEOUT_MS),
+            signal: AbortSignal.timeout(TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.ZoomApiTimeoutMs),
         });
 
         if (!response.ok) {
@@ -167,7 +166,7 @@ export class ZoomVideoProvider extends VideoProviderBase {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(body),
-            signal: AbortSignal.timeout(ZOOM_FETCH_TIMEOUT_MS),
+            signal: AbortSignal.timeout(TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.ZoomApiTimeoutMs),
         });
 
         if (!response.ok) {
@@ -183,7 +182,7 @@ export class ZoomVideoProvider extends VideoProviderBase {
             headers: {
                 Authorization: `Bearer ${accessToken}`,
             },
-            signal: AbortSignal.timeout(ZOOM_FETCH_TIMEOUT_MS),
+            signal: AbortSignal.timeout(TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.ZoomApiTimeoutMs),
         });
 
         if (!response.ok && response.status !== 404) {
@@ -203,13 +202,14 @@ export class ZoomVideoProvider extends VideoProviderBase {
         }
         const basic = btoa(`${this.clientId}:${this.clientSecret}`);
         const url = `https://zoom.us/oauth/token?grant_type=account_credentials&account_id=${encodeURIComponent(this.accountId)}`;
+        const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
         const response = await fetch(url, {
             method: 'POST',
             headers: {
                 Authorization: `Basic ${basic}`,
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
-            signal: AbortSignal.timeout(ZOOM_FETCH_TIMEOUT_MS),
+            signal: AbortSignal.timeout(limits.ResourceGuards.ZoomApiTimeoutMs),
         });
 
         if (!response.ok) {
@@ -221,7 +221,7 @@ export class ZoomVideoProvider extends VideoProviderBase {
         if (!data.access_token) {
             throw new Error('Zoom token response contained no access_token.');
         }
-        const ttlMs = Math.max(0, (Number(data.expires_in) || 3600) * 1000 - TOKEN_SAFETY_MARGIN_MS);
+        const ttlMs = Math.max(0, (Number(data.expires_in) || 3600) * 1000 - limits.Tuning.ZoomTokenSafetyMarginMs);
         tokenCache.set(cacheKey, { accessToken: data.access_token, expiresAtMs: Date.now() + ttlMs });
         return data.access_token;
     }

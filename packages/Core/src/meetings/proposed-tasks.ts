@@ -1,3 +1,5 @@
+import { TasksLimitsResolver } from '../config/TasksLimits.js';
+
 /**
  * The action items an AI note proposes from a meeting's transcript (the meetings plan, § 2.6 and § 8): kept as JSON on
  * `MeetingNote.ProposedTasks` until a person accepts or dismisses each one. Accepting files an `ACTION_ITEM` task and
@@ -88,7 +90,7 @@ export function serializeProposedTasks(tasks: readonly ProposedTask[]): string {
  * Marks one proposed task Accepted with the created task's ID (or an expiring `in-flight:<epochMs>` claim).
  * Refuses when the proposal is missing, already Dismissed, or already Accepted with a finalized task ID.
  */
-export const PROPOSED_TASK_CLAIM_TTL_MS = 60_000;
+export const PROPOSED_TASK_CLAIM_TTL_MS: number = TasksLimitsResolver.Instance.GetCurrentLimits().Tuning.ProposedTaskClaimTtlMs;
 
 export function isActiveProposedTaskClaim(taskId: string | null | undefined, nowMs: number = Date.now()): boolean {
     if (!taskId) return false;
@@ -98,7 +100,8 @@ export function isActiveProposedTaskClaim(taskId: string | null | undefined, now
     const rest = trimmed.slice('in-flight:'.length);
     const colon = rest.indexOf(':');
     const claimedAtMs = Number(colon >= 0 ? rest.slice(0, colon) : rest);
-    return Number.isFinite(claimedAtMs) && nowMs - claimedAtMs < PROPOSED_TASK_CLAIM_TTL_MS;
+    const claimTtlMs = TasksLimitsResolver.Instance.GetCurrentLimits().Tuning.ProposedTaskClaimTtlMs;
+    return Number.isFinite(claimedAtMs) && nowMs - claimedAtMs < claimTtlMs;
 }
 
 export function extractClaimedProposedTaskId(taskId: string | null | undefined): string | null {

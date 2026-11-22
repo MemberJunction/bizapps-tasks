@@ -3,6 +3,7 @@ import { ActionParam, ActionResultSimple, RunActionParams } from '@memberjunctio
 import { BaseAction } from '@memberjunction/actions';
 import { IsValidUUID, RegisterClass } from '@memberjunction/global';
 import { MJAIAgentRunEntity } from '@memberjunction/core-entities';
+import { TasksLimitsResolver } from '@mj-biz-apps/tasks-core/limits';
 import {
     mjBizAppsTasksTaskAgentRunEntity,
     mjBizAppsTasksTaskEntity,
@@ -53,20 +54,21 @@ export class LinkAgentRunToTaskAction extends BaseAction {
         }
 
         try {
+            const singleRowMax = TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow;
             const rv = new RunView();
             const [taskRes, runRes] = await Promise.all([
                 rv.RunView<mjBizAppsTasksTaskEntity>({
                     EntityName: 'MJ_BizApps_Tasks: Tasks',
                     ExtraFilter: `ID='${taskID}'`,
                     Fields: ['ID', 'Name'],
-                    MaxRows: 1,
+                    MaxRows: singleRowMax,
                     ResultType: 'simple',
                 }, user),
                 rv.RunView<MJAIAgentRunEntity>({
                     EntityName: 'MJ: AI Agent Runs',
                     ExtraFilter: `ID='${agentRunID}'`,
                     Fields: ['ID', 'StartedAt', 'CompletedAt'],
-                    MaxRows: 1,
+                    MaxRows: singleRowMax,
                     ResultType: 'simple',
                 }, user),
             ]);
@@ -186,7 +188,7 @@ function boolParam(params: RunActionParams, name: string, fallback: boolean): bo
     return fallback;
 }
 
-function setOutputParam(paramsList: ActionParam[], name: string, value: unknown): void {
+function setOutputParam(paramsList: ActionParam[], name: string, value: ActionParam['Value']): void {
     const existing = paramsList.find((p) => p.Name.toLowerCase() === name.toLowerCase());
     if (existing) {
         existing.Value = value;

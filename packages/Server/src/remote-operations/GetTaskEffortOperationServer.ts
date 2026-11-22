@@ -22,6 +22,7 @@ import {
 import {
     AgentRunDurationSeconds,
     CountedAgentRuns,
+    TasksLimitsResolver,
     type AgentRunEffortFact,
 } from '@mj-biz-apps/tasks-core';
 
@@ -49,8 +50,6 @@ interface AgentRunViewRow {
     TotalCostRollup: number | null;
 }
 
-const CHUNK_SIZE = 100;
-
 /**
  * Server implementation of `Tasks.GetTaskEffort` (§6.4).
  *
@@ -69,6 +68,7 @@ export class GetTaskEffortOperationServer extends TasksGetTaskEffortOperation {
             throw new RemoteOperationError('INVALID_INPUT', 'A valid TaskID UUID is required.');
         }
 
+        const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
         const includeDescendants = input.IncludeDescendants !== false;
         const rv = new RunView(provider as unknown as IRunViewProvider);
 
@@ -78,7 +78,7 @@ export class GetTaskEffortOperationServer extends TasksGetTaskEffortOperation {
                 EntityName: 'MJ_BizApps_Tasks: Tasks',
                 ExtraFilter: `ID='${input.TaskID}'`,
                 Fields: ['ID', 'Name', 'ParentID', 'RootParentID', 'HoursEstimated'],
-                MaxRows: 1,
+                MaxRows: limits.ResourceGuards.DefaultLookupSingleRow,
                 ResultType: 'simple',
             },
             user,
@@ -99,7 +99,7 @@ export class GetTaskEffortOperationServer extends TasksGetTaskEffortOperation {
                     EntityName: 'MJ_BizApps_Tasks: Tasks',
                     ExtraFilter: `RootParentID='${rootId}' OR ID='${rootId}'`,
                     Fields: ['ID', 'Name', 'ParentID'],
-                    MaxRows: 5000,
+                    MaxRows: limits.ResourceGuards.SubtreeEffortMaxRows,
                     ResultType: 'simple',
                 },
                 user,
@@ -242,8 +242,9 @@ export class GetTaskEffortOperationServer extends TasksGetTaskEffortOperation {
         ];
         const runRowById = new Map<string, AgentRunViewRow>();
         if (uniqueRunIds.length > 0) {
-            for (let i = 0; i < uniqueRunIds.length; i += CHUNK_SIZE) {
-                const chunk = uniqueRunIds.slice(i, i + CHUNK_SIZE).map((id) => `'${id}'`).join(', ');
+            const chunkSize = limits.ResourceGuards.SqlInClauseChunkSize;
+            for (let i = 0; i < uniqueRunIds.length; i += chunkSize) {
+                const chunk = uniqueRunIds.slice(i, i + chunkSize).map((id) => `'${id}'`).join(', ');
                 const runsRes = await rv.RunView<AgentRunViewRow>(
                     {
                         EntityName: 'MJ: AI Agent Runs',
@@ -380,10 +381,11 @@ export class GetTaskEffortOperationServer extends TasksGetTaskEffortOperation {
         orderBy: string,
         user: UserInfo,
     ): Promise<T[]> {
+        const chunkSize = TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.SqlInClauseChunkSize;
         const all: T[] = [];
-        for (let i = 0; i < taskIds.length; i += CHUNK_SIZE) {
+        for (let i = 0; i < taskIds.length; i += chunkSize) {
             const chunk = taskIds
-                .slice(i, i + CHUNK_SIZE)
+                .slice(i, i + chunkSize)
                 .filter((id) => IsValidUUID(id))
                 .map((id) => `'${id}'`)
                 .join(', ');

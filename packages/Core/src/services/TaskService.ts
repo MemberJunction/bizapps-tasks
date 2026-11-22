@@ -1,5 +1,6 @@
 import { CompositeKey, IMetadataProvider, IRunViewProvider, LogError, Metadata, RunView, UserInfo } from "@memberjunction/core";
 import { GuidLiteral } from "./sql-guards.js";
+import { TasksLimitsResolver } from "../config/TasksLimits.js";
 import type {
     mjBizAppsTasksTaskActivityEntity,
     mjBizAppsTasksTaskEntity,
@@ -48,7 +49,12 @@ export class TaskService {
         parentTaskID: string,
         contextUser?: UserInfo,
         provider?: IMetadataProvider & IRunViewProvider,
+        depth: number = 0,
     ): Promise<void> {
+        const maxDepth = TasksLimitsResolver.Instance.GetCurrentLimits().RunawayGuards.MaxHierarchyDepth;
+        if (depth >= maxDepth) {
+            return;
+        }
         const parentLiteral = GuidLiteral(parentTaskID, 'ParentTaskID');
         const rv = new RunView(provider);
         const children = await rv.RunView<TaskRollupChildRow>({
@@ -135,7 +141,7 @@ export class TaskService {
         // Recurse up the tree
         const grandParentID = parentTask.ParentID;
         if (grandParentID) {
-            await this.rollupParentProgress(grandParentID, contextUser, provider);
+            await this.rollupParentProgress(grandParentID, contextUser, provider, depth + 1);
         }
     }
 

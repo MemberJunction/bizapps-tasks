@@ -23,7 +23,7 @@ import { IsValidUUID, RegisterClass, UUIDsEqual } from '@memberjunction/global';
 import { BaseScheduledJob, ScheduledJobExecutionContext } from '@memberjunction/scheduling-engine';
 import { ScheduledJobResult, NotificationContent } from '@memberjunction/scheduling-base-types';
 import { ResolveUserIDsForPeople } from '@mj-biz-apps/common-entities';
-import { GuidLiteral } from '@mj-biz-apps/tasks-core';
+import { GuidLiteral, TasksLimitsResolver } from '@mj-biz-apps/tasks-core';
 import type {
     mjBizAppsTasksTaskEntity,
     mjBizAppsTasksTaskNotificationLogEntity,
@@ -332,7 +332,7 @@ export class OverdueTaskNotificationJob extends BaseScheduledJob {
             EntityName: 'MJ_BizApps_Tasks: Task Types',
             ExtraFilter: `ID=${GuidLiteral(task.TypeID, 'TypeID')}`,
             ResultType: 'simple',
-            MaxRows: 1,
+            MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
         }, contextUser);
         const onOverdueActionID = typeResult?.Results?.[0]?.OnOverdueActionID;
         if (onOverdueActionID) return onOverdueActionID;

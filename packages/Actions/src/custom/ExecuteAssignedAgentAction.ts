@@ -5,7 +5,7 @@ import { AgentRunner } from '@memberjunction/ai-agents';
 import { AIEngine } from '@memberjunction/aiengine';
 import type { MJAIAgentEntityExtended } from '@memberjunction/ai-core-plus';
 import { EscapeSQLString, IsValidUUID, RegisterClass, UUIDsEqual } from '@memberjunction/global';
-import { COS_TASKS_INBOX_WORKSTREAM_KEY } from '@mj-biz-apps/tasks-core';
+import { COS_TASKS_INBOX_WORKSTREAM_KEY, TasksLimitsResolver } from '@mj-biz-apps/tasks-core';
 import type {
     mjBizAppsTasksTaskAgentRunEntity,
     mjBizAppsTasksTaskCommentEntity,
@@ -270,6 +270,7 @@ export class ExecuteAssignedAgentAction extends BaseAction {
         }
 
         // Update task status cleanly (human remains accountable for acceptance unless AutoCompleteOnSuccess = true)
+        const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
         if (execution.success) {
             if (autoCompleteOnSuccess) {
                 task.Status = 'Completed';
@@ -279,13 +280,13 @@ export class ExecuteAssignedAgentAction extends BaseAction {
                 task.Status = 'InProgress';
                 task.PercentComplete = Math.max(task.PercentComplete ?? 0, 90);
             }
-            task.CompletionNotes = execution.outcomeText.slice(0, 2000);
+            task.CompletionNotes = execution.outcomeText.slice(0, limits.Tuning.CompletionNotesMaxChars);
             task.BlockedReason = null;
         } else {
             task.Status = 'Blocked';
             task.BlockedReason = `Assigned agent "${agent.Name}" failed: ${execution.errorMessage ?? 'unknown error'}`.slice(
                 0,
-                1000,
+                limits.Tuning.FailureNotesMaxChars,
             );
         }
         await task.Save();
@@ -362,7 +363,7 @@ export class ExecuteAssignedAgentAction extends BaseAction {
                     `AND AssigneeEntityID = '${EscapeSQLString(agentsEntityID)}'`,
                 Fields: ['AssigneeRecordID'],
                 OrderBy: 'AssignedAt DESC',
-                MaxRows: 1,
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
                 ResultType: 'simple',
             },
             user,
