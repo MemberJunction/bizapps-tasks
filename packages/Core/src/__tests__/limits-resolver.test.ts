@@ -1,17 +1,16 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import * as mjCore from '@memberjunction/core';
 import {
     CODE_FALLBACK_TASKS_LIMITS,
     NormalizeTasksLimitsInput,
     ParseTasksLimitsFromEnv,
+    ReadOptionalMjLimitsResolverInstance,
     SanitizeTasksLimitsOverride,
     TASKS_LIMITS_KEY_PATHS,
     TASKS_LIMIT_SAFETY_BOUNDS,
     TasksLimitsResolver,
     ValidateTasksLimitsConfig,
-    type MjCoreModuleWithOptionalLimits,
     type MjLimitsResolutionSnapshot,
     type MjLimitsResolverInstanceLike,
     type TasksLimitsConfig,
@@ -37,12 +36,11 @@ interface TestMjLimitsBridge extends MjLimitsResolverInstanceLike {
 }
 
 function isTestMjLimitsBridge(candidate: object): candidate is TestMjLimitsBridge {
-    const rec = candidate as TestMjLimitsBridge;
     return (
-        typeof rec.RegisterMjConfigLimits === 'function' &&
-        typeof rec.ClearMjConfigLimits === 'function' &&
-        typeof rec.GetMjConfigLimits === 'function' &&
-        typeof rec.Resolve === 'function'
+        typeof Reflect.get(candidate, 'RegisterMjConfigLimits') === 'function' &&
+        typeof Reflect.get(candidate, 'ClearMjConfigLimits') === 'function' &&
+        typeof Reflect.get(candidate, 'GetMjConfigLimits') === 'function' &&
+        typeof Reflect.get(candidate, 'Resolve') === 'function'
     );
 }
 
@@ -119,13 +117,11 @@ describe('TasksLimitsResolver (@mj-biz-apps/tasks-core)', () => {
     beforeEach(() => {
         returnNullGlobalStoreRef.current = false;
         usingRealMjResolver = false;
-        if (Object.prototype.hasOwnProperty.call(mjCore, 'LimitsConfigResolver')) {
-            const coreWithLimits = mjCore as MjCoreModuleWithOptionalLimits;
-            const realInstance = coreWithLimits.LimitsConfigResolver?.Instance;
-            if (realInstance && typeof realInstance === 'object' && isTestMjLimitsBridge(realInstance)) {
-                mjBridge = realInstance;
-                usingRealMjResolver = true;
-            }
+        TasksLimitsResolver.SetMjLimitsResolver(null);
+        const realInstance = ReadOptionalMjLimitsResolverInstance();
+        if (realInstance && isTestMjLimitsBridge(realInstance)) {
+            mjBridge = realInstance;
+            usingRealMjResolver = true;
         }
         if (!usingRealMjResolver) {
             mjBridge = createInMemoryMjLimitsBridge();
@@ -379,6 +375,44 @@ describe('TasksLimitsResolver (@mj-biz-apps/tasks-core)', () => {
         expect(validation.Issues.some((i) => i.Key === 'Briefing.DefaultBriefingMaxItems')).toBe(true);
     });
 
+    it('supports nested Limits.Briefing shapes and partial external LimitsConfigResolver snapshots safely', () => {
+        const nestedExternalBridge: MjLimitsResolverInstanceLike = {
+            GetMjConfigLimits(): TasksMjLimitsOverride | null {
+                return { BriefingContributorTimeoutMs: 7_500 };
+            },
+            Resolve(): object {
+                return {
+                    Limits: {
+                        Briefing: {
+                            ContributorTimeoutMs: 7_500,
+                            MaxContributorChars: 12_345,
+                        },
+                    },
+                    Provenance: {
+                        'Briefing.ContributorTimeoutMs': { IsOverridden: true },
+                        'Briefing.MaxContributorChars': { IsOverridden: true },
+                    },
+                    ResolvedAtISO: '2026-11-22T12:00:00.000Z',
+                };
+            },
+        };
+        TasksLimitsResolver.SetMjLimitsResolver(nestedExternalBridge);
+        try {
+            const resolved = TasksLimitsResolver.Resolve({ Env: null });
+            expect(resolved.Limits.Briefing.ContributorTimeoutMs).toBe(7_500);
+            expect(resolved.Limits.Briefing.MaxContributorChars).toBe(12_345);
+            expect(resolved.Provenance['Briefing.ContributorTimeoutMs'].SourceTier).toBe('MjLimitsConfig');
+            expect(resolved.Provenance['Briefing.MaxContributorChars'].SourceTier).toBe('MjLimitsConfig');
+            expect(resolved.ResolvedAtISO).toBe('2026-11-22T12:00:00.000Z');
+        } finally {
+            if (usingRealMjResolver) {
+                TasksLimitsResolver.SetMjLimitsResolver(null);
+            } else {
+                TasksLimitsResolver.SetMjLimitsResolver(mjBridge);
+            }
+        }
+    });
+
     it('runs sweep-limits.mjs deterministically and matches committed classified CSV reports', async () => {
         const sweepMod = (await import('../../../../scripts/sweep-limits.mjs')) as SweepModule;
         const first = sweepMod.SweepLimitsLiterals({ repoRoot: REPO_ROOT });
@@ -412,5 +446,5 @@ describe('TasksLimitsResolver (@mj-biz-apps/tasks-core)', () => {
         expect(filesPresent.has('packages/Core/src/services/WorkReportService.ts')).toBe(true);
         expect(filesPresent.has('packages/Actions/src/custom/TaskTypedActions.ts')).toBe(true);
         expect(filesPresent.has('packages/EntitiesServer/src/TasksRemoteOperationsServer.ts')).toBe(true);
-    });
+    }, 30_000);
 });

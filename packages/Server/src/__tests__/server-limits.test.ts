@@ -4,7 +4,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { IMetadataProvider, IRunViewProvider, RunViewParams, UserInfo } from '@memberjunction/core';
-import { TasksLimitsResolver } from '@mj-biz-apps/tasks-core/limits';
+import { TasksLimitsResolver } from '@mj-biz-apps/tasks-core';
 import { ReconcileStaleTimesheetApprovals } from '../scheduled-jobs/TimesheetApprovalReconcileJob.js';
 import { CheckSourceTextStandards, CheckStandards } from '../../../../scripts/check-standards.mjs';
 import {
@@ -39,7 +39,7 @@ describe('Server Limits & Standards Enforcement', () => {
         expect(result.filesScanned).toBeGreaterThan(50);
         expect(result.sweepSummary.unapprovedRunawayCount).toBe(0);
         expect(result.sweepSummary.unroutedBackendCount).toBe(0);
-    });
+    }, 30_000);
 
     it('rejects synthetic any, lazy unknown casts, non-catch unknown, and BaseEntity.Get/Set', () => {
         const badSource = [

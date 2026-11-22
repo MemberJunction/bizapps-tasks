@@ -1,12 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import * as mjCore from '@memberjunction/core';
 import {
     CODE_FALLBACK_TASKS_LIMITS,
+    ReadOptionalMjLimitsResolverInstance,
     ResolveBriefingContributorBounds,
     RunWithBriefingContributorTimeout,
     SerializeBriefingPayloadWithLimit,
     TasksLimitsResolver,
-    type MjCoreModuleWithOptionalLimits,
     type MjLimitsResolutionSnapshot,
     type MjLimitsResolverInstanceLike,
     type TasksMjLimitsOverride,
@@ -18,12 +17,11 @@ interface TestMjLimitsBridge extends MjLimitsResolverInstanceLike {
 }
 
 function isTestMjLimitsBridge(candidate: object): candidate is TestMjLimitsBridge {
-    const rec = candidate as TestMjLimitsBridge;
     return (
-        typeof rec.RegisterMjConfigLimits === 'function' &&
-        typeof rec.ClearMjConfigLimits === 'function' &&
-        typeof rec.GetMjConfigLimits === 'function' &&
-        typeof rec.Resolve === 'function'
+        typeof Reflect.get(candidate, 'RegisterMjConfigLimits') === 'function' &&
+        typeof Reflect.get(candidate, 'ClearMjConfigLimits') === 'function' &&
+        typeof Reflect.get(candidate, 'GetMjConfigLimits') === 'function' &&
+        typeof Reflect.get(candidate, 'Resolve') === 'function'
     );
 }
 
@@ -75,13 +73,11 @@ describe('BriefingLimitsHelper & TasksLimitsResolver briefing overrides', () => 
 
     beforeEach(() => {
         usingRealMjResolver = false;
-        if (Object.prototype.hasOwnProperty.call(mjCore, 'LimitsConfigResolver')) {
-            const coreWithLimits = mjCore as MjCoreModuleWithOptionalLimits;
-            const realInstance = coreWithLimits.LimitsConfigResolver?.Instance;
-            if (realInstance && typeof realInstance === 'object' && isTestMjLimitsBridge(realInstance)) {
-                mjBridge = realInstance;
-                usingRealMjResolver = true;
-            }
+        TasksLimitsResolver.SetMjLimitsResolver(null);
+        const realInstance = ReadOptionalMjLimitsResolverInstance();
+        if (realInstance && isTestMjLimitsBridge(realInstance)) {
+            mjBridge = realInstance;
+            usingRealMjResolver = true;
         }
         if (!usingRealMjResolver) {
             mjBridge = createInMemoryMjLimitsBridge();
