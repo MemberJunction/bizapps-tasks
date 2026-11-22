@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { beforeEach, describe, expect, it } from 'vitest';
-import { LimitsConfigResolver } from '@memberjunction/core';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as mjCore from '@memberjunction/core';
 import {
     CODE_FALLBACK_TASKS_LIMITS,
     NormalizeTasksLimitsInput,
@@ -11,9 +11,76 @@ import {
     TASKS_LIMIT_SAFETY_BOUNDS,
     TasksLimitsResolver,
     ValidateTasksLimitsConfig,
+    type MjCoreModuleWithOptionalLimits,
+    type MjLimitsResolutionSnapshot,
+    type MjLimitsResolverInstanceLike,
     type TasksLimitsConfig,
     type TasksLimitsJsonValue,
+    type TasksMjLimitsOverride,
 } from '../index.js';
+
+const { returnNullGlobalStoreRef } = vi.hoisted(() => ({
+    returnNullGlobalStoreRef: { current: false },
+}));
+
+vi.mock('@memberjunction/global', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@memberjunction/global')>();
+    return {
+        ...actual,
+        GetGlobalObjectStore: () => (returnNullGlobalStoreRef.current ? null : actual.GetGlobalObjectStore()),
+    };
+});
+
+interface TestMjLimitsBridge extends MjLimitsResolverInstanceLike {
+    RegisterMjConfigLimits(limits: TasksMjLimitsOverride | null): void;
+    ClearMjConfigLimits(): void;
+}
+
+function isTestMjLimitsBridge(candidate: object): candidate is TestMjLimitsBridge {
+    const rec = candidate as TestMjLimitsBridge;
+    return (
+        typeof rec.RegisterMjConfigLimits === 'function' &&
+        typeof rec.ClearMjConfigLimits === 'function' &&
+        typeof rec.GetMjConfigLimits === 'function' &&
+        typeof rec.Resolve === 'function'
+    );
+}
+
+function createInMemoryMjLimitsBridge(): TestMjLimitsBridge {
+    let registered: TasksMjLimitsOverride | null = null;
+    return {
+        RegisterMjConfigLimits(limits: TasksMjLimitsOverride | null): void {
+            registered = limits ? { ...limits } : null;
+        },
+        ClearMjConfigLimits(): void {
+            registered = null;
+        },
+        GetMjConfigLimits(): TasksMjLimitsOverride | null {
+            return registered;
+        },
+        Resolve(
+            input?: { MjConfig?: TasksMjLimitsOverride },
+            options?: { ResolvedAtISO?: string },
+        ): MjLimitsResolutionSnapshot {
+            const tier = input?.MjConfig !== undefined ? input.MjConfig : registered;
+            const timeout = tier?.BriefingContributorTimeoutMs;
+            const maxChars = tier?.BriefingMaxContributorChars;
+            return {
+                Limits: {
+                    BriefingContributorTimeoutMs:
+                        timeout ?? CODE_FALLBACK_TASKS_LIMITS.Briefing.ContributorTimeoutMs,
+                    BriefingMaxContributorChars:
+                        maxChars ?? CODE_FALLBACK_TASKS_LIMITS.Briefing.MaxContributorChars,
+                },
+                Provenance: {
+                    BriefingContributorTimeoutMs: { IsOverridden: timeout !== undefined },
+                    BriefingMaxContributorChars: { IsOverridden: maxChars !== undefined },
+                },
+                ResolvedAtISO: options?.ResolvedAtISO ?? new Date().toISOString(),
+            };
+        },
+    };
+}
 
 interface SweepModule {
     CSV_HEADER: string;
@@ -46,8 +113,35 @@ interface SweepModule {
 const REPO_ROOT = resolve(__dirname, '..', '..', '..', '..');
 
 describe('TasksLimitsResolver (@mj-biz-apps/tasks-core)', () => {
+    let mjBridge: TestMjLimitsBridge;
+    let usingRealMjResolver = false;
+
     beforeEach(() => {
-        LimitsConfigResolver.Instance.ClearMjConfigLimits();
+        returnNullGlobalStoreRef.current = false;
+        usingRealMjResolver = false;
+        if (Object.prototype.hasOwnProperty.call(mjCore, 'LimitsConfigResolver')) {
+            const coreWithLimits = mjCore as MjCoreModuleWithOptionalLimits;
+            const realInstance = coreWithLimits.LimitsConfigResolver?.Instance;
+            if (realInstance && typeof realInstance === 'object' && isTestMjLimitsBridge(realInstance)) {
+                mjBridge = realInstance;
+                usingRealMjResolver = true;
+            }
+        }
+        if (!usingRealMjResolver) {
+            mjBridge = createInMemoryMjLimitsBridge();
+            TasksLimitsResolver.SetMjLimitsResolver(mjBridge);
+        }
+        mjBridge.ClearMjConfigLimits();
+        TasksLimitsResolver.Instance.ClearConfigOverrides();
+        TasksLimitsResolver.Instance.InvalidateCache();
+    });
+
+    afterEach(() => {
+        returnNullGlobalStoreRef.current = false;
+        mjBridge.ClearMjConfigLimits();
+        if (!usingRealMjResolver) {
+            TasksLimitsResolver.SetMjLimitsResolver(null);
+        }
         TasksLimitsResolver.Instance.ClearConfigOverrides();
         TasksLimitsResolver.Instance.InvalidateCache();
     });
@@ -73,7 +167,7 @@ describe('TasksLimitsResolver (@mj-biz-apps/tasks-core)', () => {
     });
 
     it('propagates MJ LimitsConfigResolver briefing bounds into TasksLimitsConfig', () => {
-        LimitsConfigResolver.Instance.RegisterMjConfigLimits({
+        mjBridge.RegisterMjConfigLimits({
             BriefingContributorTimeoutMs: 18_500,
             BriefingMaxContributorChars: 16_384,
         });
@@ -88,7 +182,7 @@ describe('TasksLimitsResolver (@mj-biz-apps/tasks-core)', () => {
     });
 
     it('resolves 5-tier precedence (CodeFallback < MjLimitsConfig < Env < AppConfig < RuntimeOverride)', () => {
-        LimitsConfigResolver.Instance.RegisterMjConfigLimits({
+        mjBridge.RegisterMjConfigLimits({
             BriefingContributorTimeoutMs: 12_000,
         });
         TasksLimitsResolver.Instance.RegisterConfigOverrides({
@@ -243,11 +337,26 @@ describe('TasksLimitsResolver (@mj-biz-apps/tasks-core)', () => {
         expect(afterAppOverride).not.toBe(initial);
         expect(afterAppOverride.RunawayGuards.MaxBulkTasks).toBe(222);
 
-        LimitsConfigResolver.Instance.RegisterMjConfigLimits({
+        mjBridge.RegisterMjConfigLimits({
             BriefingContributorTimeoutMs: 15_500,
         });
         const afterMjOverride = TasksLimitsResolver.Instance.GetCurrentLimits();
         expect(afterMjOverride.Briefing.ContributorTimeoutMs).toBe(15_500);
+    });
+
+    it('falls back safely when GetGlobalObjectStore returns null and honors MjLimits input when external resolver is absent', () => {
+        returnNullGlobalStoreRef.current = true;
+        const instance = TasksLimitsResolver.Instance;
+        expect(instance).toBeInstanceOf(TasksLimitsResolver);
+        expect(instance.GetCurrentLimits().RunawayGuards.MaxBulkTasks).toBe(
+            CODE_FALLBACK_TASKS_LIMITS.RunawayGuards.MaxBulkTasks,
+        );
+
+        const resolvedWithInput = instance.Resolve({
+            Env: null,
+            MjLimits: { BriefingContributorTimeoutMs: 19_000 },
+        });
+        expect(resolvedWithInput.Limits.Briefing.ContributorTimeoutMs).toBe(19_000);
     });
 
     it('ValidateTasksLimitsConfig rejects manually constructed invalid configs', () => {

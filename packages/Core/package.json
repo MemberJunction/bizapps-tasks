@@ -13,7 +13,8 @@
     "./limits": {
       "types": "./dist/config/TasksLimits.d.ts",
       "default": "./dist/config/TasksLimits.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "publishConfig": {
     "access": "public"
