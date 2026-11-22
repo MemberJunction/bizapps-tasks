@@ -110,6 +110,57 @@ const RESOURCE_GUARD_KEYS = new Set([
     'TeamsWebhookTimeoutMs',
 ]);
 
+const BRIEFING_KEYS = new Set([
+    'DefaultBriefingHorizonDays',
+    'DefaultBriefingMaxItems',
+    'DefaultMeetingsBriefingLookbackDays',
+    'DefaultWorkReportsBriefingLookbackDays',
+    'TranscriptExcerptMaxLines',
+    'MeetingNoteExcerptMaxChars',
+    'NotificationPreviewMaxChars',
+    'ContributorTimeoutMs',
+    'MaxContributorChars',
+]);
+
+const TUNING_KEYS = new Set([
+    'DefaultSeriesHorizonDays',
+    'DefaultMeetingDurationMinutes',
+    'DefaultAgendaItemDurationMinutes',
+    'DefaultAgendaSequenceStep',
+    'DefaultTaskSimilarityLimit',
+    'TranscriptDedupMatchLimit',
+    'FindSimilarDefaultWindowDays',
+    'FindMeetingsDefaultDaysAhead',
+    'FindMeetingsDefaultLimit',
+    'ProposedTaskClaimTtlMs',
+    'CompletionNotesMaxChars',
+    'FailureNotesMaxChars',
+    'HttpErrorDetailMaxChars',
+    'ZoomTokenSafetyMarginMs',
+]);
+
+const LIMITS_SECTIONS = new Map([
+    ['RunawayGuards', RUNAWAY_KEYS],
+    ['ResourceGuards', RESOURCE_GUARD_KEYS],
+    ['Briefing', BRIEFING_KEYS],
+    ['Tuning', TUNING_KEYS],
+]);
+
+const BRIEFING_HELPER_TARGETS = new Map([
+    ['ResolveBriefingContributorBounds', { label: 'RunawayGuard', disposition: 'routed:BriefingLimitsHelper.ResolveBriefingContributorBounds' }],
+    ['RunWithBriefingContributorTimeout', { label: 'RunawayGuard', disposition: 'routed:BriefingLimitsHelper.RunWithBriefingContributorTimeout' }],
+    ['SerializeBriefingPayloadWithLimit', { label: 'RunawayGuard', disposition: 'routed:BriefingLimitsHelper.SerializeBriefingPayloadWithLimit' }],
+]);
+
+function classifyLimitsSectionKey(section, key) {
+    if (section === 'RunawayGuards') return 'RunawayGuard';
+    if (section === 'ResourceGuards') return 'ResourceGuard';
+    if (section === 'Briefing' && (key === 'ContributorTimeoutMs' || key === 'MaxContributorChars')) {
+        return 'RunawayGuard';
+    }
+    return 'Tuning';
+}
+
 const COMMENT_TAG_RE = /\/\/\s*(RunawayGuard|ResourceGuard|ProtocolLimit|UX|Tuning)\s*:\s*(.+)/;
 
 function walkSourceFiles(dir, out = []) {
@@ -300,9 +351,9 @@ function extractHitFromNode(node, sf, fnStack, relFile) {
         } else if (/^Math\.(min|max)$/.test(exprText)) {
             const val = evaluateNumericExpr(node);
             if (val !== null && val > 1) {
-                // Skip pure 0..100 percentage normalization unless explicitly a bound
+                // Skip pure percentage normalization clamps (0..100 or 90% floor) unless explicitly a bound
                 const callText = p.getText(sf);
-                const isPercentClamp = val === 100 && /progress|confidence|Percent|score/i.test(callText);
+                const isPercentClamp = (val === 100 || val === 90) && /progress|confidence|Percent|score/i.test(callText);
                 if (!isPercentClamp) {
                     name = `${exprText}_Bound`;
                     isMathBound = true;
@@ -316,9 +367,12 @@ function extractHitFromNode(node, sf, fnStack, relFile) {
         const op = p.operatorToken.kind;
         const leftText = sanitizeSymbol(p.left.getText(sf));
         if (op === ts.SyntaxKind.QuestionQuestionToken || op === ts.SyntaxKind.BarBarToken) {
+            const valCandidate = evaluateNumericExpr(node);
             if (
-                /(?:HorizonDays|LookbackDays|WindowDays|DaysAhead|IncludePastHours|MaxItems|MaxRows|Limit|limit|minScore|duplicateThreshold|nearMatchThreshold|durationMinutes|DurationMinutes|DraftConfidence|interval)$/i.test(leftText) ||
-                /get(?:First)?NumberParam/i.test(leftText)
+                valCandidate !== null &&
+                valCandidate > 0 &&
+                (/(?:HorizonDays|LookbackDays|WindowDays|DaysAhead|IncludePastHours|MaxItems|MaxRows|Limit|limit|minScore|duplicateThreshold|nearMatchThreshold|durationMinutes|DurationMinutes|DraftConfidence|interval)$/i.test(leftText) ||
+                    /get(?:First)?NumberParam/i.test(leftText))
             ) {
                 name = `${leftText}_Fallback`;
                 isFallbackExpr = true;
@@ -397,24 +451,25 @@ function resolveTasksLimitsTargetDisposition(relFile, hit) {
         return { label, disposition: 'retained-integration-test-harness' };
     }
 
-    // 3. Angular UI files
+    // 3. Angular UI files (excluded from Epic 1c backend refactor scope)
     if (UX_PATH_RE.test(f)) {
         if (n === 'MaxRows' || n === 'maxRows' || n === 'MAX_INLINE_SQL_TASK_IDS') {
-            return { label: 'ResourceGuard', disposition: 'TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards' };
+            return { label: 'UX', disposition: 'deferred-ux:ResourceGuards' };
         }
         if (/depth/i.test(n)) {
-            return { label: 'RunawayGuard', disposition: 'TasksLimitsResolver.Instance.GetCurrentLimits().RunawayGuards.MaxHierarchyDepth' };
+            return { label: 'UX', disposition: 'deferred-ux:RunawayGuards.MaxHierarchyDepth' };
         }
         return { label: 'UX', disposition: 'retained-ux-local' };
     }
 
-    // 4. Protocol / RFC / Physical-Domain Limits
+    // 4. Protocol / RFC / Physical-Domain / Normalized-Score Limits
     if (
         (f.endsWith('ics.ts') && n === 'LIMIT') ||
         (f.endsWith('TimesheetApproverResolution.ts') && hit.isLoopBound) ||
         (f.endsWith('DurationFormatting.ts') && n === 'MAX_ENTRY_MINUTES') ||
         (f.endsWith('LinkAgentRunToTaskAction.ts') && n === 'Math.min_Bound' && val === 1440) ||
-        (f.endsWith('TasksSettings.ts'))
+        (f.endsWith('TasksSettings.ts')) ||
+        (val > 0 && val < 1 && (/minScore|Threshold/i.test(n) || f.endsWith('task-similarity.ts')))
     ) {
         return { label: 'ProtocolLimit', disposition: 'retained-protocol-limit' };
     }
@@ -630,6 +685,54 @@ function scanSingleFile(absPath, repoRoot) {
             nextStack = [...fnStack, node.name.text];
         }
 
+        if (relFile !== CANONICAL_LIMITS_CONFIG_REL && !INTEGRATION_TEST_PATH_RE.test(relFile)) {
+            if (ts.isPropertyAccessExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
+                const section = node.expression.name.text;
+                const key = node.name.text;
+                const sectionKeys = LIMITS_SECTIONS.get(section);
+                if (sectionKeys && sectionKeys.has(key)) {
+                    const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf));
+                    const lineNum = line + 1;
+                    const sym = `${section}.${key}`;
+                    const dedupKey = `routed:${lineNum}:${sym}`;
+                    if (!seenPositions.has(dedupKey)) {
+                        seenPositions.add(dedupKey);
+                        records.push({
+                            file: relFile,
+                            line: lineNum,
+                            name: sym,
+                            value: 'TasksLimitsResolver',
+                            enclosingFunction: fnStack.length > 0 ? fnStack.join('.') : '<module>',
+                            label: classifyLimitsSectionKey(section, key),
+                            disposition: `routed:TasksLimitsResolver.Instance.GetCurrentLimits().${section}.${key}`,
+                        });
+                    }
+                }
+            } else if (
+                ts.isCallExpression(node) &&
+                !relFile.endsWith('BriefingLimitsHelper.ts') &&
+                ts.isIdentifier(node.expression) &&
+                BRIEFING_HELPER_TARGETS.has(node.expression.text)
+            ) {
+                const targetInfo = BRIEFING_HELPER_TARGETS.get(node.expression.text);
+                const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf));
+                const lineNum = line + 1;
+                const dedupKey = `routed:${lineNum}:${node.expression.text}`;
+                if (!seenPositions.has(dedupKey)) {
+                    seenPositions.add(dedupKey);
+                    records.push({
+                        file: relFile,
+                        line: lineNum,
+                        name: node.expression.text,
+                        value: 'TasksLimitsResolver',
+                        enclosingFunction: fnStack.length > 0 ? fnStack.join('.') : '<module>',
+                        label: targetInfo.label,
+                        disposition: targetInfo.disposition,
+                    });
+                }
+            }
+        }
+
         const isCandidateExpr =
             ts.isNumericLiteral(node) ||
             isArithmeticBinaryNode(node) ||
@@ -690,14 +793,31 @@ export function SweepLimitsLiterals(options = {}) {
 }
 
 /**
- * Returns unapproved `RunawayGuard` violations outside `packages/Core/src/config/TasksLimits.ts`.
+ * Returns unapproved `RunawayGuard` literal violations outside `packages/Core/src/config/TasksLimits.ts`.
  */
 export function FindUnapprovedRunawayGuards(records) {
     return records.filter(
         (r) =>
             r.label === 'RunawayGuard' &&
             r.file !== CANONICAL_LIMITS_CONFIG_REL &&
-            r.disposition !== 'retained-integration-test-harness',
+            !UX_PATH_RE.test(r.file) &&
+            r.disposition !== 'retained-integration-test-harness' &&
+            !String(r.disposition).startsWith('routed:'),
+    );
+}
+
+/**
+ * Returns unrouted backend `RunawayGuard`, `ResourceGuard`, or `Tuning` literal violations
+ * outside `TasksLimits.ts`, Angular UI packages, and IntegrationTests.
+ */
+export function FindUnroutedBackendLimits(records) {
+    return records.filter(
+        (r) =>
+            r.file !== CANONICAL_LIMITS_CONFIG_REL &&
+            !UX_PATH_RE.test(r.file) &&
+            !INTEGRATION_TEST_PATH_RE.test(r.file) &&
+            r.label !== 'ProtocolLimit' &&
+            !String(r.disposition).startsWith('routed:'),
     );
 }
 

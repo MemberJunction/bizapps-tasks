@@ -486,6 +486,42 @@ Entities ──► Core ──► Server
 
 ---
 
+## Runtime Limits, Runaway Guards & Standards Enforcement
+
+All backend safety bounds, query row caps, recursion/iteration ceilings, briefing contributor limits, and tuning defaults across `@mj-biz-apps/tasks-core`, `@mj-biz-apps/tasks-actions`, `@mj-biz-apps/tasks-entities-server`, and `@mj-biz-apps/tasks-server` are centralized in `TasksLimitsResolver` (`@mj-biz-apps/tasks-core`, also available standalone via `@mj-biz-apps/tasks-core/limits`).
+
+### Override Precedence (Lowest to Highest)
+
+1. **`CodeFallback`** — Approved defaults (`CODE_FALLBACK_TASKS_LIMITS` in `packages/Core/src/config/TasksLimits.ts`).
+2. **`MjLimitsConfig`** — Propagates `BriefingContributorTimeoutMs` and `BriefingMaxContributorChars` from `@memberjunction/core`'s `LimitsConfigResolver`.
+3. **`Env`** — Optional `MJ_TASKS_LIMITS_JSON` JSON override or key-specific `MJ_TASKS_LIMIT_<KEY>` environment variables.
+4. **`AppConfig`** — Host-registered overrides via `TasksLimitsResolver.Instance.RegisterConfigOverrides(...)`.
+5. **`RuntimeOverride`** — Per-invocation override passed to `TasksLimitsResolver.Instance.Resolve({ RuntimeOverride: ... })`.
+
+Every override is validated against `TASKS_LIMIT_SAFETY_BOUNDS`: non-finite, `NaN`, malformed, or non-positive (`<= 0`) values are ignored so runaway and resource guards can never be disabled, and oversized integers are clamped to per-key safety ceilings (with `default <= ceiling` consistency enforced).
+
+### Configuration Sections & Key Groups
+
+- **`RunawayGuards`**: `MaxBulkTasks`, `MaxHierarchyDepth`, `MaxSupervisorChainDepth`, `MaxDependencyWalkIterations`, `MaxTemplateSortIterations`, `MaxSeriesOccurrences`, `BriefingMaxItemsCeiling`, `BriefingMaxHorizonDays`, `BriefingMaxLookbackDays`, `BriefingWorkReportsMaxLookbackDays`, `FindMeetingsMaxHorizonDays`, `FindMeetingsMaxPastHours`, `FindMeetingsMaxLimit`, `FindSimilarTasksMaxWindowDays`, `FindSimilarTasksMaxLimit`.
+- **`ResourceGuards`**: `DefaultLookupSingleRow`, `AmbiguousLookupMaxRows`, `RecentLinksMaxRows`, `RecentContextMaxRows`, `CandidateLookupMaxRows`, `RelatedSearchMaxRows`, `StandardListMaxRows`, `StandardBatchMaxRows`, `ExtendedSearchMaxRows`, `WorkflowBatchMaxRows`, `BriefingTasksMaxRows`, `BroadEntityQueryMaxRows`, `LargeTreeQueryMaxRows`, `SeriesMaterializationMaxRows`, `SubtreeEffortMaxRows`, `FindTasksDefaultMaxRows`, `FindTasksMaxRowsCeiling`, `FindTasksSemanticSearchFloor`, `FindTasksSearchFetchCeiling`, `FindWorkReportsDefaultMaxRows`, `FindWorkReportsMaxRowsCeiling`, `ReconcileTimesheetApprovalsDefaultMaxRows`, `ReconcileTimesheetApprovalsMaxRowsCeiling`, `SqlInClauseChunkSize`, `MaxSavedTaskViews`, `MaxMeetingTranscriptChars`, `ZoomApiTimeoutMs`, `TeamsWebhookTimeoutMs`.
+- **`Briefing`**: `ContributorTimeoutMs`, `MaxContributorChars`, `DefaultBriefingMaxItems`, `DefaultBriefingHorizonDays`, `DefaultMeetingsBriefingLookbackDays`, `DefaultWorkReportsBriefingLookbackDays`, `MeetingNoteExcerptMaxChars`, `NotificationPreviewMaxChars`, `TranscriptExcerptMaxLines` (plus shared helpers in `packages/Core/src/config/BriefingLimitsHelper.ts`).
+- **`Tuning`**: `DefaultSeriesHorizonDays`, `DefaultMeetingDurationMinutes`, `DefaultAgendaItemDurationMinutes`, `DefaultAgendaSequenceStep`, `DefaultTaskSimilarityLimit`, `TranscriptDedupMatchLimit`, `FindSimilarDefaultWindowDays`, `FindMeetingsDefaultDaysAhead`, `FindMeetingsDefaultLimit`, `ProposedTaskClaimTtlMs`, `CompletionNotesMaxChars`, `FailureNotesMaxChars`, `HttpErrorDetailMaxChars`, `ZoomTokenSafetyMarginMs`.
+
+### Classified Limits Inventory & CI Standards Guard
+
+- **Limits sweep & classified CSV generation**:
+  ```bash
+  node scripts/sweep-limits.mjs --out scripts/limits-sweep-classified.csv --also .mj/specs/limits-sweep-bizapps-tasks.csv
+  node scripts/sweep-limits.mjs --check-runaway
+  ```
+- **Static standards & limits parity check** (enforced in CI by `.github/workflows/repo-checks.yml`):
+  ```bash
+  npm run check:standards
+  ```
+  `scripts/check-standards.mjs` verifies zero unapproved `RunawayGuard` or unrouted backend `ResourceGuard`/`Tuning` literals, deterministic CSV parity with `scripts/sweep-limits.mjs`, zero `any` types, zero lazy `unknown` casts (`as unknown as Record<...>` / standalone `as unknown`), and zero `BaseEntity.Get()` / `BaseEntity.Set()` calls across backend packages.
+
+---
+
 ## Tech Stack
 
 | Layer | Technology | Version |
