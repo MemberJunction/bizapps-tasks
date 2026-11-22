@@ -14,6 +14,7 @@ import { ResolveUserIDForPerson } from '@mj-biz-apps/common-entities';
 import {
     ChiefOfStaffWakeRegistry,
     PEOPLE_ENTITY_NAME,
+    TasksLimitsResolver,
     WorkReportService,
     type PersonIdentitySummary,
 } from '@mj-biz-apps/tasks-core';
@@ -451,6 +452,7 @@ export async function resolvePersonByIdentifier(
     input: { personID?: string | null; email?: string | null; name?: string | null },
     contextUser: UserInfo,
 ): Promise<PersonLookupResult> {
+    const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
     const rv = new RunView();
 
     if (input.personID) {
@@ -462,7 +464,7 @@ export async function resolvePersonByIdentifier(
                 EntityName: PEOPLE_ENTITY_NAME,
                 ExtraFilter: `ID = '${EscapeSQLString(input.personID)}'`,
                 Fields: ['ID', 'FirstName', 'LastName', 'PreferredName', 'Email', 'LinkedUserID'],
-                MaxRows: 1,
+                MaxRows: limits.ResourceGuards.DefaultLookupSingleRow,
                 ResultType: 'simple',
             },
             contextUser,
@@ -481,7 +483,7 @@ export async function resolvePersonByIdentifier(
                 EntityName: PEOPLE_ENTITY_NAME,
                 ExtraFilter: `LOWER(Email) = LOWER('${EscapeSQLString(cleanEmail)}') AND Status = 'Active'`,
                 Fields: ['ID', 'FirstName', 'LastName', 'PreferredName', 'Email', 'LinkedUserID'],
-                MaxRows: 10,
+                MaxRows: limits.ResourceGuards.CandidateLookupMaxRows,
                 ResultType: 'simple',
             },
             contextUser,
@@ -529,7 +531,7 @@ export async function resolvePersonByIdentifier(
                 EntityName: PEOPLE_ENTITY_NAME,
                 ExtraFilter: filter,
                 Fields: ['ID', 'FirstName', 'LastName', 'PreferredName', 'Email', 'LinkedUserID'],
-                MaxRows: 10,
+                MaxRows: limits.ResourceGuards.CandidateLookupMaxRows,
                 ResultType: 'simple',
             },
             contextUser,
@@ -667,7 +669,7 @@ export async function resolveOrganizationByIdentifier(
                 `)`,
             Fields: ['ID', 'Name'],
             OrderBy: 'Name ASC',
-            MaxRows: 10,
+            MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.CandidateLookupMaxRows,
             ResultType: 'simple',
         },
         contextUser,
@@ -720,7 +722,7 @@ export async function upsertTaskOrganizationLink(
             EntityName: TASK_LINKS_ENTITY,
             ExtraFilter: `TaskID = '${EscapeSQLString(taskID)}' AND EntityID = '${EscapeSQLString(orgEntityID)}'`,
             Fields: ['ID', 'RecordID'],
-            MaxRows: 10,
+            MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.CandidateLookupMaxRows,
             ResultType: 'simple',
         },
         contextUser,

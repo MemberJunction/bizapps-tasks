@@ -7,6 +7,9 @@ import { EscapeSQLString, IsValidUUID, RegisterClass, UUIDsEqual } from '@member
 import {
     GetLocalDayWindow,
     IsPrivilegedWorkReportUser,
+    ResolveBriefingContributorBounds,
+    SerializeBriefingPayloadWithLimit,
+    TasksLimitsResolver,
     WorkReportService,
 } from '@mj-biz-apps/tasks-core';
 import type {
@@ -104,6 +107,7 @@ export class GetWorkReportAction extends BaseAction {
         if (!itemsGuard.Allowed) return itemsGuard.Failure;
 
         try {
+            const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
             const callerPerson = await WorkReportService.Instance.ResolvePersonForUser(user);
             const callerIsPrivileged = IsPrivilegedWorkReportUser(user);
             if (!callerPerson?.ID && !callerIsPrivileged) {
@@ -151,7 +155,7 @@ export class GetWorkReportAction extends BaseAction {
                             'ReviewedByPerson',
                             'ReviewedAt',
                         ],
-                        MaxRows: 1,
+                        MaxRows: limits.ResourceGuards.DefaultLookupSingleRow,
                         ResultType: 'simple',
                     },
                     user,
@@ -167,7 +171,7 @@ export class GetWorkReportAction extends BaseAction {
                         ExtraFilter: `WorkReportID = '${escapedId}'`,
                         Fields: ['ID', 'WorkReportID', 'TaskID', 'Task', 'Section', 'Summary', 'Sequence'],
                         OrderBy: 'Sequence ASC',
-                        MaxRows: 200,
+                        MaxRows: limits.ResourceGuards.WorkflowBatchMaxRows,
                         ResultType: 'simple',
                     },
                     user,
@@ -294,8 +298,9 @@ export class ListWorkReportsAction extends BaseAction {
                 return failResult('VALIDATION_ERROR', 'Since must be a valid ISO-8601 date.', params);
             }
 
-            const limitRaw = getNumberParam(params, 'Limit', 'MaxRows') ?? 20;
-            const limit = Math.max(1, Math.min(100, Math.round(limitRaw)));
+            const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
+            const limitRaw = getNumberParam(params, 'Limit', 'MaxRows') ?? limits.ResourceGuards.FindWorkReportsDefaultMaxRows;
+            const limit = Math.max(1, Math.min(limits.ResourceGuards.FindWorkReportsMaxRowsCeiling, Math.round(limitRaw)));
 
             const callerPerson = await WorkReportService.Instance.ResolvePersonForUser(user);
             const callerIsPrivileged = IsPrivilegedWorkReportUser(user);
@@ -638,10 +643,13 @@ export class GetMyWorkReportsBriefingAction extends BaseAction {
         if (!guard.Allowed) return guard.Failure;
 
         try {
-            const lookbackDaysRaw = getNumberParam(params, 'LookbackDays') ?? 14;
-            const lookbackDays = Math.max(1, Math.min(90, Math.round(lookbackDaysRaw)));
-            const maxItemsRaw = getNumberParam(params, 'MaxItems') ?? 10;
-            const maxItems = Math.max(1, Math.min(50, Math.round(maxItemsRaw)));
+            const bounds = ResolveBriefingContributorBounds({
+                LookbackDays: getNumberParam(params, 'LookbackDays'),
+                MaxItems: getNumberParam(params, 'MaxItems'),
+                LookbackKind: 'workReports',
+            });
+            const lookbackDays = bounds.LookbackDays;
+            const maxItems = bounds.MaxItems;
 
             const callerPerson = await WorkReportService.Instance.ResolvePersonForUser(user);
             if (!callerPerson?.ID) {
@@ -778,7 +786,12 @@ export class GetMyWorkReportsBriefingAction extends BaseAction {
                 `${directReportsAwaitingReview.length} direct report(s) awaiting your review ` +
                 `(today's report ${hasReportForToday ? 'exists' : 'not yet drafted'}).`;
 
-            setOutputParam(params, 'Briefing', JSON.stringify(briefing));
+            const serialized = SerializeBriefingPayloadWithLimit(
+                briefing,
+                ['MyDraftReports', 'MySubmittedReports', 'DirectReportsAwaitingReview'],
+                bounds.MaxContributorChars,
+            );
+            setOutputParam(params, 'Briefing', serialized.Json);
             setOutputParam(params, 'Summary', summary);
             return successResult(summary, params);
         } catch (err) {

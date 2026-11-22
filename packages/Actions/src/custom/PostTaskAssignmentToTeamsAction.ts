@@ -3,11 +3,13 @@ import { ActionResultSimple, RunActionParams } from '@memberjunction/actions-bas
 import { BaseAction } from '@memberjunction/actions';
 import { CredentialEngine } from '@memberjunction/credentials';
 import { IsValidUUID, RegisterClass } from '@memberjunction/global';
+import { TasksLimitsResolver } from '@mj-biz-apps/tasks-core/limits';
 import {
     BuildAssignmentCardPayload,
     BuildTaskLink,
     IsSupportedTeamsWebhookURL,
     TEAMS_WEBHOOK_CREDENTIAL_TYPE,
+    TeamsAssignmentMessagePayload,
     TeamsWebhookCredentialValues,
 } from './teams-assignment-card.js';
 
@@ -71,7 +73,7 @@ async function loadTaskType(taskTypeID: string | null, user: UserInfo): Promise<
         ExtraFilter: `ID = '${taskTypeID}'`,
         Fields: ['ID', 'Name', 'Code'],
         ResultType: 'simple',
-        MaxRows: 1,
+        MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
     }, user);
     return result?.Success ? result.Results?.[0] ?? null : null;
 }
@@ -95,16 +97,18 @@ async function resolveWebhookCredential(name: string | null, user: UserInfo): Pr
     return resolved.values?.webhookUrl ? resolved.values : null;
 }
 
-async function postToTeams(webhookUrl: string, payload: Record<string, unknown>): Promise<ActionResultSimple> {
+async function postToTeams(webhookUrl: string, payload: TeamsAssignmentMessagePayload): Promise<ActionResultSimple> {
+    const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
     try {
         const response = await fetch(webhookUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
+            signal: AbortSignal.timeout(limits.ResourceGuards.TeamsWebhookTimeoutMs),
         });
         if (response.ok) return { Success: true, ResultCode: 'SUCCESS', Message: 'Posted to Teams' };
         // The URL carries a signature, so it never goes into the message.
-        const detail = (await response.text()).slice(0, 300);
+        const detail = (await response.text()).slice(0, limits.Tuning.HttpErrorDetailMaxChars);
         return fail('TEAMS_ERROR', `Teams webhook returned HTTP ${response.status}: ${detail}`);
     } catch (err) {
         return fail('TEAMS_ERROR', `Teams webhook request failed: ${err instanceof Error ? err.message : String(err)}`);

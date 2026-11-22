@@ -9,7 +9,10 @@ import {
     markProposedTaskAccepted,
     MeetingNotesService,
     parseProposedTasks,
+    ResolveBriefingContributorBounds,
+    SerializeBriefingPayloadWithLimit,
     serializeProposedTasks,
+    TasksLimitsResolver,
 } from '@mj-biz-apps/tasks-core';
 import type {
     mjBizAppsTasksMeetingAgendaItemEntity,
@@ -220,7 +223,7 @@ async function ensureMeetingTaskLink(
                 `AND EntityID = '${EscapeSQLString(meetingEntityID)}' ` +
                 `AND RecordID = '${EscapeSQLString(meetingID)}'`,
             Fields: ['ID'],
-            MaxRows: 1,
+            MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
             ResultType: 'simple',
         },
         user,
@@ -259,12 +262,13 @@ export class GetMyUpcomingMeetingsAction extends BaseAction {
         if (!guard.Allowed) return guard.Failure;
 
         try {
-            const daysAheadRaw = getNumberParam(params, 'DaysAhead') ?? 7;
-            const daysAhead = Math.max(1, Math.min(30, Math.round(daysAheadRaw)));
+            const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
+            const daysAheadRaw = getNumberParam(params, 'DaysAhead') ?? limits.Tuning.FindMeetingsDefaultDaysAhead;
+            const daysAhead = Math.max(1, Math.min(limits.RunawayGuards.FindMeetingsMaxHorizonDays, Math.round(daysAheadRaw)));
             const includePastHoursRaw = getNumberParam(params, 'IncludePastHours') ?? 0;
-            const includePastHours = Math.max(0, Math.min(72, includePastHoursRaw));
-            const limitRaw = getNumberParam(params, 'Limit', 'MaxRows') ?? 20;
-            const limit = Math.max(1, Math.min(50, Math.round(limitRaw)));
+            const includePastHours = Math.max(0, Math.min(limits.RunawayGuards.FindMeetingsMaxPastHours, includePastHoursRaw));
+            const limitRaw = getNumberParam(params, 'Limit', 'MaxRows') ?? limits.Tuning.FindMeetingsDefaultLimit;
+            const limit = Math.max(1, Math.min(limits.RunawayGuards.FindMeetingsMaxLimit, Math.round(limitRaw)));
 
             const callerPerson = await resolveCallerPerson(user);
             const rv = new RunView();
@@ -284,7 +288,7 @@ export class GetMyUpcomingMeetingsAction extends BaseAction {
                         EntityName: MEETING_ATTENDEES_ENTITY,
                         ExtraFilter: attendeeClauses.join(' OR '),
                         Fields: ['MeetingID'],
-                        MaxRows: 500,
+                        MaxRows: limits.ResourceGuards.BroadEntityQueryMaxRows,
                         ResultType: 'simple',
                     },
                     user,
@@ -462,6 +466,8 @@ export class PrepareMeetingBriefAction extends BaseAction {
         if (!tasksGuard.Allowed) return tasksGuard.Failure;
 
         try {
+            const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
+            const noteExcerptMaxChars = limits.Briefing.MeetingNoteExcerptMaxChars;
             const rv = new RunView();
             const escapedMeetingID = EscapeSQLString(meetingID);
             const [meetingRes, attendeesRes, agendaRes, currentNotesRes] = await Promise.all([
@@ -469,7 +475,7 @@ export class PrepareMeetingBriefAction extends BaseAction {
                     {
                         EntityName: MEETINGS_ENTITY,
                         ExtraFilter: `ID = '${escapedMeetingID}'`,
-                        MaxRows: 1,
+                        MaxRows: limits.ResourceGuards.DefaultLookupSingleRow,
                         ResultType: 'simple',
                     },
                     user,
@@ -479,7 +485,7 @@ export class PrepareMeetingBriefAction extends BaseAction {
                         EntityName: MEETING_ATTENDEES_ENTITY,
                         ExtraFilter: `MeetingID = '${escapedMeetingID}'`,
                         Fields: ['ID', 'MeetingID', 'PersonID', 'Person', 'UserID', 'Email', 'DisplayName', 'Role', 'ResponseStatus', 'AttendanceStatus'],
-                        MaxRows: 100,
+                        MaxRows: limits.ResourceGuards.StandardBatchMaxRows,
                         ResultType: 'simple',
                     },
                     user,
@@ -490,7 +496,7 @@ export class PrepareMeetingBriefAction extends BaseAction {
                         ExtraFilter: `MeetingID = '${escapedMeetingID}'`,
                         Fields: ['ID', 'MeetingID', 'Sequence', 'Name', 'Description', 'Status', 'Outcome', 'DurationMinutes', 'PresenterPerson'],
                         OrderBy: 'Sequence ASC',
-                        MaxRows: 100,
+                        MaxRows: limits.ResourceGuards.StandardBatchMaxRows,
                         ResultType: 'simple',
                     },
                     user,
@@ -501,7 +507,7 @@ export class PrepareMeetingBriefAction extends BaseAction {
                         ExtraFilter: `MeetingID = '${escapedMeetingID}'`,
                         Fields: ['ID', 'MeetingID', 'Kind', 'Title', 'Body', 'Status', 'Source', '__mj_CreatedAt'],
                         OrderBy: '__mj_CreatedAt DESC',
-                        MaxRows: 5,
+                        MaxRows: limits.ResourceGuards.RecentContextMaxRows,
                         ResultType: 'simple',
                     },
                     user,
@@ -535,7 +541,7 @@ export class PrepareMeetingBriefAction extends BaseAction {
                             `AND StartsAt < '${EscapeSQLString(toIsoOrNull(meeting.StartsAt) ?? new Date().toISOString())}'`,
                         Fields: ['ID', 'Name', 'StartsAt'],
                         OrderBy: 'StartsAt DESC',
-                        MaxRows: 3,
+                        MaxRows: limits.ResourceGuards.RecentLinksMaxRows,
                         ResultType: 'simple',
                     },
                     user,
@@ -548,7 +554,7 @@ export class PrepareMeetingBriefAction extends BaseAction {
                             ExtraFilter: `MeetingID IN (${priorIds.map((id) => `'${EscapeSQLString(id)}'`).join(', ')})`,
                             Fields: ['ID', 'MeetingID', 'Kind', 'Title', 'Body', 'Status', '__mj_CreatedAt'],
                             OrderBy: '__mj_CreatedAt DESC',
-                            MaxRows: 5,
+                            MaxRows: limits.ResourceGuards.RecentContextMaxRows,
                             ResultType: 'simple',
                         },
                         user,
@@ -558,7 +564,7 @@ export class PrepareMeetingBriefAction extends BaseAction {
                         MeetingID: n.MeetingID,
                         Kind: n.Kind,
                         Title: n.Title ?? null,
-                        Excerpt: (n.Body ?? '').slice(0, 600),
+                        Excerpt: (n.Body ?? '').slice(0, noteExcerptMaxChars),
                         CreatedAt: toIsoOrNull(n.__mj_CreatedAt),
                     }));
                 }
@@ -573,7 +579,7 @@ export class PrepareMeetingBriefAction extends BaseAction {
                         EntityName: TASK_LINKS_ENTITY,
                         ExtraFilter: `EntityID = '${EscapeSQLString(meetingEntityID)}' AND RecordID = '${escapedMeetingID}'`,
                         Fields: ['TaskID'],
-                        MaxRows: 50,
+                        MaxRows: limits.ResourceGuards.StandardListMaxRows,
                         ResultType: 'simple',
                     },
                     user,
@@ -588,7 +594,7 @@ export class PrepareMeetingBriefAction extends BaseAction {
                         EntityName: TASK_ASSIGNMENTS_ENTITY,
                         ExtraFilter: `AssigneeRecordID IN (${attendeePersonIDs.map((id) => `'${EscapeSQLString(id)}'`).join(', ')})`,
                         Fields: ['TaskID'],
-                        MaxRows: 150,
+                        MaxRows: limits.ResourceGuards.ExtendedSearchMaxRows,
                         ResultType: 'simple',
                     },
                     user,
@@ -601,7 +607,7 @@ export class PrepareMeetingBriefAction extends BaseAction {
             let relatedOpenTasks: Array<Record<string, string | number | boolean | null | undefined>> = [];
             if (taskIds.size > 0) {
                 const inTasks = Array.from(taskIds)
-                    .slice(0, 100)
+                    .slice(0, limits.ResourceGuards.StandardBatchMaxRows)
                     .map((id) => `'${EscapeSQLString(id)}'`)
                     .join(', ');
                 const tRes = await rv.RunView<
@@ -612,7 +618,7 @@ export class PrepareMeetingBriefAction extends BaseAction {
                         ExtraFilter: `ID IN (${inTasks}) AND Status NOT IN ('Completed', 'Cancelled')`,
                         Fields: ['ID', 'Name', 'Status', 'Priority', 'DueAt', 'PercentComplete', 'BlockedReason'],
                         OrderBy: 'DueAt ASC',
-                        MaxRows: 25,
+                        MaxRows: limits.ResourceGuards.RelatedSearchMaxRows,
                         ResultType: 'simple',
                     },
                     user,
@@ -679,7 +685,7 @@ export class PrepareMeetingBriefAction extends BaseAction {
                     ID: n.ID,
                     Kind: n.Kind,
                     Title: n.Title ?? null,
-                    Excerpt: (n.Body ?? '').slice(0, 600),
+                    Excerpt: (n.Body ?? '').slice(0, noteExcerptMaxChars),
                 })),
                 PriorMeetingNotes: priorSeriesNotes,
                 RelatedOpenTasks: relatedOpenTasks,
@@ -745,7 +751,9 @@ export class ProcessMeetingTranscriptAction extends BaseAction {
         try {
             const transcriptText = getStringParam(params, 'TranscriptText');
             const sourceDriver = getStringParam(params, 'SourceDriver');
-            const windowDays = getNumberParam(params, 'WindowDays') ?? 30;
+            const windowDays =
+                getNumberParam(params, 'WindowDays') ??
+                TasksLimitsResolver.Instance.GetCurrentLimits().Tuning.FindSimilarDefaultWindowDays;
 
             const service = new MeetingTranscriptService(Metadata.Provider);
             const result = await service.ProcessMeetingTranscript(
@@ -1008,6 +1016,7 @@ export class GetMeetingNotesAction extends BaseAction {
         if (!notesGuard.Allowed) return notesGuard.Failure;
 
         try {
+            const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
             const includeProposed = getBooleanParam(params, 'IncludeProposedTasks', true);
             const rv = new RunView();
             const escapedMeetingID = EscapeSQLString(meetingID);
@@ -1018,7 +1027,7 @@ export class GetMeetingNotesAction extends BaseAction {
                         EntityName: MEETINGS_ENTITY,
                         ExtraFilter: `ID = '${escapedMeetingID}'`,
                         Fields: ['ID', 'Name', 'Status', 'StartsAt', 'EndsAt', 'OrganizerPerson', 'Visibility', 'TranscriptFileID'],
-                        MaxRows: 1,
+                        MaxRows: limits.ResourceGuards.DefaultLookupSingleRow,
                         ResultType: 'simple',
                     },
                     user,
@@ -1029,7 +1038,7 @@ export class GetMeetingNotesAction extends BaseAction {
                         ExtraFilter: `MeetingID = '${escapedMeetingID}'`,
                         Fields: ['ID', 'MeetingID', 'AgendaItemID', 'Kind', 'Title', 'Body', 'Source', 'Status', 'AuthorPerson', 'ProposedTasks', '__mj_CreatedAt'],
                         OrderBy: '__mj_CreatedAt DESC',
-                        MaxRows: 50,
+                        MaxRows: limits.ResourceGuards.StandardListMaxRows,
                         ResultType: 'simple',
                     },
                     user,
@@ -1040,7 +1049,7 @@ export class GetMeetingNotesAction extends BaseAction {
                         ExtraFilter: `MeetingID = '${escapedMeetingID}'`,
                         Fields: ['ID', 'Sequence', 'Name', 'Status', 'Outcome'],
                         OrderBy: 'Sequence ASC',
-                        MaxRows: 100,
+                        MaxRows: limits.ResourceGuards.StandardBatchMaxRows,
                         ResultType: 'simple',
                     },
                     user,
@@ -1064,7 +1073,7 @@ export class GetMeetingNotesAction extends BaseAction {
                         EntityName: TASK_LINKS_ENTITY,
                         ExtraFilter: `EntityID = '${EscapeSQLString(meetingEntityID)}' AND RecordID = '${escapedMeetingID}'`,
                         Fields: ['TaskID'],
-                        MaxRows: 50,
+                        MaxRows: limits.ResourceGuards.StandardListMaxRows,
                         ResultType: 'simple',
                     },
                     user,
@@ -1184,12 +1193,16 @@ export class GetMyMeetingsBriefingAction extends BaseAction {
         if (!notesGuard.Allowed) return notesGuard.Failure;
 
         try {
-            const horizonDaysRaw = getNumberParam(params, 'HorizonDays') ?? 7;
-            const horizonDays = Math.max(1, Math.min(30, Math.round(horizonDaysRaw)));
-            const lookbackDaysRaw = getNumberParam(params, 'LookbackDays') ?? 7;
-            const lookbackDays = Math.max(1, Math.min(30, Math.round(lookbackDaysRaw)));
-            const maxItemsRaw = getNumberParam(params, 'MaxItems') ?? 10;
-            const maxItems = Math.max(1, Math.min(50, Math.round(maxItemsRaw)));
+            const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
+            const bounds = ResolveBriefingContributorBounds({
+                HorizonDays: getNumberParam(params, 'HorizonDays'),
+                LookbackDays: getNumberParam(params, 'LookbackDays'),
+                MaxItems: getNumberParam(params, 'MaxItems'),
+                LookbackKind: 'meetings',
+            });
+            const horizonDays = bounds.HorizonDays;
+            const lookbackDays = bounds.LookbackDays;
+            const maxItems = bounds.MaxItems;
 
             const callerPerson = await resolveCallerPerson(user);
             const rv = new RunView();
@@ -1209,7 +1222,7 @@ export class GetMyMeetingsBriefingAction extends BaseAction {
                         EntityName: MEETING_ATTENDEES_ENTITY,
                         ExtraFilter: attendeeClauses.join(' OR '),
                         Fields: ['MeetingID'],
-                        MaxRows: 500,
+                        MaxRows: limits.ResourceGuards.BroadEntityQueryMaxRows,
                         ResultType: 'simple',
                     },
                     user,
@@ -1269,7 +1282,7 @@ export class GetMyMeetingsBriefingAction extends BaseAction {
                         'Type',
                     ],
                     OrderBy: 'StartsAt ASC',
-                    MaxRows: 100,
+                    MaxRows: limits.ResourceGuards.StandardBatchMaxRows,
                     ResultType: 'simple',
                 },
                 user,
@@ -1435,7 +1448,7 @@ export class GetMyMeetingsBriefingAction extends BaseAction {
                             EntityName: TASK_LINKS_ENTITY,
                             ExtraFilter: `EntityID = '${EscapeSQLString(meetingEntityID)}' AND RecordID IN (${inMeetings})`,
                             Fields: ['TaskID', 'RecordID'],
-                            MaxRows: 200,
+                            MaxRows: limits.ResourceGuards.WorkflowBatchMaxRows,
                             ResultType: 'simple',
                         },
                         user,
@@ -1453,7 +1466,7 @@ export class GetMyMeetingsBriefingAction extends BaseAction {
 
                     if (linkedTaskIds.length > 0) {
                         const inTasks = linkedTaskIds
-                            .slice(0, 100)
+                            .slice(0, limits.ResourceGuards.StandardBatchMaxRows)
                             .map((id) => `'${EscapeSQLString(id)}'`)
                             .join(', ');
                         const tasksRes = await rv.RunView<
@@ -1533,7 +1546,12 @@ export class GetMyMeetingsBriefingAction extends BaseAction {
                 `(${needingTranscriptCount} transcript, ${needingAcceptanceCount} commitment acceptance), ` +
                 `${openFollowUpTasks.length} open meeting follow-up task(s).`;
 
-            setOutputParam(params, 'Briefing', JSON.stringify(briefing));
+            const serialized = SerializeBriefingPayloadWithLimit(
+                briefing,
+                ['UpcomingMeetings', 'RecentCompletedMeetingsNeedingFollowUp', 'OpenMeetingFollowUpTasks'],
+                bounds.MaxContributorChars,
+            );
+            setOutputParam(params, 'Briefing', serialized.Json);
             setOutputParam(params, 'Summary', summary);
             return successResult(summary, params);
         } catch (err) {
