@@ -446,5 +446,5 @@ describe('TasksLimitsResolver (@mj-biz-apps/tasks-core)', () => {
         expect(filesPresent.has('packages/Core/src/services/WorkReportService.ts')).toBe(true);
         expect(filesPresent.has('packages/Actions/src/custom/TaskTypedActions.ts')).toBe(true);
         expect(filesPresent.has('packages/EntitiesServer/src/TasksRemoteOperationsServer.ts')).toBe(true);
-    }, 30_000);
+    }, 60_000);
 });

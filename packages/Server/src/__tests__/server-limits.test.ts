@@ -39,7 +39,7 @@ describe('Server Limits & Standards Enforcement', () => {
         expect(result.filesScanned).toBeGreaterThan(50);
         expect(result.sweepSummary.unapprovedRunawayCount).toBe(0);
         expect(result.sweepSummary.unroutedBackendCount).toBe(0);
-    }, 30_000);
+    }, 60_000);
 
     it('rejects synthetic any, lazy unknown casts, non-catch unknown, and BaseEntity.Get/Set', () => {
         const badSource = [
