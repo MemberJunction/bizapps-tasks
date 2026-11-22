@@ -18,9 +18,9 @@
   "author": "MemberJunction.com",
   "license": "BUSL-1.1",
   "devDependencies": {
-    "@memberjunction/core": "6.2.1",
-    "@memberjunction/core-entities": "6.2.1",
-    "@memberjunction/global": "6.2.1",
+    "@memberjunction/core": "6.3.0-edge.1",
+    "@memberjunction/core-entities": "6.3.0-edge.1",
+    "@memberjunction/global": "6.3.0-edge.1",
     "@mj-biz-apps/common-entities": "5.63.0",
     "@types/luxon": "3.7.6",
     "typescript": "^5.9.3",
@@ -32,9 +32,9 @@
     "rrule": "^2.8.1"
   },
   "peerDependencies": {
-    "@memberjunction/core": "^6.2.1",
-    "@memberjunction/core-entities": "^6.2.1",
-    "@memberjunction/global": "^6.2.1",
+    "@memberjunction/core": "^6.3.0-edge.1",
+    "@memberjunction/core-entities": "^6.3.0-edge.1",
+    "@memberjunction/global": "^6.3.0-edge.1",
     "@mj-biz-apps/common-entities": "^5.55.0"
   },
   "repository": {
