@@ -1,3 +1,5 @@
+import { TasksLimitsResolver } from '../config/TasksLimits.js';
+
 /**
  * An agenda is a tree of items in one meeting (the meetings plan, § 2.5 and § 3): an item's parent is in the same
  * meeting and the tree has no cycle; items sit in Sequence order among their siblings; durations add up against the
@@ -53,18 +55,20 @@ export function orderAgenda(agenda: readonly AgendaNode[]): AgendaNode[] {
         }
     }
     const bySequence = (a: AgendaNode, b: AgendaNode): number => a.Sequence - b.Sequence || a.ID.localeCompare(b.ID);
+    const maxDepth = TasksLimitsResolver.Instance.GetCurrentLimits().RunawayGuards.MaxHierarchyDepth;
     const out: AgendaNode[] = [];
     const visited = new Set<string>();
-    const walk = (nodes: AgendaNode[]): void => {
+    const walk = (nodes: AgendaNode[], depth: number): void => {
+        if (depth >= maxDepth) return;
         for (const node of nodes.sort(bySequence)) {
             const key = node.ID.toLowerCase();
             if (visited.has(key)) continue;
             visited.add(key);
             out.push(node);
-            walk(children.get(key) ?? []);
+            walk(children.get(key) ?? [], depth + 1);
         }
     };
-    walk(roots);
+    walk(roots, 0);
     return out;
 }
 

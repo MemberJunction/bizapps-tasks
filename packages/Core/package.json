@@ -5,6 +5,16 @@
   "description": "BizApps Tasks Core Services - TaskService, TaskAssignmentService, TaskTemplateService, and the meetings services",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./limits": {
+      "types": "./dist/config/TasksLimits.d.ts",
+      "default": "./dist/config/TasksLimits.js"
+    }
+  },
   "publishConfig": {
     "access": "public"
   },

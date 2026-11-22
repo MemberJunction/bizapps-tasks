@@ -35,6 +35,7 @@ import {
     serializeProposedTasks,
     type ProposedTask,
 } from '../meetings/proposed-tasks.js';
+import { TasksLimitsResolver } from '../config/TasksLimits.js';
 
 const TASKS_ENTITY = 'MJ_BizApps_Tasks: Tasks';
 const TASK_LINKS_ENTITY = 'MJ_BizApps_Tasks: Task Links';
@@ -42,7 +43,8 @@ const TASK_TYPES_ENTITY = 'MJ_BizApps_Tasks: Task Types';
 const ACTION_ITEM_CODE = 'ACTION_ITEM';
 
 export const DEFAULT_MEETING_NOTES_PROMPT_NAME = 'Tasks: Meeting Notes from Transcript';
-export const MAX_MEETING_TRANSCRIPT_CHARS = 100_000;
+export const MAX_MEETING_TRANSCRIPT_CHARS: number =
+    TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.MaxMeetingTranscriptChars;
 
 export interface MeetingTranscriptContext {
     meeting: Pick<mjBizAppsTasksMeetingEntity, 'ID' | 'Name' | 'Description' | 'StartsAt' | 'EndsAt' | 'TimeZone' | 'TypeID'>;
@@ -135,7 +137,8 @@ export async function defaultMeetingNotesPromptRunner(
         });
     }
 
-    const transcriptExcerpt = lines.slice(0, 8).join('\n');
+    const excerptLines = TasksLimitsResolver.Instance.GetCurrentLimits().Briefing.TranscriptExcerptMaxLines;
+    const transcriptExcerpt = lines.slice(0, excerptLines).join('\n');
     const summary = [
         `## ${ctx.meeting.Name} — Summary`,
         attendeeNames.length ? `**Participants:** ${attendeeNames.join(', ')}` : null,
@@ -194,8 +197,10 @@ export class MeetingNotesService {
         if (!cleanTranscript) {
             throw new Error('A transcript is required to draft AI meeting notes.');
         }
-        if (cleanTranscript.length > MAX_MEETING_TRANSCRIPT_CHARS) {
-            throw new Error(`Transcript exceeds the maximum allowed length of ${MAX_MEETING_TRANSCRIPT_CHARS} characters.`);
+        const maxTranscriptChars =
+            TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.MaxMeetingTranscriptChars;
+        if (cleanTranscript.length > maxTranscriptChars) {
+            throw new Error(`Transcript exceeds the maximum allowed length of ${maxTranscriptChars} characters.`);
         }
 
         let typePromptId: string | null = null;
@@ -212,6 +217,7 @@ export class MeetingNotesService {
             contextUser,
         );
 
+        const largeTreeMaxRows = TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.LargeTreeQueryMaxRows;
         const rv = RunView.FromMetadataProvider(this.provider);
         const [agendaRes, attendeeRes] = await Promise.all([
             rv.RunView<Pick<mjBizAppsTasksMeetingAgendaItemEntity, 'ID' | 'Sequence' | 'Name' | 'Description' | 'Status' | 'Outcome'>>(
@@ -221,7 +227,7 @@ export class MeetingNotesService {
                     Fields: ['ID', 'Sequence', 'Name', 'Description', 'Status', 'Outcome'],
                     OrderBy: 'Sequence ASC',
                     ResultType: 'simple',
-                    MaxRows: 1000,
+                    MaxRows: largeTreeMaxRows,
                 },
                 contextUser,
             ),
@@ -231,7 +237,7 @@ export class MeetingNotesService {
                     ExtraFilter: `MeetingID = '${meetingId}'`,
                     Fields: ['ID', 'PersonID', 'Person', 'DisplayName', 'Email', 'Role', 'AttendanceStatus'],
                     ResultType: 'simple',
-                    MaxRows: 1000,
+                    MaxRows: largeTreeMaxRows,
                 },
                 contextUser,
             ),
@@ -371,6 +377,7 @@ export class MeetingNotesService {
             }
         }
 
+        const singleRowMax = TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow;
         const rv = RunView.FromMetadataProvider(this.provider);
         const typeRes = await rv.RunView<{ ID: string }>(
             {
@@ -378,7 +385,7 @@ export class MeetingNotesService {
                 ExtraFilter: `Code = '${ACTION_ITEM_CODE}'`,
                 Fields: ['ID'],
                 ResultType: 'simple',
-                MaxRows: 1,
+                MaxRows: singleRowMax,
             },
             contextUser,
         );
@@ -454,7 +461,7 @@ export class MeetingNotesService {
                         ExtraFilter: `TaskID = '${task.ID.replace(/'/g, "''")}' AND EntityID = '${targetEntity.ID.replace(/'/g, "''")}' AND RecordID = '${targetRecordId.replace(/'/g, "''")}'`,
                         Fields: ['ID'],
                         ResultType: 'simple',
-                        MaxRows: 1,
+                        MaxRows: singleRowMax,
                     },
                     contextUser,
                 );
@@ -483,7 +490,7 @@ export class MeetingNotesService {
                             ExtraFilter: `TaskID = '${task.ID.replace(/'/g, "''")}' AND AssigneeEntityID = '${peopleEntity.ID.replace(/'/g, "''")}' AND AssigneeRecordID = '${assigneePersonId.replace(/'/g, "''")}'`,
                             Fields: ['ID'],
                             ResultType: 'simple',
-                            MaxRows: 1,
+                            MaxRows: singleRowMax,
                         },
                         contextUser,
                     );

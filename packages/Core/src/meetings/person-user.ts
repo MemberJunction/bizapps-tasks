@@ -1,4 +1,5 @@
 import { RunView, type IMetadataProvider, type UserInfo } from '@memberjunction/core';
+import { TasksLimitsResolver } from '../config/TasksLimits.js';
 
 /**
  * A person and their MemberJunction account (the meetings plan, § 13.2). bizapps-common has deprecated
@@ -48,7 +49,13 @@ export async function personIdForUser(provider: IMetadataProvider, user: UserInf
     const linked = personIdFromUserLink(provider, user);
     if (linked) return linked;
     const rows = await RunView.FromMetadataProvider(provider).RunView<{ ID: string }>(
-        { EntityName: PEOPLE_ENTITY, ExtraFilter: `LinkedUserID = '${user.ID}'`, Fields: ['ID'], ResultType: 'simple', MaxRows: 1 },
+        {
+            EntityName: PEOPLE_ENTITY,
+            ExtraFilter: `LinkedUserID = '${user.ID}'`,
+            Fields: ['ID'],
+            ResultType: 'simple',
+            MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
+        },
         user,
     );
     return rows.Success && rows.Results.length ? rows.Results[0].ID : null;
@@ -58,6 +65,7 @@ export async function personIdForUser(provider: IMetadataProvider, user: UserInf
 export async function userIdForPerson(provider: IMetadataProvider, personId: string, contextUser: UserInfo): Promise<string | null> {
     const id = uuidOrNull(personId);
     if (!id) return null;
+    const singleRowMax = TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow;
     const entityIds = peopleEntityIds(provider);
     if (entityIds.length) {
         const users = await RunView.FromMetadataProvider(provider).RunView<{ ID: string }>(
@@ -66,14 +74,14 @@ export async function userIdForPerson(provider: IMetadataProvider, personId: str
                 ExtraFilter: `LinkedEntityRecordID = '${id}' AND LinkedEntityID IN (${entityIds.map((e) => `'${e}'`).join(',')})`,
                 Fields: ['ID'],
                 ResultType: 'simple',
-                MaxRows: 1,
+                MaxRows: singleRowMax,
             },
             contextUser,
         );
         if (users.Success && users.Results.length) return users.Results[0].ID;
     }
     const people = await RunView.FromMetadataProvider(provider).RunView<{ LinkedUserID: string | null }>(
-        { EntityName: PEOPLE_ENTITY, ExtraFilter: `ID = '${id}'`, Fields: ['LinkedUserID'], ResultType: 'simple', MaxRows: 1 },
+        { EntityName: PEOPLE_ENTITY, ExtraFilter: `ID = '${id}'`, Fields: ['LinkedUserID'], ResultType: 'simple', MaxRows: singleRowMax },
         contextUser,
     );
     return people.Success && people.Results.length ? uuidOrNull(people.Results[0].LinkedUserID) : null;

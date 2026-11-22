@@ -11,6 +11,7 @@ import type {
     mjBizAppsTasksTimesheetEntity,
 } from '@mj-biz-apps/tasks-entities';
 import type { TimesheetApprovalRoutingMode } from '../config/TasksSettings.js';
+import { TasksLimitsResolver } from '../config/TasksLimits.js';
 
 /** Status union for a `TimesheetApproval` part. */
 export type TimesheetPartStatus = mjBizAppsTasksTimesheetApprovalEntity['Status'];
@@ -155,11 +156,12 @@ export function BuildTaskAncestorChain(
     taskID: string,
     taskMap: ReadonlyMap<string, TaskHierarchyNode>,
 ): TaskHierarchyNode[] {
+    const maxDepth = TasksLimitsResolver.Instance.GetCurrentLimits().RunawayGuards.MaxHierarchyDepth;
     const chain: TaskHierarchyNode[] = [];
     const visited = new Set<string>();
     let cursor = norm(taskID);
 
-    while (cursor && !visited.has(cursor)) {
+    while (cursor && !visited.has(cursor) && chain.length < maxDepth) {
         visited.add(cursor);
         const node = taskMap.get(cursor);
         if (!node) break;

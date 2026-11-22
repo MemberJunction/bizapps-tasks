@@ -4,6 +4,7 @@ import { MEETING_ATTENDEE_ENTITY, MEETING_ENTITY, MEETING_LINK_ENTITY, MEETING_T
 import { parseAgendaTemplate } from '../meetings/agenda-template.js';
 import type { MeetingStatus } from '../meetings/meeting-status.js';
 import { MeetingAgendaService } from './MeetingAgendaService.js';
+import { TasksLimitsResolver } from '../config/TasksLimits.js';
 
 export interface NewMeetingAttendee {
     personId?: string | null;
@@ -46,8 +47,6 @@ export interface MeetingStatusChange {
     message: string | null;
 }
 
-const DEFAULT_DURATION_MINUTES = 60;
-
 /**
  * Meetings as the app makes and moves them (the meetings plan, § 3): a meeting from a type, with the type's defaults,
  * its agenda template, its attendees and what it belongs to; and the organizer's moves, start, end and cancel. The
@@ -66,7 +65,13 @@ export class MeetingService {
     /** A meeting type by its code, or null. */
     async typeByCode(code: string, contextUser: UserInfo): Promise<mjBizAppsTasksMeetingTypeEntity | null> {
         const res = await RunView.FromMetadataProvider(this.provider).RunView<{ ID: string }>(
-            { EntityName: MEETING_TYPE_ENTITY, ExtraFilter: `Code = '${code.replace(/'/g, "''")}'`, Fields: ['ID'], ResultType: 'simple', MaxRows: 1 },
+            {
+                EntityName: MEETING_TYPE_ENTITY,
+                ExtraFilter: `Code = '${code.replace(/'/g, "''")}'`,
+                Fields: ['ID'],
+                ResultType: 'simple',
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
+            },
             contextUser,
         );
         return res.Success && res.Results.length ? this.loadType(res.Results[0].ID, contextUser) : null;
@@ -82,7 +87,8 @@ export class MeetingService {
         meeting.TypeID = type?.ID ?? null;
         meeting.OrganizerPersonID = input.organizerPersonId;
         meeting.StartsAt = input.startsAt;
-        const minutes = type?.DefaultDurationMinutes ?? DEFAULT_DURATION_MINUTES;
+        const defaultDurationMinutes = TasksLimitsResolver.Instance.GetCurrentLimits().Tuning.DefaultMeetingDurationMinutes;
+        const minutes = type?.DefaultDurationMinutes ?? defaultDurationMinutes;
         meeting.EndsAt = input.endsAt ?? new Date(input.startsAt.getTime() + minutes * 60000);
         if (input.timeZone) meeting.TimeZone = input.timeZone;
         meeting.LocationType = input.locationType ?? type?.DefaultLocationType ?? 'Virtual';
@@ -133,7 +139,12 @@ export class MeetingService {
     /** The meeting's attendees. */
     async attendeesOf(meetingId: string, contextUser: UserInfo): Promise<mjBizAppsTasksMeetingAttendeeEntity[]> {
         const res = await RunView.FromMetadataProvider(this.provider).RunView<mjBizAppsTasksMeetingAttendeeEntity>(
-            { EntityName: MEETING_ATTENDEE_ENTITY, ExtraFilter: `MeetingID = '${meetingId}'`, ResultType: 'entity_object', MaxRows: 1000 },
+            {
+                EntityName: MEETING_ATTENDEE_ENTITY,
+                ExtraFilter: `MeetingID = '${meetingId}'`,
+                ResultType: 'entity_object',
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.LargeTreeQueryMaxRows,
+            },
             contextUser,
         );
         if (!res.Success) throw new Error(`The attendees could not be read: ${res.ErrorMessage}`);

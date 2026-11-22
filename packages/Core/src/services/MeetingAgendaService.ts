@@ -19,6 +19,7 @@ import { flattenAgendaTemplate, parseAgendaTemplate, type AgendaTemplate, type A
 import { orderAgenda, type AgendaNode } from '../meetings/agenda.js';
 import { callerAdministersMeetings, callerIsOrganizer } from '../meetings/meeting-access.js';
 import { personIdForUser } from '../meetings/person-user.js';
+import { TasksLimitsResolver } from '../config/TasksLimits.js';
 
 const TASKS_ENTITY = 'MJ_BizApps_Tasks: Tasks';
 const TASK_LINKS_ENTITY = 'MJ_BizApps_Tasks: Task Links';
@@ -69,17 +70,19 @@ export interface DraftAgendaOptions {
  * and open tasks linked to the same records the meeting belongs to.
  */
 export async function defaultMeetingAgendaPromptRunner(ctx: DraftAgendaContext): Promise<AgendaTemplate> {
+    const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
+    const defaultItemMinutes = limits.Tuning.DefaultAgendaItemDurationMinutes;
     const items: AgendaTemplateItem[] = ctx.template ? [...ctx.template.items] : [];
 
     if (ctx.unfinishedItems.length) {
         items.push({
             title: 'Carry-over from previous meeting',
             typeCode: 'DISCUSSION',
-            durationMinutes: ctx.unfinishedItems.reduce((sum, item) => sum + (item.durationMinutes ?? 10), 0),
+            durationMinutes: ctx.unfinishedItems.reduce((sum, item) => sum + (item.durationMinutes ?? defaultItemMinutes), 0),
             items: ctx.unfinishedItems.map((item) => ({
                 title: item.name,
                 description: item.description,
-                durationMinutes: item.durationMinutes ?? 10,
+                durationMinutes: item.durationMinutes ?? defaultItemMinutes,
                 typeCode: 'DISCUSSION',
             })),
         });
@@ -89,11 +92,11 @@ export async function defaultMeetingAgendaPromptRunner(ctx: DraftAgendaContext):
         items.push({
             title: 'Open tasks & action items',
             typeCode: 'ACTION_REVIEW',
-            durationMinutes: Math.max(5, ctx.openTasks.length * 5),
+            durationMinutes: Math.max(defaultItemMinutes, ctx.openTasks.length * defaultItemMinutes),
             items: ctx.openTasks.map((task) => ({
                 title: task.name,
                 description: `Status: ${task.status}${task.priority ? ` · Priority: ${task.priority}` : ''}`,
-                durationMinutes: 5,
+                durationMinutes: defaultItemMinutes,
                 typeCode: 'ACTION_REVIEW',
             })),
         });
@@ -117,7 +120,13 @@ export class MeetingAgendaService {
     /** The meeting's agenda, in reading order. */
     async itemsOf(meetingId: string, contextUser: UserInfo): Promise<AgendaItemRow[]> {
         const res = await RunView.FromMetadataProvider(this.provider).RunView<AgendaItemRow>(
-            { EntityName: MEETING_AGENDA_ITEM_ENTITY, ExtraFilter: `MeetingID = '${meetingId}'`, Fields: AGENDA_FIELDS, ResultType: 'simple', MaxRows: 1000 },
+            {
+                EntityName: MEETING_AGENDA_ITEM_ENTITY,
+                ExtraFilter: `MeetingID = '${meetingId}'`,
+                Fields: AGENDA_FIELDS,
+                ResultType: 'simple',
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.LargeTreeQueryMaxRows,
+            },
             contextUser,
         );
         if (!res.Success) throw new Error(`The agenda could not be read: ${res.ErrorMessage}`);
@@ -127,7 +136,12 @@ export class MeetingAgendaService {
     /** The agenda item types by code, upper-cased. */
     async typesByCode(contextUser: UserInfo): Promise<Map<string, string>> {
         const res = await RunView.FromMetadataProvider(this.provider).RunView<Pick<mjBizAppsTasksMeetingAgendaItemTypeEntity, 'ID' | 'Code'>>(
-            { EntityName: MEETING_AGENDA_ITEM_TYPE_ENTITY, Fields: ['ID', 'Code'], ResultType: 'simple', MaxRows: 500 },
+            {
+                EntityName: MEETING_AGENDA_ITEM_TYPE_ENTITY,
+                Fields: ['ID', 'Code'],
+                ResultType: 'simple',
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.BroadEntityQueryMaxRows,
+            },
             contextUser,
         );
         if (!res.Success) throw new Error(`The agenda item types could not be read: ${res.ErrorMessage}`);
@@ -164,13 +178,14 @@ export class MeetingAgendaService {
 
     /** Puts the named items in this order among their siblings: Sequence 100, 200, 300 … Items not named keep their place after. */
     async reorder(meetingId: string, orderedIds: readonly string[], contextUser: UserInfo): Promise<void> {
+        const sequenceStep = TasksLimitsResolver.Instance.GetCurrentLimits().Tuning.DefaultAgendaSequenceStep;
         const wanted = orderedIds.map((id) => id.toLowerCase());
         let sequence = 0;
         for (const id of wanted) {
             const item = await this.provider.GetEntityObject<mjBizAppsTasksMeetingAgendaItemEntity>(MEETING_AGENDA_ITEM_ENTITY, contextUser);
             if (!(await item.Load(id))) throw new Error(`Agenda item ${id} was not found.`);
             if (item.MeetingID.toLowerCase() !== meetingId.toLowerCase()) throw new Error(`Agenda item ${id} is not on this meeting.`);
-            sequence += 100;
+            sequence += sequenceStep;
             if (item.Sequence !== sequence) {
                 item.Sequence = sequence;
                 if (!(await item.Save())) throw new Error(`The agenda item was not reordered: ${entityFailure(item)}`);
@@ -188,6 +203,7 @@ export class MeetingAgendaService {
         const unfinished = new Set(items.filter((item) => item.Status === 'Planned' || item.Status === 'InProgress').map((item) => item.ID.toLowerCase()));
         if (!unfinished.size) return [];
         const target = await this.itemsOf(toMeetingId, contextUser);
+        const sequenceStep = TasksLimitsResolver.Instance.GetCurrentLimits().Tuning.DefaultAgendaSequenceStep;
         let topLevelAfter = target.filter((item) => !item.ParentID).reduce((max, item) => Math.max(max, item.Sequence), 0);
         const copies = new Map<string, string>(); // source id → copy id
         const made: mjBizAppsTasksMeetingAgendaItemEntity[] = [];
@@ -200,7 +216,7 @@ export class MeetingAgendaService {
             copy.NewRecord();
             copy.MeetingID = toMeetingId;
             copy.ParentID = parentCopy ?? null;
-            copy.Sequence = parentCopy ? source.Sequence : (topLevelAfter += 100);
+            copy.Sequence = parentCopy ? source.Sequence : (topLevelAfter += sequenceStep);
             copy.Name = source.Name;
             copy.Description = source.Description;
             copy.TypeID = source.TypeID;
@@ -270,7 +286,8 @@ export class MeetingAgendaService {
         } else {
             const startsAtMs = meeting.StartsAt instanceof Date ? meeting.StartsAt.getTime() : new Date(String(meeting.StartsAt)).getTime();
             const endsAtMs = meeting.EndsAt instanceof Date ? meeting.EndsAt.getTime() : new Date(String(meeting.EndsAt)).getTime();
-            const durationMinutes = Number.isFinite(endsAtMs - startsAtMs) && endsAtMs > startsAtMs ? Math.round((endsAtMs - startsAtMs) / 60000) : 60;
+            const defaultMeetingDuration = TasksLimitsResolver.Instance.GetCurrentLimits().Tuning.DefaultMeetingDurationMinutes;
+            const durationMinutes = Number.isFinite(endsAtMs - startsAtMs) && endsAtMs > startsAtMs ? Math.round((endsAtMs - startsAtMs) / 60000) : defaultMeetingDuration;
             const aiResult = await executeMeetingAIPrompt<AgendaTemplate>(
                 this.provider,
                 promptId,
@@ -300,6 +317,7 @@ export class MeetingAgendaService {
         meeting: Pick<mjBizAppsTasksMeetingEntity, 'ID' | 'SeriesID'>,
         contextUser: UserInfo,
     ): Promise<OpenLinkedTaskSummary[]> {
+        const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
         const rv = RunView.FromMetadataProvider(this.provider);
         const clauses = [`MeetingID = '${meeting.ID}'`];
         if (meeting.SeriesID) clauses.push(`SeriesID = '${meeting.SeriesID}'`);
@@ -310,7 +328,7 @@ export class MeetingAgendaService {
                 ExtraFilter: clauses.join(' OR '),
                 Fields: ['EntityID', 'RecordID'],
                 ResultType: 'simple',
-                MaxRows: 200,
+                MaxRows: limits.ResourceGuards.WorkflowBatchMaxRows,
             },
             contextUser,
         );
@@ -325,7 +343,7 @@ export class MeetingAgendaService {
                 ExtraFilter: targetClauses.join(' OR '),
                 Fields: ['TaskID'],
                 ResultType: 'simple',
-                MaxRows: 500,
+                MaxRows: limits.ResourceGuards.BroadEntityQueryMaxRows,
             },
             contextUser,
         );
@@ -339,7 +357,7 @@ export class MeetingAgendaService {
                 Fields: ['ID', 'Name', 'Status', 'Priority', 'DueAt'],
                 OrderBy: 'DueAt ASC',
                 ResultType: 'simple',
-                MaxRows: 200,
+                MaxRows: limits.ResourceGuards.WorkflowBatchMaxRows,
             },
             contextUser,
         );
@@ -367,7 +385,7 @@ export class MeetingAgendaService {
                 Fields: ['ID'],
                 OrderBy: 'StartsAt DESC',
                 ResultType: 'simple',
-                MaxRows: 1,
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
             },
             contextUser,
         );

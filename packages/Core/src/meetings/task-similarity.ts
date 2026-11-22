@@ -1,3 +1,5 @@
+import { TasksLimitsResolver } from '../config/TasksLimits.js';
+
 /**
  * Deterministic task text similarity & commitment deduplication helpers.
  * Used by `Find Similar Tasks` and `MeetingTranscriptService` (30-day dedup window)
@@ -179,7 +181,8 @@ export function rankSimilarTasks(
     options: RankSimilarTasksOptions = {},
 ): TaskSimilarityMatch[] {
     const minScore = options.minScore ?? 0.35;
-    const limit = Math.max(1, options.limit ?? 5);
+    const defaultLimit = TasksLimitsResolver.Instance.GetCurrentLimits().Tuning.DefaultTaskSimilarityLimit;
+    const limit = Math.max(1, options.limit ?? defaultLimit);
     const preferredAssignee = options.preferredAssigneePersonID?.trim().toLowerCase() || null;
 
     const matches: TaskSimilarityMatch[] = [];
@@ -266,7 +269,7 @@ export function deduplicateCommitmentsAgainstTasks(
             semanticScoresByTaskID: options.semanticScoresByProposalID?.get(item.ProposalID),
             preferredAssigneePersonID: item.AssigneePersonID ?? null,
             minScore: nearMatchThreshold,
-            limit: 3,
+            limit: TasksLimitsResolver.Instance.GetCurrentLimits().Tuning.TranscriptDedupMatchLimit,
         });
 
         const top = ranked[0];

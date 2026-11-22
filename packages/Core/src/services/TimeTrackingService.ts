@@ -15,6 +15,7 @@ import {
     type UserInfo,
 } from '@memberjunction/core';
 import { IsValidUUID } from '@memberjunction/global';
+import { TasksLimitsResolver } from '../config/TasksLimits.js';
 import { FromCalendarDay, ToCalendarDay, type CalendarDay } from '@mj-biz-apps/common-entities';
 import {
     TasksGetTaskEffortOperation,
@@ -133,7 +134,7 @@ export class TimeTrackingService {
                 EntityName: 'MJ_BizApps_Tasks: Task Timers',
                 ExtraFilter: `PersonID = '${personID}'`,
                 ResultType: 'entity_object',
-                MaxRows: 1,
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
                 BypassCache: true,
             },
             contextUser,

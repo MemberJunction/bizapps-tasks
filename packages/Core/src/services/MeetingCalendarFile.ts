@@ -3,6 +3,7 @@ import type { mjBizAppsTasksMeetingEntity } from '@mj-biz-apps/tasks-entities';
 import { MEETING_ATTENDEE_ENTITY, MEETING_ENTITY } from '../meetings/entity-names.js';
 import { buildMeetingIcs, type IcsAttendee, type IcsPerson } from '../meetings/ics.js';
 import { PEOPLE_ENTITY } from '../meetings/person-user.js';
+import { TasksLimitsResolver } from '../config/TasksLimits.js';
 
 export interface CalendarFile {
     fileName: string;
@@ -85,7 +86,7 @@ export class MeetingCalendarFile {
                     ExtraFilter: `Entity = '${MEETING_ENTITY}' AND Status = 'Active' AND (RecordID = '${meetingId}' OR RecordID = 'ID|${meetingId}') AND ICalUID IS NOT NULL`,
                     Fields: ['ICalUID'],
                     ResultType: 'simple',
-                    MaxRows: 1,
+                    MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
                 },
                 contextUser,
             );
@@ -104,7 +105,13 @@ export class MeetingCalendarFile {
 
     private async attendees(meetingId: string, contextUser: UserInfo): Promise<AttendeeRow[]> {
         const res = await RunView.FromMetadataProvider(this.provider).RunView<AttendeeRow>(
-            { EntityName: MEETING_ATTENDEE_ENTITY, ExtraFilter: `MeetingID = '${meetingId}'`, Fields: ['PersonID', 'Email', 'DisplayName', 'Role', 'ResponseStatus', 'Person'], ResultType: 'simple', MaxRows: 1000 },
+            {
+                EntityName: MEETING_ATTENDEE_ENTITY,
+                ExtraFilter: `MeetingID = '${meetingId}'`,
+                Fields: ['PersonID', 'Email', 'DisplayName', 'Role', 'ResponseStatus', 'Person'],
+                ResultType: 'simple',
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.LargeTreeQueryMaxRows,
+            },
             contextUser,
         );
         if (!res.Success) throw new Error(`The attendees could not be read: ${res.ErrorMessage}`);

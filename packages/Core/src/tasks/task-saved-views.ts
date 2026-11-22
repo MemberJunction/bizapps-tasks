@@ -3,8 +3,10 @@
  * and human-readable formatting of Task statuses and activity types.
  */
 
+import { TasksLimitsResolver } from '../config/TasksLimits.js';
+
 export const SAVED_TASK_VIEWS_SETTING = 'mj.tasks.savedFilterViews.v1';
-export const MAX_SAVED_TASK_VIEWS = 25;
+export const MAX_SAVED_TASK_VIEWS: number = TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.MaxSavedTaskViews;
 
 export type SavedTaskFilterValue = string | number | boolean | null | string[];
 export type SavedTaskFilterMap = Record<string, SavedTaskFilterValue>;
@@ -35,6 +37,7 @@ interface RawSavedTaskFilterView {
 export function ParseSavedTaskFilterViews(raw: string | null | undefined): SavedTaskFilterView[] {
     if (!raw || typeof raw !== 'string') return [];
     try {
+        const maxSavedViews = TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.MaxSavedTaskViews;
         const parsed: RawSavedTaskFilterView[] = JSON.parse(raw);
         if (!Array.isArray(parsed)) return [];
         const out: SavedTaskFilterView[] = [];
@@ -62,7 +65,7 @@ export function ParseSavedTaskFilterViews(raw: string | null | undefined): Saved
                 Filters: filters,
                 CreatedAt: typeof entry.CreatedAt === 'string' ? entry.CreatedAt : new Date().toISOString(),
             });
-            if (out.length >= MAX_SAVED_TASK_VIEWS) break;
+            if (out.length >= maxSavedViews) break;
         }
         return out;
     } catch {
@@ -74,7 +77,8 @@ export function ParseSavedTaskFilterViews(raw: string | null | undefined): Saved
  * Serializes saved filter views for storage in `UserInfoEngine`.
  */
 export function SerializeSavedTaskFilterViews(views: readonly SavedTaskFilterView[]): string {
-    return JSON.stringify(views.slice(0, MAX_SAVED_TASK_VIEWS));
+    const maxSavedViews = TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.MaxSavedTaskViews;
+    return JSON.stringify(views.slice(0, maxSavedViews));
 }
 
 /**
@@ -108,7 +112,8 @@ export function UpsertSavedTaskFilterView(
     } else {
         next.unshift(record);
     }
-    return next.slice(0, MAX_SAVED_TASK_VIEWS);
+    const maxSavedViews = TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.MaxSavedTaskViews;
+    return next.slice(0, maxSavedViews);
 }
 
 /**
