@@ -27,7 +27,7 @@ import {
     mjBizAppsTasksTaskTypeEntity,
     mjBizAppsTasksTaskTypeStatusEntity,
 } from '@mj-biz-apps/tasks-entities';
-import { GuidLiteral, IsTaskDecisionOutcomeCode, TaskDecisionOutcomes, TaskService } from '@mj-biz-apps/tasks-core';
+import { GuidLiteral, IsTaskDecisionOutcomeCode, TaskDecisionOutcomes, TaskService, TasksLimitsResolver } from '@mj-biz-apps/tasks-core';
 import { ApprovalActor, IsSystemActor } from './ApprovalActor.js';
 import {
     ApprovalStatusChangeRefusal,
@@ -529,7 +529,7 @@ export class TaskEntityServer extends TaskEntity {
             'MJ_BizApps_Tasks: Task Decisions',
             `TaskID = ${GuidLiteral(this.ID, 'TaskID')}`,
             ['ID', 'OutcomeID'],
-            { OrderBy: 'DecidedAt DESC, __mj_CreatedAt DESC', MaxRows: 1 },
+            { OrderBy: 'DecidedAt DESC, __mj_CreatedAt DESC', MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow },
         );
         return rows[0]?.OutcomeID ?? null;
     }
@@ -663,7 +663,7 @@ export class TaskEntityServer extends TaskEntity {
                     EntityName: 'MJ_BizApps_Tasks: Tasks',
                     ExtraFilter: `ID = '${this.ParentID}'`,
                     Fields: ['OrganizationID'],
-                    MaxRows: 1,
+                    MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
                     ResultType: 'simple',
                 },
                 this.ContextCurrentUser,
@@ -1057,13 +1057,14 @@ export class TaskEntityServer extends TaskEntity {
      * check above still routes deployments using a REJECTED stage correctly.
      */
     protected async taskHasRejectedDecision(): Promise<boolean> {
+        const singleRowMax = TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow;
         const rv = new RunView(this.RunViewProviderToUse);
         const outcomeResult = await rv.RunView<{ ID: string }>({
             EntityName: 'MJ_BizApps_Tasks: Task Decision Outcomes',
             ExtraFilter: `Code = 'Rejected'`,
             Fields: ['ID'],
             ResultType: 'simple',
-            MaxRows: 1,
+            MaxRows: singleRowMax,
         }, this.ContextCurrentUser);
         if (!outcomeResult?.Success) {
             LogError(`TaskEntityServer: could not resolve the Rejected outcome for task ${this.ID}: ${outcomeResult?.ErrorMessage ?? 'unknown error'}`);
@@ -1077,7 +1078,7 @@ export class TaskEntityServer extends TaskEntity {
             ExtraFilter: `TaskID = ${GuidLiteral(this.ID, 'TaskID')} AND OutcomeID = ${GuidLiteral(rejectedOutcomeID, 'OutcomeID')}`,
             Fields: ['ID'],
             ResultType: 'simple',
-            MaxRows: 1,
+            MaxRows: singleRowMax,
         }, this.ContextCurrentUser);
         if (!result?.Success) {
             LogError(`TaskEntityServer: could not load decisions for task ${this.ID}: ${result?.ErrorMessage ?? 'unknown error'}`);
@@ -1176,7 +1177,7 @@ export class TaskEntityServer extends TaskEntity {
             EntityName: 'MJ_BizApps_Tasks: Task Type Status',
             ExtraFilter: `TaskTypeID=${typeLiteral} AND IsDefault=1 AND IsActive=1`,
             ResultType: 'entity_object',
-            MaxRows: 1,
+            MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
         }, this.ContextCurrentUser);
         return result?.Results?.[0] ?? null;
     }

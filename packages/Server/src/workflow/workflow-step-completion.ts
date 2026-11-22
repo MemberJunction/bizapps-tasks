@@ -23,7 +23,7 @@ import { LogError, LogStatus, RunView, WellKnownUserSource, type IMetadataProvid
 import { EscapeSQLString, UUIDsEqual } from '@memberjunction/global';
 import { ParseStepConfiguration, TaskGraphWaitingSteps } from '@memberjunction/task-graph';
 import { AnswerAgentRequestFromProvider, type AgentRequestAnswerStatus } from '@memberjunction/ai-agents';
-import { IsApprovalOutcome, IsTaskDecisionOutcomeCode } from '@mj-biz-apps/tasks-core';
+import * as tasksCore from '@mj-biz-apps/tasks-core';
 import { AGENT_REQUEST_ENTITY, TASK_LINK_ENTITY, WORKFLOW_STEP_ENTITY } from '@mj-biz-apps/tasks-entities-server';
 import { BIZAPPS_TASKS_PROVIDER_KEY, WorkflowOutputKey } from './workflow-task-request.js';
 
@@ -52,7 +52,7 @@ export type LatestDecision = { OutcomeCode: string | null; Notes: string | null;
 /** Pure: the summary for a settled task. */
 export function SummarizeWorkflowDecision(taskID: string, status: SettledTaskStatus, decision: LatestDecision | null): WorkflowDecisionSummary {
     const code = decision?.OutcomeCode ?? null;
-    const approved = status === 'Completed' && IsTaskDecisionOutcomeCode(code) && IsApprovalOutcome(code);
+    const approved = status === 'Completed' && tasksCore.IsTaskDecisionOutcomeCode(code) && tasksCore.IsApprovalOutcome(code);
     return {
         Outcome: code ?? status,
         Approved: approved,
@@ -79,10 +79,10 @@ export type AgentRequestAnswer = { Status: AgentRequestAnswerStatus; Response: s
 export function AgentRequestAnswerFor(summary: WorkflowDecisionSummary, status: SettledTaskStatus, completionNotes: string | null): AgentRequestAnswer | null {
     const response = summary.Notes ?? completionNotes;
     const code = summary.Outcome;
-    if (!IsTaskDecisionOutcomeCode(code)) {
+    if (!tasksCore.IsTaskDecisionOutcomeCode(code)) {
         return status === 'Cancelled' ? null : { Status: 'Responded', Response: response };
     }
-    return { Status: IsApprovalOutcome(code) ? 'Approved' : 'Rejected', Response: response };
+    return { Status: tasksCore.IsApprovalOutcome(code) ? 'Approved' : 'Rejected', Response: response };
 }
 
 /**
@@ -181,13 +181,17 @@ async function loadFacts(
     provider: IMetadataProvider,
     user: UserInfo,
 ): Promise<TaskFacts | null> {
+    const resolverExport = Object.prototype.hasOwnProperty.call(tasksCore, 'TasksLimitsResolver')
+        ? tasksCore.TasksLimitsResolver
+        : undefined;
+    const singleRowMax = resolverExport?.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow;
     const id = EscapeSQLString(taskID);
     const entityList = [askEntityIDs.Step, askEntityIDs.Request].filter((e): e is string => !!e).map((e) => `'${EscapeSQLString(e)}'`).join(',');
     const [links, decisions, outcomes, tasks] = await RunView.FromMetadataProvider(provider).RunViews<Record<string, string | null>>([
         { EntityName: TASK_LINK_ENTITY, ExtraFilter: `TaskID='${id}' AND EntityID IN (${entityList})`, Fields: ['ID', 'EntityID', 'RecordID'], ResultType: 'simple', BypassCache: true },
-        { EntityName: TASK_DECISIONS_ENTITY, ExtraFilter: `TaskID='${id}'`, Fields: ['ID', 'OutcomeID', 'DecisionNotes', 'DecidedByPersonID'], OrderBy: 'DecidedAt DESC, __mj_CreatedAt DESC', MaxRows: 1, ResultType: 'simple', BypassCache: true },
+        { EntityName: TASK_DECISIONS_ENTITY, ExtraFilter: `TaskID='${id}'`, Fields: ['ID', 'OutcomeID', 'DecisionNotes', 'DecidedByPersonID'], OrderBy: 'DecidedAt DESC, __mj_CreatedAt DESC', MaxRows: singleRowMax, ResultType: 'simple', BypassCache: true },
         { EntityName: TASK_DECISION_OUTCOMES_ENTITY, Fields: ['ID', 'Code'], ResultType: 'simple' },
-        { EntityName: TASKS_ENTITY, ExtraFilter: `ID='${id}'`, Fields: ['ID', 'CompletionNotes'], MaxRows: 1, ResultType: 'simple', BypassCache: true },
+        { EntityName: TASKS_ENTITY, ExtraFilter: `ID='${id}'`, Fields: ['ID', 'CompletionNotes'], MaxRows: singleRowMax, ResultType: 'simple', BypassCache: true },
     ], user);
     for (const [label, res] of [['links', links], ['decisions', decisions], ['outcomes', outcomes], ['notes', tasks]] as const) {
         if (!res?.Success) {

@@ -23,6 +23,7 @@ import {
 import {
     ResolveTimeZoneOrUtc,
     SplitIntervalByBusinessDay,
+    TasksLimitsResolver,
     TasksSettings,
     UserCanManageTimeEntries,
 } from '@mj-biz-apps/tasks-core';
@@ -180,6 +181,7 @@ export class StartTimerOperationServer extends TasksStartTimerOperation {
             };
         }
 
+        const singleRowMax = TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow;
         const rv = new RunView(rvProvider);
         const [taskRes, existingTimersRes] = await Promise.all([
             rv.RunView<mjBizAppsTasksTaskEntity>(
@@ -187,7 +189,7 @@ export class StartTimerOperationServer extends TasksStartTimerOperation {
                     EntityName: 'MJ_BizApps_Tasks: Tasks',
                     ExtraFilter: `ID='${input.TaskID}'`,
                     Fields: ['ID', 'Name'],
-                    MaxRows: 1,
+                    MaxRows: singleRowMax,
                     ResultType: 'simple',
                     BypassCache: true,
                 },
@@ -197,7 +199,7 @@ export class StartTimerOperationServer extends TasksStartTimerOperation {
                 {
                     EntityName: 'MJ_BizApps_Tasks: Task Timers',
                     ExtraFilter: `PersonID='${targetPersonID}'`,
-                    MaxRows: 1,
+                    MaxRows: singleRowMax,
                     ResultType: 'entity_object',
                     BypassCache: true,
                 },
@@ -342,7 +344,7 @@ export class StopTimerOperationServer extends TasksStopTimerOperation {
             {
                 EntityName: 'MJ_BizApps_Tasks: Task Timers',
                 ExtraFilter: `PersonID='${targetPersonID}'`,
-                MaxRows: 1,
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
                 ResultType: 'entity_object',
                 BypassCache: true,
             },

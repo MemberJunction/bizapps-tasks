@@ -13,7 +13,7 @@ import type { MJScheduledJobEntity } from '@memberjunction/core-entities';
 import { RegisterClass } from '@memberjunction/global';
 import { BaseScheduledJob, type ScheduledJobExecutionContext } from '@memberjunction/scheduling-engine';
 import type { NotificationContent, ScheduledJobResult } from '@memberjunction/scheduling-base-types';
-import { DEFAULT_HORIZON_DAYS, MEETING_SERIES_ENTITY, MeetingSeriesService } from '@mj-biz-apps/tasks-core';
+import { MEETING_SERIES_ENTITY, MeetingSeriesService, TasksLimitsResolver } from '@mj-biz-apps/tasks-core';
 
 interface SeriesRow {
     ID: string;
@@ -83,7 +83,8 @@ export class MeetingSeriesMaterializationJob extends BaseScheduledJob {
         const raw = typeof configuration === 'string' ? this.parse(configuration) : configuration;
         const value = raw && typeof raw === 'object' ? (raw as { HorizonDays?: unknown }).HorizonDays : undefined;
         const days = Number(value);
-        return Number.isFinite(days) && days > 0 ? days : DEFAULT_HORIZON_DAYS;
+        const defaultHorizonDays = TasksLimitsResolver.Instance.GetCurrentLimits().Tuning.DefaultSeriesHorizonDays;
+        return Number.isFinite(days) && days > 0 ? days : defaultHorizonDays;
     }
 
     private parse(text: string): unknown {
@@ -96,7 +97,13 @@ export class MeetingSeriesMaterializationJob extends BaseScheduledJob {
 
     private async activeSeries(contextUser: UserInfo): Promise<SeriesRow[]> {
         const res = await new RunView().RunView<SeriesRow>(
-            { EntityName: MEETING_SERIES_ENTITY, ExtraFilter: `Status = 'Active'`, Fields: ['ID', 'Name'], ResultType: 'simple', MaxRows: 5000 },
+            {
+                EntityName: MEETING_SERIES_ENTITY,
+                ExtraFilter: `Status = 'Active'`,
+                Fields: ['ID', 'Name'],
+                ResultType: 'simple',
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.SubtreeEffortMaxRows,
+            },
             contextUser,
         );
         if (!res.Success) throw new Error(`The active series could not be read: ${res.ErrorMessage}`);

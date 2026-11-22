@@ -15,6 +15,7 @@ import {
     mjBizAppsTasksTimesheetEntity,
 } from '@mj-biz-apps/tasks-entities';
 import {
+    TasksLimitsResolver,
     UserCanManageTimeEntries,
     UserCanManageTimesheets,
 } from '@mj-biz-apps/tasks-core';
@@ -90,7 +91,7 @@ export class TimesheetApprovalEntityServer extends mjBizAppsTasksTimesheetApprov
                     EntityName: 'MJ_BizApps_Tasks: Timesheets',
                     ExtraFilter: `ID='${this.TimesheetID.replace(/'/g, "''")}'`,
                     Fields: ['ID', 'PersonID'],
-                    MaxRows: 1,
+                    MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
                     ResultType: 'simple',
                 }, user);
                 const ownerID = tsRes.Results?.[0]?.PersonID;

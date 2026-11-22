@@ -48,6 +48,7 @@ import {
     PeriodFor,
     ResolveScheduleForDate,
     TaskHierarchyNode,
+    TasksLimitsResolver,
     TasksSettings,
     TimeApproverRuleFact,
     TimesheetEntryFact,
@@ -121,12 +122,13 @@ async function resolveTimesheetApprovalTaskTypeID(
     rv: RunView,
     user: UserInfo,
 ): Promise<string | null> {
+    const singleRowMax = TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow;
     const codeRes = await rv.RunView<mjBizAppsTasksTaskTypeEntity>(
         {
             EntityName: 'MJ_BizApps_Tasks: Task Types',
             ExtraFilter: `Code='${TIMESHEET_APPROVAL_TASK_TYPE_CODE}' AND IsActive=1`,
             Fields: ['ID'],
-            MaxRows: 1,
+            MaxRows: singleRowMax,
             ResultType: 'simple',
         },
         user,
@@ -140,7 +142,7 @@ async function resolveTimesheetApprovalTaskTypeID(
             EntityName: 'MJ_BizApps_Tasks: Task Types',
             ExtraFilter: `IsApproval=1 AND IsActive=1`,
             Fields: ['ID'],
-            MaxRows: 1,
+            MaxRows: singleRowMax,
             ResultType: 'simple',
         },
         user,
@@ -154,7 +156,7 @@ async function resolveTimesheetApprovalTaskTypeID(
             EntityName: 'MJ_BizApps_Tasks: Task Types',
             ExtraFilter: `IsActive=1`,
             Fields: ['ID'],
-            MaxRows: 1,
+            MaxRows: singleRowMax,
             ResultType: 'simple',
         },
         user,
@@ -245,7 +247,7 @@ async function loadTaskHierarchyForEntries(
                 EntityName: 'MJ_BizApps_Tasks: Tasks',
                 ExtraFilter: `RootParentID IN (${rootInList}) OR ID IN (${rootInList})`,
                 Fields: ['ID', 'Name', 'ParentID', 'RootParentID'],
-                MaxRows: 5000,
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.SubtreeEffortMaxRows,
                 ResultType: 'simple',
                 BypassCache: true,
             },
@@ -531,12 +533,13 @@ export class SubmitTimesheetOperationServer extends TasksSubmitTimesheetOperatio
             };
         }
 
+        const singleRowMax = TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow;
         // Check for a running timer on targetPersonID
         const timerRes = await rv.RunView<mjBizAppsTasksTaskTimerEntity>(
             {
                 EntityName: 'MJ_BizApps_Tasks: Task Timers',
                 ExtraFilter: `PersonID='${targetPersonID}'`,
-                MaxRows: 1,
+                MaxRows: singleRowMax,
                 ResultType: 'entity_object',
                 BypassCache: true,
             },
@@ -591,7 +594,7 @@ export class SubmitTimesheetOperationServer extends TasksSubmitTimesheetOperatio
                     EntityName: PEOPLE_ENTITY,
                     ExtraFilter: `ID='${targetPersonID}'`,
                     Fields: ['ID', 'DisplayName', 'FirstName', 'LastName'],
-                    MaxRows: 1,
+                    MaxRows: singleRowMax,
                     ResultType: 'simple',
                     BypassCache: true,
                 },

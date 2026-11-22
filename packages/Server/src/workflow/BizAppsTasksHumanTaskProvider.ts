@@ -24,6 +24,7 @@
  */
 import { LogError, RunView, type IMetadataProvider, type UserInfo } from '@memberjunction/core';
 import { EscapeSQLString, RegisterClassEx, UUIDsEqual } from '@memberjunction/global';
+import { TasksLimitsResolver } from '@mj-biz-apps/tasks-core/limits';
 import {
     BaseHumanTaskProvider,
     HUMAN_TASK_PROVIDER_CAN_BE_DEFAULT,
@@ -162,11 +163,25 @@ export class BizAppsTasksHumanTaskProvider extends BaseHumanTaskProvider {
         taskType: string,
         ctx: HumanTaskRaiseContext,
     ): Promise<{ TaskTypeID: string; CreatorPersonID: string | null } | { Error: string }> {
+        const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
         const escaped = EscapeSQLString(taskType);
         const ownerFilter = ctx.OwnerUserID ? `LinkedUserID='${EscapeSQLString(ctx.OwnerUserID)}'` : '1=0';
         const [types, people] = await RunView.FromMetadataProvider(ctx.Provider).RunViews<{ ID: string; IsActive?: boolean }>([
-            { EntityName: TASK_TYPES_ENTITY, ExtraFilter: `Code='${escaped}' OR Name='${escaped}'`, Fields: ['ID', 'IsActive'], ResultType: 'simple', MaxRows: 2 },
-            { EntityName: PEOPLE_ENTITY, ExtraFilter: ownerFilter, Fields: ['ID'], OrderBy: 'ID', ResultType: 'simple', MaxRows: 1 },
+            {
+                EntityName: TASK_TYPES_ENTITY,
+                ExtraFilter: `Code='${escaped}' OR Name='${escaped}'`,
+                Fields: ['ID', 'IsActive'],
+                ResultType: 'simple',
+                MaxRows: limits.ResourceGuards.AmbiguousLookupMaxRows,
+            },
+            {
+                EntityName: PEOPLE_ENTITY,
+                ExtraFilter: ownerFilter,
+                Fields: ['ID'],
+                OrderBy: 'ID',
+                ResultType: 'simple',
+                MaxRows: limits.ResourceGuards.DefaultLookupSingleRow,
+            },
         ], ctx.ContextUser);
         if (!types?.Success) throw new Error(`looking up task type "${taskType}" failed: ${types?.ErrorMessage}`);
         if (!people?.Success) throw new Error(`looking up the workflow owner's Person failed: ${people?.ErrorMessage}`);

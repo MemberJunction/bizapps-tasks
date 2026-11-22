@@ -6,6 +6,7 @@ import {
     MEETING_ENTITY,
     MEETING_SERIES_ENTITY,
     VIDEO_PROVIDER_ENTITY,
+    TasksLimitsResolver,
     TasksSettings,
     callerAdministersMeetings,
     callerIsOrganizer,
@@ -347,7 +348,12 @@ export class MeetingEntityServer extends mjBizAppsTasksMeetingEntity {
     private async ensureOrganizerAttendee(): Promise<void> {
         const user = this.ContextCurrentUser;
         const rows = await RunView.FromMetadataProvider(this.metadataProvider).RunView<mjBizAppsTasksMeetingAttendeeEntity>(
-            { EntityName: MEETING_ATTENDEE_ENTITY, ExtraFilter: `MeetingID = '${this.ID}'`, ResultType: 'entity_object', MaxRows: 1000 },
+            {
+                EntityName: MEETING_ATTENDEE_ENTITY,
+                ExtraFilter: `MeetingID = '${this.ID}'`,
+                ResultType: 'entity_object',
+                MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.LargeTreeQueryMaxRows,
+            },
             user,
         );
         if (!rows.Success) throw new Error(rows.ErrorMessage);

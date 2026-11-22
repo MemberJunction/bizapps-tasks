@@ -1,5 +1,5 @@
 import { RunView, type IMetadataProvider, type UserInfo } from '@memberjunction/core';
-import { MEETING_ATTENDEE_ENTITY, MEETING_ENTITY, callerAdministersMeetings, callerIsOrganizer, personIdForUser } from '@mj-biz-apps/tasks-core';
+import { MEETING_ATTENDEE_ENTITY, MEETING_ENTITY, TasksLimitsResolver, callerAdministersMeetings, callerIsOrganizer, personIdForUser } from '@mj-biz-apps/tasks-core';
 import type { mjBizAppsTasksMeetingEntity } from '@mj-biz-apps/tasks-entities';
 
 /**
@@ -29,7 +29,13 @@ export async function callerAttendsMeeting(provider: IMetadataProvider, user: Us
     const clauses = [`UserID = '${user.ID}'`];
     if (caller.personId) clauses.push(`PersonID = '${caller.personId}'`);
     const rows = await RunView.FromMetadataProvider(provider).RunView<{ ID: string }>(
-        { EntityName: MEETING_ATTENDEE_ENTITY, ExtraFilter: `MeetingID = '${meetingId}' AND (${clauses.join(' OR ')})`, Fields: ['ID'], ResultType: 'simple', MaxRows: 1 },
+        {
+            EntityName: MEETING_ATTENDEE_ENTITY,
+            ExtraFilter: `MeetingID = '${meetingId}' AND (${clauses.join(' OR ')})`,
+            Fields: ['ID'],
+            ResultType: 'simple',
+            MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
+        },
         user,
     );
     return rows.Success && rows.Results.length > 0;
