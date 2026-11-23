@@ -2,7 +2,7 @@
   {
     "fields": {
       "Name": "Work reports",
-      "Description": "Draft daily 15Five work reports from BizApps Tasks and extension activity, route author approval, and coordinate supervisor review via MJ: Employees.SupervisorID. Installed by the BizApps Tasks app.",
+      "Description": "Draft daily work reports from BizApps Tasks and extension activity, route author approval, and coordinate supervisor review via MJ: Employees.SupervisorID. Installed by the BizApps Tasks app.",
       "Instructions": "@file:templates/work-reports.skill.md",
       "Status": "Active",
       "ActivationMode": "Auto",

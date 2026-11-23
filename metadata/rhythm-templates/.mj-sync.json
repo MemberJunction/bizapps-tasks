@@ -12,7 +12,7 @@
     "mergeStrategy": "merge",
     "backupBeforeUpdate": true,
     "backupDirectory": ".backups",
-    "filter": "WorkstreamKey IN ('tasks-daily-triage', 'tasks-weekly-review', 'daily-15five')",
+    "filter": "WorkstreamKey IN ('tasks-daily-triage', 'tasks-weekly-review', 'daily-work-report')",
     "externalizeFields": [],
     "ignoreNullFields": true,
     "ignoreVirtualFields": true,
