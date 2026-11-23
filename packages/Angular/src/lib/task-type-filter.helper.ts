@@ -2,6 +2,7 @@ import { UUIDsEqual } from '@memberjunction/global';
 import {
     FilterGenericCreatableTaskTypes,
     IsGenericCreatableTaskType,
+    LEGACY_OKR_TASK_TYPE_IDS,
     PLANNING_OWNED_TASK_TYPE_CODES,
     type TaskTypeClassificationInput,
 } from '@mj-biz-apps/tasks-entities';
@@ -9,8 +10,7 @@ import {
 /** Canonical UUIDs for Planning-owned or legacy inactive OKR task types that must never be defaulted in generic creation. */
 export const BLOCKED_FALLBACK_TASK_TYPE_IDS: ReadonlySet<string> = new Set([
     '7e100001-0000-0000-0000-000000000001', // PRIORITY (Planning IS-A Priority Tasks)
-    '8d42a1b9-3e71-4c5a-9f20-1b6e8d3a9c01', // PRIORITY_OBJECTIVE (Legacy inactive OKR)
-    '8d42a1b9-3e71-4c5a-9f20-1b6e8d3a9c02', // KEY_RESULT (Legacy inactive OKR)
+    ...LEGACY_OKR_TASK_TYPE_IDS,
 ]);
 
 const BLOCKED_FALLBACK_CODES: ReadonlySet<string> = new Set([

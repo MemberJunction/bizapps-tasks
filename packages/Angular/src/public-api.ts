@@ -51,6 +51,7 @@ export * from './lib/components/task-gantt/task-gantt.component.js';
 export * from './lib/components/task-template-wizard/task-template-wizard.component.js';
 export * from './lib/components/task-dashboard/task-dashboard.component.js';
 export * from './lib/components/task-panel/task-panel.component.js';
+export * from './lib/components/goals-view/goals-view.component.js';
 export * from './lib/components/task-drawer-shell/task-drawer-shell.component.js';
 export * from './lib/components/record-link-picker/record-link-picker-dialog.component.js';
 export * from './lib/components/connected-tasks-host/connected-tasks-host.component.js';

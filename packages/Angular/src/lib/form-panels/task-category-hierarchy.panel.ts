@@ -88,7 +88,7 @@ export class TaskCategoryHierarchyPanel extends BaseFormPanel<mjBizAppsTasksTask
                 ParentField: 'ParentID',
                 SubtitleField: 'Description',
                 DefaultIcon: 'fa-solid fa-folder-tree',
-                DefaultColor: '#8b5cf6',
+                DefaultColor: 'var(--mj-brand-primary)',
                 ActiveRecordID: recId || undefined,
                 Height: '100%',
                 MinHeight: '640px',

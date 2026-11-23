@@ -8,6 +8,9 @@ import { MyTasksPageComponent } from '../pages/my-tasks.page';
 import { MyTimePageComponent } from '../pages/my-time.page';
 import { ApprovalsPageComponent } from '../pages/approvals.page';
 import { TemplatesPageComponent } from '../pages/templates.page';
+import { TaskDashboardComponent } from '../components/task-dashboard/task-dashboard.component';
+import { ChiefOfStaffWorkReportsResource } from '../chief-of-staff/chief-of-staff-work-reports.component';
+import { GeneratedFormsModule } from '../generated/generated-forms.module';
 
 /**
  * 1. Tasks Section Resource — Projects & All Work Tab
@@ -18,9 +21,23 @@ import { TemplatesPageComponent } from '../pages/templates.page';
 @Component({
     selector: 'bizapps-tasks-section-resource',
     standalone: true,
-    imports: [CommonModule, TasksDashboardPageComponent],
+    imports: [
+        CommonModule,
+        TasksDashboardPageComponent,
+        TaskDashboardComponent,
+        ChiefOfStaffWorkReportsResource,
+        GeneratedFormsModule,
+    ],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `<bizapps-tasks-dashboard-page #page (DrawerOpenChange)="OnDrawerOpenChange($event)"></bizapps-tasks-dashboard-page>`,
+    template: `
+        <bizapps-tasks-dashboard-page #page (DrawerOpenChange)="OnDrawerOpenChange($event)"></bizapps-tasks-dashboard-page>
+        @if (false) {
+            <bizapps-task-dashboard></bizapps-task-dashboard>
+            <bizapps-chief-of-staff-work-reports></bizapps-chief-of-staff-work-reports>
+            <gen-mjbizappstasksworkreport-form></gen-mjbizappstasksworkreport-form>
+            <gen-mjbizappstasksworkreportitem-form></gen-mjbizappstasksworkreportitem-form>
+        }
+    `,
     styles: [`:host { display: block; width: 100%; height: 100%; }`],
 })
 @RegisterClass(BaseResourceComponent, 'TasksSectionResource')

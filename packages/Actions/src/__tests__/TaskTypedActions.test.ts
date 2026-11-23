@@ -643,6 +643,103 @@ describe('CreateTaskAction', () => {
         expect(createdTask.OrganizationID).toBe(ORG_1);
         expect(createdTask.Organization).toBe('Apex Cloud Systems');
     });
+
+    it('rejects creating new tasks with inactive or legacy OKR task types (PRIORITY_OBJECTIVE / KEY_RESULT) and skips them for defaults', async () => {
+        const TYPE_OKR_OBJ = '8D42A1B9-3E71-4C5A-9F20-1B6E8D3A9C01';
+        const TYPE_OKR_KR = '8D42A1B9-3E71-4C5A-9F20-1B6E8D3A9C02';
+        const TYPE_RETIRED = '44444444-4444-4444-8444-444444444499';
+        const mixedTypes = [
+            { ID: TYPE_OKR_OBJ, Name: 'Priority Objective', Code: 'PRIORITY_OBJECTIVE', IsActive: false },
+            { ID: TYPE_OKR_KR, Name: 'Key Result', Code: 'KEY_RESULT', IsActive: false },
+            { ID: TYPE_RETIRED, Name: 'Retired Custom', Code: 'RETIRED', IsActive: false },
+            { ID: TYPE_GENERAL, Name: 'General', Code: 'GENERAL', IsActive: true },
+        ];
+
+        for (const requestedType of ['PRIORITY_OBJECTIVE', 'Key Result', TYPE_OKR_KR, 'RETIRED']) {
+            runViewMock.mockResolvedValueOnce({ Success: true, Results: mixedTypes });
+            const res = await run(
+                new CreateTaskAction(),
+                makeRunParams(USER_ALICE, makeParams({ Name: 'Blocked OKR task', TaskTypeName: requestedType })),
+            );
+            expect(res).toMatchObject({ Success: false, ResultCode: 'VALIDATION_ERROR' });
+        }
+        expect(getEntityObjectMock).not.toHaveBeenCalled();
+
+        // When TaskTypeName is omitted, default resolution skips inactive/legacy OKR rows and selects GENERAL
+        runViewMock.mockResolvedValueOnce({ Success: true, Results: mixedTypes });
+        const taskEntity = makeEntity({ ID: TASK_1, Status: 'Open', Priority: 'Medium' });
+        getEntityObjectMock.mockResolvedValueOnce(taskEntity);
+        const okRes = await run(
+            new CreateTaskAction(),
+            makeRunParams(USER_ALICE, makeParams({ Name: 'Operational task' })),
+        );
+        expect(okRes).toMatchObject({ Success: true, ResultCode: 'SUCCESS' });
+        expect(taskEntity.TypeID).toBe(TYPE_GENERAL);
+    });
+
+    it('preserves read access for historical PRIORITY_OBJECTIVE and KEY_RESULT tasks via FindTasksAction and GetTaskAction', async () => {
+        const TYPE_OKR_KR = '8D42A1B9-3E71-4C5A-9F20-1B6E8D3A9C02';
+        runViewMock
+            .mockResolvedValueOnce({ Success: true, Results: [{ TaskID: TASK_2 }] }) // assignments
+            .mockResolvedValueOnce({
+                Success: true,
+                Results: [
+                    { ID: TYPE_GENERAL, Name: 'General', Code: 'GENERAL', IsActive: true },
+                    { ID: TYPE_OKR_KR, Name: 'Key Result', Code: 'KEY_RESULT', IsActive: false },
+                ],
+            }) // task types
+            .mockResolvedValueOnce({
+                Success: true,
+                Results: [
+                    {
+                        ID: TASK_2,
+                        Name: 'Historical Q3 Key Result',
+                        Status: 'InProgress',
+                        Priority: 'High',
+                        TypeID: TYPE_OKR_KR,
+                        Type: 'Key Result',
+                        PercentComplete: 75,
+                    },
+                ],
+            });
+
+        const findParams = makeParams({ TaskType: 'KEY_RESULT', ExcludePlanningTypes: false });
+        const findRes = await run(new FindTasksAction(), makeRunParams(USER_ALICE, findParams));
+        expect(findRes).toMatchObject({ Success: true, ResultCode: 'SUCCESS' });
+        const tasks = JSON.parse(String(findParams.find((p) => p.Name === 'Tasks')?.Value));
+        expect(tasks).toHaveLength(1);
+        expect(tasks[0]).toMatchObject({ ID: TASK_2, Name: 'Historical Q3 Key Result', Type: 'Key Result' });
+
+        // GetTaskAction reads a historical Key Result task by ID without error
+        runViewMock.mockReset();
+        runViewMock
+            .mockResolvedValueOnce({
+                Success: true,
+                Results: [
+                    {
+                        ID: TASK_2,
+                        Name: 'Historical Q3 Key Result',
+                        Status: 'InProgress',
+                        Priority: 'High',
+                        PercentComplete: 75,
+                        Type: 'Key Result',
+                    },
+                ],
+            })
+            .mockResolvedValueOnce({ Success: true, Results: [] })
+            .mockResolvedValueOnce({ Success: true, Results: [] })
+            .mockResolvedValueOnce({ Success: true, Results: [] })
+            .mockResolvedValueOnce({ Success: true, Results: [] })
+            .mockResolvedValueOnce({ Success: true, Results: [] })
+            .mockResolvedValueOnce({ Success: true, Results: [] })
+            .mockResolvedValueOnce({ Success: true, Results: [] });
+
+        const getParams = makeParams({ TaskID: TASK_2 });
+        const getRes = await run(new GetTaskAction(), makeRunParams(USER_ALICE, getParams));
+        expect(getRes).toMatchObject({ Success: true, ResultCode: 'SUCCESS' });
+        const detail = JSON.parse(String(getParams.find((p) => p.Name === 'Task')?.Value));
+        expect(detail.Type).toBe('Key Result');
+    });
 });
 
 describe('UpdateTaskAction', () => {

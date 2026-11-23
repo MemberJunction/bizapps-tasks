@@ -23,6 +23,7 @@ import { RunningTimerChipComponent } from './components/running-timer-chip/runni
 import { TaskTimeEffortComponent } from './components/task-time-effort/task-time-effort.component';
 import { TimeApproversComponent } from './components/time-approvers/time-approvers.component';
 import { MyTimeComponent } from './components/my-time/my-time.component';
+import { GoalsViewComponent } from './components/goals-view/goals-view.component';
 
 // Dashboard Pages
 import { TasksDashboardPageComponent } from './pages/tasks-dashboard.page';
@@ -71,6 +72,7 @@ import { ChiefOfStaffWorkReportsResource } from './chief-of-staff/chief-of-staff
         TaskTimeEffortComponent,
         TimeApproversComponent,
         MyTimeComponent,
+        GoalsViewComponent,
         TasksDashboardPageComponent,
         MyTasksPageComponent,
         MyTimePageComponent,
@@ -109,6 +111,7 @@ import { ChiefOfStaffWorkReportsResource } from './chief-of-staff/chief-of-staff
         TaskTimeEffortComponent,
         TimeApproversComponent,
         MyTimeComponent,
+        GoalsViewComponent,
         TasksDashboardPageComponent,
         MyTasksPageComponent,
         MyTimePageComponent,

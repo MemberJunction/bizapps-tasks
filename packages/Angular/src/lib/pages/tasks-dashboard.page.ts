@@ -52,6 +52,7 @@ import {
     type TaskDueDateFilterKey,
 } from '@mj-biz-apps/tasks-core';
 import {
+    FilterActiveSelectableTaskTypes,
     FilterGenericCreatableTaskTypes,
     type TaskTypeClassificationInput,
 } from '@mj-biz-apps/tasks-entities';
@@ -60,6 +61,7 @@ import { OpenTaskRecord } from '../open-task-record';
 import { TaskDetailPanelComponent } from '../components/task-detail-panel/task-detail-panel.component';
 import { TaskDrawerShellComponent } from '../components/task-drawer-shell/task-drawer-shell.component';
 import { TaskEditPanelComponent } from '../components/task-edit-panel/task-edit-panel.component';
+import { GoalsViewComponent } from '../components/goals-view/goals-view.component';
 import { TaskGanttComponent } from '../components/task-gantt/task-gantt.component';
 import { TaskKanbanComponent } from '../components/task-kanban/task-kanban.component';
 import { TaskListComponent } from '../components/task-list/task-list.component';
@@ -74,7 +76,7 @@ import {
 } from '../task-field-suggestions.helper';
 
 export type { TaskViewMode };
-export type TasksDashboardPanelMode = 'none' | 'detail' | 'edit' | 'template';
+export type TasksDashboardPanelMode = 'none' | 'detail' | 'edit' | 'template' | 'help';
 
 export interface TaskCategoryOption {
     ID: string;
@@ -122,6 +124,7 @@ const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
         TaskGanttComponent,
         TaskDetailPanelComponent,
         TaskEditPanelComponent,
+        GoalsViewComponent,
         TaskTemplateWizardComponent,
         TaskDrawerShellComponent,
         TaskCommandPaletteComponent,
@@ -170,6 +173,18 @@ const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
                         aria-label="Tasks Quick Jump">
                         <i class="fa-solid fa-terminal" aria-hidden="true"></i>
                         <span class="action-btn-label">⌘J</span>
+                    </button>
+                    <button
+                        type="button"
+                        class="mjt-toolbar-btn"
+                        mjButton
+                        variant="outline"
+                        size="sm"
+                        (click)="OpenPanel('help')"
+                        title="In-app help for OKRs, Goals migration, and BizApps Planning"
+                        aria-label="OKRs and Help">
+                        <i class="fa-regular fa-circle-question" aria-hidden="true"></i>
+                        <span class="action-btn-label">OKRs &amp; Help</span>
                     </button>
                     <button
                         type="button"
@@ -457,6 +472,12 @@ const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
                     (Created)="OnTemplateCreated($event)"
                     (Cancelled)="ClosePanel()">
                 </bizapps-task-template-wizard>
+            }
+            @if (PanelMode === 'help') {
+                <bizapps-goals-view
+                    [Provider]="Provider"
+                    (TaskSelected)="OpenPanel('detail', $event)">
+                </bizapps-goals-view>
             }
         </bizapps-task-drawer-shell>
 
@@ -751,6 +772,7 @@ export class TasksDashboardPageComponent implements OnInit {
     public get DrawerTitle(): string {
         if (this.PanelMode === 'edit') return this.SelectedTaskID ? 'Edit Task' : 'New Task';
         if (this.PanelMode === 'template') return 'Launch Playbook Template';
+        if (this.PanelMode === 'help') return 'OKRs & Goals Help';
         return 'Task Inspector';
     }
 
@@ -1328,7 +1350,7 @@ export class TasksDashboardPageComponent implements OnInit {
                 placeholder: 'All task types',
                 options: [
                     { text: 'All task types', value: null },
-                    ...this.TaskTypes.map((t) => ({ text: t.Name, value: t.ID })),
+                    ...FilterActiveSelectableTaskTypes(this.TaskTypes).map((t) => ({ text: t.Name, value: t.ID })),
                 ],
             },
         ];

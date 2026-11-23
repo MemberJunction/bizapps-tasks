@@ -2,7 +2,7 @@
   {
     "fields": {
       "Name": "Chief of Staff Tasks & To-dos",
-      "Description": "Manage operational to-dos, task assignments, progress updates, duplicate checks, bulk edits, playbooks, and deterministic task briefings through strongly typed BizApps Tasks tools. Installed by BizApps Tasks.",
+      "Description": "Manage operational to-dos, task assignments, progress updates, duplicate checks, bulk edits, playbooks, and deterministic task briefings through strongly typed BizApps Tasks tools. Steers OKR, Objective, and Key Result requests to BizApps Planning (and legacy OKR migration via Import Tasks OKRs). Installed by BizApps Tasks.",
       "Instructions": "@file:templates/chief-of-staff-tasks.skill.md",
       "Status": "Active",
       "ActivationMode": "Auto",

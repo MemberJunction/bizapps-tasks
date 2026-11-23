@@ -94,6 +94,7 @@ imports: [
     LinkDirectivesModule
 ],
 exports: [
+    mjBizAppsTasksWorkReportFormComponent
 ]
 })
 export class GeneratedForms_SubModule_1 { }
@@ -151,6 +152,7 @@ imports: [
     LinkDirectivesModule
 ],
 exports: [
+    mjBizAppsTasksWorkReportItemFormComponent
 ]
 })
 export class GeneratedForms_SubModule_4 { }
@@ -519,6 +521,10 @@ imports: [
     GeneratedForms_SubModule_28,
     GeneratedForms_SubModule_29,
     GeneratedForms_SubModule_30
+],
+exports: [
+    GeneratedForms_SubModule_1,
+    GeneratedForms_SubModule_4
 ]
 })
 export class GeneratedFormsModule { }
