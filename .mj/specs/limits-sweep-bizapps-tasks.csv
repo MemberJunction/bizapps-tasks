@@ -143,7 +143,6 @@ packages/Angular/src/lib/form-panels/task-subtasks.panel.ts,118,setTimeout,0,Tas
 packages/Angular/src/lib/meetings/meeting-data.ts,118,DETAIL_SHARE_MS,3000,<module>,UX,retained-ux-local
 packages/Angular/src/lib/meetings/meeting-data.ts,177,maxRows,500,MeetingData.rows,UX,deferred-ux:ResourceGuards
 packages/Angular/src/lib/meetings/meeting-data.ts,810,setTimeout,1000,downloadTextFile,UX,retained-ux-local
-packages/Angular/src/lib/pages/approvals.page.ts,517,MaxRows,50,ApprovalsPageComponent.LoadApprovals,UX,deferred-ux:ResourceGuards
 packages/Angular/src/lib/pages/meetings.page.ts,116,setTimeout,250,MeetingsPageComponent.reload,UX,retained-ux-local
 packages/Angular/src/lib/pages/my-tasks.page.ts,695,this.AllTasks.slice_Cap,20,MyTasksPageComponent.CommandItems,UX,retained-ux-local
 packages/Angular/src/lib/pages/my-tasks.page.ts,879,MaxRows,1,MyTasksPageComponent.OnQuickCapture,UX,deferred-ux:ResourceGuards
