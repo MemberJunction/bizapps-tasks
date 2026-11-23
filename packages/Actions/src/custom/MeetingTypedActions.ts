@@ -1504,7 +1504,7 @@ export class GetMyMeetingsBriefingAction extends BaseAction {
                                 Name: t.Name,
                                 Status: t.Status,
                                 Priority: t.Priority,
-                                Visibility: t.Visibility ?? 'Standard',
+                                Visibility: t.Visibility ?? 'Team',
                                 DueAt: toIsoOrNull(t.DueAt),
                                 PercentComplete: t.PercentComplete ?? 0,
                                 BlockedReason: t.BlockedReason ?? null,

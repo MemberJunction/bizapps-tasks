@@ -7963,17 +7963,18 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     * * Field Name: Visibility
     * * Display Name: Visibility
     * * SQL Data Type: nvarchar(20)
-    * * Default Value: Standard
+    * * Default Value: Team
     * * Value List Type: List
     * * Possible Values 
+    *   * Organization
     *   * Private
-    *   * Standard
-    * * Description: Controls who may read this task and its child records (assignments, check-ins, comments, activities). Standard (default) is visible across the organization; Private restricts visibility to the creator, assignees (direct Person or MJ Role members), and creator/assignees of the root parent task.
+    *   * Team
+    * * Description: Controls who may read this task and its child records (assignments, dependencies, check-ins, comments, links, activities, time entries, risk assessments). Team (default) is visible to the creator, assignees, root-task owner, and everyone up their reporting chains; Private restricts visibility to the creator and assignees; Organization makes the task visible to everyone in the task's organization.
     */
-    get Visibility(): 'Private' | 'Standard' {
+    get Visibility(): 'Organization' | 'Private' | 'Team' {
         return this.Get('Visibility');
     }
-    set Visibility(value: 'Private' | 'Standard') {
+    set Visibility(value: 'Organization' | 'Private' | 'Team') {
         this.Set('Visibility', value);
     }
 
