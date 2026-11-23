@@ -16,7 +16,7 @@
   <a href="#installation">Install</a> &middot;
   <a href="#entity-model">Entity Model</a> &middot;
   <a href="#row-level-security--chain-of-command-visibility">Security &amp; RLS</a> &middot;
-  <a href="#angular-components">Components</a> &middot;
+  <a href="#10-reusable-angular-components--full-dashboard-app">Components</a> &middot;
   <a href="#using-bizapps-tasks-in-your-code">Usage</a>
 </p>
 
@@ -73,9 +73,9 @@ mj app remove bizapps-tasks     # Uninstall (--keep-data to preserve schema)
 ## Architecture & Lifecycle Guides
 
 - [**Task Workflow & Lifecycle Guide**](./guides/TASK_WORKFLOW_AND_LIFECYCLE_GUIDE.md) — Deep dive on **Task Types**, **Dynamic Task Type Statuses (`TaskTypeStatus`)**, **Event-Driven Action Hooks**, **Flow Agent Integration**, and **Multi-Domain Project Structures**.
-- [**Work Bus Extensions, Field Suggestions & 15Five Work Reports Guide**](./guides/WORK_BUS_AND_15FIVE_REPORTS_GUIDE.md) — Declarative IS-A subtype extensions (`TaskType.ExtensionEntity` + `SubtypeSelector`), `FIELD_SUGGESTION` review chips on `Tasks`, and **15Five Work Reports** (`WorkReport`, `WorkReportItem`, Chief of Staff `Reports` resource, skill, and supervisor review handoff).
+- [**Work Bus Extensions, Field Suggestions & Work Reports Guide**](./guides/WORK_BUS_AND_WORK_REPORTS_GUIDE.md) — Declarative IS-A subtype extensions (`TaskType.ExtensionEntity` + `SubtypeSelector`), `FIELD_SUGGESTION` review chips on `Tasks`, and **Work Reports** (`WorkReport`, `WorkReportItem`, Chief of Staff `Reports` resource, skill, and supervisor review handoff).
 - [**Time Tracking, AI Agent Effort & Timesheets Guide**](./guides/TIME_TRACKING_GUIDE.md) — User, host administrator, and developer guide covering **Live Task Timers (`TaskTimer`)**, **Manual & Weekly Time Logging (`TaskTimeEntry`)**, **AI Agent Effort & Cost Rollups (`TaskAgentRun`)**, **Multi-Project Timesheet Approvals (`Timesheet`, `TimesheetApproval`, `BaseTimeApproverResolver`)**, and **Shipped Reporting Queries**.
-- [**Tasks UX, Organization Scoping & Server-Side Bulk Operations Guide**](./guides/TASKS_UX_ORGANIZATION_AND_BULK_OPS_GUIDE.md) ([**Self-Contained Illustrated HTML Version w/ Embedded 2× Screenshots**](./guides/TASKS_UX_ORGANIZATION_AND_BULK_OPS_GUIDE.html)) — Golden Hybrid 3-layer WCAG 2.1 AA UX architecture (`My Work` default tab, `All Work` List/Board/Gantt, **UserInfoEngine Saved Filter Views**, shared **Multi-View Bulk Action Dock** across Tree List, Smart Board & Gantt, Zero-Bounce inline-saving Inspector, Express Create, Command Palette, Clean Selectable Approvals Split-Pane, Playbook Launcher, Dark Mode & Mobile `390px`), canonical **Organization / Company scoping** (`OrganizationID` on aggregate roots + parent inheritance), and **server-side Remotable Operations + Actions** (`BizAppsTasks.BulkUpdateTasks`, `BizAppsTasks.InstantiateTemplate`, `BizAppsTasks.RunRecurringPlaybooks`, `Run Recurring Playbooks`).
+- [**Tasks UX, Organization Scoping & Server-Side Bulk Operations Guide**](./guides/TASKS_UX_ORGANIZATION_AND_BULK_OPS_GUIDE.md) ([**Self-Contained Illustrated HTML Version w/ Embedded 2× HiDPI Screenshots**](./guides/TASKS_UX_ORGANIZATION_AND_BULK_OPS_GUIDE.html)) — Golden Hybrid 3-layer WCAG 2.1 AA UX architecture (`My Work` default tab, `All Work` List/Board/Gantt, **UserInfoEngine Saved Filter Views**, shared **Multi-View Bulk Action Dock** across Tree List, Board & Gantt, Zero-Bounce inline-saving Inspector, Express Create, Command Palette, Clean Selectable Approvals Split-Pane, Playbook Launcher, Dark Mode & Mobile `390px`), canonical **Organization / Company scoping** (`OrganizationID` on aggregate roots + parent inheritance), and **server-side Remotable Operations + Actions** (`BizAppsTasks.BulkUpdateTasks`, `BizAppsTasks.InstantiateTemplate`, `BizAppsTasks.RunRecurringPlaybooks`, `Run Recurring Playbooks`).
 - [**OKR Deprecation & BizApps Planning Migration Guide**](./docs/OKR_DEPRECATION_AND_PLANNING_MIGRATION.md) — Documents the `1.x` deactivation (`IsActive = false`) of legacy `PRIORITY_OBJECTIVE` and `KEY_RESULT` task types while preserving OKR columns on `Task`, and migrating historical OKR tasks into **BizApps Planning** via **`Import Tasks OKRs`**.
 
 ---
@@ -100,7 +100,7 @@ All tables live in the `__mj_BizAppsTasks` SQL schema, deployed via migrations.
 |----------|--------|---------|
 | **Core & Workflow** | Task, TaskType, TaskTypeStatus, TaskCategory, TaskRole, TaskCheckIn, TaskDecision, TaskDecisionOutcome | Work items, IS-A `ExtensionEntity` subtype routing, dynamic domain stages, measurable task check-ins, formal decisions, and action hooks |
 | **Risk & Forecasting** | TaskRiskAssessment | AI project delivery risk & completion forecast snapshots (`HealthStatus`, `ForecastCompletionDate`, `ForecastConfidence`, `MLBreachProbability`, typed `Risks` JSON, `AgentRunID`, token/cost metrics) synced atomically onto root project `Task` records |
-| **Reporting (15Five)** | WorkReport, WorkReportItem | Daily/weekly 5-minute work summaries (`Draft` -> `Submitted` -> `Reviewed`) and supervisor feedback routed via `MJ: Employees.SupervisorID` |
+| **Work Reporting** | WorkReport, WorkReportItem | Daily/weekly structured work summaries (`Draft` -> `Submitted` -> `Reviewed`) and supervisor feedback routed via `MJ: Employees.SupervisorID` |
 | **Time & Effort** | TaskTimeEntry, TaskTimer, TaskAgentRun, TaskTimeEntryLink | Human time entries, running timers, AI agent run links, and external record locks (`R8`) |
 | **Timesheets & Approvals** | Timesheet, TimesheetApproval, TimesheetSchedule, TimesheetLink, TimeApprover | Period timesheets, per-project approval parts, cadence overrides, and polymorphic approver rules |
 | **Assignment** | TaskAssignment | Multi-person polymorphic assignment (People and AI Agents) |

@@ -1,6 +1,6 @@
-# BizApps Tasks — Work Bus Extensions, Field Suggestions & 15Five Work Reports Guide
+# BizApps Tasks — Work Bus Extensions, Field Suggestions & Work Reports Guide
 
-This guide documents how **BizApps Tasks** acts as the universal **Work Bus** across MemberJunction Open Apps — enabling external systems (such as `bizapps-tasks-github`) to extend `Task` via declarative IS-A subtypes, surfacing reviewable `FIELD_SUGGESTION` proposals on task records, and powering daily **15Five Work Reports** inside **Chief of Staff**.
+This guide documents how **BizApps Tasks** acts as the universal **Work Bus** across MemberJunction Open Apps — enabling external systems (such as `bizapps-tasks-github`) to extend `Task` via declarative IS-A subtypes, surfacing reviewable `FIELD_SUGGESTION` proposals on task records, and powering daily **Work Reports** inside **Chief of Staff**.
 
 ---
 
@@ -56,9 +56,9 @@ Rather than copying external issue/PR columns onto `__mj_BizAppsTasks.Task` or w
 
 ---
 
-## 3. 15Five Work Reports & Supervisor Review Loop
+## 3. Work Reports & Supervisor Review Loop
 
-`WorkReport` and `WorkReportItem` implement the 15Five methodology ("fifteen minutes to write — closer to five with Chief of Staff drafting — five minutes for your supervisor to read and respond").
+`WorkReport` and `WorkReportItem` implement a structured check-in workflow (drafted rapidly with Chief of Staff assistance and reviewed by a supervisor in minutes).
 
 ```mermaid
 sequenceDiagram
