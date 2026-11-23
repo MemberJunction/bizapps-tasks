@@ -558,14 +558,14 @@ describe('Generic Task Type Creation Filtering', () => {
         expect(panel.currentTypeOwnershipNote).toBe('Managed in Planning');
         expect(panel.creatableTaskTypes.some((t) => t.Code === 'PRIORITY')).toBe(false);
 
-        // Existing legacy KEY_RESULT task still opens and resolves key-result archetype
+        // Existing legacy KEY_RESULT task still opens, resolves key-result archetype, and saves edits without clearing TypeID
         const existingLegacyKr = makeTaskEntityStub({
             ID: '33333333-3333-4333-8333-333333333333',
             Name: 'Legacy KR',
             TypeID: TT_KEY_RESULT_ID,
             TargetValue: 100,
         });
-        getEntityObjectMock.mockResolvedValueOnce(existingLegacyKr);
+        getEntityObjectMock.mockResolvedValueOnce(existingLegacyKr).mockResolvedValueOnce(existingLegacyKr);
         panel.TaskID = existingLegacyKr.ID;
         await initEditPanelViaLifecycle(panel, existingPriorityTask.ID, 'Legacy KR');
 
@@ -573,6 +573,25 @@ describe('Generic Task Type Creation Filtering', () => {
         expect(panel.ActiveArchetype).toBe('key-result');
         expect(panel.isCurrentTypeLocked).toBe(true);
         expect(panel.currentTypeOwnershipNote).toBe('Legacy OKR type (read-only)');
+        expect(panel.form.TypeID).toBe(TT_KEY_RESULT_ID);
+
+        panel.form.Status = 'InProgress';
+        await panel.save();
+        expect(existingLegacyKr.Save).toHaveBeenCalledTimes(1);
+        expect(existingLegacyKr.TypeID).toBe(TT_KEY_RESULT_ID);
+
+        // Switching an existing active task to an inactive legacy OKR type via selectTaskType is also refused
+        const existingGeneral = makeTaskEntityStub({
+            ID: '33333333-3333-4333-8333-333333333344',
+            Name: 'Active General',
+            TypeID: TT_GENERAL_ID,
+        });
+        getEntityObjectMock.mockResolvedValueOnce(existingGeneral);
+        const activeEditPanel = createInContext(() => new TaskEditPanelComponent());
+        activeEditPanel.TaskID = existingGeneral.ID;
+        await initEditPanelViaLifecycle(activeEditPanel, null, 'Active General');
+        activeEditPanel.selectTaskType(MIXED_TASK_TYPES.find((t) => t.Code === 'KEY_RESULT')!);
+        expect(activeEditPanel.form.TypeID).toBe(TT_GENERAL_ID);
     });
 
     it('TaskEditPanelComponent persists generic measurable task metrics on save and restores them on reopen', async () => {
@@ -830,6 +849,14 @@ describe('Generic Task Type Creation Filtering', () => {
         expect(dashBulkLabels).not.toContain('Priority');
         expect(dashBulkLabels).not.toContain('Strategic Initiative');
         expect(dashBulkLabels).not.toContain('Key Result');
+        expect(dashBulkLabels).not.toContain('Priority Objective');
+
+        // Dashboard typeId filter dropdown also excludes inactive legacy OKR types even if RunView returned them
+        const typeIdFilter = dashboard.FilterFields.find((f) => f.key === 'typeId');
+        const filterTexts = (typeIdFilter?.options ?? []).map((o) => o.text);
+        expect(filterTexts).toContain('General');
+        expect(filterTexts).not.toContain('Priority Objective');
+        expect(filterTexts).not.toContain('Key Result');
 
         // ConnectedTasksHostComponent.onQuickAdd
         const connectedHost = createInContext(() => new ConnectedTasksHostComponent());

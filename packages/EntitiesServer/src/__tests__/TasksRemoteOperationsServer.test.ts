@@ -349,6 +349,47 @@ describe('TasksBulkUpdateServerOperation', () => {
         }
     });
 
+    it('rejects bulk-assigning tasks to inactive or legacy OKR TaskTypes (PRIORITY_OBJECTIVE / KEY_RESULT)', async () => {
+        const task1 = makeMockTask(TASK_1);
+        const { provider, runViewSpy } = makeBulkHarness([task1]);
+
+        try {
+            const op = new TasksBulkUpdateServerOperation();
+            const legacyIdRes = await op.ExecuteServer(
+                {
+                    TaskIDs: [TASK_1],
+                    TypeID: '8D42A1B9-3E71-4C5A-9F20-1B6E8D3A9C01',
+                },
+                { provider, user: TEST_USER, emitProgress: () => {} },
+            );
+            expect(legacyIdRes.Success).toBe(false);
+            expect(legacyIdRes.ErrorMessage).toMatch(/inactive legacy OKR/i);
+            expect(task1.saved).toBe(false);
+
+            // Also rejects any custom inactive TaskType returned by RunView
+            const inactiveCustomId = 'dddddddd-dddd-4ddd-8ddd-dddddddd0099';
+            runViewSpy.mockReturnValueOnce({
+                RunView: vi.fn(async () => ({
+                    Success: true,
+                    Results: [{ ID: inactiveCustomId, Name: 'Retired Custom', Code: 'RETIRED', IsActive: false }],
+                })),
+            } as unknown as RunView);
+
+            const inactiveRes = await op.ExecuteServer(
+                {
+                    TaskIDs: [TASK_1],
+                    TypeID: inactiveCustomId,
+                },
+                { provider, user: TEST_USER, emitProgress: () => {} },
+            );
+            expect(inactiveRes.Success).toBe(false);
+            expect(inactiveRes.ErrorMessage).toMatch(/inactive or managed outside generic task creation/i);
+            expect(task1.saved).toBe(false);
+        } finally {
+            runViewSpy.mockRestore();
+        }
+    });
+
     it('supports idempotent AssigneeMode add (including MJ: Roles), AssigneeMode clear, and idempotent AddTagID', async () => {
         const task1 = makeMockTask(TASK_1);
         const existingRoleAssignment: MockAssignmentRecord = {

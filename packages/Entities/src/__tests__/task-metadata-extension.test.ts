@@ -3,14 +3,17 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+    FilterActiveSelectableTaskTypes,
     FilterGenericCreatableTaskTypes,
     HasTaskTypeExtensionEntity,
+    IsActiveSelectableTaskType,
     IsGenericCreatableTaskType,
     IsLegacyOkrTaskType,
     IsPlanningExtensionEntity,
     IsPlanningOwnedTaskType,
     IsTaskTypeExtensionEntityAvailable,
     LEGACY_OKR_TASK_TYPE_CODES,
+    LEGACY_OKR_TASK_TYPE_IDS,
     NormalizeTaskTypeExtensionEntity,
     PLANNING_OWNED_TASK_TYPE_CODES,
     PRIORITY_EXTENSION_ENTITY,
@@ -306,5 +309,81 @@ describe('Generic creatable TaskType filter predicates', () => {
             'APPROVAL_REQUEST',
             'AGENT_TASK',
         ]);
+    });
+
+    it('excludes inactive and legacy OKR task types in IsActiveSelectableTaskType and FilterActiveSelectableTaskTypes', () => {
+        const selectable = FilterActiveSelectableTaskTypes(sampleTaskTypes);
+        expect(selectable.map((t) => t.Code)).toEqual([
+            'GENERAL',
+            'ACTION_ITEM',
+            'FOLLOW_UP',
+            'DELIVERABLE',
+            'APPROVAL_REQUEST',
+            'AGENT_TASK',
+            'PRIORITY',
+            'GITHUB_ISSUE',
+        ]);
+        expect(selectable.some((t) => t.Code === 'PRIORITY_OBJECTIVE')).toBe(false);
+        expect(selectable.some((t) => t.Code === 'KEY_RESULT')).toBe(false);
+        expect(selectable.some((t) => t.Code === 'CUSTOM_INACTIVE')).toBe(false);
+
+        for (const legacyId of LEGACY_OKR_TASK_TYPE_IDS) {
+            expect(IsLegacyOkrTaskType({ ID: legacyId })).toBe(true);
+            expect(IsActiveSelectableTaskType({ ID: legacyId, IsActive: true })).toBe(false);
+            expect(IsGenericCreatableTaskType({ ID: legacyId, IsActive: true })).toBe(false);
+        }
+        expect(IsActiveSelectableTaskType(null)).toBe(false);
+        expect(IsActiveSelectableTaskType(undefined)).toBe(false);
+    });
+});
+
+describe('Dual-dialect legacy OKR TaskType deactivation migrations (AC-1)', () => {
+    const tsqlMigrationPath = resolve(
+        repoRoot,
+        'migrations/V202611221800__v1.16.x__Deactivate_Legacy_OKR_TaskTypes.sql',
+    );
+    const pgMigrationPath = resolve(
+        repoRoot,
+        'migrations-pg/V202611221800__v1.16.x__Deactivate_Legacy_OKR_TaskTypes.pg.sql',
+    );
+
+    it('ships paired T-SQL and PostgreSQL migrations marking PRIORITY_OBJECTIVE and KEY_RESULT inactive idempotently', () => {
+        expect(existsSync(tsqlMigrationPath)).toBe(true);
+        expect(existsSync(pgMigrationPath)).toBe(true);
+
+        const tsql = readFileSync(tsqlMigrationPath, 'utf8');
+        const pg = readFileSync(pgMigrationPath, 'utf8');
+
+        // Both dialects target canonical IDs and codes for PRIORITY_OBJECTIVE and KEY_RESULT
+        for (const token of [
+            '8D42A1B9-3E71-4C5A-9F20-1B6E8D3A9C01',
+            '8D42A1B9-3E71-4C5A-9F20-1B6E8D3A9C02',
+            'PRIORITY_OBJECTIVE',
+            'KEY_RESULT',
+        ]) {
+            expect(tsql).toContain(token);
+            expect(pg).toContain(token);
+        }
+
+        expect(tsql).toMatch(/\[IsActive\]\s*=\s*0/);
+        expect(pg).toMatch(/"IsActive"\s*=\s*FALSE/i);
+
+        // Strictly additive/non-destructive: zero DROP COLUMN, DROP TABLE, DELETE, or unneeded-fields prune
+        for (const sql of [tsql, pg]) {
+            expect(sql).not.toMatch(/\bDROP\s+COLUMN\b/i);
+            expect(sql).not.toMatch(/\bDROP\s+TABLE\b/i);
+            expect(sql).not.toMatch(/\bDELETE\s+FROM\b/i);
+            expect(sql).not.toMatch(/\bspDeleteUnneededEntityFields\b/i);
+        }
+    });
+
+    it('preserves all existing OKR/metric columns on the Task entity in generated types and metadata', () => {
+        const entitySource = readFileSync(
+            resolve(repoRoot, 'packages/Entities/src/generated/entities/__mj_BizAppsTasks.ts'),
+            'utf8',
+        );
+        for (const col of METRIC_AND_CHECKIN_TASK_FIELDS) {
+            expect(entitySource).toContain(`get ${col}(`);
+        }
     });
 });
