@@ -1,5 +1,5 @@
 -- =============================================================================================
--- BizApps Tasks v1.15.x -- Metadata_Sync (PostgreSQL counterpart of V202611231320__v1.15.x__Metadata_Sync.sql)
+-- BizApps Tasks v1.15.x -- Metadata_Sync (PostgreSQL counterpart of V202611201300__v1.15.x__Metadata_Sync.sql)
 -- =============================================================================================
 -- Nothing to seed. This release's only metadata change since v1.14.0 is
 -- metadata/entities/.save-return-datestamps-only.json, which sets SaveReturnMode =
@@ -16,3 +16,5 @@
 -- This file exists so the release gate, which requires a Metadata_Sync migration whenever
 -- metadata/ changes, records that the change ships. It contains no statements.
 -- =============================================================================================
+-- On lts/6.2 this file is stamped V202611201300, before the 1.15 feature migrations that are
+-- on next only; next carries the same comment-only file as V202611231320. Running both is a no-op.
