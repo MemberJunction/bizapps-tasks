@@ -375,10 +375,13 @@ export function normalizeTaskVisibility(raw: string | null): TaskVisibilityValue
     if (!raw) return null;
     const norm = raw.trim().toLowerCase();
     switch (norm) {
-        case 'standard':
-            return 'Standard';
+        case 'team':
+            return 'Team';
         case 'private':
             return 'Private';
+        case 'organization':
+        case 'org':
+            return 'Organization';
         default:
             return null;
     }

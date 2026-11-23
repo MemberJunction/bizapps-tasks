@@ -2907,16 +2907,17 @@ export const mjBizAppsTasksTaskSchema = z.object({
         * * SQL Data Type: uniqueidentifier
         * * Related Entity/Foreign Key: MJ_BizApps_Common: Organizations (vwOrganizations.ID)
         * * Description: Optional owning or scoping Organization for this task (supports both internal legal entities mirrored from MJ: Companies via Organization.LinkedCompanyID and external client/partner organizations). Child sub-tasks inherit their parent OrganizationID by default.`),
-    Visibility: z.union([z.literal('Private'), z.literal('Standard')]).describe(`
+    Visibility: z.union([z.literal('Organization'), z.literal('Private'), z.literal('Team')]).default('Team').describe(`
         * * Field Name: Visibility
         * * Display Name: Visibility
         * * SQL Data Type: nvarchar(20)
-        * * Default Value: Standard
+        * * Default Value: Team
     * * Value List Type: List
     * * Possible Values 
+    *   * Organization
     *   * Private
-    *   * Standard
-        * * Description: Controls who may read this task and its child records (assignments, check-ins, comments, activities). Standard (default) is visible across the organization; Private restricts visibility to the creator, assignees (direct Person or MJ Role members), and creator/assignees of the root parent task.`),
+    *   * Team
+        * * Description: Controls who may read this task and its child records (assignments, dependencies, check-ins, comments, links, activities, time entries, risk assessments). Team (default) is visible to the creator, assignees, root-task owner, and everyone up their reporting chains; Private restricts visibility to the creator and assignees; Organization makes the task visible to everyone in the task's organization.`),
     ForecastCompletionDate: z.date().nullable().describe(`
         * * Field Name: ForecastCompletionDate
         * * Display Name: Forecast Completion Date

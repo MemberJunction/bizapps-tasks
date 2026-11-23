@@ -15,6 +15,7 @@
 <p align="center">
   <a href="#installation">Install</a> &middot;
   <a href="#entity-model">Entity Model</a> &middot;
+  <a href="#row-level-security--chain-of-command-visibility">Security &amp; RLS</a> &middot;
   <a href="#angular-components">Components</a> &middot;
   <a href="#using-bizapps-tasks-in-your-code">Usage</a>
 </p>
@@ -195,6 +196,41 @@ All components are standalone with `@if`/`@for` block syntax. No routing -- even
 The Task form uses MJ's **left-nav** layout (`Entity.Configuration.UI.Form.Layout`). First-class sections are Details, Sub-tasks (the gantt/kanban contribution claims `ParentID`), and Assignments. Comments, activity, links, decisions, and approval JE batches sit in More.
 
 Task Dependencies are **not** on the form. Both join ends (`TaskID` and `DependsOnTaskID`) are `inclusion: None` — they are the internal graph edges the gantt already draws. Tag-link and notification-log grids are also None (junction / audit, not a Task-form surface). Created-by Tasks on a Person are None.
+
+---
+
+## Row-Level Security & Chain-of-Command Visibility
+
+BizApps Tasks enforces row-level read (and Work Report Item draft write) authorization at the MemberJunction data-provider layer via `MJ: Row Level Security Filters` (`metadata/row-level-security-filters/`) bound to `EntityPermissions` (`metadata/entities/.ui-role-permissions.json`). Every filter ships with balanced, indexed `EXISTS` semi-join predicates in both **SQL Server** (`FilterText`) and **PostgreSQL** (`PlatformVariants.FilterText.postgresql`) dialects, traversing reporting hierarchies at arbitrary depth through `bizapps-common`'s recursive `vwPersonReportingChain` view.
+
+### `Task.Visibility` Tiers
+
+| Value | Default | Who Can Read |
+|---|---|---|
+| **`Team`** | Yes (`Team`) | Task creator, direct assignees (`People`, `MJ: Users`, `MJ: Roles`), root-task (`RootParentID`) creator/assignees, and every manager/director up their reporting chains at any depth via `vwPersonReportingChain`. |
+| **`Private`** | No | Task creator and direct assignees only. Managers/directors in `vwPersonReportingChain`, root-task owners, and organization members do **not** inherit access. |
+| **`Organization`** | No | Everyone included under `Team` visibility **plus** active members of `Task.OrganizationID` (via `PersonToOrganization` relationships or `Employee.CompanyID -> Organization.LinkedCompanyID`), strictly isolated from external organizations. |
+
+### Governed Entities & RLS Filter Matrix
+
+| Governed Entity | Bound `ReadRLSFilterID` | Key Enforcement Invariants |
+|---|---|---|
+| `MJ_BizApps_Tasks: Tasks` | `Tasks: Visible Tasks` | Enforces `Private` / `Team` / `Organization`, assignee & `RootParentID` inheritance, and arbitrary-depth `vwPersonReportingChain` via `Person.LinkedUserID` and `User.LinkedEntityRecordID`. |
+| `MJ_BizApps_Tasks: Task Assignments` | `Tasks: Rows Of Visible Tasks` | Delegates to parent `vwTasks` visibility so private/cross-chain assignments never leak. |
+| `MJ_BizApps_Tasks: Task Dependencies` | `Tasks: Visible Task Dependencies` | Requires visibility on **both** `TaskID` and `DependsOnTaskID` so a `Team -> Private` edge never exposes a private task to managers or peers. |
+| `MJ_BizApps_Tasks: Task Check Ins` | `Tasks: Rows Of Visible Tasks` | Inherits parent `vwTasks` visibility. |
+| `MJ_BizApps_Tasks: Task Comments` | `Tasks: Rows Of Visible Tasks` | Inherits parent `vwTasks` visibility. |
+| `MJ_BizApps_Tasks: Task Links` | `Tasks: Rows Of Visible Tasks` | Inherits parent `vwTasks` visibility. |
+| `MJ_BizApps_Tasks: Task Activities` | `Tasks: Rows Of Visible Tasks` | Inherits parent `vwTasks` visibility. |
+| `MJ_BizApps_Tasks: Task Risk Assessments` | `Tasks: Rows Of Visible Tasks` | Inherits parent `vwTasks` visibility. |
+| `MJ_BizApps_Tasks: Task Time Entries` | `Tasks: Visible Task Time Entries` | Author always reads own entries; standalone entries (`TaskID IS NULL`) follow `vwPersonReportingChain`; task-linked entries follow parent task visibility without leaking `Private` tasks. |
+| `MJ_BizApps_Tasks: Meetings` | `Tasks: Visible Meetings` | Differentiates `Private` (organizer, creator, attendees only) vs `Standard` (organizer/creator/attendee reporting chains via `vwPersonReportingChain` plus visible linked tasks). Supporting filters govern `Meeting Series`, `Meeting Series Attendees`, `Meeting Links`, `Meeting Attendees`, `Meeting Agenda Items`, and `Meeting Notes`. |
+| `MJ_BizApps_Tasks: Work Reports` | `UI: Work Reports - Author or Supervisor Chain` | Author, arbitrary-depth upward reporting chain via `vwPersonReportingChain`, or administrative roles (`Owner`, `System Administrator`, `Administrator`, `Admin`, `Administration`). `Work Report Items` enforce matching chain-of-command reads and `Draft`-author-only creates/updates. |
+
+### Verifying RLS Rules
+
+- **Metadata & Migration Parity**: `pnpm --filter @mj-biz-apps/tasks-entities test`
+- **Multi-Chain & Manager Hierarchy Relational Suite (SQL Server + PostgreSQL)**: `pnpm --filter @mj-biz-apps/tasks-server test`
 
 ---
 

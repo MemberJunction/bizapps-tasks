@@ -158,6 +158,17 @@
             "Description": "AI-forecasted completion date synced from the latest Task Risk Assessment for project health rollups and Chief of Staff briefings.",
             "AutoUpdateDescription": false
           }
+        },
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.Name=Visibility&EntityID=@parent:ID"
+          },
+          "fields": {
+            "DefaultValue": "Team",
+            "ValueListType": "List",
+            "Description": "Controls who may read this task and its child records (assignments, dependencies, check-ins, comments, links, activities, time entries, risk assessments). Team (default) is visible to the creator, assignees, root-task owner, and everyone up their reporting chains; Private restricts visibility to the creator and assignees; Organization makes the task visible to everyone in the task's organization.",
+            "AutoUpdateDescription": false
+          }
         }
       ]
     },

@@ -405,7 +405,7 @@ describe('FindTasksAction', () => {
                         Name: 'Shared Q4 Roadmap',
                         Status: 'Open',
                         Priority: 'Medium',
-                        Visibility: 'Standard',
+                        Visibility: 'Team',
                         TypeID: TYPE_GENERAL,
                         Type: 'General',
                         CreatedByPersonID: PERSON_ALICE,
@@ -429,7 +429,7 @@ describe('FindTasksAction', () => {
         const bobRes = await run(new FindTasksAction(), makeRunParams(USER_BOB, bobParams));
 
         expect(bobRes).toMatchObject({ Success: true, ResultCode: 'SUCCESS' });
-        expect(runViewMock.mock.calls[2][0].ExtraFilter).toContain(`Visibility = 'Standard'`);
+        expect(runViewMock.mock.calls[2][0].ExtraFilter).toContain(`Visibility IN ('Team', 'Organization')`);
         const bobTasks = JSON.parse(String(bobParams.find((p) => p.Name === 'Tasks')?.Value));
         expect(bobTasks.map((t: { ID: string }) => t.ID)).toEqual([
             TASK_2,
@@ -580,7 +580,7 @@ describe('CreateTaskAction', () => {
 
         expect(res).toMatchObject({ Success: true, ResultCode: 'SUCCESS' });
         expect(taskEntity.Save).toHaveBeenCalledTimes(1);
-        expect(taskEntity.Visibility).toBe('Standard');
+        expect(taskEntity.Visibility).toBe('Team');
         expect(actEntity.NewValue).toBe('client_request_key:req-42');
         expect(assignEntity.Save).toHaveBeenCalledTimes(1);
         // Coalesced 'tasks-inbox' wake is owned by TaskAssignmentEntityServer post-commit, not duplicated here
@@ -791,7 +791,7 @@ describe('UpdateTaskAction', () => {
             Name: 'Sensitive Review',
             Status: 'Open',
             Priority: 'High',
-            Visibility: 'Standard',
+            Visibility: 'Team',
             PercentComplete: 0,
             Type: 'General',
         });

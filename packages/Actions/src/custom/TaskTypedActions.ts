@@ -156,7 +156,7 @@ function toCompactSummary(row: TaskSummaryRow): CompactTaskSummary {
         Name: row.Name,
         Status: row.Status,
         Priority: row.Priority,
-        Visibility: row.Visibility ?? 'Standard',
+        Visibility: row.Visibility ?? 'Team',
         DueAt: toIsoOrNull(row.DueAt),
         PercentComplete: row.PercentComplete ?? 0,
         Type: row.Type,
@@ -407,7 +407,7 @@ export class FindTasksAction extends BaseAction {
                 const assignedIds = await getCallerAssignedTaskIDs(callerPersonIDForVisibility, user);
                 callerAssignedIDsForVisibility = assignedIds;
 
-                const visibilityClauses: string[] = [`Visibility = 'Standard'`];
+                const visibilityClauses: string[] = [`Visibility IN ('Team', 'Organization')`];
                 if (callerPersonIDForVisibility) {
                     visibilityClauses.push(
                         `CreatedByPersonID = '${EscapeSQLString(callerPersonIDForVisibility)}'`,
@@ -551,7 +551,7 @@ export class FindTasksAction extends BaseAction {
             if (scope === 'team') {
                 const assignedNorm = new Set(callerAssignedIDsForVisibility.map((id) => NormalizeUUID(id)));
                 rows = rows.filter((r) => {
-                    if ((r.Visibility ?? 'Standard') !== 'Private') return true;
+                    if ((r.Visibility ?? 'Team') !== 'Private') return true;
                     if (callerPersonIDForVisibility && r.CreatedByPersonID && UUIDsEqual(r.CreatedByPersonID, callerPersonIDForVisibility)) {
                         return true;
                     }
@@ -727,7 +727,7 @@ export class GetTaskAction extends BaseAction {
                 Description: task.Description ?? null,
                 Status: task.Status,
                 Priority: task.Priority,
-                Visibility: task.Visibility ?? 'Standard',
+                Visibility: task.Visibility ?? 'Team',
                 DueAt: toIsoOrNull(task.DueAt),
                 StartedAt: toIsoOrNull(task.StartedAt),
                 CompletedAt: toIsoOrNull(task.CompletedAt),
@@ -840,11 +840,11 @@ export class CreateTaskAction extends BaseAction {
         }
 
         const visibilityRaw = getStringParam(params, 'Visibility');
-        const visibility: TaskVisibilityValue | null = visibilityRaw ? normalizeTaskVisibility(visibilityRaw) : 'Standard';
+        const visibility: TaskVisibilityValue | null = visibilityRaw ? normalizeTaskVisibility(visibilityRaw) : 'Team';
         if (!visibility) {
             return failResult(
                 'VALIDATION_ERROR',
-                `Invalid Visibility '${visibilityRaw}'. Expected Standard or Private.`,
+                `Invalid Visibility '${visibilityRaw}'. Expected Team, Private, or Organization.`,
                 params,
             );
         }
@@ -1174,7 +1174,7 @@ export class UpdateTaskAction extends BaseAction {
         if (visibilityRaw && !visibility) {
             return failResult(
                 'VALIDATION_ERROR',
-                `Invalid Visibility '${visibilityRaw}'. Expected Standard or Private.`,
+                `Invalid Visibility '${visibilityRaw}'. Expected Team, Private, or Organization.`,
                 params,
             );
         }
@@ -1256,7 +1256,7 @@ export class UpdateTaskAction extends BaseAction {
                 Name: task.Name,
                 Status: task.Status,
                 Priority: task.Priority,
-                Visibility: task.Visibility ?? 'Standard',
+                Visibility: task.Visibility ?? 'Team',
                 DueAt: toIsoOrNull(task.DueAt),
                 PercentComplete: task.PercentComplete ?? 0,
                 Type: task.Type,
