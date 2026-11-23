@@ -75,3 +75,12 @@ When a `TaskAssignment` is created or reassigned, [`handleAssignmentSave`](../pa
 1. A task of type `AGENT_TASK` (`665697FE-9B18-4691-B40C-BE849FE60216`) is assigned to an `MJ: AI Agents` record via `TaskAssignment`.
 2. `TaskNotificationHandler.handleAssignmentSave` detects `AssigneeEntityID === MJ: AI Agents`, skips human notification lookups, and invokes `Execute Assigned Agent` with `Async = 'true'`.
 3. `ExecuteAssignedAgentAction` transitions the task to `InProgress`, tracks the promise in `ExecuteAssignedAgentAction.pendingExecutions` (flushable in tests via `FlushPendingExecutions()`), runs the agent under the assigner's `ContextUser` via `AgentRunner`, links the `AIAgentRun` (`Link Agent Run to Task`), posts a summary `TaskComment`, and wakes the assigner's Chief of Staff inbox.
+
+---
+
+## 4. Organization-Grouped Approval Inbox & Latency Visibility
+
+- [`ApprovalsPageComponent`](../packages/Angular/src/lib/pages/approvals.page.ts) and [`ApprovalInboxComponent`](../packages/Angular/src/lib/components/approval-inbox/approval-inbox.component.ts) group pending approval tasks by `Task.OrganizationID` using [`approval-inbox-grouping.ts`](../packages/Angular/src/lib/components/approval-inbox/approval-inbox-grouping.ts).
+- Organization headers display item counts and aggregate wait-latency indicators (`Avg` / `Max` wait since `Task.__mj_CreatedAt`) while individual cards surface per-task wait-latency tiers (`normal`, `elevated`, `overdue`) and Markdown-stripped plain-text excerpts.
+- Grouping, sort order (`due`, `latency`, `priority`), and per-organization collapse preferences persist via `UserInfoEngine.Instance` (`mj.tasks.approvalInbox.prefs.v1`) without browser `localStorage`/`sessionStorage`, styled strictly with `--mj-*` semantic design tokens and `ChangeDetectionStrategy.OnPush`.
+- All pending approval, authorization, latency reporting, and workflow dispatch queries run without decision-truncating `MaxRows` / `TOP` / `LIMIT` row caps (enforced by [`no-decision-row-caps.test.ts`](../packages/Core/src/services/__tests__/no-decision-row-caps.test.ts)).
