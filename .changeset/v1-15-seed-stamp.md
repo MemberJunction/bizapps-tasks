@@ -8,4 +8,4 @@
 "@mj-biz-apps/tasks-server": minor
 ---
 
-The 1.15 Metadata_Sync placeholder is stamped V202611201300, before the 1.15 feature migrations, so the lts/6.2 line can take it in order. It holds no statements.
+Removes the unreleased, statement-free 1.15 Metadata_Sync placeholder (V202611231320). A database that already ran it keeps a history row for a file that no longer exists; Skyway still migrates it.
