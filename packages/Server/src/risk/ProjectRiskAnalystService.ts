@@ -26,9 +26,12 @@ import {
     type MLBreachSignal,
     type OverdueItemsEvidence,
     type OverdueTaskEvidenceItem,
+    type ProjectAssigneeRawFreeBusy,
+    type ProjectAssigneeScheduleTarget,
     type ProjectCheckInHealthStatusValue,
     type ProjectDependencyTypeValue,
     type ProjectFreeBusyAvailability,
+    type ProjectFreeBusyProvider,
     type ProjectRiskAgentRawPayload,
     type ProjectRiskAssessmentRunResult,
     type ProjectRiskCadenceEvaluation,
@@ -180,27 +183,11 @@ interface AgentConfigurationRow {
     Status: string;
 }
 
-/** Assignee target passed to a calendar free/busy provider. */
-export interface ProjectAssigneeScheduleTarget {
-    PersonID: string | null;
-    UserID: string | null;
-    Email: string | null;
-}
-
-/** Raw calendar free/busy slots returned by a calendar provider for one assignee. */
-export interface ProjectAssigneeRawFreeBusy {
-    PersonID: string | null;
-    UserID: string | null;
-    Slots: readonly RawFreeBusySlotInput[];
-}
-
-/** Adapter querying assignee calendar availability strictly as free/busy intervals. */
-export type ProjectFreeBusyProvider = (input: {
-    Assignees: readonly ProjectAssigneeScheduleTarget[];
-    WindowStart: Date;
-    WindowEnd: Date;
-    OwnerUser: UserInfo;
-}) => Promise<readonly ProjectAssigneeRawFreeBusy[]>;
+export type {
+    ProjectAssigneeRawFreeBusy,
+    ProjectAssigneeScheduleTarget,
+    ProjectFreeBusyProvider,
+};
 
 /** Adapter resolving the ML SLA breach probability score for a project root task. */
 export type MLBreachScoreProvider = (input: {
@@ -263,7 +250,9 @@ export interface AssessProjectRiskOptions {
     ExplicitOwnerUserID?: string | null;
     OwnerUserResolver?: ProjectOwnerUserResolver;
     FreeBusyProvider?: ProjectFreeBusyProvider;
+    FreeBusyOverrides?: readonly ProjectAssigneeRawFreeBusy[] | null;
     MLBreachScoreProvider?: MLBreachScoreProvider;
+    MLBreachSignalOverride?: MLBreachSignal | null;
     AgentExecutor?: ProjectRiskAgentExecutor;
     /** When `false`, skips evaluation if the active cadence cooldown window has not elapsed or task is terminal. */
     Force?: boolean;
@@ -601,8 +590,14 @@ export class ProjectRiskAnalystService {
             ownerUser,
             now,
             options.FreeBusyProvider,
+            options.FreeBusyOverrides,
         );
-        const mlBreach = await this.resolveMLBreachSignal(rootTask, ownerUser, options.MLBreachScoreProvider);
+        const mlBreach = await this.resolveMLBreachSignal(
+            rootTask,
+            ownerUser,
+            options.MLBreachScoreProvider,
+            options.MLBreachSignalOverride,
+        );
 
         const rootSnapshot: ProjectRootTaskSnapshot = {
             ID: rootTask.ID,
@@ -1294,6 +1289,7 @@ export class ProjectRiskAnalystService {
         ownerUser: UserInfo,
         now: Date,
         freeBusyProvider: ProjectFreeBusyProvider | undefined,
+        freeBusyOverrides?: readonly ProjectAssigneeRawFreeBusy[] | null,
     ): Promise<ProjectFreeBusyAvailability> {
         const limits = TasksLimitsResolver.Instance.GetCurrentLimits();
         const windowStart = new Date(now.getTime());
@@ -1354,7 +1350,7 @@ export class ProjectRiskAnalystService {
                   WindowEnd: windowEnd,
                   OwnerUser: ownerUser,
               })
-            : [];
+            : freeBusyOverrides ?? [];
 
         const rawByKey = new Map<string, readonly RawFreeBusySlotInput[]>();
         for (const sched of rawSchedules) {
@@ -1372,7 +1368,7 @@ export class ProjectRiskAnalystService {
                 : target.UserID
                   ? `u:${target.UserID.toLowerCase()}`
                   : 'default';
-            const slots = rawByKey.get(key) ?? [];
+            const slots = rawByKey.get(key) ?? rawByKey.get('default') ?? [];
             return BuildAssigneeFreeBusySummary({
                 personId: target.PersonID,
                 userId: target.UserID,
@@ -1394,6 +1390,7 @@ export class ProjectRiskAnalystService {
         rootTask: ProjectRootTaskRow,
         ownerUser: UserInfo,
         provider: MLBreachScoreProvider | undefined,
+        overrideSignal?: MLBreachSignal | null,
     ): Promise<MLBreachSignal> {
         if (provider) {
             const provided = await provider({ RootTask: rootTask, OwnerUser: ownerUser });
@@ -1405,6 +1402,15 @@ export class ProjectRiskAnalystService {
                     Source: provided.Source,
                 };
             }
+        }
+
+        if (overrideSignal) {
+            return {
+                Probability: clampProbability(overrideSignal.Probability),
+                RiskBand: overrideSignal.RiskBand ?? rootTask.PredictedSLARiskBand ?? null,
+                ScoredAtISO: overrideSignal.ScoredAtISO ?? null,
+                Source: overrideSignal.Source,
+            };
         }
 
         const prob = clampProbability(rootTask.PredictedSLABreachProbability);

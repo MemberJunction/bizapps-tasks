@@ -1,3 +1,4 @@
+import type { UserInfo } from '@memberjunction/core';
 import type {
     mjBizAppsTasksTaskCheckInEntity,
     mjBizAppsTasksTaskDependencyEntity,
@@ -5,6 +6,7 @@ import type {
     mjBizAppsTasksTaskRiskAssessmentEntity,
     TaskRiskItem,
 } from '@mj-biz-apps/tasks-entities';
+import type { RawFreeBusySlotInput } from './free-busy-privacy.js';
 
 /** Task status union derived directly from generated `Task` entity type. */
 export type ProjectTaskStatusValue = mjBizAppsTasksTaskEntity['Status'];
@@ -255,4 +257,67 @@ export interface ProjectRiskAssessmentRunResult {
     TotalCostUSD: number | null;
     Cadence: ProjectRiskCadenceEvaluation;
     Evidence: ProjectRiskEvidenceBundle | null;
+}
+
+/** Assignee target passed to a calendar free/busy provider. */
+export interface ProjectAssigneeScheduleTarget {
+    PersonID: string | null;
+    UserID: string | null;
+    Email: string | null;
+}
+
+/** Raw calendar free/busy slots returned by a calendar provider or override for one assignee. */
+export interface ProjectAssigneeRawFreeBusy {
+    PersonID: string | null;
+    UserID: string | null;
+    Slots: readonly RawFreeBusySlotInput[];
+}
+
+/** Adapter querying assignee calendar availability strictly as free/busy intervals. */
+export type ProjectFreeBusyProvider = (input: {
+    Assignees: readonly ProjectAssigneeScheduleTarget[];
+    WindowStart: Date;
+    WindowEnd: Date;
+    OwnerUser: UserInfo;
+}) => Promise<readonly ProjectAssigneeRawFreeBusy[]>;
+
+/** Input passed to {@link ProjectRiskMLBreachProvider}. */
+export interface ProjectRiskMLBreachHookInput {
+    RootTaskID: string;
+    OwnerUser: UserInfo;
+}
+
+/** Adapter resolving the ML SLA breach probability score for a project root task. */
+export type ProjectRiskMLBreachProvider = (input: ProjectRiskMLBreachHookInput) => Promise<MLBreachSignal | null>;
+
+/** Typed summary of a persisted `Task Risk Assessments` record. */
+export interface ProjectRiskAssessmentSummary {
+    AssessmentID: string;
+    TaskID: string;
+    AssessedAtISO: string;
+    HealthStatus: ProjectRiskHealthStatusValue;
+    ForecastCompletionDateISO: string | null;
+    ForecastConfidence: number | null;
+    MLBreachProbability: number | null;
+    Risks: TaskRiskItem[];
+    AgentRunID: string | null;
+    PromptTokens: number | null;
+    CompletionTokens: number | null;
+    TotalCostUSD: number | null;
+}
+
+/** Synchronized root project task rollup snapshot returned alongside risk assessments. */
+export interface ProjectRiskRootTaskRollup {
+    ID: string;
+    Name: string;
+    Status: ProjectTaskStatusValue;
+    Priority: ProjectTaskPriorityValue;
+    StartedAtISO: string | null;
+    DueAtISO: string | null;
+    PercentComplete: number;
+    HealthStatus: ProjectRiskHealthStatusValue | null;
+    ConfidenceScore: number | null;
+    ForecastCompletionDateISO: string | null;
+    PredictedSLABreachProbability: number | null;
+    PredictedSLARiskBand: ProjectSLARiskBandValue | null;
 }

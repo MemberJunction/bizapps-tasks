@@ -8,7 +8,11 @@ import { fileURLToPath } from 'node:url';
 
 // Import generated packages to trigger @RegisterClass decorators
 import '@mj-biz-apps/tasks-entities';
-import { registerChiefOfStaffWakeDispatcher } from '@mj-biz-apps/tasks-actions';
+import {
+    GetProjectRiskAction,
+    RequestProjectRiskReviewAction,
+    registerChiefOfStaffWakeDispatcher,
+} from '@mj-biz-apps/tasks-actions';
 
 // Import core services to trigger any class registrations
 import { ProjectRiskAnalystRegistry } from '@mj-biz-apps/tasks-core';
@@ -59,6 +63,8 @@ export {
     SubmitTimesheetOperationServer,
     WithdrawTimesheetOperationServer,
     ReopenTimesheetOperationServer,
+    GetProjectRiskAction,
+    RequestProjectRiskReviewAction,
 };
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
@@ -82,6 +88,8 @@ const SERVER_REGISTERED_CLASSES = [
     SubmitTimesheetOperationServer,
     WithdrawTimesheetOperationServer,
     ReopenTimesheetOperationServer,
+    GetProjectRiskAction,
+    RequestProjectRiskReviewAction,
 ];
 
 /**
@@ -101,6 +109,15 @@ export function LoadBizAppsTasksServer(): void {
             Force: input.Force,
             Provider: input.Provider,
             RunViewProvider: input.RunViewProvider,
+            ExplicitOwnerUserID: input.ExplicitOwnerUserID,
+            MLBreachSignalOverride: input.MLBreachSignalOverride,
+            FreeBusyOverrides: input.FreeBusyOverrides,
+            FreeBusyProvider: input.FreeBusyProvider,
+            MLBreachScoreProvider: input.MLBreachScoreProvider
+                ? ({ RootTask, OwnerUser }) =>
+                      input.MLBreachScoreProvider!({ RootTaskID: RootTask.ID, OwnerUser })
+                : undefined,
+            Now: input.Now,
         }),
     );
     LoadBizAppsTasksEntitiesServer();

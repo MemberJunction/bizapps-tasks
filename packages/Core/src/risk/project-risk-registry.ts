@@ -1,5 +1,11 @@
 import type { IMetadataProvider, IRunViewProvider, UserInfo } from '@memberjunction/core';
-import type { ProjectRiskAssessmentRunResult } from './project-risk-types.js';
+import type {
+    MLBreachSignal,
+    ProjectAssigneeRawFreeBusy,
+    ProjectFreeBusyProvider,
+    ProjectRiskAssessmentRunResult,
+    ProjectRiskMLBreachProvider,
+} from './project-risk-types.js';
 
 /** Request parameters accepted by a registered Project Risk Analyst runtime handler. */
 export interface ProjectRiskReviewDispatchInput {
@@ -8,6 +14,12 @@ export interface ProjectRiskReviewDispatchInput {
     Force?: boolean;
     Provider?: IMetadataProvider;
     RunViewProvider?: IRunViewProvider | null;
+    ExplicitOwnerUserID?: string | null;
+    MLBreachSignalOverride?: MLBreachSignal | null;
+    FreeBusyOverrides?: readonly ProjectAssigneeRawFreeBusy[] | null;
+    FreeBusyProvider?: ProjectFreeBusyProvider;
+    MLBreachScoreProvider?: ProjectRiskMLBreachProvider;
+    Now?: Date;
 }
 
 /** Handler invoked by typed actions (Slice 3) to execute `ProjectRiskAnalystService`. */

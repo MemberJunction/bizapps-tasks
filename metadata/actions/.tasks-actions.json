@@ -7402,5 +7402,651 @@
         }
       ]
     }
+  },
+  {
+    "fields": {
+      "Name": "Get Project Risk",
+      "CategoryID": "@lookup:MJ: Action Categories.Name=Tasks",
+      "Description": "Returns the latest (and optional history) Task Risk Assessments record for a project root task, including HealthStatus, ForecastCompletionDate, ForecastConfidence, MLBreachProbability, typed Risks array, AgentRunID, token/cost metrics, synchronized root task fields, and current monitoring cadence (Weekly vs Daily).",
+      "Type": "Custom",
+      "DriverClass": "GetProjectRiskAction",
+      "IconClass": "fa-solid fa-shield-halved",
+      "UserPrompt": "Retrieve the current project delivery risk assessment, completion forecast, identified risks, and monitoring cadence for a project task.",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "35DF1BB3-778B-4500-A607-DAD9B92D9AED"
+    },
+    "relatedEntities": {
+      "MJ: Action Params": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "TaskID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": true,
+            "Description": "UUID of the project root task (or any descendant subtask, resolved automatically to the root project task)."
+          },
+          "primaryKey": {
+            "ID": "E4E4FAEA-3D47-4FB6-AE74-25523C7C340C"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "IncludeHistory",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "When true, includes historical Task Risk Assessments ordered newest first.",
+            "DefaultValue": "false"
+          },
+          "primaryKey": {
+            "ID": "82B0F15A-E2E8-48AD-AE84-DD952680D978"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "HistoryLimit",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Maximum number of historical assessment records to return when IncludeHistory is true (1-50, default 10).",
+            "DefaultValue": "10"
+          },
+          "primaryKey": {
+            "ID": "9506C2F8-E296-49C8-A616-ADB969165344"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "HasAssessment",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "True when at least one Task Risk Assessment exists for the project root task."
+          },
+          "primaryKey": {
+            "ID": "88C861A3-1263-47F1-BFDB-9A2D93FE7278"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "AssessmentID",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "UUID of the latest Task Risk Assessments record, or null if none exists."
+          },
+          "primaryKey": {
+            "ID": "5D34B96D-1083-4FC9-AFD1-827F0F1D9E9A"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "AssessedAt",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "ISO-8601 timestamp when the latest assessment was recorded."
+          },
+          "primaryKey": {
+            "ID": "ABCA217E-2D5F-4FC9-967D-B96495D60A01"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "HealthStatus",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Project health status (OnTrack, AtRisk, OffTrack, Completed, Paused)."
+          },
+          "primaryKey": {
+            "ID": "19DC894D-0DE7-4232-8BBB-32358AEB3F19"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "ForecastCompletionDate",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "ISO-8601 projected completion date."
+          },
+          "primaryKey": {
+            "ID": "B00A61A0-F975-40A5-B2F5-AA1DD00F96A5"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "ForecastConfidence",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Forecast confidence percentage (0-100)."
+          },
+          "primaryKey": {
+            "ID": "E89DB09A-D74A-4CE6-926C-EE3E2985C22A"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "MLBreachProbability",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "ML SLA breach probability score (0.0000-1.0000)."
+          },
+          "primaryKey": {
+            "ID": "0A2F2263-8FC6-4E7A-89E3-62B3002A5606"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Risks",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "JSON array of typed risk items (kind, severity, evidenceLinks, suggestedMitigation)."
+          },
+          "primaryKey": {
+            "ID": "7FFD7CD7-1CFB-4E34-98C8-D6D1A330FEB4"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "AgentRunID",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "UUID of the MJ: AI Agent Runs record associated with the assessment."
+          },
+          "primaryKey": {
+            "ID": "6ED2ABA6-04CD-4FE7-B903-C845D43FC7FB"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Cadence",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Active monitoring cadence (Weekly or Daily)."
+          },
+          "primaryKey": {
+            "ID": "0610D40F-B544-4781-ABE5-7B6A7ED916EB"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "RootTask",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "JSON snapshot of the root project task including synchronized HealthStatus, ConfidenceScore, and ForecastCompletionDate."
+          },
+          "primaryKey": {
+            "ID": "21CE6D26-A0FB-4ECB-9BD5-A31648445AB7"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "History",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "JSON array of historical Task Risk Assessment summaries when IncludeHistory is true."
+          },
+          "primaryKey": {
+            "ID": "169E9504-B5F0-4897-9247-3407667A67CD"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "ProjectRisk",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Complete typed JSON payload combining assessment, cadence, root task rollup, and optional history."
+          },
+          "primaryKey": {
+            "ID": "42DBECB4-9330-4F4B-97DA-61CD8425E837"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Summary",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "One-line human-readable summary of the project's risk status."
+          },
+          "primaryKey": {
+            "ID": "94DB935B-C3B0-4184-8505-A9B266BBDA16"
+          }
+        }
+      ],
+      "MJ: Action Result Codes": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "SUCCESS",
+            "IsSuccess": true,
+            "Description": "Latest project risk assessment retrieved."
+          },
+          "primaryKey": {
+            "ID": "B49FF15D-E50F-4731-901F-9A9856815A78"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "NO_ASSESSMENT",
+            "IsSuccess": true,
+            "Description": "Project task is accessible, and no risk assessment has been recorded yet."
+          },
+          "primaryKey": {
+            "ID": "A4E43EEC-0522-48CD-AAE0-AD95C3BB1224"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "VALIDATION_ERROR",
+            "IsSuccess": false,
+            "Description": "Invalid or missing TaskID parameter."
+          },
+          "primaryKey": {
+            "ID": "BFBEAC36-E206-4F5C-8449-93AA003C2C11"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "NOT_FOUND",
+            "IsSuccess": false,
+            "Description": "Task was not found or is not accessible to the caller."
+          },
+          "primaryKey": {
+            "ID": "9EFBC344-4EC6-467F-AA56-E664C1D700C8"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "PERMISSION_DENIED",
+            "IsSuccess": false,
+            "Description": "Caller is not authorized to read project risk data."
+          },
+          "primaryKey": {
+            "ID": "00751AAA-92C2-4B89-8DAB-6D0C1229BE86"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "POLICY_DENIED",
+            "IsSuccess": false,
+            "Description": "Blocked by the user agent policy."
+          },
+          "primaryKey": {
+            "ID": "504DFA77-ED67-430F-8284-919D34DF4873"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "POLICY_DEFERRED",
+            "IsSuccess": false,
+            "Description": "Deferred until the next allowed policy time window."
+          },
+          "primaryKey": {
+            "ID": "E3289ACF-CDAC-472A-ADE6-0A92794660BA"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "ERROR",
+            "IsSuccess": false,
+            "Description": "Unexpected execution or query error."
+          },
+          "primaryKey": {
+            "ID": "C5816234-FE2E-4F74-BF24-301FB104127A"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "fields": {
+      "Name": "Request Project Risk Review",
+      "CategoryID": "@lookup:MJ: Action Categories.Name=Tasks",
+      "Description": "Triggers an on-demand Project Risk Analyst evaluation running as the project owner user (consuming subtask velocity, blocked dependencies, check-ins, overdue items, ML breach probability, and sanitized calendar free/busy windows with zero event subject or body exposure), persists a Task Risk Assessments row, and synchronizes HealthStatus, ConfidenceScore, and ForecastCompletionDate onto the root project task.",
+      "Type": "Custom",
+      "DriverClass": "RequestProjectRiskReviewAction",
+      "IconClass": "fa-solid fa-magnifying-glass-chart",
+      "UserPrompt": "Run an on-demand AI project risk review and forecast update for a project task.",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "30E51973-5EF0-447C-8225-2BF57C216857"
+    },
+    "relatedEntities": {
+      "MJ: Action Params": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "TaskID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": true,
+            "Description": "UUID of the project root task (or descendant subtask, resolved to the root project task)."
+          },
+          "primaryKey": {
+            "ID": "D4DD34A7-3760-491E-8164-BBE6EC9499E1"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Force",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "When true (default), runs immediately regardless of cadence cooldown; when false, respects Weekly/Daily cadence cooldown.",
+            "DefaultValue": "true"
+          },
+          "primaryKey": {
+            "ID": "3272902D-25C5-4D22-A1F5-3CA6C2951893"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "MLBreachProbability",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional ML SLA breach probability override in [0, 1]."
+          },
+          "primaryKey": {
+            "ID": "190CD883-94D2-4952-82B2-CC60E590C94A"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "MLBreachRiskBand",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional ML SLA risk band override (Low, Medium, High, Critical)."
+          },
+          "primaryKey": {
+            "ID": "605DA842-4E60-4C33-A916-74F99CF4854C"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "FreeBusyJSON",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional JSON array of assignee calendar free/busy slot overrides (strictly sanitized to remove any subject/body/title/attendee metadata)."
+          },
+          "primaryKey": {
+            "ID": "6853A639-34C1-479A-AB6B-6424C043958A"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "AssessmentID",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "UUID of the newly persisted Task Risk Assessments record."
+          },
+          "primaryKey": {
+            "ID": "6F10667A-4239-41D2-9EE9-A40FDDCCD996"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "HealthStatus",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Assessed project health status (OnTrack, AtRisk, OffTrack, Completed, Paused)."
+          },
+          "primaryKey": {
+            "ID": "2705D1F4-D6B2-4402-BED6-EAD7FEF4C488"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "ForecastCompletionDate",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "ISO-8601 forecasted project completion date."
+          },
+          "primaryKey": {
+            "ID": "5F02D854-4065-418E-B97C-B41CDDF3EE4B"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "ForecastConfidence",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Forecast confidence percentage (0-100)."
+          },
+          "primaryKey": {
+            "ID": "49821FE5-BB6D-4D5E-BF12-F5542D5725D9"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "MLBreachProbabilityOutput",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Persisted ML SLA breach probability score (0.0000-1.0000)."
+          },
+          "primaryKey": {
+            "ID": "F5E57922-BEA3-4C3E-A05D-FC10EC82F2D1"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Risks",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "JSON array of typed risk objects (kind, severity, evidenceLinks, suggestedMitigation)."
+          },
+          "primaryKey": {
+            "ID": "F4B7F2B0-55E9-4572-8BB0-F5ED7C557222"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Cadence",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Active monitoring cadence evaluated for the project (Weekly or Daily)."
+          },
+          "primaryKey": {
+            "ID": "5E75B435-DDD4-4D5C-9805-D5C7FDD4339A"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Assessment",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Complete JSON result including assessment metrics, typed risks, cadence, and synchronized root task rollup."
+          },
+          "primaryKey": {
+            "ID": "E597B0FF-FC1D-434B-A109-2104167704DE"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Summary",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "One-line human-readable summary of the completed risk review."
+          },
+          "primaryKey": {
+            "ID": "B255FDD2-A0DC-4020-B46E-C01439BB598D"
+          }
+        }
+      ],
+      "MJ: Action Result Codes": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "SUCCESS",
+            "IsSuccess": true,
+            "Description": "Project risk review completed and persisted."
+          },
+          "primaryKey": {
+            "ID": "5AC535EF-988C-4F28-8854-37BA7E7941EE"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "SKIPPED_COOLDOWN",
+            "IsSuccess": true,
+            "Description": "Skipped because Force=false and a fresh assessment already exists within the active cadence window."
+          },
+          "primaryKey": {
+            "ID": "05425A14-E75D-43CC-B5F7-98C4CB3C118C"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "VALIDATION_ERROR",
+            "IsSuccess": false,
+            "Description": "Invalid TaskID, MLBreachProbability, MLBreachRiskBand, or FreeBusyJSON parameter."
+          },
+          "primaryKey": {
+            "ID": "B5CF190B-FC3D-47AA-8E10-F3A0D1ED7432"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "NOT_FOUND",
+            "IsSuccess": false,
+            "Description": "Task was not found or is not accessible to the caller."
+          },
+          "primaryKey": {
+            "ID": "9178FA22-B339-42A0-8B48-90A0D3CCC1DE"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "PERMISSION_DENIED",
+            "IsSuccess": false,
+            "Description": "Caller is not authorized to trigger a risk review on this project task."
+          },
+          "primaryKey": {
+            "ID": "8D5A2818-4884-44E9-8A96-679F1F403F70"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "POLICY_DENIED",
+            "IsSuccess": false,
+            "Description": "Blocked by the user agent policy."
+          },
+          "primaryKey": {
+            "ID": "E4E1E3F1-EFCC-46AC-BDE2-AC30737F3CEE"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "ERROR",
+            "IsSuccess": false,
+            "Description": "Unexpected execution or persistence error."
+          },
+          "primaryKey": {
+            "ID": "8A76E1C2-3D4B-4E11-9F1A-11B2C3D4E5F6"
+          }
+        }
+      ]
+    }
   }
 ]
