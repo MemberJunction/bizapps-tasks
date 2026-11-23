@@ -2956,6 +2956,10 @@ export const mjBizAppsTasksTaskSchema = z.object({
         * * Field Name: Organization
         * * Display Name: Organization Name
         * * SQL Data Type: nvarchar(255)`),
+    RecurrenceTemplate: z.string().nullable().describe(`
+        * * Field Name: RecurrenceTemplate
+        * * Display Name: Recurrence Template
+        * * SQL Data Type: nvarchar(255)`),
     RootParentID: z.string().nullable().describe(`
         * * Field Name: RootParentID
         * * Display Name: Root Parent ID

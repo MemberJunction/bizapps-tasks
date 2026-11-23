@@ -7428,6 +7428,14 @@ export class mjBizAppsTasksTask_ {
     @Field({nullable: true, description: "AI-forecasted completion date synced from the latest Task Risk Assessment for project health rollups and Chief of Staff briefings."})
     ForecastCompletionDate?: Date;
         
+    @Field({nullable: true, description: "Template ID stamped on the root task of a recurring playbook run; combined with OrganizationID and RecurrencePeriodKey in UX_Task_RecurringPlaybook_Org_Period to guarantee atomic idempotency."}) 
+    @MaxLength(36)
+    RecurrenceTemplateID?: string;
+        
+    @Field({nullable: true, description: "Fiscal or recurrence period key (e.g., 2026-12 or 2026-Q4) stamped on the root task of a recurring playbook run for database-enforced uniqueness per organization and template."}) 
+    @MaxLength(40)
+    RecurrencePeriodKey?: string;
+        
     @Field({nullable: true}) 
     @MaxLength(100)
     Type?: string;
@@ -7451,6 +7459,10 @@ export class mjBizAppsTasksTask_ {
     @Field({nullable: true}) 
     @MaxLength(255)
     Organization?: string;
+        
+    @Field({nullable: true}) 
+    @MaxLength(255)
+    RecurrenceTemplate?: string;
         
     @Field({nullable: true}) 
     @MaxLength(36)
@@ -7605,6 +7617,12 @@ export class CreatemjBizAppsTasksTaskInput {
     @Field({ nullable: true })
     ForecastCompletionDate: Date | null;
 
+    @Field({ nullable: true })
+    RecurrenceTemplateID: string | null;
+
+    @Field({ nullable: true })
+    RecurrencePeriodKey: string | null;
+
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
 }
@@ -7728,6 +7746,12 @@ export class UpdatemjBizAppsTasksTaskInput {
 
     @Field({ nullable: true })
     ForecastCompletionDate?: Date | null;
+
+    @Field({ nullable: true })
+    RecurrenceTemplateID?: string | null;
+
+    @Field({ nullable: true })
+    RecurrencePeriodKey?: string | null;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];
