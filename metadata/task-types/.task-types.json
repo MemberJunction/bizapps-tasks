@@ -70,7 +70,10 @@
       "Description": "An approval/decision workflow request routed to one or more approvers. Consumers wire OnReject/OnCancel/OnComplete actions to feed the decision back to the source record.",
       "IconClass": "fa-solid fa-stamp",
       "DefaultPriority": "High",
-      "IsApproval": true
+      "IsApproval": true,
+      "OnCompleteActionID": "@lookup:MJ: Actions.Name=Process Approval Request Outcome",
+      "OnRejectActionID": "@lookup:MJ: Actions.Name=Process Approval Request Outcome",
+      "OnCancelActionID": "@lookup:MJ: Actions.Name=Process Approval Request Outcome"
     },
     "primaryKey": {
       "ID": "5961EDE5-B996-4083-BE48-64634B4D8D1C"

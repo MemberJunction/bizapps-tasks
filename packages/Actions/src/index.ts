@@ -6,6 +6,7 @@ export * from './custom/WorkReportActions.js';
 export * from './custom/TaskTypedActions.js';
 export * from './custom/MeetingTypedActions.js';
 export * from './custom/ExecuteAssignedAgentAction.js';
+export * from './custom/ApprovalOutcomeHookAction.js';
 export * from './custom/RunRecurringPlaybooksAction.js';
 export * from './custom/ProjectRiskActions.js';
 export { registerChiefOfStaffWakeDispatcher } from './custom/action-helpers.js';
