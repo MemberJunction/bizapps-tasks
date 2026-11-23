@@ -13,17 +13,20 @@ import {
     WorkReportService,
     type TaskSimilarityCandidate,
 } from '@mj-biz-apps/tasks-core';
-import type {
-    mjBizAppsTasksTaskActivityEntity,
-    mjBizAppsTasksTaskAssignmentEntity,
-    mjBizAppsTasksTaskCheckInEntity,
-    mjBizAppsTasksTaskCommentEntity,
-    mjBizAppsTasksTaskDependencyEntity,
-    mjBizAppsTasksTaskEntity,
-    mjBizAppsTasksTaskLinkEntity,
-    mjBizAppsTasksTaskRoleEntity,
-    mjBizAppsTasksTaskTypeEntity,
-    mjBizAppsTasksWorkReportEntity,
+import {
+    FilterGenericCreatableTaskTypes,
+    IsGenericCreatableTaskType,
+    IsPlanningOwnedTaskType,
+    type mjBizAppsTasksTaskActivityEntity,
+    type mjBizAppsTasksTaskAssignmentEntity,
+    type mjBizAppsTasksTaskCheckInEntity,
+    type mjBizAppsTasksTaskCommentEntity,
+    type mjBizAppsTasksTaskDependencyEntity,
+    type mjBizAppsTasksTaskEntity,
+    type mjBizAppsTasksTaskLinkEntity,
+    type mjBizAppsTasksTaskRoleEntity,
+    type mjBizAppsTasksTaskTypeEntity,
+    type mjBizAppsTasksWorkReportEntity,
 } from '@mj-biz-apps/tasks-entities';
 import {
     AI_AGENTS_ENTITY,
@@ -116,6 +119,8 @@ interface TaskTypeLookupRow {
     Name: string;
     Code: string;
     IsApproval?: boolean;
+    IsActive?: boolean | null;
+    ExtensionEntity?: string | null;
 }
 
 interface RawTaskAssignmentRow {
@@ -165,7 +170,15 @@ function toCompactSummary(row: TaskSummaryRow): CompactTaskSummary {
     };
 }
 
-function isPlanningTaskType(typeRow: { Code?: string | null; Name?: string | null }): boolean {
+function isPlanningTaskType(typeRow: {
+    ID?: string | null;
+    Code?: string | null;
+    Name?: string | null;
+    ExtensionEntity?: string | null;
+}): boolean {
+    if (IsPlanningOwnedTaskType(typeRow)) {
+        return true;
+    }
     const code = (typeRow.Code ?? '').trim().toUpperCase();
     const name = (typeRow.Name ?? '').trim().toLowerCase();
     return PLANNING_TASK_TYPE_CODES.has(code) || PLANNING_TASK_TYPE_NAMES.has(name);
@@ -176,7 +189,7 @@ async function loadAllTaskTypes(contextUser: UserInfo): Promise<TaskTypeLookupRo
     const res = await rv.RunView<TaskTypeLookupRow>(
         {
             EntityName: TASK_TYPES_ENTITY,
-            Fields: ['ID', 'Name', 'Code', 'IsApproval'],
+            Fields: ['ID', 'Name', 'Code', 'IsApproval', 'IsActive', 'ExtensionEntity'],
             ResultType: 'simple',
             MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.WorkflowBatchMaxRows,
         },
@@ -945,8 +958,9 @@ export class CreateTaskAction extends BaseAction {
                 resolvedAssignee = lookup.Person;
             }
 
-            // Resolve TaskType
+            // Resolve active creatable TaskType (reject inactive & legacy OKR / Planning-owned types)
             const allTypes = await loadAllTaskTypes(user);
+            const creatableTypes = FilterGenericCreatableTaskTypes(allTypes);
             let selectedType: TaskTypeLookupRow | undefined;
             if (taskTypeName) {
                 const needle = taskTypeName.trim().toLowerCase();
@@ -959,14 +973,25 @@ export class CreateTaskAction extends BaseAction {
                 if (!selectedType) {
                     return failResult('NOT_FOUND', `TaskType '${taskTypeName}' was not found.`, params);
                 }
+                if (!IsGenericCreatableTaskType(selectedType)) {
+                    return failResult(
+                        'VALIDATION_ERROR',
+                        `TaskType '${selectedType.Name}' (${selectedType.Code}) is inactive or managed outside generic task creation and cannot be used to create new tasks.`,
+                        params,
+                    );
+                }
             } else {
                 selectedType =
-                    allTypes.find((t) => t.Code.toUpperCase() === 'GENERAL') ??
-                    allTypes.find((t) => t.Name.toLowerCase() === 'general') ??
-                    allTypes[0];
+                    creatableTypes.find((t) => t.Code.toUpperCase() === 'GENERAL') ??
+                    creatableTypes.find((t) => t.Name.toLowerCase() === 'general') ??
+                    creatableTypes[0];
             }
             if (!selectedType) {
-                return failResult('VALIDATION_ERROR', 'No Task Types are installed to create a task.', params);
+                return failResult(
+                    'VALIDATION_ERROR',
+                    'No active creatable Task Types are installed to create a task.',
+                    params,
+                );
             }
 
             const md = new Metadata();

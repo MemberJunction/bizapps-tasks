@@ -15,6 +15,12 @@ export const PRIORITY_EXTENSION_ENTITY = 'MJ_BizApps_Planning: Priority Tasks';
 /** Entity name prefix identifying entities owned by BizApps Planning. */
 export const PLANNING_EXTENSION_ENTITY_PREFIX = 'MJ_BizApps_Planning:';
 
+/** Canonical lowercase UUIDs for deactivated legacy OKR task types (`PRIORITY_OBJECTIVE` and `KEY_RESULT`). */
+export const LEGACY_OKR_TASK_TYPE_IDS: ReadonlySet<string> = new Set([
+    '8d42a1b9-3e71-4c5a-9f20-1b6e8d3a9c01', // PRIORITY_OBJECTIVE
+    '8d42a1b9-3e71-4c5a-9f20-1b6e8d3a9c02', // KEY_RESULT
+]);
+
 /** Legacy OKR task type codes superseded by BizApps Planning and generic measurable tasks. */
 export const LEGACY_OKR_TASK_TYPE_CODES: ReadonlySet<string> = new Set([
     'PRIORITY_OBJECTIVE',
@@ -46,6 +52,7 @@ export const PLANNING_OWNED_TASK_TYPE_NAMES: ReadonlySet<string> = new Set([
  * `ExtensionEntity` ownership and generic creation eligibility.
  */
 export interface TaskTypeClassificationInput {
+    ID?: string | null;
     Code?: string | null;
     Name?: string | null;
     ExtensionEntity?: string | null;
@@ -105,10 +112,14 @@ export function IsPlanningExtensionEntity(extensionEntity: string | null | undef
 
 /** Returns `true` when a TaskType represents a legacy OKR type (`PRIORITY_OBJECTIVE` or `KEY_RESULT`). */
 export function IsLegacyOkrTaskType(
-    taskType: Pick<TaskTypeClassificationInput, 'Code' | 'Name'> | null | undefined,
+    taskType: Pick<TaskTypeClassificationInput, 'ID' | 'Code' | 'Name'> | null | undefined,
 ): boolean {
     if (!taskType) {
         return false;
+    }
+    const id = (taskType.ID ?? '').trim().toLowerCase();
+    if (id && LEGACY_OKR_TASK_TYPE_IDS.has(id)) {
+        return true;
     }
     const code = (taskType.Code ?? '').trim().toUpperCase();
     if (code && LEGACY_OKR_TASK_TYPE_CODES.has(code)) {
@@ -119,8 +130,34 @@ export function IsLegacyOkrTaskType(
 }
 
 /**
+ * Returns `true` when a TaskType is active for selector dropdowns (`IsActive !== false`)
+ * and is not a deactivated legacy OKR task type (`PRIORITY_OBJECTIVE` or `KEY_RESULT`).
+ */
+export function IsActiveSelectableTaskType(
+    taskType: TaskTypeClassificationInput | null | undefined,
+): boolean {
+    if (!taskType) {
+        return false;
+    }
+    if (taskType.IsActive === false) {
+        return false;
+    }
+    if (IsLegacyOkrTaskType(taskType)) {
+        return false;
+    }
+    return true;
+}
+
+/** Filters a list of TaskTypes down to active, non-legacy-OKR types eligible for selector dropdowns. */
+export function FilterActiveSelectableTaskTypes<T extends TaskTypeClassificationInput>(
+    taskTypes: readonly T[],
+): T[] {
+    return taskTypes.filter((taskType) => IsActiveSelectableTaskType(taskType));
+}
+
+/**
  * Returns `true` when a TaskType is owned by BizApps Planning (by external Planning
- * `ExtensionEntity`, `PRIORITY` code/name, or legacy OKR code/name).
+ * `ExtensionEntity`, `PRIORITY` code/name, or legacy OKR ID/code/name).
  */
 export function IsPlanningOwnedTaskType(
     taskType: TaskTypeClassificationInput | null | undefined,
@@ -129,6 +166,9 @@ export function IsPlanningOwnedTaskType(
         return false;
     }
     if (IsPlanningExtensionEntity(taskType.ExtensionEntity)) {
+        return true;
+    }
+    if (IsLegacyOkrTaskType(taskType)) {
         return true;
     }
     const code = (taskType.Code ?? '').trim().toUpperCase();

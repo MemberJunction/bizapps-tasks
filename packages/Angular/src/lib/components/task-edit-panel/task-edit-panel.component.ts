@@ -1115,7 +1115,7 @@ export class TaskEditPanelComponent implements OnChanges {
     }
 
     public selectTaskType(tt: TaskTypeOption): void {
-        if (this.isNew && !IsGenericCreatableTaskType(tt)) {
+        if (!IsGenericCreatableTaskType(tt)) {
             return;
         }
         this.form.TypeID = tt.ID;

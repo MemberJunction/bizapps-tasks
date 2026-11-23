@@ -52,6 +52,7 @@ import {
     type TaskDueDateFilterKey,
 } from '@mj-biz-apps/tasks-core';
 import {
+    FilterActiveSelectableTaskTypes,
     FilterGenericCreatableTaskTypes,
     type TaskTypeClassificationInput,
 } from '@mj-biz-apps/tasks-entities';
@@ -1328,7 +1329,7 @@ export class TasksDashboardPageComponent implements OnInit {
                 placeholder: 'All task types',
                 options: [
                     { text: 'All task types', value: null },
-                    ...this.TaskTypes.map((t) => ({ text: t.Name, value: t.ID })),
+                    ...FilterActiveSelectableTaskTypes(this.TaskTypes).map((t) => ({ text: t.Name, value: t.ID })),
                 ],
             },
         ];

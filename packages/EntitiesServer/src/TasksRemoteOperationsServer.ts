@@ -31,6 +31,8 @@ import {
     type RecurringPlaybookOrgResult,
 } from '@mj-biz-apps/tasks-core';
 import {
+    IsGenericCreatableTaskType,
+    IsLegacyOkrTaskType,
     mjBizAppsTasksTaskAssignmentEntity,
     mjBizAppsTasksTaskDependencyEntity,
     mjBizAppsTasksTaskEntity,
@@ -38,6 +40,7 @@ import {
     mjBizAppsTasksTaskTemplateEntity,
     mjBizAppsTasksTaskTemplateItemDependencyEntity,
     mjBizAppsTasksTaskTemplateItemEntity,
+    type TaskTypeClassificationInput,
 } from '@mj-biz-apps/tasks-entities';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -332,6 +335,27 @@ export class TasksBulkUpdateServerOperation extends TasksBulkUpdateOperation {
         let assigneeRoleID: string | null = null;
 
         const rv = RunView.FromMetadataProvider(provider);
+
+        if (targetTypeID) {
+            if (IsLegacyOkrTaskType({ ID: targetTypeID })) {
+                throw new Error('Cannot bulk-assign tasks to an inactive legacy OKR task type.');
+            }
+            const typeRes = await rv.RunView<TaskTypeClassificationInput & { ID: string; Name?: string | null }>({
+                EntityName: 'MJ_BizApps_Tasks: Task Types',
+                ExtraFilter: `ID = '${targetTypeID}'`,
+                Fields: ['ID', 'Name', 'Code', 'ExtensionEntity', 'IsActive'],
+                MaxRows: limits.ResourceGuards.DefaultLookupSingleRow,
+                ResultType: 'simple',
+            }, user);
+            if (typeRes.Success && typeRes.Results && typeRes.Results.length > 0) {
+                const targetType = typeRes.Results[0];
+                if (!IsGenericCreatableTaskType(targetType)) {
+                    throw new Error(
+                        `TaskType '${targetType.Name ?? targetTypeID}' is inactive or managed outside generic task creation and cannot be assigned via bulk update.`,
+                    );
+                }
+            }
+        }
 
         if (assigneeMode === 'replace' || assigneeMode === 'add') {
             const entityName = input.AssigneeEntityName?.trim();
