@@ -16,5 +16,3 @@
 -- This file exists so the release gate, which requires a Metadata_Sync migration whenever
 -- metadata/ changes, records that the change ships. It contains no statements.
 -- =============================================================================================
--- On lts/6.2 this file is stamped V202611201300, before the 1.15 feature migrations that are
--- on next only; next carries the same comment-only file as V202611231320. Running both is a no-op.
