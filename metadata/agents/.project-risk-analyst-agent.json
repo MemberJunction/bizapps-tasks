@@ -1,0 +1,72 @@
+[
+  {
+    "fields": {
+      "Name": "Project Risk Analyst",
+      "Description": "AI Project Risk Analyst that executes as the project owner user on the High model tier rhythm to evaluate subtask velocity, blocked dependencies, task check-ins, overdue items, ML breach probability, and strict calendar free/busy availability (zero event subject or body exposure), escalating review cadence from weekly to daily in the final 20% of the project timeline.",
+      "TypeID": "@lookup:MJ: AI Agent Types.Name=Loop",
+      "Status": "Active",
+      "IconClass": "fa-solid fa-shield-halved",
+      "ModelSelectionMode": "Agent",
+      "DefaultPromptEffortLevel": 85,
+      "ExecutionOrder": 0,
+      "ExecutionMode": "Sequential",
+      "ExposeAsAction": false,
+      "InvocationMode": "Any",
+      "TypeConfiguration": {
+        "executionIdentity": "ProjectOwner",
+        "modelTier": "High",
+        "cadencePolicy": {
+          "defaultFrequency": "Weekly",
+          "finalWindowPercent": 20,
+          "escalatedFrequency": "Daily"
+        },
+        "privacyBoundary": {
+          "calendarMode": "FreeBusyOnly",
+          "forbiddenFields": [
+            "subject",
+            "body",
+            "title",
+            "description",
+            "location",
+            "attendees"
+          ]
+        }
+      }
+    },
+    "relatedEntities": {
+      "MJ: AI Agent Prompts": [
+        {
+          "fields": {
+            "AgentID": "@parent:ID",
+            "PromptID": "@lookup:MJ: AI Prompts.Name=Tasks: Project Risk Analyst",
+            "ExecutionOrder": 0,
+            "Status": "Active"
+          },
+          "primaryKey": {
+            "ID": "B7F2D101-7A24-4699-9BB4-5D35817B0011"
+          }
+        }
+      ],
+      "MJ: AI Agent Configurations": [
+        {
+          "fields": {
+            "AgentID": "@parent:ID",
+            "Name": "High",
+            "DisplayName": "High",
+            "Description": "High model tier rhythm for deep project risk analysis, schedule forecasting, and mitigation synthesis.",
+            "AIConfigurationID": "@lookup:MJ: AI Configurations.Name=High Power",
+            "IsDefault": true,
+            "Priority": 3,
+            "Status": "Active"
+          },
+          "primaryKey": {
+            "ID": "B7F2D101-7A24-4699-9BB4-5D35817B0012"
+          }
+        }
+      ]
+    },
+    "primaryKey": {
+      "ID": "B7F2D101-7A24-4699-9BB4-5D35817B0010"
+    }
+  }
+]

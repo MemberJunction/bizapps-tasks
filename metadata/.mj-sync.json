@@ -30,6 +30,7 @@
     "ml-models",
     "ml-model-scoring-bindings",
     "prompts",
+    "agents",
     "meeting-agenda-item-types",
     "meeting-types",
     "video-providers",
