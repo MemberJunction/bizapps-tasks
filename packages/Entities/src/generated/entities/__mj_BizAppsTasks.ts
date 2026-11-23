@@ -8073,6 +8073,15 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     }
 
     /**
+    * * Field Name: RecurrenceTemplate
+    * * Display Name: Recurrence Template
+    * * SQL Data Type: nvarchar(255)
+    */
+    get RecurrenceTemplate(): string | null {
+        return this.Get('RecurrenceTemplate');
+    }
+
+    /**
     * * Field Name: RootParentID
     * * Display Name: Root Parent ID
     * * SQL Data Type: uniqueidentifier
