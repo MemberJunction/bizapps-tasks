@@ -19,6 +19,7 @@ import { TaskOverviewPanel } from './task-overview.panel';
 import { TaskSubtasksPanel } from './task-subtasks.panel';
 import { TaskTimePanel } from './task-time.panel';
 import { TaskTemplateItemHierarchyPanel } from './task-template-item-hierarchy.panel';
+import { TaskRiskAssessmentRisksPanel } from './task-risk-assessment.panel';
 
 const MODULE_PANELS = [TaskHeaderPanel, TaskSubtasksPanel, TaskOverviewPanel, TaskTimePanel];
 
@@ -39,11 +40,13 @@ const MODULE_PANELS = [TaskHeaderPanel, TaskSubtasksPanel, TaskOverviewPanel, Ta
         TaskTimeEffortComponent,
         TaskCategoryHierarchyPanel,
         TaskTemplateItemHierarchyPanel,
+        TaskRiskAssessmentRisksPanel,
     ],
     exports: [
         ...MODULE_PANELS,
         TaskCategoryHierarchyPanel,
         TaskTemplateItemHierarchyPanel,
+        TaskRiskAssessmentRisksPanel,
     ],
 })
 export class TasksFormsModule {}

@@ -11,6 +11,7 @@ import { TemplatesPageComponent } from '../pages/templates.page';
 import { TaskDashboardComponent } from '../components/task-dashboard/task-dashboard.component';
 import { ChiefOfStaffWorkReportsResource } from '../chief-of-staff/chief-of-staff-work-reports.component';
 import { GeneratedFormsModule } from '../generated/generated-forms.module';
+import { TaskRiskAssessmentRisksPanel } from '../form-panels/task-risk-assessment.panel';
 
 /**
  * 1. Tasks Section Resource — Projects & All Work Tab
@@ -27,6 +28,7 @@ import { GeneratedFormsModule } from '../generated/generated-forms.module';
         TaskDashboardComponent,
         ChiefOfStaffWorkReportsResource,
         GeneratedFormsModule,
+        TaskRiskAssessmentRisksPanel,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
@@ -36,6 +38,8 @@ import { GeneratedFormsModule } from '../generated/generated-forms.module';
             <bizapps-chief-of-staff-work-reports></bizapps-chief-of-staff-work-reports>
             <gen-mjbizappstasksworkreport-form></gen-mjbizappstasksworkreport-form>
             <gen-mjbizappstasksworkreportitem-form></gen-mjbizappstasksworkreportitem-form>
+            <gen-mjbizappstaskstaskriskassessment-form></gen-mjbizappstaskstaskriskassessment-form>
+            <mjt-task-risk-assessment-panel></mjt-task-risk-assessment-panel>
         }
     `,
     styles: [`:host { display: block; width: 100%; height: 100%; }`],

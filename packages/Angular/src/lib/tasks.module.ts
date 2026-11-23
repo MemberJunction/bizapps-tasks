@@ -46,6 +46,8 @@ import {
     LoadTasksSectionResources,
 } from './sections/tasks-sections.component';
 import { ChiefOfStaffWorkReportsResource } from './chief-of-staff/chief-of-staff-work-reports.component';
+import { mjBizAppsTasksTaskRiskAssessmentFormComponent } from './generated/Entities/mjBizAppsTasksTaskRiskAssessment/mjbizappstaskstaskriskassessment.form.component';
+import { TaskRiskAssessmentRisksPanel } from './form-panels/task-risk-assessment.panel';
 
 @NgModule({
     imports: [
@@ -138,4 +140,6 @@ export function LoadBizAppsTasksClient() {
     LoadTasksSectionResources();
     void ChiefOfStaffWorkReportsResource;
     LoadMeetingsSectionResources();
+    void mjBizAppsTasksTaskRiskAssessmentFormComponent;
+    void TaskRiskAssessmentRisksPanel;
 }
