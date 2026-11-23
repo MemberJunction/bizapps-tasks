@@ -145,6 +145,9 @@ export class BeforeTaskSaveEvent {
                                 <span>{{ activeTaskType.Name }}</span>
                                 <span class="mjt-type-locked-note">{{ currentTypeOwnershipNote }}</span>
                             </div>
+                            @if (legacyOkrMigrationHelpText) {
+                                <p class="mjt-ep-hint" data-testid="legacy-okr-help">{{ legacyOkrMigrationHelpText }}</p>
+                            }
                         } @else if (creatableTaskTypes.length > 0) {
                             <div class="mjt-type-strip" role="radiogroup" aria-label="Task type">
                                 @for (tt of creatableTaskTypes; track tt.ID) {
@@ -511,6 +514,9 @@ export class BeforeTaskSaveEvent {
                                         <input type="checkbox" name="trackMetrics" [(ngModel)]="trackMetrics" [disabled]="ReadOnly" />
                                         <span>Track measurable metric target &amp; check-in cadence</span>
                                     </label>
+                                    <p class="mjt-ep-hint">
+                                        For strategic OKRs (Objectives &amp; Key Results), use <strong>BizApps Planning</strong> or migrate legacy OKR tasks with the <strong>Import Tasks OKRs</strong> action.
+                                    </p>
                                 }
 
                                 <!-- Tags -->
@@ -1004,6 +1010,19 @@ export class TaskEditPanelComponent implements OnChanges {
             return 'Legacy OKR type (read-only)';
         }
         return 'Inactive type (read-only)';
+    }
+
+    public get legacyOkrMigrationHelpText(): string | null {
+        const tt = this.activeTaskType;
+        if (!tt) return null;
+        if (
+            IsPlanningOwnedTaskType(tt) &&
+            !IsPlanningExtensionEntity(tt.ExtensionEntity) &&
+            (tt.Code ?? '').trim().toUpperCase() !== 'PRIORITY'
+        ) {
+            return 'OKRs are managed in BizApps Planning. Run the Import Tasks OKRs action to migrate legacy OKR tasks.';
+        }
+        return null;
     }
 
     private hasMetricValues(): boolean {

@@ -111,7 +111,7 @@ packages/Angular/src/lib/components/running-timer-chip/running-timer-chip.compon
 packages/Angular/src/lib/components/running-timer-chip/running-timer-chip.component.ts,446,setInterval,1000,RunningTimerChipComponent.startTickInterval,UX,retained-ux-local
 packages/Angular/src/lib/components/task-detail-panel/task-detail-panel.component.ts,999,MaxRows,1,TaskDetailPanelComponent.loadTypeAndSpotlight,UX,deferred-ux:ResourceGuards
 packages/Angular/src/lib/components/task-drawer-shell/task-drawer-shell.component.ts,65,WidthPx,560,TaskDrawerShellComponent,UX,retained-ux-local
-packages/Angular/src/lib/components/task-edit-panel/task-edit-panel.component.ts,1210,MaxRows,250,TaskEditPanelComponent.loadLookups,UX,deferred-ux:ResourceGuards
+packages/Angular/src/lib/components/task-edit-panel/task-edit-panel.component.ts,1229,MaxRows,250,TaskEditPanelComponent.loadLookups,UX,deferred-ux:ResourceGuards
 packages/Angular/src/lib/components/task-gantt/task-gantt.component.ts,678,MaxRows,500,TaskGanttComponent.LoadData,UX,deferred-ux:ResourceGuards
 packages/Angular/src/lib/components/task-gantt/task-gantt.component.ts,702,MaxRows,500,TaskGanttComponent.LoadData,UX,deferred-ux:ResourceGuards
 packages/Angular/src/lib/components/task-gantt/task-gantt.component.ts,709,MaxRows,1000,TaskGanttComponent.LoadData,UX,deferred-ux:ResourceGuards
@@ -138,7 +138,7 @@ packages/Angular/src/lib/pages/approvals.page.ts,517,MaxRows,50,ApprovalsPageCom
 packages/Angular/src/lib/pages/meetings.page.ts,115,setTimeout,250,MeetingsPageComponent.reload,UX,retained-ux-local
 packages/Angular/src/lib/pages/my-tasks.page.ts,695,this.AllTasks.slice_Cap,20,MyTasksPageComponent.CommandItems,UX,retained-ux-local
 packages/Angular/src/lib/pages/my-tasks.page.ts,879,MaxRows,1,MyTasksPageComponent.OnQuickCapture,UX,deferred-ux:ResourceGuards
-packages/Angular/src/lib/pages/tasks-dashboard.page.ts,1163,MaxRows,1000,TasksDashboardPageComponent.LoadKPIs,UX,deferred-ux:ResourceGuards
+packages/Angular/src/lib/pages/tasks-dashboard.page.ts,1184,MaxRows,1000,TasksDashboardPageComponent.LoadKPIs,UX,deferred-ux:ResourceGuards
 packages/Angular/src/lib/task-field-suggestions.helper.ts,83,MAX_INLINE_SQL_TASK_IDS,200,<module>,UX,deferred-ux:ResourceGuards
 packages/Angular/src/lib/task-field-suggestions.helper.ts,84,MAX_PREVIEW_VALUE_LENGTH,36,<module>,UX,retained-ux-local
 packages/AngularWidgets/src/lib/meeting-live.component.ts,330,setInterval,1000,MeetingLiveComponent.ngOnChanges,UX,retained-ux-local
