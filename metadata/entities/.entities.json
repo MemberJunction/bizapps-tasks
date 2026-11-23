@@ -149,6 +149,15 @@
             "Description": "Timestamp when the next progress check-in is due based on CheckInCadence; used for scheduled check-in reminders.",
             "AutoUpdateDescription": false
           }
+        },
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.Name=ForecastCompletionDate&EntityID=@parent:ID"
+          },
+          "fields": {
+            "Description": "AI-forecasted completion date synced from the latest Task Risk Assessment for project health rollups and Chief of Staff briefings.",
+            "AutoUpdateDescription": false
+          }
         }
       ]
     },
@@ -529,6 +538,39 @@
           },
           "fields": {
             "Description": "The measurable task or deliverable this check-in updates.",
+            "AutoUpdateDescription": false
+          }
+        }
+      ]
+    }
+  },
+  {
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Risk Assessments"
+    },
+    "fields": {
+      "Description": "AI-generated project risk assessments and completion date forecasts linked to a root project Task, syncing latest health, confidence, and forecast completion date onto the Task.",
+      "AutoUpdateDescription": false,
+      "AllowUserSearchAPI": false,
+      "AutoUpdateAllowUserSearchAPI": false
+    },
+    "relatedEntities": {
+      "MJ: Entity Fields": [
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.Name=TaskID&EntityID=@parent:ID"
+          },
+          "fields": {
+            "Description": "The project root task (or tracked task) evaluated by this risk assessment.",
+            "AutoUpdateDescription": false
+          }
+        },
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.Name=Risks&EntityID=@parent:ID"
+          },
+          "fields": {
+            "Description": "JSON array of structured risk items ({ kind, severity, evidenceLinks, suggestedMitigation }).",
             "AutoUpdateDescription": false
           }
         }
