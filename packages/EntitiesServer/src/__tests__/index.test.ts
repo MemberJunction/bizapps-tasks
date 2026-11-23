@@ -26,7 +26,7 @@ vi.mock('@memberjunction/core', () => ({
         }
     },
     BaseRemotableOperation: class {},
-    CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },
+    CompositeKey: class { constructor(public KeyValuePairs: Array<{ FieldName: string; Value: string | number | boolean | null }>) {} },
     EntityPermissionType: { Read: 'Read' },
     LogError: () => {},
     LogStatus: () => {},

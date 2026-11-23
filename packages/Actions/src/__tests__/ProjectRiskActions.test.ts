@@ -677,7 +677,14 @@ describe('Project Risk Actions (GetProjectRiskAction & RequestProjectRiskReviewA
             expect(readOutput<number | null>(res, 'TotalCostUSD')).toBeNull();
             expect(readOutput<number>(res, 'PromptTokens')).toBe(1200);
 
-            const rootTaskOut = JSON.parse(readOutput<string>(res, 'RootTask') ?? '{}') as Record<string, unknown>;
+            interface MaskedRootTaskOutput {
+                ID?: string;
+                Name?: string;
+                HealthStatus?: string;
+                PredictedSLABreachProbability?: number | null;
+                ConfidenceScore?: number | null;
+            }
+            const rootTaskOut = JSON.parse(readOutput<string>(res, 'RootTask') ?? '{}') as MaskedRootTaskOutput;
             expect(rootTaskOut).not.toHaveProperty('PredictedSLABreachProbability');
             expect(rootTaskOut).not.toHaveProperty('ConfidenceScore');
             expect(rootTaskOut).toHaveProperty('HealthStatus', 'AtRisk');
@@ -685,7 +692,7 @@ describe('Project Risk Actions (GetProjectRiskAction & RequestProjectRiskReviewA
             const assessmentOut = JSON.parse(readOutput<string>(res, 'Assessment') ?? '{}') as {
                 TotalCostUSD: number | null;
                 MLBreachProbability: number | null;
-                RootTask: Record<string, unknown>;
+                RootTask: MaskedRootTaskOutput;
             };
             expect(assessmentOut.TotalCostUSD).toBeNull();
             expect(assessmentOut.MLBreachProbability).toBeNull();

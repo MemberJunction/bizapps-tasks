@@ -32,7 +32,7 @@ describe('Calendar Free/Busy Privacy Guard', () => {
         let caught: Error | null = null;
         try {
             SanitizeFreeBusySlots(sensitiveSlots, windowStart, windowEnd, { mode: 'reject' });
-        } catch (err: unknown) {
+        } catch (err) {
             caught = err instanceof Error ? err : new Error(String(err));
         }
 

@@ -568,7 +568,7 @@ export class GetProjectRiskAction extends BaseAction {
                     RootTask: maskedRootTask,
                     History: [],
                 };
-                const summary = `No risk assessment recorded yet for project "${rootTask.Name}" (cadence: ${cadence.Cadence}).`;
+                const summary = `No risk assessment recorded yet for project "${maskedRootTask.Name ?? rootTask.ID}" (cadence: ${cadence.Cadence}).`;
                 setOutputParam(params, 'HasAssessment', false);
                 setOutputParam(params, 'TaskID', rootTask.ID);
                 setOutputParam(params, 'AssessmentID', null);
@@ -618,7 +618,7 @@ export class GetProjectRiskAction extends BaseAction {
 
             const risksList = maskedLatest.Risks ?? [];
             const summary =
-                `Project "${rootTask.Name}" risk is ${maskedLatest.HealthStatus ?? 'Unknown'} ` +
+                `Project "${maskedRootTask.Name ?? rootTask.ID}" risk is ${maskedLatest.HealthStatus ?? 'Unknown'} ` +
                 `(confidence: ${maskedLatest.ForecastConfidence ?? 'n/a'}%, cadence: ${cadence.Cadence}, risks: ${risksList.length}).`;
 
             setOutputParam(params, 'HasAssessment', true);
