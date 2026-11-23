@@ -45,12 +45,12 @@
     "fields": {
       "AgentID": "@lookup:MJ: AI Agents.Name=Chief of Staff",
       "SkillID": "@lookup:MJ: AI Skills.Name=Work reports",
-      "Name": "Daily 15Five Work Report",
-      "WorkstreamKey": "daily-15five",
-      "Description": "End-of-day 15Five draft synthesized from your task completions, check-ins, and updates (skips quietly on NO_ACTIVITY) and presented for author approval before submitting to your supervisor.",
+      "Name": "Daily Work Report",
+      "WorkstreamKey": "daily-work-report",
+      "Description": "End-of-day work report draft synthesized from your task completions, check-ins, and updates (skips quietly on NO_ACTIVITY) and presented for author approval before submitting to your supervisor.",
       "DefaultCronExpression": "0 17 * * 1-5",
       "DefaultWakeGate": "{\"watchedEntities\":[{\"entityName\":\"MJ_BizApps_Tasks: Tasks\",\"alias\":\"tasks\"},{\"entityName\":\"MJ_BizApps_Tasks: Task Activities\",\"alias\":\"activities\"},{\"entityName\":\"MJ_BizApps_Tasks: Task Check Ins\",\"alias\":\"checkIns\"}],\"wakeGate\":{\"skipIfUnchanged\":true}}",
-      "WakeReason": "Call Draft Work Report for today; stop silently on NO_ACTIVITY, otherwise present the concise 5-minute draft for author approval before submission.",
+      "WakeReason": "Call Draft Work Report for today; stop silently on NO_ACTIVITY, otherwise present the concise draft for author approval before submission.",
       "OfferAt": "Both",
       "Status": "Active"
     },

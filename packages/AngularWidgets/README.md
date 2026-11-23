@@ -28,7 +28,7 @@ Standalone, Router-free, `@memberjunction/ng-shared`-free task UI primitives sty
 
 | Widget | Selector | Purpose |
 |---|---|---|
-| `TaskBulkActionDockComponent` | `<mjt-bulk-action-dock>` | Single-row floating Asana-grade bulk action bar with upward popovers for **Reassign** (Person / MJ Role replace/add/clear), **Redate** (set date, shift ±N days, clear), **Status**, **Org**, and **More Fields** |
+| `TaskBulkActionDockComponent` | `<mjt-bulk-action-dock>` | Single-row floating bulk action bar with upward popovers for **Reassign** (Person / MJ Role replace/add/clear), **Redate** (set date, shift ±N days, clear), **Status**, **Org**, and **More Fields** |
 | `TaskQuickCaptureComponent` | `<mjt-quick-capture>` | Natural-language quick capture input with live parsed preview chips |
 | `TaskCompletionRingComponent` | `<mjt-completion-ring>` | Tactile 1-click completion ring separate from bulk-select checkboxes |
 | `TaskWorkflowStepperComponent` | `<mjt-workflow-stepper>` | Interactive `TaskTypeStatus` stage pipeline stepper |

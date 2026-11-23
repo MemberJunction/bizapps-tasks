@@ -1,8 +1,8 @@
 # Tasks UX Redesign, Organization Scoping & Server-Side Bulk Operations Guide
 
-> **Shareable Offline Version:** Open [`TASKS_UX_ORGANIZATION_AND_BULK_OPS_GUIDE.html`](./TASKS_UX_ORGANIZATION_AND_BULK_OPS_GUIDE.html) in any browser for the full interactive, self-contained HTML edition with 19 embedded base64 2× Retina screenshots, native `<dialog closedby="any">` zoomable lightbox, and Light/Dark toggle.
+> **Shareable Offline Version:** Open [`TASKS_UX_ORGANIZATION_AND_BULK_OPS_GUIDE.html`](./TASKS_UX_ORGANIZATION_AND_BULK_OPS_GUIDE.html) in any browser for the full interactive, self-contained HTML edition with 19 embedded base64 2× HiDPI screenshots, native `<dialog closedby="any">` zoomable lightbox, and Light/Dark toggle.
 
-This guide covers the **Golden Hybrid WCAG 2.1 AA Tasks UX** architecture (`My Work` default tab, `All Work` Tree List / Smart Board / Gantt Timeline, **UserInfoEngine Saved Filter Views**, shared **Multi-View Bulk Action Dock**, FAB-suppressed drawers, and clean Approvals split-pane), **canonical Organization / Company scoping** across multi-entity and client workflows, and **server-side Remotable Operations + Actions** (`BizAppsTasks.BulkUpdateTasks`, `BizAppsTasks.InstantiateTemplate`, `BizAppsTasks.RunRecurringPlaybooks`, `Run Recurring Playbooks`).
+This guide covers the **Golden Hybrid WCAG 2.1 AA Tasks UX** architecture (`My Work` default tab, `All Work` Tree List / Board / Gantt Timeline, **UserInfoEngine Saved Filter Views**, shared **Multi-View Bulk Action Dock**, FAB-suppressed drawers, and clean Approvals split-pane), **canonical Organization / Company scoping** across multi-entity and client workflows, and **server-side Remotable Operations + Actions** (`BizAppsTasks.BulkUpdateTasks`, `BizAppsTasks.InstantiateTemplate`, `BizAppsTasks.RunRecurringPlaybooks`, `Run Recurring Playbooks`).
 
 ---
 
@@ -63,7 +63,7 @@ When creating a new child sub-task (`IsSaved = false`) whose `ParentID` is set a
 
 ## 3. Unified Filtering & Indicators Across List, Board & Gantt
 
-Every view in **Projects & All Work** (`<bizapps-tasks-dashboard-page>`) shares one `<mj-filter-panel>` popover with six filters applied consistently across **Tree List**, **Smart Board**, and **Gantt Timeline**:
+Every view in **Projects & All Work** (`<bizapps-tasks-dashboard-page>`) shares one `<mj-filter-panel>` popover with six filters applied consistently across **Tree List**, **Board**, and **Gantt Timeline**:
 
 - **Assignee**: `All assignees`, `Assigned to Me` (matches direct Person assignment or any of the user's MJ Roles), `Unassigned`, individual People, or MJ Roles.
 - **Due Date**: `Overdue` (active tasks only — excludes Completed/Cancelled), `Due Today`, `Next 7 Days`, `Next 30 Days`, or `No Due Date`.
@@ -72,7 +72,7 @@ Every view in **Projects & All Work** (`<bizapps-tasks-dashboard-page>`) shares 
 
 ### View-Specific Enhancements
 - **Tree List (`<bizapps-task-list>`)**: Displays Organization badges, rich Assignee chips (avatar initials + short name + `+N` overflow + MJ Role icon pill), WBS child rollup counts (`1/3`), tactile completion rings, `TaskTypeStatus` stage pills, polymorphic `mjRecordLink` business records, and Shift+click range selection.
-- **Smart Board (`<bizapps-task-kanban>`)**: 5 grouping modes persisted via `UserInfoEngine` (never `localStorage`): **Organization / Company**, **Macro Status**, **Workflow Stages (`TaskTypeStatus`)**, **Priority**, and **Assignee** — with solid semantic status badge contrast and non-redundant card footers.
+- **Board (`<bizapps-task-kanban>`)**: 5 grouping modes persisted via `UserInfoEngine` (never `localStorage`): **Organization / Company**, **Macro Status**, **Workflow Stages (`TaskTypeStatus`)**, **Priority**, and **Assignee** — with solid semantic status badge contrast and non-redundant card footers.
 - **Gantt Timeline (`<bizapps-task-gantt>`)**: Dedicated **`Assignee`** and **`Organization`** columns rendered beside the DHTMLX timeline (with XSS-safe HTML escaping and an expanded default `GridWidth` of `485px`), Finish-to-Start dependency arrows, zoom persistence, and 1-click **Critical Path** isolation. On phone viewports (`<= 640px`), automatically swaps to `<mjt-mobile-milestone-stack>`.
 
 ---

@@ -625,7 +625,7 @@ export class ReviewWorkReportAction extends BaseAction {
  * Action: `Get My Work Reports Briefing` (`Role = 'Briefing'`, `ExposeToModel = false`)
  *
  * Returns a deterministic Chief of Staff briefing slice containing:
- * - The caller's current `Draft` / recently `Submitted` 15Five work reports (plus whether today's report exists)
+ * - The caller's current `Draft` / recently `Submitted` work reports (plus whether today's report exists)
  * - Any direct reports' `Submitted` work reports awaiting supervisor review
  */
 @RegisterClass(BaseAction, 'GetMyWorkReportsBriefingAction')

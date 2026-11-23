@@ -5,6 +5,8 @@ name: Repo checks
 # must stay identical across the open apps. Before the release-pipeline port these steps ran
 # inside this repo's old build.yml and changes.yml.
 on:
+  push:
+    branches: [next, main, 'lts/**']
   pull_request:
     branches: [next, main, 'lts/**']
     types: [opened, synchronize, reopened, ready_for_review]
@@ -12,10 +14,14 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   repo-guards:
     name: 'repo: guards'
-    if: github.event.pull_request.draft == false
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -47,11 +53,20 @@ jobs:
           fi
           echo "outOfOrder is not enabled"
 
+      - name: Check domain-neutral terminology and WCAG 2.1 AA citations
+        run: npm run check:trademarks
+
+      - name: Check documentation and HTML sidebar anchors
+        run: npm run check:doc-anchors
+
+      - name: Run repository guard script tests
+        run: npm run test:scripts
+
   standards-guard:
     name: 'repo: standards & limits'
-    if: github.event.pull_request.draft == false
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 

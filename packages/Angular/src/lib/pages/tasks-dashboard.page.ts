@@ -99,7 +99,7 @@ const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
  * All Work Dashboard Page — official MJ Chrome Trio
  * (`<mj-page-layout>` + `<mj-page-header>` + `<mj-page-body>`) + collapsible
  * `<mj-left-nav>` Category rail + UserInfoEngine-persisted Saved Filter Views +
- * unified filtered List / 5-Mode Smart Board / Critical-Path Split Gantt +
+ * unified filtered List / 5-Mode Board / Critical-Path Split Gantt +
  * shared `<mjt-bulk-action-dock>` (`BizAppsTasks.BulkUpdateTasks`) across all three views.
  */
 @Component({
@@ -694,7 +694,7 @@ export class TasksDashboardPageComponent implements OnInit {
 
     public ViewToggleOptions: ViewToggleOption[] = [
         { key: 'list', icon: 'fa-solid fa-list', label: 'List', title: 'Tree List View' },
-        { key: 'kanban', icon: 'fa-solid fa-table-columns', label: 'Board', title: 'Smart Board View' },
+        { key: 'kanban', icon: 'fa-solid fa-table-columns', label: 'Board', title: 'Board View' },
         { key: 'gantt', icon: 'fa-solid fa-chart-gantt', label: 'Timeline', title: 'Gantt Timeline View' },
     ];
     public ViewMode: TaskViewMode = 'list';
@@ -716,7 +716,7 @@ export class TasksDashboardPageComponent implements OnInit {
     public ShowSaveViewInput = false;
     public NewViewName = '';
 
-    // Shared multi-select Bulk Action Dock across List, Smart Board, AND Gantt
+    // Shared multi-select Bulk Action Dock across List, Board, AND Gantt
     public SelectedTaskIDs: string[] = [];
     public VisibleTaskIDs: string[] = [];
     public BulkBusy = false;
@@ -827,7 +827,7 @@ export class TasksDashboardPageComponent implements OnInit {
             { ID: 'new-task', Label: 'Create New Task', Group: 'Actions', IconClass: 'fa-solid fa-plus' },
             { ID: 'from-template', Label: 'Launch from Template', Group: 'Actions', IconClass: 'fa-solid fa-copy' },
             { ID: 'view-list', Label: 'Switch to Tree List View', Group: 'Views', IconClass: 'fa-solid fa-list' },
-            { ID: 'view-kanban', Label: 'Switch to Smart Board View', Group: 'Views', IconClass: 'fa-solid fa-table-columns' },
+            { ID: 'view-kanban', Label: 'Switch to Board View', Group: 'Views', IconClass: 'fa-solid fa-table-columns' },
             { ID: 'view-gantt', Label: 'Switch to Timeline / Gantt View', Group: 'Views', IconClass: 'fa-solid fa-chart-gantt' },
             ...savedViewCommands,
             { ID: 'reset-filters', Label: 'Clear All Filters', Group: 'Actions', IconClass: 'fa-solid fa-filter-circle-xmark' },

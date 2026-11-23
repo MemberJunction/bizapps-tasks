@@ -90,7 +90,7 @@ const EXPECTED_COS_SKILLS = [
 const EXPECTED_RHYTHM_KEYS = [
     'tasks-daily-triage',
     'tasks-weekly-review',
-    'daily-15five',
+    'daily-work-report',
 ] as const;
 
 function inputParam(name: string, value: string | number | boolean): ActionParam {
@@ -810,7 +810,7 @@ const checks: NamedCheck[] = [
                 const draftParams = [
                     inputParam('PeriodStart', periodStart),
                     inputParam('PeriodEnd', periodEnd),
-                    inputParam('Title', `TCOS3 15Five ${Date.now()}`),
+                    inputParam('Title', `TCOS3 Work Report ${Date.now()}`),
                     inputParam('Body', '### Completed\n- Completed TCOS3 integration verification task.'),
                 ];
                 const draftRes = await runTypedAction(ctx, 'Draft Work Report', sarahUser, draftParams, logIds);

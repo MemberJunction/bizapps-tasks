@@ -360,7 +360,7 @@ describe('Chief of Staff Tasks Skill & Documentation OKR Steering', () => {
         const readme = readFileSync(join(REPO_ROOT, 'README.md'), 'utf8');
         const migrationDoc = readFileSync(join(REPO_ROOT, 'docs/OKR_DEPRECATION_AND_PLANNING_MIGRATION.md'), 'utf8');
         const workflowGuide = readFileSync(join(REPO_ROOT, 'guides/TASK_WORKFLOW_AND_LIFECYCLE_GUIDE.md'), 'utf8');
-        const workBusGuide = readFileSync(join(REPO_ROOT, 'guides/WORK_BUS_AND_15FIVE_REPORTS_GUIDE.md'), 'utf8');
+        const workBusGuide = readFileSync(join(REPO_ROOT, 'guides/WORK_BUS_AND_WORK_REPORTS_GUIDE.md'), 'utf8');
 
         for (const doc of [readme, migrationDoc, workflowGuide, workBusGuide]) {
             expect(doc).toContain('PRIORITY_OBJECTIVE');

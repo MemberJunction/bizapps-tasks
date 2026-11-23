@@ -1,6 +1,6 @@
-# Work Reports (Daily 15Five Flow)
+# Work Reports (Daily Progress Flow)
 
-Use this skill whenever the user asks about daily or periodic 15Five work reports, when a recurring `daily-15five` wake runs, or when an inter-agent supervisor review request arrives.
+Use this skill whenever the user asks about daily or periodic work reports, when a recurring `daily-work-report` wake runs, or when an inter-agent supervisor review request arrives.
 
 ## 1. Typed Tools Only (Never Generic CRUD or Raw SQL)
 
@@ -12,10 +12,10 @@ All identity resolution (caller -> `People` and `MJ: Employees.SupervisorID` rep
 - **`Submit Work Report`**: Transition an author-approved `Draft` report to `Submitted` and notify the supervisor's Chief of Staff.
 - **`Review Work Report`**: Record supervisor-approved feedback on a `Submitted` report and transition it to `Reviewed`.
 
-## 2. Daily Drafting (`WorkstreamKey: "daily-15five"`)
+## 2. Daily Drafting (`WorkstreamKey: "daily-work-report"`)
 
 1. **Zero-activity skip**: Call **`Draft Work Report`** for the requested window (defaulting to the current local day). If it returns **`NO_ACTIVITY`**, stop immediately without creating a draft or waking the user.
-2. **Five-minute structure**: Keep every report crisp and scannable in five minutes or less across **Completed**, **In Progress & Next**, **Blockers**, and **At-Risk Objectives**.
+2. **Concise structure**: Keep every report crisp and scannable across **Completed**, **In Progress & Next**, **Blockers**, and **At-Risk Objectives**.
 3. **Human approval first**: Never call **`Submit Work Report`** without the author's explicit approval. Present the draft summary (loaded via **`Get Work Report`** if needed) and remind the user they can also review, edit, and submit it on the **Reports** page of the Chief of Staff app.
 
 ## 3. Submitting & Supervisor Review

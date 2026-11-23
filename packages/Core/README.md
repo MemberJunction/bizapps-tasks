@@ -35,11 +35,11 @@ Client- and server-safe core services, settings, and pure business logic for Biz
 - `TimesheetPeriodService`: Resolves a person's effective `TimesheetSchedule` and covering `Timesheet` period.
 
 ### Task Workspace Helpers & Remotable Operations (`src/tasks`)
-- `TasksBulkUpdateOperation` (`BizAppsTasks.BulkUpdateTasks`): Typed `BaseRemotableOperation` shell for Asana-grade server-side bulk updates (Reassign People/MJ Roles, Redate exact/shift ±N days/clear, Status, Priority, Organization, Category, Start Date, Task Type, Workflow Stage, and idempotent Tag linking).
+- `TasksBulkUpdateOperation` (`BizAppsTasks.BulkUpdateTasks`): Typed `BaseRemotableOperation` shell for server-side bulk updates (Reassign People/MJ Roles, Redate exact/shift ±N days/clear, Status, Priority, Organization, Category, Start Date, Task Type, Workflow Stage, and idempotent Tag linking).
 - `TasksInstantiateTemplateOperation` (`BizAppsTasks.InstantiateTemplate`): Typed `BaseRemotableOperation` shell for server-side hierarchical playbook template instantiation with relative offsets, role mappings, dependencies, and target `OrganizationID`.
 - `ParseQuickTaskInput`: Natural-language task parser (`tomorrow`, `@Assignee`, `#Tag`, `!priority`, `~2h`).
 - `ClassifyTaskHorizon`, `ComputeTaskUrgencyCounts`, `ComputeChildRollups`, `ComputeCriticalPathTaskIds`, `GroupTasksIntoMilestones`: Pure workspace bucketing, WBS rollup, DAG critical-path, and mobile milestone helpers.
-- `MatchesDueDateFilter`, `MatchesAssigneeFilter`: Unified Due Date (`overdue`, `today`, `week`, `month`, `none`) and Assignee (`__me__`, `__unassigned__`, `person:<id>`, `role:<id>`) predicates shared across Tree List, Smart Board, and Gantt Timeline.
+- `MatchesDueDateFilter`, `MatchesAssigneeFilter`: Unified Due Date (`overdue`, `today`, `week`, `month`, `none`) and Assignee (`__me__`, `__unassigned__`, `person:<id>`, `role:<id>`) predicates shared across Tree List, Board, and Gantt Timeline.
 
 ## The meetings rules (`src/meetings`)
 

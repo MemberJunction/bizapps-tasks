@@ -7,7 +7,7 @@
 
 ## 1. Architecture Overview
 
-BizApps Tasks enforces row-level authorization across all core task, time-tracking, meeting, risk-assessment, and 15Five work-report entities at the MemberJunction database provider layer (`MJ: Row Level Security Filters` + `MJ: Entity Permissions`). Because MemberJunction `RunView` and GraphQL resolvers evaluate provider-level RLS filters centrally, no data-access path can bypass chain-of-command or visibility boundaries.
+BizApps Tasks enforces row-level authorization across all core task, time-tracking, meeting, risk-assessment, and work-report entities at the MemberJunction database provider layer (`MJ: Row Level Security Filters` + `MJ: Entity Permissions`). Because MemberJunction `RunView` and GraphQL resolvers evaluate provider-level RLS filters centrally, no data-access path can bypass chain-of-command or visibility boundaries.
 
 ### 1.1 `Task.Visibility` Data Model
 

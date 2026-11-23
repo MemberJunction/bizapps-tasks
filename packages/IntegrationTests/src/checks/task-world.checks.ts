@@ -73,14 +73,14 @@ const checks: NamedCheck[] = [
             Assert(Object.keys(world.Roles).length > 0, 'no task roles');
             Assert(Object.keys(world.DecisionOutcomes).length > 0, 'no decision outcomes');
 
-            // 7. CoS Wave 2 Persistent Sample Data (Organizations, Close Playbook, 15Five Work Report, Meeting w/ WebVTT)
+            // 7. CoS Wave 2 Persistent Sample Data (Organizations, Close Playbook, Weekly Work Report, Meeting w/ WebVTT)
             Assert(!!world.Organizations[APEX_ORG_NAME]?.ID, `${APEX_ORG_NAME} organization missing`);
             Assert(!!world.Organizations[ACME_ORG_NAME]?.ID, `${ACME_ORG_NAME} organization missing`);
             Assert(!!world.Categories['Client Delivery — Acme Enterprise']?.ID, 'Acme client delivery category missing');
             Assert(!!world.SeedTaskIDs['Acme Q4 Enterprise Renewal Review'], 'Acme Q4 renewal client task missing');
             Assert(!!world.SeedTaskIDs['Acme Security Compliance Sign-Off'], 'Acme security sign-off client task missing');
             Assert(!!world.CloseTemplateID, 'Monthly Financial Close TaskTemplate ID missing');
-            Assert(!!world.WorkReportID, 'Seeded 15Five Weekly WorkReport ID missing');
+            Assert(!!world.WorkReportID, 'Seeded Weekly WorkReport ID missing');
             Assert(!!world.TranscriptMeetingID, 'Seeded completed Q4 Executive Alignment Sync Meeting ID missing');
 
             World();

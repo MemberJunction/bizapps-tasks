@@ -3614,7 +3614,7 @@ export const mjBizAppsTasksWorkReportSchema = z.object({
         * * Field Name: Title
         * * Display Name: Title
         * * SQL Data Type: nvarchar(255)
-        * * Description: Optional concise headline for the report (e.g., Daily 15Five — 2026-11-09).`),
+        * * Description: Optional concise headline for the report (e.g., Daily Work Report — 2026-11-09).`),
     Body: z.string().describe(`
         * * Field Name: Body
         * * Display Name: Body

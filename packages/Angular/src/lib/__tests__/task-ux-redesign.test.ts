@@ -151,7 +151,7 @@ describe('Task UX Redesign L3 Components', () => {
         setSpy.mockRestore();
     });
 
-    it('TaskListComponent dispatches Asana-grade bulk patches via server-side TasksBulkUpdateOperation', async () => {
+    it('TaskListComponent dispatches bulk patches via server-side TasksBulkUpdateOperation', async () => {
         const injector = Injector.create({
             providers: [{ provide: ChangeDetectorRef, useValue: createCdr() }],
         });

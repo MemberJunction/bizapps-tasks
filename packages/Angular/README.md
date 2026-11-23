@@ -5,11 +5,11 @@ Reusable Angular components, generated forms, custom form panels, and dashboard 
 ## Task Management Components
 
 - `<bizapps-tasks-dashboard-page>`: Projects & All Work shell built on `<mj-page-layout>` / `<mj-page-header>` / `<mj-page-body>`, collapsible `<mj-left-nav>` category rail, unified `<mj-filter-panel>` (**Assignee**, **Due Date**, **Organization / Company**, Status, Priority, Task Type), `⌘J` command palette, and `UserInfoEngine`-persisted view preferences.
-- `<bizapps-task-list>`: Calm hierarchical WBS tree list with Organization badges, rich Assignee chips (avatar + short name + `+N` + MJ Role pills), completion rings, `TaskTypeStatus` stage pills, Shift+click range selection, and Asana-grade `<mjt-bulk-action-dock>` backed by `BizAppsTasks.BulkUpdateTasks`.
+- `<bizapps-task-list>`: Calm hierarchical WBS tree list with Organization badges, rich Assignee chips (avatar + short name + `+N` + MJ Role pills), completion rings, `TaskTypeStatus` stage pills, Shift+click range selection, and floating `<mjt-bulk-action-dock>` backed by `BizAppsTasks.BulkUpdateTasks`.
 - `<bizapps-my-tasks>`: Action Horizons personal workspace (`Needs Your Decision`, `Focus Today`, `Blocked & Waiting`, `Coming Up`) with `<mjt-quick-capture>` and `<mjt-urgency-strip>`.
 - `<bizapps-task-detail-panel>`: Zero-bounce slide-in inspector (`<mj-slide-panel>` on desktop, `<mj-bottom-sheet>` on phone) with inline Status, Priority, Due Date, and **Organization / Company** editing, `<mjt-workflow-stepper>`, Effort Burn, `<bizapps-task-time-effort>`, assignees, sub-tasks, and linked records.
 - `<bizapps-task-edit-panel>`: Express Create drawer with TaskType progressive archetype disclosure, Organization / Company selector, and atomic `RelatedRecordCollection` saves.
-- `<bizapps-task-kanban>`: 5-mode smart Kanban board (`<mj-kanban-board>`) grouped by **Organization / Company**, Macro Status, Workflow Stages (`TaskTypeStatus`), Priority, or Assignee.
+- `<bizapps-task-kanban>`: 5-mode Kanban board (`<mj-kanban-board>`) grouped by **Organization / Company**, Macro Status, Workflow Stages (`TaskTypeStatus`), Priority, or Assignee.
 - `<bizapps-task-gantt>`: Critical-path DHTMLX Gantt timeline (`<mj-gantt-chart>`) with dedicated **`Assignee`** and **`Organization`** columns, Finish-to-Start dependency arrows, unified filters, and automatic `<mjt-mobile-milestone-stack>` phone swap.
 - `<bizapps-task-template-wizard>`: 1-screen Playbook Launcher with Organization / Company scoping, People/MJ Role pickers, and live offset schedule preview backed by `BizAppsTasks.InstantiateTemplate`.
 - `<bizapps-task-dashboard>`: Comprehensive embeddable tasks application shell.

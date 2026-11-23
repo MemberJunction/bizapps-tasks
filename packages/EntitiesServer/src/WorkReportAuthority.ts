@@ -1,5 +1,5 @@
 /**
- * Who may create, edit, submit, review, or delete a 15Five-style Work Report or Work Report Item —
+ * Who may create, edit, submit, review, or delete a Work Report or Work Report Item —
  * pure authorization rules (`AN-BC` reviews #1 & #2 on PR #165).
  *
  * Kept free of entity persistence side-effects so the authorization state machine can be

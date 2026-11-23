@@ -469,7 +469,7 @@ function isTimestampWithinWindow(
 }
 
 /**
- * Synthesizes a concise, 5-minute-readable markdown body from a person's task activity window.
+ * Synthesizes a concise, scannable markdown body from a person's task activity window.
  */
 export function BuildWorkReportMarkdown(activity: Pick<
     PersonTaskActivitySummary,
@@ -688,7 +688,7 @@ export function BuildWorkReportsAgentContext(state: {
 }
 
 /**
- * Service for drafting, submitting, and reviewing 15Five-style Work Reports
+ * Service for drafting, submitting, and reviewing Work Reports
  * and resolving supervisor reporting lines across `MJ_BizApps_Common: People` and `MJ: Employees`.
  */
 export class WorkReportService extends BaseSingleton<WorkReportService> {
@@ -1482,7 +1482,7 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
         const endLabel = FormatReportCalendarDate(activity.PeriodEnd, params.TimezoneOffsetMinutes);
         const defaultTitle =
             startLabel === endLabel
-                ? `Daily 15Five — ${startLabel}`
+                ? `Daily Work Report — ${startLabel}`
                 : `Work Report — ${startLabel} to ${endLabel}`;
         const explicitTitle = params.Title?.trim() || null;
         const explicitBody = params.CustomBody?.trim() || null;
@@ -1923,7 +1923,7 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
         const periodEnd = FormatReportCalendarDate(params.Report.PeriodEnd);
         const periodLabel = periodStart === periodEnd ? periodStart : `${periodStart}..${periodEnd}`;
         const promptText =
-            `15Five Work Report submitted by ${params.Supervisor.AuthorDisplayName} for ${periodLabel}:\n\n` +
+            `Work Report submitted by ${params.Supervisor.AuthorDisplayName} for ${periodLabel}:\n\n` +
             `${params.Report.Body}\n\n` +
             `Draft concise supervisor feedback and request ${params.Supervisor.SupervisorName ?? 'supervisor'}'s approval before recording it on WorkReport ${params.Report.ID}.`;
 

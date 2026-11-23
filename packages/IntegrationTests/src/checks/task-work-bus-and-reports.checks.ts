@@ -182,7 +182,7 @@ const checks: NamedCheck[] = [
             report.PersonID = author.ID;
             report.PeriodStart = new Date('2026-11-09T00:00:00.000Z');
             report.PeriodEnd = new Date('2026-11-09T23:59:59.000Z');
-            report.Title = 'WB4 Daily 15Five';
+            report.Title = 'WB4 Daily Work Report';
             report.Body = `### Completed\n- **${task.Name}**`;
             report.Status = 'Draft';
             await RequireSave(report, 'WB4 draft work report');
@@ -271,7 +271,7 @@ const checks: NamedCheck[] = [
             report.PersonID = author.ID;
             report.PeriodStart = new Date('2026-11-09T00:00:00.000Z');
             report.PeriodEnd = new Date('2026-11-09T23:59:59.000Z');
-            report.Title = 'WB6 Lifecycle 15Five';
+            report.Title = 'WB6 Lifecycle Work Report';
             report.Body = '### Completed\n- **Work Bus rollout**';
             report.Status = 'Draft';
             await RequireSave(report, 'WB6 draft');

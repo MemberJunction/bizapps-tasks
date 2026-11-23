@@ -136,7 +136,7 @@
       "Name": "Bulk Update Tasks",
       "OperationKey": "BizAppsTasks.BulkUpdateTasks",
       "CategoryID": "@lookup:MJ: Remote Operation Categories.Name=Tasks and Playbooks",
-      "Description": "Performs server-side Asana-grade bulk mutations on up to 500 tasks (reassign, set or shift due/start dates, update status, priority, organization/company scope, category, task type/stage, or attach a tag) through BaseEntity save pipelines with per-task partial-failure reporting.",
+      "Description": "Performs server-side bulk mutations on up to 500 tasks (reassign, set or shift due/start dates, update status, priority, organization/company scope, category, task type/stage, or attach a tag) through BaseEntity save pipelines with per-task partial-failure reporting.",
       "InputTypeName": "TasksBulkUpdateInput",
       "InputTypeDefinition": "@file:types/bizapps-tasks-bulk-update.input.ts",
       "InputTypeIsArray": false,

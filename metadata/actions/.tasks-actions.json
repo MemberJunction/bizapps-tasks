@@ -204,7 +204,7 @@
       "Type": "Custom",
       "DriverClass": "Tasks.DraftWorkReport",
       "IconClass": "fa-solid fa-clipboard-list",
-      "UserPrompt": "Draft a daily or periodic 15Five work report from task activity.",
+      "UserPrompt": "Draft a daily or periodic work report from task activity.",
       "CodeApprovalStatus": "Approved",
       "Status": "Active"
     },
@@ -275,7 +275,7 @@
             "ValueType": "Scalar",
             "IsArray": false,
             "IsRequired": false,
-            "Description": "Optional headline for the work report (e.g., Daily 15Five — 2026-11-09)."
+            "Description": "Optional headline for the work report (e.g., Daily Work Report — 2026-11-09)."
           },
           "primaryKey": {
             "ID": "E3EDA013-309A-48FB-B71A-B42DC7EB35C8"
@@ -293,7 +293,7 @@
             "ValueType": "Scalar",
             "IsArray": false,
             "IsRequired": false,
-            "Description": "Optional custom markdown body drafted by the agent; when omitted, a concise 5-minute report is synthesized from task activity."
+            "Description": "Optional custom markdown body drafted by the agent; when omitted, a concise work report is synthesized from task activity."
           },
           "primaryKey": {
             "ID": "F514554A-5238-458B-B2B7-0D48C63DB161"
@@ -527,7 +527,7 @@
       "Type": "Custom",
       "DriverClass": "Tasks.SubmitWorkReport",
       "IconClass": "fa-solid fa-paper-plane",
-      "UserPrompt": "Submit an approved 15Five work report and notify the supervisor's Chief of Staff.",
+      "UserPrompt": "Submit an approved work report and notify the supervisor's Chief of Staff.",
       "CodeApprovalStatus": "Approved",
       "Status": "Active"
     },
@@ -814,7 +814,7 @@
       "Type": "Custom",
       "DriverClass": "Tasks.ReviewWorkReport",
       "IconClass": "fa-solid fa-user-check",
-      "UserPrompt": "Record supervisor feedback on a submitted 15Five work report.",
+      "UserPrompt": "Record supervisor feedback on a submitted work report.",
       "CodeApprovalStatus": "Approved",
       "Status": "Active"
     },
@@ -4662,7 +4662,7 @@
       "Type": "Custom",
       "DriverClass": "Tasks.GetWorkReport",
       "IconClass": "fa-solid fa-file-lines",
-      "UserPrompt": "Load a 15Five work report header, markdown body, supervisor feedback, and linked work report items.",
+      "UserPrompt": "Load a work report header, markdown body, supervisor feedback, and linked work report items.",
       "CodeApprovalStatus": "Approved",
       "Status": "Active"
     },
@@ -7261,11 +7261,11 @@
     "fields": {
       "Name": "Get My Work Reports Briefing",
       "CategoryID": "@lookup:MJ: Action Categories.Name=Tasks",
-      "Description": "Deterministic briefing collector (Role = Briefing, ExposeToModel = false) returning the caller's current draft/submitted 15Five work reports and any direct reports' submitted work reports awaiting supervisor review.",
+      "Description": "Deterministic briefing collector (Role = Briefing, ExposeToModel = false) returning the caller's current draft/submitted work reports and any direct reports' submitted work reports awaiting supervisor review.",
       "Type": "Custom",
       "DriverClass": "GetMyWorkReportsBriefingAction",
       "IconClass": "fa-solid fa-clipboard-list",
-      "UserPrompt": "Assemble a deterministic briefing of the caller's draft/submitted 15Five work reports and direct reports' submitted work reports awaiting supervisor review.",
+      "UserPrompt": "Assemble a deterministic briefing of the caller's draft/submitted work reports and direct reports' submitted work reports awaiting supervisor review.",
       "CodeApprovalStatus": "Approved",
       "Status": "Active"
     },

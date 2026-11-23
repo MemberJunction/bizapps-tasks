@@ -56,7 +56,7 @@ const WORLD_DOMAIN = 'task-world.test';
 export const APEX_ORG_NAME = 'Apex Cloud Systems';
 export const ACME_ORG_NAME = 'Acme Enterprise Corp';
 export const CLOSE_TEMPLATE_NAME = 'Monthly Financial Close';
-export const SEEDED_WORK_REPORT_TITLE = 'Weekly 15Five — Platform & Client Delivery';
+export const SEEDED_WORK_REPORT_TITLE = 'Weekly Work Report — Platform & Client Delivery';
 export const SEEDED_MEETING_NAME = 'Q4 Executive Alignment Sync';
 
 export async function LoadWorld(ctx: IntegrationCheckContext): Promise<WorldState> {
@@ -615,7 +615,7 @@ export async function LoadWorld(ctx: IntegrationCheckContext): Promise<WorldStat
 
     // -------------------------------------------------------------------------
     // 8. Persistent CoS Sample Data: Acme Enterprise Client Tasks, Monthly Close
-    //    Playbook Template, Submitted 15Five Work Report, Completed Meeting w/ WebVTT
+    //    Playbook Template, Submitted Work Report, Completed Meeting w/ WebVTT
     // -------------------------------------------------------------------------
     const sarah = People[`sarah.connor@${WORLD_DOMAIN}`];
     const alex = People[`alex.chen@${WORLD_DOMAIN}`];
@@ -665,7 +665,7 @@ export async function LoadWorld(ctx: IntegrationCheckContext): Promise<WorldStat
         TypeID: deliverableType.ID,
     });
 
-    // 8c. Ensure Sarah -> Alex employee reporting line and seed submitted 15Five Weekly Work Report
+    // 8c. Ensure Sarah -> Alex employee reporting line and seed submitted Weekly Work Report
     await ensureEmployeeHierarchy(ctx, apexCompanyID, alex, sarah);
     const workReportID = await upsertSeededWorkReport(ctx, {
         AuthorPersonID: sarah.ID,

@@ -98,7 +98,7 @@ export interface TasksBulkUpdateOutput {
 }
 
 /**
- * Typed Remotable Operation shell for Asana-grade bulk task updates —
+ * Typed Remotable Operation shell for server-side bulk task updates —
  * callable identically from browser (`GraphQLDataProvider`) or server (`DatabaseProviderBase`):
  *
  * ```ts
