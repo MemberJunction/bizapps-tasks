@@ -46,5 +46,6 @@ export * from './checks/meetings.checks.js';
 export * from './checks/task-org-bulk-ops.checks.js';
 export * from './checks/task-cos-typed-skills.checks.js';
 export * from './checks/task-cos-live.checks.js';
+export * from './checks/project-risk-assessments.checks.js';
 
 export function LoadTasksIntegrationTests(): void {}

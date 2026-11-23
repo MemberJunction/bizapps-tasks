@@ -13,6 +13,7 @@
  */
 import { TaskEntityServer } from './TaskEntityServer.js';
 import { TaskCheckInEntityServer } from './TaskCheckInEntityServer.js';
+import { TaskRiskAssessmentEntityServer } from './TaskRiskAssessmentEntityServer.js';
 import { TaskDecisionEntityServer } from './TaskDecisionEntityServer.js';
 import { TaskAssignmentEntityServer } from './TaskAssignmentEntityServer.js';
 import { TaskLinkEntityServer } from './TaskLinkEntityServer.js';
@@ -47,6 +48,7 @@ registerMeetingServerAIRuntime();
 
 export { TaskEntityServer, REJECTED_STAGE_CODE, type TaskActionHookType, type TaskLifecycleContext, type TaskActionHookResult } from './TaskEntityServer.js';
 export { TaskCheckInEntityServer } from './TaskCheckInEntityServer.js';
+export { TaskRiskAssessmentEntityServer } from './TaskRiskAssessmentEntityServer.js';
 export { TaskDecisionEntityServer, TASK_DECISION_ENTITY } from './TaskDecisionEntityServer.js';
 export { TaskAssignmentEntityServer, TASK_ASSIGNMENT_ENTITY } from './TaskAssignmentEntityServer.js';
 export { TaskLinkEntityServer, TASK_LINK_ENTITY, WORKFLOW_STEP_ENTITY, AGENT_REQUEST_ENTITY } from './TaskLinkEntityServer.js';
@@ -142,6 +144,7 @@ export function LoadBizAppsTasksEntitiesServer(): void {
     const anchor = [
         TaskEntityServer,
         TaskCheckInEntityServer,
+        TaskRiskAssessmentEntityServer,
         TaskDecisionEntityServer,
         TaskAssignmentEntityServer,
         TaskLinkEntityServer,

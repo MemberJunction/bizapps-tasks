@@ -26,7 +26,7 @@ vi.mock('@memberjunction/core', () => ({
         }
     },
     BaseRemotableOperation: class {},
-    CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },
+    CompositeKey: class { constructor(public KeyValuePairs: Array<{ FieldName: string; Value: string | number | boolean | null }>) {} },
     EntityPermissionType: { Read: 'Read' },
     LogError: () => {},
     LogStatus: () => {},
@@ -50,6 +50,8 @@ vi.mock('@memberjunction/actions', () => ({
 }));
 vi.mock('@mj-biz-apps/tasks-entities', () => ({
     TaskEntity: class {},
+    TASK_RISK_ASSESSMENT_ENTITY: 'MJ_BizApps_Tasks: Task Risk Assessments',
+    TaskRiskAssessmentEntity: class {},
     mjBizAppsTasksTaskActivityEntity: class {},
     mjBizAppsTasksTaskAgentRunEntity: class {},
     mjBizAppsTasksTaskAssignmentEntity: class {},
@@ -58,6 +60,8 @@ vi.mock('@mj-biz-apps/tasks-entities', () => ({
     mjBizAppsTasksTaskDecisionEntity: class {},
     mjBizAppsTasksTaskEntity: class {},
     mjBizAppsTasksTaskLinkEntity: class {},
+    mjBizAppsTasksTaskNotificationConfigEntity: class {},
+    mjBizAppsTasksTaskRiskAssessmentEntity: class {},
     mjBizAppsTasksTaskTimeEntryEntity: class {},
     mjBizAppsTasksTaskTimeEntryLinkEntity: class {},
     mjBizAppsTasksTaskTimerEntity: class {},

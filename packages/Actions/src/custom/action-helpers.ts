@@ -172,7 +172,9 @@ export function setOutputParam(
     name: string,
     value: string | number | boolean | null,
 ): void {
-    const existing = params.Params.find((p) => p.Name.toLowerCase() === name.toLowerCase());
+    const existing = params.Params.find(
+        (p) => p.Name.toLowerCase() === name.toLowerCase() && p.Type !== 'Input',
+    );
     if (existing) {
         existing.Value = value;
         return;

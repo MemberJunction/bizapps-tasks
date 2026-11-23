@@ -1,0 +1,167 @@
+<mj-record-form-container [Record]="record" [FormComponent]="this"
+    (Navigate)="OnFormNavigate($event)"
+    (DeleteRequested)="OnDeleteRequested()"
+    (FavoriteToggled)="OnFavoriteToggled()"
+    (HistoryRequested)="OnHistoryRequested()"
+    (ListManagementRequested)="OnListManagementRequested()">
+
+    <mj-form-panel-slot Entity="{{record.EntityInfo.Name}}" Slot="before-fields" [Record]="record" [FormComponent]="this" [FormContext]="formContext"></mj-form-panel-slot>
+
+    <!-- ========================================
+         FIELD PANELS
+         ======================================== -->
+    <!-- Assessment Overview Section -->
+    <mj-collapsible-panel
+        SectionKey="assessmentOverview"
+        SectionName="Assessment Overview"
+        Icon="fa fa-shield-halved"
+        [Form]="this"
+        [FormContext]="formContext">
+        <mj-form-field
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="TaskID"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+            LinkType="Record"
+        ></mj-form-field>
+        <mj-form-field
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="AssessedAt"
+            Type="datepicker"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+    </mj-collapsible-panel>
+
+    <!-- Forecast and Health Section -->
+    <mj-collapsible-panel
+        SectionKey="forecastAndHealth"
+        SectionName="Forecast and Health"
+        Icon="fa fa-chart-line"
+        [Form]="this"
+        [FormContext]="formContext">
+        <mj-form-field
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="HealthStatus"
+            Type="select"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="ForecastConfidence"
+            Type="number"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="ForecastCompletionDate"
+            Type="datepicker"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="MLBreachProbability"
+            Type="number"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+    </mj-collapsible-panel>
+
+    <!-- Risks Payload Section -->
+    <mj-collapsible-panel
+        SectionKey="risksAndEvidence"
+        SectionName="Risks Payload"
+        Icon="fa fa-triangle-exclamation"
+        [Form]="this"
+        [FormContext]="formContext">
+        <mj-form-field
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="Risks"
+            Type="textarea"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+    </mj-collapsible-panel>
+
+    <!-- Agent Run and Cost Telemetry Section -->
+    <mj-collapsible-panel
+        SectionKey="agentRunAndCost"
+        SectionName="Agent Run and Cost Telemetry"
+        Icon="fa fa-robot"
+        [Form]="this"
+        [FormContext]="formContext">
+        <mj-form-field
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="AgentRunID"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+            LinkType="Record"
+        ></mj-form-field>
+        <mj-form-field
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="PromptTokens"
+            Type="number"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="CompletionTokens"
+            Type="number"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="TotalCostUSD"
+            Type="number"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+    </mj-collapsible-panel>
+
+    <!-- System Metadata Section -->
+    <mj-collapsible-panel
+        SectionKey="systemMetadata"
+        SectionName="System Metadata"
+        Icon="fa fa-cog"
+        [Form]="this"
+        [FormContext]="formContext">
+        <mj-form-field
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="__mj_CreatedAt"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="__mj_UpdatedAt"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+    </mj-collapsible-panel>
+
+    <mj-form-panel-slot Entity="{{record.EntityInfo.Name}}" Slot="after-fields" [Record]="record" [FormComponent]="this" [FormContext]="formContext"></mj-form-panel-slot>
+
+    <mj-form-panel-slot Entity="{{record.EntityInfo.Name}}" Slot="after-related" [Record]="record" [FormComponent]="this" [FormContext]="formContext"></mj-form-panel-slot>
+</mj-record-form-container>

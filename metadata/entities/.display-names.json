@@ -360,5 +360,16 @@
     "primaryKey": {
       "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Video Providers"
     }
+  },
+  {
+    "_comments": [
+      "Lock DisplayName to the unprefixed entity title so CodeGen form SectionName and Explorer chrome stay human."
+    ],
+    "fields": {
+      "DisplayName": "Task Risk Assessments"
+    },
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Risk Assessments"
+    }
   }
 ]

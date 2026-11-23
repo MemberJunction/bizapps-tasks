@@ -15,6 +15,7 @@
 import {
     TaskDependencyEntity,
     TaskEntity,
+    TaskRiskAssessmentEntity,
     mjBizAppsTasksTaskActivityEntity,
     mjBizAppsTasksTaskAssignmentEntity,
     mjBizAppsTasksTaskCategoryEntity,
@@ -24,6 +25,7 @@ import {
     mjBizAppsTasksTaskLinkEntity,
     mjBizAppsTasksTaskNotificationConfigEntity,
     mjBizAppsTasksTaskNotificationLogEntity,
+    mjBizAppsTasksTaskRiskAssessmentEntity,
     mjBizAppsTasksTaskRoleEntity,
     mjBizAppsTasksTaskTagEntity,
     mjBizAppsTasksTaskTagLinkEntity,
@@ -44,6 +46,7 @@ import {
 export const CLASS_REGISTRATIONS: any[] = [
     TaskDependencyEntity,
     TaskEntity,
+    TaskRiskAssessmentEntity,
     mjBizAppsTasksTaskActivityEntity,
     mjBizAppsTasksTaskAssignmentEntity,
     mjBizAppsTasksTaskCategoryEntity,
@@ -53,6 +56,7 @@ export const CLASS_REGISTRATIONS: any[] = [
     mjBizAppsTasksTaskLinkEntity,
     mjBizAppsTasksTaskNotificationConfigEntity,
     mjBizAppsTasksTaskNotificationLogEntity,
+    mjBizAppsTasksTaskRiskAssessmentEntity,
     mjBizAppsTasksTaskRoleEntity,
     mjBizAppsTasksTaskTagEntity,
     mjBizAppsTasksTaskTagLinkEntity,
@@ -69,7 +73,7 @@ export const CLASS_REGISTRATIONS: any[] = [
 export const CLASS_REGISTRATIONS_MANIFEST_LOADED = true;
 
 /** Total @RegisterClass decorated classes discovered in dependency tree */
-export const CLASS_REGISTRATIONS_COUNT = 21;
+export const CLASS_REGISTRATIONS_COUNT = 23;
 
 /** Packages imported by this manifest */
 export const CLASS_REGISTRATIONS_PACKAGES = [

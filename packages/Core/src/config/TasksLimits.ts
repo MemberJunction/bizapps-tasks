@@ -224,6 +224,22 @@ export interface TasksTuningConfig {
     FailureNotesMaxChars: number;
     /** Sequence increment between generated meeting agenda items. */
     DefaultAgendaSequenceStep: number;
+    /** Default weekly review cadence interval in hours during the first 80% of a project timeline. */
+    RiskAnalystWeeklyCadenceHours: number;
+    /** Escalated daily review cadence interval in hours during the final 20% of a project timeline or when overdue. */
+    RiskAnalystDailyCadenceHours: number;
+    /** Percentage of remaining project timeline (default 20%) that triggers daily cadence escalation. */
+    RiskAnalystFinalWindowPercent: number;
+    /** Maximum subtask summaries serialized into Project Risk Analyst prompt context. */
+    RiskAnalystEvidenceSubtaskCap: number;
+    /** Maximum recent check-ins serialized into Project Risk Analyst prompt context. */
+    RiskAnalystEvidenceCheckInCap: number;
+    /** Lookahead window in days for assignee calendar free/busy availability queries. */
+    RiskAnalystFreeBusyLookaheadDays: number;
+    /** Maximum characters retained per check-in or blocker excerpt in Project Risk Analyst prompt context. */
+    RiskAnalystNoteExcerptMaxChars: number;
+    /** Default prompt effort level (1-100) for High-tier Project Risk Analyst agent runs. */
+    RiskAnalystDefaultEffortLevel: number;
 }
 
 /**
@@ -448,6 +464,14 @@ export const CODE_FALLBACK_TASKS_LIMITS: Readonly<TasksLimitsConfig> = {
         CompletionNotesMaxChars: 2_000,
         FailureNotesMaxChars: 1_000,
         DefaultAgendaSequenceStep: 100,
+        RiskAnalystWeeklyCadenceHours: 168,
+        RiskAnalystDailyCadenceHours: 24,
+        RiskAnalystFinalWindowPercent: 20,
+        RiskAnalystEvidenceSubtaskCap: 100,
+        RiskAnalystEvidenceCheckInCap: 25,
+        RiskAnalystFreeBusyLookaheadDays: 14,
+        RiskAnalystNoteExcerptMaxChars: 400,
+        RiskAnalystDefaultEffortLevel: 85,
     },
 };
 
@@ -522,6 +546,14 @@ export const TASKS_LIMIT_SAFETY_BOUNDS: Readonly<Record<TasksLimitsKeyPath, Task
     'Tuning.CompletionNotesMaxChars': { min: 50, max: 100_000 },
     'Tuning.FailureNotesMaxChars': { min: 50, max: 100_000 },
     'Tuning.DefaultAgendaSequenceStep': { min: 1, max: 10_000 },
+    'Tuning.RiskAnalystWeeklyCadenceHours': { min: 24, max: 720 },
+    'Tuning.RiskAnalystDailyCadenceHours': { min: 1, max: 168 },
+    'Tuning.RiskAnalystFinalWindowPercent': { min: 1, max: 50 },
+    'Tuning.RiskAnalystEvidenceSubtaskCap': { min: 10, max: 1_000 },
+    'Tuning.RiskAnalystEvidenceCheckInCap': { min: 5, max: 200 },
+    'Tuning.RiskAnalystFreeBusyLookaheadDays': { min: 1, max: 90 },
+    'Tuning.RiskAnalystNoteExcerptMaxChars': { min: 50, max: 5_000 },
+    'Tuning.RiskAnalystDefaultEffortLevel': { min: 1, max: 100 },
 };
 
 const RUNAWAY_GUARD_KEYS: readonly TasksRunawayGuardKey[] = [
@@ -600,6 +632,14 @@ const TUNING_KEYS: readonly TasksTuningKey[] = [
     'CompletionNotesMaxChars',
     'FailureNotesMaxChars',
     'DefaultAgendaSequenceStep',
+    'RiskAnalystWeeklyCadenceHours',
+    'RiskAnalystDailyCadenceHours',
+    'RiskAnalystFinalWindowPercent',
+    'RiskAnalystEvidenceSubtaskCap',
+    'RiskAnalystEvidenceCheckInCap',
+    'RiskAnalystFreeBusyLookaheadDays',
+    'RiskAnalystNoteExcerptMaxChars',
+    'RiskAnalystDefaultEffortLevel',
 ];
 
 /** Ordered list of every canonical {@link TasksLimitsKeyPath}. */

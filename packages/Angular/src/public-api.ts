@@ -72,6 +72,7 @@ export * from './lib/form-panels/task-time.panel.js';
 export * from './lib/form-panels/task-header.panel.js';
 export * from './lib/form-panels/task-category-hierarchy.panel.js';
 export * from './lib/form-panels/task-template-item-hierarchy.panel.js';
+export * from './lib/form-panels/task-risk-assessment.panel.js';
 
 // Pages & Section Resources
 export * from './lib/pages/tasks-dashboard.page.js';

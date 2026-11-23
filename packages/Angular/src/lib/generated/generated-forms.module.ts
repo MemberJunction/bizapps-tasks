@@ -57,6 +57,7 @@ import { mjBizAppsTasksTimesheetScheduleFormComponent } from "./Entities/mjBizAp
 import { mjBizAppsTasksVideoProviderFormComponent } from "./Entities/mjBizAppsTasksVideoProvider/mjbizappstasksvideoprovider.form.component";
 import { mjBizAppsTasksWorkReportFormComponent } from "./Entities/mjBizAppsTasksWorkReport/mjbizappstasksworkreport.form.component";
 import { mjBizAppsTasksWorkReportItemFormComponent } from "./Entities/mjBizAppsTasksWorkReportItem/mjbizappstasksworkreportitem.form.component";
+import { mjBizAppsTasksTaskRiskAssessmentFormComponent } from "./Entities/mjBizAppsTasksTaskRiskAssessment/mjbizappstaskstaskriskassessment.form.component";
    
 
 @NgModule({
@@ -491,6 +492,25 @@ exports: [
 ]
 })
 export class GeneratedForms_SubModule_30 { }
+
+
+
+@NgModule({
+declarations: [
+    mjBizAppsTasksTaskRiskAssessmentFormComponent
+],
+imports: [
+    CommonModule,
+    FormsModule,
+    BaseFormsModule,
+    EntityViewerModule,
+    LinkDirectivesModule
+],
+exports: [
+    mjBizAppsTasksTaskRiskAssessmentFormComponent
+]
+})
+export class GeneratedForms_SubModule_31 { }
     
 
 
@@ -520,14 +540,18 @@ imports: [
     GeneratedForms_SubModule_26,
     GeneratedForms_SubModule_28,
     GeneratedForms_SubModule_29,
-    GeneratedForms_SubModule_30
+    GeneratedForms_SubModule_30,
+    GeneratedForms_SubModule_31
 ],
 exports: [
     GeneratedForms_SubModule_1,
-    GeneratedForms_SubModule_4
+    GeneratedForms_SubModule_4,
+    GeneratedForms_SubModule_31
 ]
 })
 export class GeneratedFormsModule { }
+
+export { mjBizAppsTasksTaskRiskAssessmentFormComponent };
     
 // Note: LoadXXXGeneratedForms() functions have been removed. Tree-shaking prevention
 // is now handled by the pre-built class registration manifest system.

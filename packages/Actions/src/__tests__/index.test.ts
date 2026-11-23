@@ -88,9 +88,11 @@ describe('@mj-biz-apps/tasks-actions', () => {
         expect(mod.ZoomTranscriptSource).toBeDefined();
         expect(mod.AttachedFileTranscriptSource).toBeDefined();
         expect(mod.MeetingTranscriptService).toBeDefined();
-        // Agent Task OnAssign hook, Recurring Playbooks & CoS wake dispatcher
+        // Agent Task OnAssign hook, Recurring Playbooks, Project Risk & CoS wake dispatcher
         expect(mod.ExecuteAssignedAgentAction).toBeDefined();
         expect(mod.RunRecurringPlaybooksAction).toBeDefined();
+        expect(mod.GetProjectRiskAction).toBeDefined();
+        expect(mod.RequestProjectRiskReviewAction).toBeDefined();
         expect(mod.registerChiefOfStaffWakeDispatcher).toBeDefined();
     });
 });

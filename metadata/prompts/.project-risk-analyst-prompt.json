@@ -1,0 +1,20 @@
+[
+  {
+    "fields": {
+      "Name": "Tasks: Project Risk Analyst",
+      "Description": "System prompt for the Project Risk Analyst agent evaluating delivery health, forecast completion date, confidence, and structured risks using batched task evidence, ML breach probability, and strict free/busy calendar availability.",
+      "TypeID": "@lookup:MJ: AI Prompt Types.Name=Chat",
+      "TemplateText": "@file:templates/project-risk-analyst.template.md",
+      "ResponseFormat": "JSON",
+      "SelectionStrategy": "Specific",
+      "PowerPreference": "Highest",
+      "PromptRole": "System",
+      "PromptPosition": "First",
+      "EffortLevel": 85,
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "B7F2D101-7A24-4699-9BB4-5D35817B0001"
+    }
+  }
+]

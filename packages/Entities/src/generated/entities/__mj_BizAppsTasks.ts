@@ -43,7 +43,8 @@ import type {
   mjBizAppsTasksTimesheetEntityType,
   mjBizAppsTasksVideoProviderEntityType,
   mjBizAppsTasksWorkReportItemEntityType,
-  mjBizAppsTasksWorkReportEntityType
+  mjBizAppsTasksWorkReportEntityType,
+  mjBizAppsTasksTaskRiskAssessmentEntityType
 } from '../schemas/__mj_BizAppsTasks.js';
 
 /**
@@ -7977,6 +7978,19 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     }
 
     /**
+    * * Field Name: ForecastCompletionDate
+    * * Display Name: Forecast Completion Date
+    * * SQL Data Type: datetimeoffset
+    * * Description: AI-forecasted completion date synced from the latest Task Risk Assessment for project health rollups and Chief of Staff briefings.
+    */
+    get ForecastCompletionDate(): Date | null {
+        return this.Get('ForecastCompletionDate');
+    }
+    set ForecastCompletionDate(value: Date | null) {
+        this.Set('ForecastCompletionDate', value);
+    }
+
+    /**
     * * Field Name: Type
     * * Display Name: Type
     * * SQL Data Type: nvarchar(100)
@@ -10107,5 +10121,174 @@ export class mjBizAppsTasksWorkReportEntity extends BaseEntity<mjBizAppsTasksWor
     */
     get ReviewedByPerson(): string | null {
         return this.Get('ReviewedByPerson');
+    }
+}
+
+
+/**
+ * MJ_BizApps_Tasks: Task Risk Assessments - strongly typed entity sub-class
+ * * Schema: __mj_BizAppsTasks
+ * * Base Table: TaskRiskAssessment
+ * * Base View: vwTaskRiskAssessments
+ * * @description AI-generated project risk assessments and completion date forecasts linked to a root project Task, syncing latest health, confidence, and forecast completion date onto the Task.
+ * * Primary Key: ID
+ * @extends {BaseEntity}
+ * @class
+ * @public
+ */
+@RegisterClass(BaseEntity, 'MJ_BizApps_Tasks: Task Risk Assessments')
+export class mjBizAppsTasksTaskRiskAssessmentEntity extends BaseEntity<mjBizAppsTasksTaskRiskAssessmentEntityType> {
+    /**
+    * Loads the MJ_BizApps_Tasks: Task Risk Assessments record from the database
+    * @param ID: string - primary key value to load the MJ_BizApps_Tasks: Task Risk Assessments record.
+    * @param EntityRelationshipsToLoad - (optional) the relationships to load
+    * @returns {Promise<boolean>} - true if successful, false otherwise
+    * @public
+    * @async
+    * @memberof mjBizAppsTasksTaskRiskAssessmentEntity
+    * @method
+    * @override
+    */
+    public async Load(ID: string, EntityRelationshipsToLoad?: string[]) : Promise<boolean> {
+        const compositeKey: CompositeKey = new CompositeKey();
+        compositeKey.KeyValuePairs.push({ FieldName: 'ID', Value: ID });
+        return await super.InnerLoad(compositeKey, EntityRelationshipsToLoad);
+    }
+
+    /**
+    * Validate() method override for MJ_BizApps_Tasks: Task Risk Assessments entity.
+    * @public
+    * @method
+    * @override
+    */
+    public override Validate(): ValidationResult {
+        const result = super.Validate();
+        this.ValidateForecastConfidenceRange(result);
+        this.ValidateMLBreachProbabilityRange(result);
+        result.Success = result.Success && (result.Errors.length === 0);
+
+        return result;
+    }
+
+    public ValidateForecastConfidenceRange(result: ValidationResult): void {
+        if (this.ForecastConfidence != null && (this.ForecastConfidence < 0 || this.ForecastConfidence > 100)) {
+            result.Errors.push(new ValidationErrorInfo(
+                'ForecastConfidence',
+                'Forecast confidence must be between 0 and 100.',
+                this.ForecastConfidence,
+                ValidationErrorType.Failure
+            ));
+        }
+    }
+
+    public ValidateMLBreachProbabilityRange(result: ValidationResult): void {
+        if (this.MLBreachProbability != null && (this.MLBreachProbability < 0 || this.MLBreachProbability > 1)) {
+            result.Errors.push(new ValidationErrorInfo(
+                'MLBreachProbability',
+                'ML breach probability must be between 0 and 1.',
+                this.MLBreachProbability,
+                ValidationErrorType.Failure
+            ));
+        }
+    }
+
+    get ID(): string {
+        return this.Get('ID');
+    }
+    set ID(value: string) {
+        this.Set('ID', value);
+    }
+
+    get TaskID(): string {
+        return this.Get('TaskID');
+    }
+    set TaskID(value: string) {
+        this.Set('TaskID', value);
+    }
+
+    get AssessedAt(): Date {
+        return this.Get('AssessedAt');
+    }
+    set AssessedAt(value: Date) {
+        this.Set('AssessedAt', value);
+    }
+
+    get ForecastCompletionDate(): Date | null {
+        return this.Get('ForecastCompletionDate');
+    }
+    set ForecastCompletionDate(value: Date | null) {
+        this.Set('ForecastCompletionDate', value);
+    }
+
+    get ForecastConfidence(): number | null {
+        return this.Get('ForecastConfidence');
+    }
+    set ForecastConfidence(value: number | null) {
+        this.Set('ForecastConfidence', value);
+    }
+
+    get HealthStatus(): 'AtRisk' | 'Completed' | 'OffTrack' | 'OnTrack' | 'Paused' {
+        return this.Get('HealthStatus');
+    }
+    set HealthStatus(value: 'AtRisk' | 'Completed' | 'OffTrack' | 'OnTrack' | 'Paused') {
+        this.Set('HealthStatus', value);
+    }
+
+    get MLBreachProbability(): number | null {
+        return this.Get('MLBreachProbability');
+    }
+    set MLBreachProbability(value: number | null) {
+        this.Set('MLBreachProbability', value);
+    }
+
+    get Risks(): string {
+        return this.Get('Risks');
+    }
+    set Risks(value: string) {
+        this.Set('Risks', value);
+    }
+
+    get AgentRunID(): string | null {
+        return this.Get('AgentRunID');
+    }
+    set AgentRunID(value: string | null) {
+        this.Set('AgentRunID', value);
+    }
+
+    get PromptTokens(): number | null {
+        return this.Get('PromptTokens');
+    }
+    set PromptTokens(value: number | null) {
+        this.Set('PromptTokens', value);
+    }
+
+    get CompletionTokens(): number | null {
+        return this.Get('CompletionTokens');
+    }
+    set CompletionTokens(value: number | null) {
+        this.Set('CompletionTokens', value);
+    }
+
+    get TotalCostUSD(): number | null {
+        return this.Get('TotalCostUSD');
+    }
+    set TotalCostUSD(value: number | null) {
+        this.Set('TotalCostUSD', value);
+    }
+
+    get __mj_CreatedAt(): Date {
+        return this.Get('__mj_CreatedAt');
+    }
+
+    get __mj_UpdatedAt(): Date {
+        return this.Get('__mj_UpdatedAt');
+    }
+
+    get Task(): string | null {
+        return this.Get('Task');
+    }
+
+    get AgentRun(): string | null {
+        return this.Get('AgentRun');
     }
 }

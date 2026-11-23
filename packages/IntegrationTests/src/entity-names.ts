@@ -11,6 +11,7 @@ export const TASK_NOTIFICATION_LOG_ENTITY = 'MJ_BizApps_Tasks: Task Notification
 export const TASK_COMMENT_ENTITY = 'MJ_BizApps_Tasks: Task Comments';
 export const TASK_CHECK_IN_ENTITY = 'MJ_BizApps_Tasks: Task Check Ins';
 export const TASK_ACTIVITY_ENTITY = 'MJ_BizApps_Tasks: Task Activities';
+export const TASK_RISK_ASSESSMENT_ENTITY = 'MJ_BizApps_Tasks: Task Risk Assessments';
 export const TASK_TAG_ENTITY = 'MJ_BizApps_Tasks: Task Tags';
 export const TASK_TAG_LINK_ENTITY = 'MJ_BizApps_Tasks: Task Tag Links';
 export const TASK_TEMPLATE_ENTITY = 'MJ_BizApps_Tasks: Task Templates';

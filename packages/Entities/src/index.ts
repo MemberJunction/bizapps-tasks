@@ -2,6 +2,7 @@ export * from './generated/entity_subclasses.js';
 export * from './generated/remote_operations.js';
 export * from './custom/TaskEntitySubclass.js';
 export * from './custom/TaskDependencyEntitySubclass.js';
+export * from './custom/TaskRiskAssessmentEntitySubclass.js';
 export * from './custom/TaskTypeHelpers.js';
 
 /**

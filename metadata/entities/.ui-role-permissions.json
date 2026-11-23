@@ -853,5 +853,29 @@
         }
       ]
     }
+  },
+  {
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Risk Assessments"
+    },
+    "fields": {
+      "Name": "MJ_BizApps_Tasks: Task Risk Assessments"
+    },
+    "relatedEntities": {
+      "MJ: Entity Permissions": [
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Permissions.EntityID=@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Task Risk Assessments&RoleID=@lookup:MJ: Roles.Name=UI"
+          },
+          "fields": {
+            "CanRead": 1,
+            "CanCreate": 1,
+            "CanUpdate": 1,
+            "CanDelete": 0,
+            "ReadRLSFilterID": "@lookup:MJ: Row Level Security Filters.Name=Tasks: Rows Of Visible Tasks"
+          }
+        }
+      ]
+    }
   }
 ]
