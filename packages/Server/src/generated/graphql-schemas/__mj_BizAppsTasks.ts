@@ -17,7 +17,7 @@ import { MaxLength } from 'class-validator';
 import * as mj_core_schema_server_object_types from '@memberjunction/server'
 
 
-import { mjBizAppsTasksMeetingAgendaItemTypeEntity, mjBizAppsTasksMeetingAgendaItemEntity, mjBizAppsTasksMeetingAttendeeEntity, mjBizAppsTasksMeetingLinkEntity, mjBizAppsTasksMeetingNoteEntity, mjBizAppsTasksMeetingSeriesEntity, mjBizAppsTasksMeetingSeriesAttendeeEntity, mjBizAppsTasksMeetingTypeEntity, mjBizAppsTasksMeetingEntity, mjBizAppsTasksTaskActivityEntity, mjBizAppsTasksTaskAgentRunEntity, mjBizAppsTasksTaskAssignmentEntity, mjBizAppsTasksTaskCategoryEntity, mjBizAppsTasksTaskCheckInEntity, mjBizAppsTasksTaskCommentEntity, mjBizAppsTasksTaskDecisionOutcomeEntity, mjBizAppsTasksTaskDecisionEntity, mjBizAppsTasksTaskDependencyEntity, mjBizAppsTasksTaskLinkEntity, mjBizAppsTasksTaskNotificationConfigEntity, mjBizAppsTasksTaskNotificationLogEntity, mjBizAppsTasksTaskRoleEntity, mjBizAppsTasksTaskTagLinkEntity, mjBizAppsTasksTaskTagEntity, mjBizAppsTasksTaskTemplateItemDependencyEntity, mjBizAppsTasksTaskTemplateItemRoleEntity, mjBizAppsTasksTaskTemplateItemEntity, mjBizAppsTasksTaskTemplateEntity, mjBizAppsTasksTaskTimeEntryEntity, mjBizAppsTasksTaskTimeEntryLinkEntity, mjBizAppsTasksTaskTimerEntity, mjBizAppsTasksTaskTypeStatusEntity, mjBizAppsTasksTaskTypeEntity, mjBizAppsTasksTaskEntity, mjBizAppsTasksTimeApproverEntity, mjBizAppsTasksTimesheetApprovalEntity, mjBizAppsTasksTimesheetLinkEntity, mjBizAppsTasksTimesheetScheduleEntity, mjBizAppsTasksTimesheetEntity, mjBizAppsTasksVideoProviderEntity, mjBizAppsTasksWorkReportItemEntity, mjBizAppsTasksWorkReportEntity } from '@mj-biz-apps/tasks-entities';
+import { mjBizAppsTasksMeetingAgendaItemTypeEntity, mjBizAppsTasksMeetingAgendaItemEntity, mjBizAppsTasksMeetingAttendeeEntity, mjBizAppsTasksMeetingLinkEntity, mjBizAppsTasksMeetingNoteEntity, mjBizAppsTasksMeetingSeriesEntity, mjBizAppsTasksMeetingSeriesAttendeeEntity, mjBizAppsTasksMeetingTypeEntity, mjBizAppsTasksMeetingEntity, mjBizAppsTasksTaskActivityEntity, mjBizAppsTasksTaskAgentRunEntity, mjBizAppsTasksTaskAssignmentEntity, mjBizAppsTasksTaskCategoryEntity, mjBizAppsTasksTaskCheckInEntity, mjBizAppsTasksTaskCommentEntity, mjBizAppsTasksTaskDecisionOutcomeEntity, mjBizAppsTasksTaskDecisionEntity, mjBizAppsTasksTaskDependencyEntity, mjBizAppsTasksTaskLinkEntity, mjBizAppsTasksTaskNotificationConfigEntity, mjBizAppsTasksTaskNotificationLogEntity, mjBizAppsTasksTaskRoleEntity, mjBizAppsTasksTaskTagLinkEntity, mjBizAppsTasksTaskTagEntity, mjBizAppsTasksTaskTemplateItemDependencyEntity, mjBizAppsTasksTaskTemplateItemRoleEntity, mjBizAppsTasksTaskTemplateItemEntity, mjBizAppsTasksTaskTemplateEntity, mjBizAppsTasksTaskTimeEntryEntity, mjBizAppsTasksTaskTimeEntryLinkEntity, mjBizAppsTasksTaskTimerEntity, mjBizAppsTasksTaskTypeStatusEntity, mjBizAppsTasksTaskTypeEntity, mjBizAppsTasksTaskEntity, mjBizAppsTasksTimeApproverEntity, mjBizAppsTasksTimesheetApprovalEntity, mjBizAppsTasksTimesheetLinkEntity, mjBizAppsTasksTimesheetScheduleEntity, mjBizAppsTasksTimesheetEntity, mjBizAppsTasksVideoProviderEntity, mjBizAppsTasksWorkReportItemEntity, mjBizAppsTasksWorkReportEntity, mjBizAppsTasksTaskRiskAssessmentEntity } from '@mj-biz-apps/tasks-entities';
     
 
 //****************************************************************************
@@ -7424,6 +7424,9 @@ export class mjBizAppsTasksTask_ {
     @Field({nullable: true, description: "Controls who may read this task and its child records (assignments, check-ins, comments, activities). Standard (default) is visible across the organization; Private restricts visibility to the creator, assignees (direct Person or MJ Role members), and creator/assignees of the root parent task."}) 
     @MaxLength(20)
     Visibility?: string;
+
+    @Field({nullable: true, description: "AI-forecasted completion date synced from the latest Task Risk Assessment for project health rollups and Chief of Staff briefings."})
+    ForecastCompletionDate?: Date;
         
     @Field({nullable: true}) 
     @MaxLength(100)
@@ -7599,6 +7602,9 @@ export class CreatemjBizAppsTasksTaskInput {
     @Field({ nullable: true })
     Visibility?: string;
 
+    @Field({ nullable: true })
+    ForecastCompletionDate: Date | null;
+
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
 }
@@ -7719,6 +7725,9 @@ export class UpdatemjBizAppsTasksTaskInput {
 
     @Field({ nullable: true })
     Visibility?: string;
+
+    @Field({ nullable: true })
+    ForecastCompletionDate?: Date | null;
 
     @Field(() => [KeyValuePairInput], { nullable: true })
     OldValues___?: KeyValuePairInput[];
@@ -9608,4 +9617,246 @@ export class mjBizAppsTasksWorkReportResolver extends ResolverBase {
         return this.DeleteRecord('MJ_BizApps_Tasks: Work Reports', key, options, provider, userPayload, pubSub);
     }
     
+}
+
+//****************************************************************************
+// ENTITY CLASS for MJ_BizApps_Tasks: Task Risk Assessments
+//****************************************************************************
+@ObjectType({ description: "AI-generated project risk assessments and completion date forecasts linked to a root project Task, syncing latest health, confidence, and forecast completion date onto the Task." })
+export class mjBizAppsTasksTaskRiskAssessment_ {
+    @Field({description: "Primary key for the task risk assessment."})
+    @MaxLength(36)
+    ID: string;
+
+    @Field({nullable: true, description: "The project root task (or tracked task) evaluated by this risk assessment."})
+    @MaxLength(36)
+    TaskID?: string;
+
+    @Field({nullable: true, description: "Timestamp when this risk assessment was produced."})
+    AssessedAt?: Date;
+
+    @Field({nullable: true, description: "Forecasted completion timestamp estimated by the Project Risk Analyst."})
+    ForecastCompletionDate?: Date;
+
+    @Field(() => Int, {nullable: true, description: "Confidence score (0-100) in the forecasted completion date and health status, synced onto Task.ConfidenceScore."})
+    ForecastConfidence?: number;
+
+    @Field({nullable: true, description: "Assessed project health status: OnTrack, AtRisk, OffTrack, Completed, or Paused."})
+    @MaxLength(20)
+    HealthStatus?: string;
+
+    @Field(() => Float, {nullable: true, description: "ML model breach probability (0.0000 - 1.0000) consumed as one input to the risk assessment."})
+    MLBreachProbability?: number;
+
+    @Field({nullable: true, description: "JSON array of structured risk items ({ kind, severity, evidenceLinks, suggestedMitigation })."})
+    Risks?: string;
+
+    @Field({nullable: true, description: "Optional MemberJunction AI Agent Run that generated this assessment."})
+    @MaxLength(36)
+    AgentRunID?: string;
+
+    @Field(() => Int, {nullable: true, description: "Input prompt token count consumed while generating this risk assessment."})
+    PromptTokens?: number;
+
+    @Field(() => Int, {nullable: true, description: "Output completion token count generated for this risk assessment."})
+    CompletionTokens?: number;
+
+    @Field(() => Float, {nullable: true, description: "Total LLM inference cost in USD attributed to this risk assessment."})
+    TotalCostUSD?: number;
+
+    @Field()
+    _mj__CreatedAt: Date;
+
+    @Field()
+    _mj__UpdatedAt: Date;
+
+    @Field({nullable: true})
+    @MaxLength(255)
+    Task?: string;
+
+    @Field({nullable: true})
+    @MaxLength(255)
+    AgentRun?: string;
+
+    @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
+    ReadableFields___?: string[];
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Task Risk Assessments
+//****************************************************************************
+@InputType()
+export class CreatemjBizAppsTasksTaskRiskAssessmentInput {
+    @Field({ nullable: true })
+    ID?: string;
+
+    @Field({ nullable: true })
+    TaskID?: string;
+
+    @Field({ nullable: true })
+    AssessedAt?: Date;
+
+    @Field({ nullable: true })
+    ForecastCompletionDate: Date | null;
+
+    @Field(() => Int, { nullable: true })
+    ForecastConfidence: number | null;
+
+    @Field({ nullable: true })
+    HealthStatus?: string;
+
+    @Field(() => Float, { nullable: true })
+    MLBreachProbability: number | null;
+
+    @Field({ nullable: true })
+    Risks?: string;
+
+    @Field({ nullable: true })
+    AgentRunID: string | null;
+
+    @Field(() => Int, { nullable: true })
+    PromptTokens: number | null;
+
+    @Field(() => Int, { nullable: true })
+    CompletionTokens: number | null;
+
+    @Field(() => Float, { nullable: true })
+    TotalCostUSD: number | null;
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+
+//****************************************************************************
+// INPUT TYPE for MJ_BizApps_Tasks: Task Risk Assessments
+//****************************************************************************
+@InputType()
+export class UpdatemjBizAppsTasksTaskRiskAssessmentInput {
+    @Field()
+    ID: string;
+
+    @Field({ nullable: true })
+    TaskID?: string;
+
+    @Field({ nullable: true })
+    AssessedAt?: Date;
+
+    @Field({ nullable: true })
+    ForecastCompletionDate?: Date | null;
+
+    @Field(() => Int, { nullable: true })
+    ForecastConfidence?: number | null;
+
+    @Field({ nullable: true })
+    HealthStatus?: string;
+
+    @Field(() => Float, { nullable: true })
+    MLBreachProbability?: number | null;
+
+    @Field({ nullable: true })
+    Risks?: string;
+
+    @Field({ nullable: true })
+    AgentRunID?: string | null;
+
+    @Field(() => Int, { nullable: true })
+    PromptTokens?: number | null;
+
+    @Field(() => Int, { nullable: true })
+    CompletionTokens?: number | null;
+
+    @Field(() => Float, { nullable: true })
+    TotalCostUSD?: number | null;
+
+    @Field(() => [KeyValuePairInput], { nullable: true })
+    OldValues___?: KeyValuePairInput[];
+
+    @Field(() => RestoreContextInput, { nullable: true })
+    RestoreContext___?: RestoreContextInput;
+}
+
+//****************************************************************************
+// RESOLVER for MJ_BizApps_Tasks: Task Risk Assessments
+//****************************************************************************
+@ObjectType()
+export class RunmjBizAppsTasksTaskRiskAssessmentViewResult {
+    @Field(() => [mjBizAppsTasksTaskRiskAssessment_])
+    Results: mjBizAppsTasksTaskRiskAssessment_[];
+
+    @Field(() => String, {nullable: true})
+    UserViewRunID?: string;
+
+    @Field(() => Int, {nullable: true})
+    RowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    TotalRowCount: number;
+
+    @Field(() => Int, {nullable: true})
+    ExecutionTime: number;
+
+    @Field({nullable: true})
+    ErrorMessage?: string;
+
+    @Field(() => Boolean, {nullable: false})
+    Success: boolean;
+}
+
+@Resolver(mjBizAppsTasksTaskRiskAssessment_)
+export class mjBizAppsTasksTaskRiskAssessmentResolver extends ResolverBase {
+    @Query(() => RunmjBizAppsTasksTaskRiskAssessmentViewResult)
+    async RunmjBizAppsTasksTaskRiskAssessmentViewByID(@Arg('input', () => RunViewByIDInput) input: RunViewByIDInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByIDGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTaskRiskAssessmentViewResult)
+    async RunmjBizAppsTasksTaskRiskAssessmentViewByName(@Arg('input', () => RunViewByNameInput) input: RunViewByNameInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        return super.RunViewByNameGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => RunmjBizAppsTasksTaskRiskAssessmentViewResult)
+    async RunmjBizAppsTasksTaskRiskAssessmentDynamicView(@Arg('input', () => RunDynamicViewInput) input: RunDynamicViewInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        input.EntityName = 'MJ_BizApps_Tasks: Task Risk Assessments';
+        return super.RunDynamicViewGeneric(input, provider, userPayload, pubSub);
+    }
+
+    @Query(() => mjBizAppsTasksTaskRiskAssessment_, { nullable: true })
+    async mjBizAppsTasksTaskRiskAssessment(@Arg('ID', () => String) ID: string, @Ctx() { userPayload, providers }: AppContext, @PubSub() pubSub: PubSubEngine): Promise<mjBizAppsTasksTaskRiskAssessment_ | null> {
+        this.CheckUserReadPermissions('MJ_BizApps_Tasks: Task Risk Assessments', userPayload);
+        const provider = GetReadOnlyProvider(providers, { allowFallbackToReadWrite: true });
+        const sSQL = `SELECT * FROM ${provider.QuoteSchemaAndView('__mj_BizAppsTasks', 'vwTaskRiskAssessments')} WHERE ${provider.QuoteIdentifier('ID')}=${provider.BuildParameterPlaceholder(0)} ` + this.getRowLevelSecurityWhereClause(provider, 'MJ_BizApps_Tasks: Task Risk Assessments', userPayload, EntityPermissionType.Read, 'AND');
+        const rows = await provider.ExecuteSQL(sSQL, [ID], undefined, this.GetUserFromPayload(userPayload));
+        const result = await this.MapFieldNamesToCodeNames('MJ_BizApps_Tasks: Task Risk Assessments', rows && rows.length > 0 ? rows[0] : null, this.GetUserFromPayload(userPayload));
+        return result;
+    }
+
+    @Mutation(() => mjBizAppsTasksTaskRiskAssessment_)
+    async CreatemjBizAppsTasksTaskRiskAssessment(
+        @Arg('input', () => CreatemjBizAppsTasksTaskRiskAssessmentInput) input: CreatemjBizAppsTasksTaskRiskAssessmentInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.CreateRecord('MJ_BizApps_Tasks: Task Risk Assessments', input, provider, userPayload, pubSub);
+    }
+
+    @Mutation(() => mjBizAppsTasksTaskRiskAssessment_)
+    async UpdatemjBizAppsTasksTaskRiskAssessment(
+        @Arg('input', () => UpdatemjBizAppsTasksTaskRiskAssessmentInput) input: UpdatemjBizAppsTasksTaskRiskAssessmentInput,
+        @Ctx() { providers, userPayload }: AppContext,
+        @PubSub() pubSub: PubSubEngine
+    ) {
+        const provider = GetReadWriteProvider(providers);
+        return this.UpdateRecord('MJ_BizApps_Tasks: Task Risk Assessments', input, provider, userPayload, pubSub);
+    }
+
+    @Mutation(() => mjBizAppsTasksTaskRiskAssessment_)
+    async DeletemjBizAppsTasksTaskRiskAssessment(@Arg('ID', () => String) ID: string, @Arg('options___', () => DeleteOptionsInput) options: DeleteOptionsInput, @Ctx() { providers, userPayload }: AppContext, @PubSub() pubSub: PubSubEngine) {
+        const provider = GetReadWriteProvider(providers);
+        const key = new CompositeKey([{FieldName: 'ID', Value: ID}]);
+        return this.DeleteRecord('MJ_BizApps_Tasks: Task Risk Assessments', key, options, provider, userPayload, pubSub);
+    }
 }

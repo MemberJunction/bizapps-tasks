@@ -2917,6 +2917,11 @@ export const mjBizAppsTasksTaskSchema = z.object({
     *   * Private
     *   * Standard
         * * Description: Controls who may read this task and its child records (assignments, check-ins, comments, activities). Standard (default) is visible across the organization; Private restricts visibility to the creator, assignees (direct Person or MJ Role members), and creator/assignees of the root parent task.`),
+    ForecastCompletionDate: z.date().nullable().describe(`
+        * * Field Name: ForecastCompletionDate
+        * * Display Name: Forecast Completion Date
+        * * SQL Data Type: datetimeoffset
+        * * Description: AI-forecasted completion date synced from the latest Task Risk Assessment for project health rollups and Chief of Staff briefings.`),
     Type: z.string().describe(`
         * * Field Name: Type
         * * Display Name: Type
@@ -3663,3 +3668,102 @@ export const mjBizAppsTasksWorkReportSchema = z.object({
 });
 
 export type mjBizAppsTasksWorkReportEntityType = z.infer<typeof mjBizAppsTasksWorkReportSchema>;
+
+/**
+ * zod schema definition for the entity MJ_BizApps_Tasks: Task Risk Assessments
+ */
+export const mjBizAppsTasksTaskRiskAssessmentSchema = z.object({
+    ID: z.string().describe(`
+        * * Field Name: ID
+        * * Display Name: ID
+        * * SQL Data Type: uniqueidentifier
+        * * Default Value: newsequentialid()
+        * * Description: Primary key for the task risk assessment.`),
+    TaskID: z.string().describe(`
+        * * Field Name: TaskID
+        * * Display Name: Task
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Tasks (vwTasks.ID)
+        * * Description: The project root task (or tracked task) evaluated by this risk assessment.`),
+    AssessedAt: z.date().describe(`
+        * * Field Name: AssessedAt
+        * * Display Name: Assessed At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: sysdatetimeoffset()
+        * * Description: Timestamp when this risk assessment was produced.`),
+    ForecastCompletionDate: z.date().nullable().describe(`
+        * * Field Name: ForecastCompletionDate
+        * * Display Name: Forecast Completion Date
+        * * SQL Data Type: datetimeoffset
+        * * Description: Forecasted completion timestamp estimated by the Project Risk Analyst.`),
+    ForecastConfidence: z.number().nullable().describe(`
+        * * Field Name: ForecastConfidence
+        * * Display Name: Forecast Confidence
+        * * SQL Data Type: int
+        * * Description: Confidence score (0-100) in the forecasted completion date and health status, synced onto Task.ConfidenceScore.`),
+    HealthStatus: z.union([z.literal('AtRisk'), z.literal('Completed'), z.literal('OffTrack'), z.literal('OnTrack'), z.literal('Paused')]).describe(`
+        * * Field Name: HealthStatus
+        * * Display Name: Health Status
+        * * SQL Data Type: nvarchar(20)
+        * * Default Value: OnTrack
+    * * Value List Type: List
+    * * Possible Values 
+    *   * AtRisk
+    *   * Completed
+    *   * OffTrack
+    *   * OnTrack
+    *   * Paused
+        * * Description: Assessed project health status: OnTrack, AtRisk, OffTrack, Completed, or Paused.`),
+    MLBreachProbability: z.number().nullable().describe(`
+        * * Field Name: MLBreachProbability
+        * * Display Name: ML Breach Probability
+        * * SQL Data Type: decimal(5, 4)
+        * * Description: ML model breach probability (0.0000 - 1.0000) consumed as one input to the risk assessment.`),
+    Risks: z.string().describe(`
+        * * Field Name: Risks
+        * * Display Name: Risks
+        * * SQL Data Type: nvarchar(MAX)
+        * * Default Value: []
+        * * Description: JSON array of structured risk items ({ kind, severity, evidenceLinks, suggestedMitigation }).`),
+    AgentRunID: z.string().nullable().describe(`
+        * * Field Name: AgentRunID
+        * * Display Name: Agent Run
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: AI Agent Runs (vwAIAgentRuns.ID)
+        * * Description: Optional MemberJunction AI Agent Run that generated this assessment.`),
+    PromptTokens: z.number().nullable().describe(`
+        * * Field Name: PromptTokens
+        * * Display Name: Prompt Tokens
+        * * SQL Data Type: int
+        * * Description: Input prompt token count consumed while generating this risk assessment.`),
+    CompletionTokens: z.number().nullable().describe(`
+        * * Field Name: CompletionTokens
+        * * Display Name: Completion Tokens
+        * * SQL Data Type: int
+        * * Description: Output completion token count generated for this risk assessment.`),
+    TotalCostUSD: z.number().nullable().describe(`
+        * * Field Name: TotalCostUSD
+        * * Display Name: Total Cost USD
+        * * SQL Data Type: decimal(19, 8)
+        * * Description: Total LLM inference cost in USD attributed to this risk assessment.`),
+    __mj_CreatedAt: z.date().describe(`
+        * * Field Name: __mj_CreatedAt
+        * * Display Name: Created At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    __mj_UpdatedAt: z.date().describe(`
+        * * Field Name: __mj_UpdatedAt
+        * * Display Name: Updated At
+        * * SQL Data Type: datetimeoffset
+        * * Default Value: getutcdate()`),
+    Task: z.string().nullable().describe(`
+        * * Field Name: Task
+        * * Display Name: Task Name
+        * * SQL Data Type: nvarchar(255)`),
+    AgentRun: z.string().nullable().describe(`
+        * * Field Name: AgentRun
+        * * Display Name: Agent Run Name
+        * * SQL Data Type: nvarchar(255)`),
+});
+
+export type mjBizAppsTasksTaskRiskAssessmentEntityType = z.infer<typeof mjBizAppsTasksTaskRiskAssessmentSchema>;
