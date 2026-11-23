@@ -202,7 +202,7 @@ describe('GetWorkReportAction & ListWorkReportsAction', () => {
                         Person: 'Alice Ng',
                         PeriodStart: '2026-11-20',
                         PeriodEnd: '2026-11-20',
-                        Title: 'Daily 15Five — 2026-11-20',
+                        Title: 'Daily Work Report — 2026-11-20',
                         Body: '### Completed\n- Shipped typed actions',
                         Status: 'Submitted',
                         SupervisorFeedback: 'Secret draft feedback',
@@ -267,7 +267,7 @@ describe('GetWorkReportAction & ListWorkReportsAction', () => {
                     Person: 'Alice Ng',
                     PeriodStart: '2026-11-20',
                     PeriodEnd: '2026-11-20',
-                    Title: 'Daily 15Five',
+                    Title: 'Daily Work Report',
                     Status: 'Submitted',
                 },
             ],
@@ -436,7 +436,7 @@ describe('SubmitWorkReportAction & ReviewWorkReportAction (upgraded canonical Re
 });
 
 describe('GetMyWorkReportsBriefingAction', () => {
-    it('returns caller Draft/Submitted 15Five reports and direct reports awaiting supervisor review', async () => {
+    it('returns caller Draft/Submitted work reports and direct reports awaiting supervisor review', async () => {
         const todayStr = new Date().toISOString().slice(0, 10);
         resolvePersonForUserMock.mockResolvedValueOnce({ ID: PERSON_BOB });
         resolveDirectReportPersonIDsMock.mockResolvedValueOnce([PERSON_ALICE]);
@@ -450,7 +450,7 @@ describe('GetMyWorkReportsBriefingAction', () => {
                         Person: 'Bob Supervisor',
                         PeriodStart: todayStr,
                         PeriodEnd: todayStr,
-                        Title: `Daily 15Five — ${todayStr}`,
+                        Title: `Daily Work Report — ${todayStr}`,
                         Status: 'Draft',
                     },
                 ],
@@ -464,7 +464,7 @@ describe('GetMyWorkReportsBriefingAction', () => {
                         Person: 'Alice Ng',
                         PeriodStart: todayStr,
                         PeriodEnd: todayStr,
-                        Title: `Daily 15Five — ${todayStr}`,
+                        Title: `Daily Work Report — ${todayStr}`,
                         Status: 'Submitted',
                     },
                 ],

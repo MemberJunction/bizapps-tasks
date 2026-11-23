@@ -147,7 +147,7 @@ async function createTempOrg(ctx: IntegrationCheckContext, name: string): Promis
  * Self-contained GraphQL-wire integration checks for:
  *  - Aggregate-root Organization scoping (`Task`, `TaskCategory`, `TaskTemplate`)
  *  - Server-side parent OrganizationID inheritance (`TaskEntityServer.inheritParentOrganizationPreSave`)
- *  - Server-side Asana-grade bulk operations (`BizAppsTasks.BulkUpdateTasks`)
+ *  - Server-side bulk operations (`BizAppsTasks.BulkUpdateTasks`)
  *  - Server-side playbook template instantiation (`BizAppsTasks.InstantiateTemplate`)
  */
 const checks: NamedCheck[] = [

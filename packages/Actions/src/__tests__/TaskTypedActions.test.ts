@@ -973,7 +973,7 @@ describe('AddTaskUpdateAction, FindSimilarTasksAction & GetMyTasksBriefingAction
                 Results: [
                     {
                         ID: 'wr-1',
-                        Title: 'Daily 15Five',
+                        Title: 'Daily Work Report',
                         PersonID: PERSON_ALICE,
                         Person: 'Alice Ng',
                         Status: 'Draft',
