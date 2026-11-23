@@ -1,0 +1,18 @@
+-- =============================================================================================
+-- BizApps Tasks v1.15.x -- Metadata_Sync (PostgreSQL counterpart of V202611231320__v1.15.x__Metadata_Sync.sql)
+-- =============================================================================================
+-- Nothing to seed. This release's only metadata change since v1.14.0 is
+-- metadata/entities/.save-return-datestamps-only.json, which sets SaveReturnMode =
+-- datestamps_only and TrackRecordChanges = 0 on Task Activities and Task Notification Logs.
+--
+-- V202611201230__v1.15.x__SaveReturnMode_DatestampsOnly_StoredProcedures already applies those
+-- exact values, in the same migration as the regenerated spCreate/spUpdate procedures that
+-- return only [ID], [__mj_CreatedAt] and [__mj_UpdatedAt]. The setting and the procedures must
+-- land together, so the setting is not restated here.
+--
+-- Verified: on a database built from migrations only (Tasks v1.14.0 state plus the release
+-- migrations), `mj sync push` of metadata/entities reports 0 created, 0 updated.
+--
+-- This file exists so the release gate, which requires a Metadata_Sync migration whenever
+-- metadata/ changes, records that the change ships. It contains no statements.
+-- =============================================================================================
