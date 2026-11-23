@@ -11,7 +11,8 @@ import '@mj-biz-apps/tasks-entities';
 import { registerChiefOfStaffWakeDispatcher } from '@mj-biz-apps/tasks-actions';
 
 // Import core services to trigger any class registrations
-import '@mj-biz-apps/tasks-core';
+import { ProjectRiskAnalystRegistry } from '@mj-biz-apps/tasks-core';
+import { ProjectRiskAnalystService } from './risk/ProjectRiskAnalystService.js';
 
 // Import server-side entity subclasses (priority-2 overrides with server-only
 // side-effects such as sub-task progress rollup, time entry validation, and timesheet outcomes).
@@ -92,6 +93,16 @@ const SERVER_REGISTERED_CLASSES = [
  */
 export function LoadBizAppsTasksServer(): void {
     registerChiefOfStaffWakeDispatcher();
+    const riskAnalystService = new ProjectRiskAnalystService();
+    ProjectRiskAnalystRegistry.Instance.RegisterHandler((input) =>
+        riskAnalystService.AssessProjectRisk({
+            TaskID: input.TaskID,
+            CallerContextUser: input.CallerContextUser,
+            Force: input.Force,
+            Provider: input.Provider,
+            RunViewProvider: input.RunViewProvider,
+        }),
+    );
     LoadBizAppsTasksEntitiesServer();
     InitTaskNotificationHandler();
     LoadBizAppsTasksHumanTaskProvider();
@@ -100,6 +111,7 @@ export function LoadBizAppsTasksServer(): void {
     }
     console.log('[BizAppsTasks] Server loaded');
 }
+export * from './risk/index.js';
 export * from './workflow/workflow-task-request.js';
 export * from './workflow/workflow-step-completion.js';
 export { BizAppsTasksHumanTaskProvider, RaisedTaskIDsFor, LoadBizAppsTasksHumanTaskProvider } from './workflow/BizAppsTasksHumanTaskProvider.js';

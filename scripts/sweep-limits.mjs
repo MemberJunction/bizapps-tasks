@@ -137,6 +137,14 @@ const TUNING_KEYS = new Set([
     'FailureNotesMaxChars',
     'HttpErrorDetailMaxChars',
     'ZoomTokenSafetyMarginMs',
+    'RiskAnalystWeeklyCadenceHours',
+    'RiskAnalystDailyCadenceHours',
+    'RiskAnalystFinalWindowPercent',
+    'RiskAnalystEvidenceSubtaskCap',
+    'RiskAnalystEvidenceCheckInCap',
+    'RiskAnalystFreeBusyLookaheadDays',
+    'RiskAnalystNoteExcerptMaxChars',
+    'RiskAnalystDefaultEffortLevel',
 ]);
 
 const LIMITS_SECTIONS = new Map([
