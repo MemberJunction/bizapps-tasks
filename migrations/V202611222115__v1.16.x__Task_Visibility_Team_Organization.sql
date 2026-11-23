@@ -1,0 +1,423 @@
+-- =============================================================================
+-- Migration: V202611222115__v1.16.x__Task_Visibility_Team_Organization.sql
+-- Description: Expand [__mj_BizAppsTasks].[Task].[Visibility] allowed values to
+--              ('Team', 'Private', 'Organization') with default 'Team', normalize
+--              any legacy values (e.g. 'Standard') to 'Team' before adding the
+--              updated CHECK constraint, and sync EntityField / EntityFieldValue
+--              metadata and spCreateTask defaults.
+-- =============================================================================
+
+---------------------------------------------------------------------------
+-- 1. Safely drop existing DEFAULT and CHECK constraints on Task.Visibility
+---------------------------------------------------------------------------
+DECLARE @dfName SYSNAME;
+SELECT @dfName = dc.name
+FROM sys.default_constraints dc
+JOIN sys.columns c
+  ON dc.parent_object_id = c.object_id
+ AND dc.parent_column_id = c.column_id
+WHERE dc.parent_object_id = OBJECT_ID(N'[${flyway:defaultSchema}].[Task]')
+  AND c.name = N'Visibility';
+
+IF @dfName IS NOT NULL
+BEGIN
+    DECLARE @dropDfSql NVARCHAR(MAX) =
+        N'ALTER TABLE [${flyway:defaultSchema}].[Task] DROP CONSTRAINT ' + QUOTENAME(@dfName) + N';';
+    EXEC sp_executesql @dropDfSql;
+END;
+GO
+
+DECLARE @ckName SYSNAME;
+DECLARE @visColId INT = COLUMNPROPERTY(OBJECT_ID(N'[${flyway:defaultSchema}].[Task]'), N'Visibility', 'ColumnId');
+
+DECLARE ck_cursor CURSOR LOCAL FAST_FORWARD FOR
+    SELECT cc.name
+    FROM sys.check_constraints cc
+    WHERE cc.parent_object_id = OBJECT_ID(N'[${flyway:defaultSchema}].[Task]')
+      AND (
+          (@visColId IS NOT NULL AND cc.parent_column_id = @visColId)
+          OR cc.name = N'CK_Task_Visibility'
+          OR cc.definition LIKE N'%Visibility%'
+      );
+
+OPEN ck_cursor;
+FETCH NEXT FROM ck_cursor INTO @ckName;
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    DECLARE @dropCkSql NVARCHAR(MAX) =
+        N'ALTER TABLE [${flyway:defaultSchema}].[Task] DROP CONSTRAINT ' + QUOTENAME(@ckName) + N';';
+    EXEC sp_executesql @dropCkSql;
+    FETCH NEXT FROM ck_cursor INTO @ckName;
+END;
+CLOSE ck_cursor;
+DEALLOCATE ck_cursor;
+GO
+
+---------------------------------------------------------------------------
+-- 2. Backfill/normalize pre-existing Visibility rows before recreating CHECK
+---------------------------------------------------------------------------
+UPDATE [${flyway:defaultSchema}].[Task]
+   SET [Visibility] = N'Team'
+ WHERE [Visibility] IS NULL
+    OR [Visibility] NOT IN (N'Team', N'Private', N'Organization');
+GO
+
+---------------------------------------------------------------------------
+-- 3. Add updated DEFAULT ('Team') and CHECK ('Team', 'Private', 'Organization')
+---------------------------------------------------------------------------
+ALTER TABLE [${flyway:defaultSchema}].[Task]
+    ADD CONSTRAINT [DF_Task_Visibility] DEFAULT (N'Team') FOR [Visibility];
+GO
+
+ALTER TABLE [${flyway:defaultSchema}].[Task]
+    ADD CONSTRAINT [CK_Task_Visibility] CHECK ([Visibility] IN ('Team', 'Private', 'Organization'));
+GO
+
+IF EXISTS (
+    SELECT 1
+    FROM sys.extended_properties ep
+    JOIN sys.columns c ON ep.major_id = c.object_id AND ep.minor_id = c.column_id
+    WHERE ep.major_id = OBJECT_ID(N'[${flyway:defaultSchema}].[Task]')
+      AND c.name = N'Visibility'
+      AND ep.name = N'MS_Description'
+)
+BEGIN
+    EXEC sp_updateextendedproperty
+        @name = N'MS_Description',
+        @value = N'Controls who may read this task and its child records (assignments, dependencies, check-ins, comments, links, activities, time entries, risk assessments). Team (default) is visible to the creator, assignees, root-task owner, and everyone up their reporting chains; Private restricts visibility to the creator and assignees; Organization makes the task visible to everyone in the task''s organization.',
+        @level0type = N'SCHEMA', @level0name = N'${flyway:defaultSchema}',
+        @level1type = N'TABLE',  @level1name = N'Task',
+        @level2type = N'COLUMN', @level2name = N'Visibility';
+END
+ELSE
+BEGIN
+    EXEC sp_addextendedproperty
+        @name = N'MS_Description',
+        @value = N'Controls who may read this task and its child records (assignments, dependencies, check-ins, comments, links, activities, time entries, risk assessments). Team (default) is visible to the creator, assignees, root-task owner, and everyone up their reporting chains; Private restricts visibility to the creator and assignees; Organization makes the task visible to everyone in the task''s organization.',
+        @level0type = N'SCHEMA', @level0name = N'${flyway:defaultSchema}',
+        @level1type = N'TABLE',  @level1name = N'Task',
+        @level2type = N'COLUMN', @level2name = N'Visibility';
+END;
+GO
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- =============================================================================
+-- GENERATED BY MemberJunction CodeGen — DO NOT EDIT BY HAND
+-- Contains EntityField/EntityFieldValue updates for Task.Visibility and
+-- spCreateTask refresh with DefaultValue = 'Team'.
+-- =============================================================================
+
+UPDATE [${mjSchema}].[EntityField]
+   SET [DefaultValue] = 'Team',
+       [ValueListType] = 'List',
+       [Description] = 'Controls who may read this task and its child records (assignments, dependencies, check-ins, comments, links, activities, time entries, risk assessments). Team (default) is visible to the creator, assignees, root-task owner, and everyone up their reporting chains; Private restricts visibility to the creator and assignees; Organization makes the task visible to everyone in the task''s organization.',
+       [__mj_UpdatedAt] = GETUTCDATE()
+ WHERE [ID] = '3823d7f6-c43c-496d-b351-f1e3731d7719'
+    OR ([EntityID] = 'B348FFA2-B1A7-4AC2-B6FD-F4E0C0697466' AND [Name] = 'Visibility');
+GO
+
+DECLARE @VisibilityEntityFieldID UNIQUEIDENTIFIER;
+SELECT TOP 1 @VisibilityEntityFieldID = [ID]
+FROM [${mjSchema}].[EntityField]
+WHERE [ID] = '3823d7f6-c43c-496d-b351-f1e3731d7719'
+   OR ([EntityID] = 'B348FFA2-B1A7-4AC2-B6FD-F4E0C0697466' AND [Name] = 'Visibility');
+
+IF @VisibilityEntityFieldID IS NOT NULL
+BEGIN
+    DELETE FROM [${mjSchema}].[EntityFieldValue]
+     WHERE [EntityFieldID] = @VisibilityEntityFieldID
+       AND [Value] NOT IN ('Organization', 'Private', 'Team');
+
+    IF EXISTS (SELECT 1 FROM [${mjSchema}].[EntityFieldValue] WHERE [EntityFieldID] = @VisibilityEntityFieldID AND [Value] = 'Organization')
+        UPDATE [${mjSchema}].[EntityFieldValue]
+           SET [Sequence] = 1, [Code] = 'Organization', [Source] = 'Check', [__mj_UpdatedAt] = GETUTCDATE()
+         WHERE [EntityFieldID] = @VisibilityEntityFieldID AND [Value] = 'Organization';
+    ELSE
+        INSERT INTO [${mjSchema}].[EntityFieldValue] ([ID], [EntityFieldID], [Sequence], [Value], [Code], [Source], [__mj_CreatedAt], [__mj_UpdatedAt])
+        VALUES ('9c7e4b2a-1d3f-48a6-9b5e-2f4a6c8d0e11', @VisibilityEntityFieldID, 1, 'Organization', 'Organization', 'Check', GETUTCDATE(), GETUTCDATE());
+
+    IF EXISTS (SELECT 1 FROM [${mjSchema}].[EntityFieldValue] WHERE [EntityFieldID] = @VisibilityEntityFieldID AND [Value] = 'Private')
+        UPDATE [${mjSchema}].[EntityFieldValue]
+           SET [Sequence] = 2, [Code] = 'Private', [Source] = 'Check', [__mj_UpdatedAt] = GETUTCDATE()
+         WHERE [EntityFieldID] = @VisibilityEntityFieldID AND [Value] = 'Private';
+    ELSE
+        INSERT INTO [${mjSchema}].[EntityFieldValue] ([ID], [EntityFieldID], [Sequence], [Value], [Code], [Source], [__mj_CreatedAt], [__mj_UpdatedAt])
+        VALUES ('3557b267-ca22-4476-b28e-aaa1cb423c6b', @VisibilityEntityFieldID, 2, 'Private', 'Private', 'Check', GETUTCDATE(), GETUTCDATE());
+
+    IF EXISTS (SELECT 1 FROM [${mjSchema}].[EntityFieldValue] WHERE [EntityFieldID] = @VisibilityEntityFieldID AND [Value] = 'Team')
+        UPDATE [${mjSchema}].[EntityFieldValue]
+           SET [Sequence] = 3, [Code] = 'Team', [Source] = 'Check', [__mj_UpdatedAt] = GETUTCDATE()
+         WHERE [EntityFieldID] = @VisibilityEntityFieldID AND [Value] = 'Team';
+    ELSE
+        INSERT INTO [${mjSchema}].[EntityFieldValue] ([ID], [EntityFieldID], [Sequence], [Value], [Code], [Source], [__mj_CreatedAt], [__mj_UpdatedAt])
+        VALUES ('8e42028d-f756-47cd-b07b-4a94261453df', @VisibilityEntityFieldID, 3, 'Team', 'Team', 'Check', GETUTCDATE(), GETUTCDATE());
+END;
+GO
+
+/* spCreate SQL for MJ_BizApps_Tasks: Tasks */
+-----------------------------------------------------------------
+-- SQL Code Generation
+-- Entity: MJ_BizApps_Tasks: Tasks
+-- Item: spCreateTask
+--
+-- This was generated by the MemberJunction CodeGen tool.
+-- This file should NOT be edited by hand.
+-----------------------------------------------------------------
+
+IF OBJECT_ID('[${flyway:defaultSchema}].[spCreateTask]', 'P') IS NOT NULL
+    DROP PROCEDURE [${flyway:defaultSchema}].[spCreateTask];
+GO
+
+CREATE PROCEDURE [${flyway:defaultSchema}].[spCreateTask]
+    @ID uniqueidentifier = NULL,
+    @Name nvarchar(255),
+    @Description_Clear bit = 0,
+    @Description nvarchar(MAX) = NULL,
+    @TypeID uniqueidentifier,
+    @CategoryID_Clear bit = 0,
+    @CategoryID uniqueidentifier = NULL,
+    @ParentID_Clear bit = 0,
+    @ParentID uniqueidentifier = NULL,
+    @Status nvarchar(50) = NULL,
+    @Priority nvarchar(20) = NULL,
+    @StartedAt_Clear bit = 0,
+    @StartedAt datetimeoffset = NULL,
+    @DueAt_Clear bit = 0,
+    @DueAt datetimeoffset = NULL,
+    @CompletedAt_Clear bit = 0,
+    @CompletedAt datetimeoffset = NULL,
+    @HoursEstimated_Clear bit = 0,
+    @HoursEstimated decimal(8, 2) = NULL,
+    @HoursActual_Clear bit = 0,
+    @HoursActual decimal(8, 2) = NULL,
+    @PercentComplete int = NULL,
+    @Sequence int = NULL,
+    @BlockedReason_Clear bit = 0,
+    @BlockedReason nvarchar(MAX) = NULL,
+    @CompletionNotes_Clear bit = 0,
+    @CompletionNotes nvarchar(MAX) = NULL,
+    @CreatedByPersonID_Clear bit = 0,
+    @CreatedByPersonID uniqueidentifier = NULL,
+    @OverdueNotifiedAt_Clear bit = 0,
+    @OverdueNotifiedAt datetimeoffset = NULL,
+    @TaskTypeStatusID_Clear bit = 0,
+    @TaskTypeStatusID uniqueidentifier = NULL,
+    @PredictedSLABreachProbability_Clear bit = 0,
+    @PredictedSLABreachProbability decimal(5, 4) = NULL,
+    @PredictedSLARiskBand_Clear bit = 0,
+    @PredictedSLARiskBand nvarchar(20) = NULL,
+    @PredictedSLAScoredAt_Clear bit = 0,
+    @PredictedSLAScoredAt datetimeoffset = NULL,
+    @HealthStatus_Clear bit = 0,
+    @HealthStatus nvarchar(20) = NULL,
+    @ConfidenceScore_Clear bit = 0,
+    @ConfidenceScore int = NULL,
+    @BaselineValue_Clear bit = 0,
+    @BaselineValue decimal(18, 4) = NULL,
+    @TargetValue_Clear bit = 0,
+    @TargetValue decimal(18, 4) = NULL,
+    @CurrentValue_Clear bit = 0,
+    @CurrentValue decimal(18, 4) = NULL,
+    @UnitOfMeasure_Clear bit = 0,
+    @UnitOfMeasure nvarchar(50) = NULL,
+    @MetricDirection_Clear bit = 0,
+    @MetricDirection nvarchar(20) = NULL,
+    @RollupWeight decimal(8, 2) = NULL,
+    @PlanningPeriod_Clear bit = 0,
+    @PlanningPeriod nvarchar(50) = NULL,
+    @CheckInCadence_Clear bit = 0,
+    @CheckInCadence nvarchar(20) = NULL,
+    @LastCheckInAt_Clear bit = 0,
+    @LastCheckInAt datetimeoffset = NULL,
+    @NextCheckInDueAt_Clear bit = 0,
+    @NextCheckInDueAt datetimeoffset = NULL,
+    @OrganizationID_Clear bit = 0,
+    @OrganizationID uniqueidentifier = NULL,
+    @Visibility nvarchar(20) = NULL,
+    @ForecastCompletionDate_Clear bit = 0,
+    @ForecastCompletionDate datetimeoffset = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @InsertedRow TABLE ([ID] UNIQUEIDENTIFIER)
+
+    IF @ID IS NOT NULL
+    BEGIN
+        INSERT INTO [${flyway:defaultSchema}].[Task]
+            (
+                [ID], [Name], [Description], [TypeID], [CategoryID], [ParentID],
+                [Status], [Priority], [StartedAt], [DueAt], [CompletedAt],
+                [HoursEstimated], [HoursActual], [PercentComplete], [Sequence],
+                [BlockedReason], [CompletionNotes], [CreatedByPersonID],
+                [OverdueNotifiedAt], [TaskTypeStatusID],
+                [PredictedSLABreachProbability], [PredictedSLARiskBand], [PredictedSLAScoredAt],
+                [HealthStatus], [ConfidenceScore], [BaselineValue], [TargetValue], [CurrentValue],
+                [UnitOfMeasure], [MetricDirection], [RollupWeight], [PlanningPeriod],
+                [CheckInCadence], [LastCheckInAt], [NextCheckInDueAt],
+                [OrganizationID], [Visibility], [ForecastCompletionDate]
+            )
+        OUTPUT INSERTED.[ID] INTO @InsertedRow
+        VALUES
+            (
+                @ID,
+                @Name,
+                CASE WHEN @Description_Clear = 1 THEN NULL ELSE ISNULL(@Description, NULL) END,
+                @TypeID,
+                CASE WHEN @CategoryID_Clear = 1 THEN NULL ELSE ISNULL(@CategoryID, NULL) END,
+                CASE WHEN @ParentID_Clear = 1 THEN NULL ELSE ISNULL(@ParentID, NULL) END,
+                ISNULL(@Status, 'Open'),
+                ISNULL(@Priority, 'Medium'),
+                CASE WHEN @StartedAt_Clear = 1 THEN NULL ELSE ISNULL(@StartedAt, NULL) END,
+                CASE WHEN @DueAt_Clear = 1 THEN NULL ELSE ISNULL(@DueAt, NULL) END,
+                CASE WHEN @CompletedAt_Clear = 1 THEN NULL ELSE ISNULL(@CompletedAt, NULL) END,
+                CASE WHEN @HoursEstimated_Clear = 1 THEN NULL ELSE ISNULL(@HoursEstimated, NULL) END,
+                CASE WHEN @HoursActual_Clear = 1 THEN NULL ELSE ISNULL(@HoursActual, NULL) END,
+                ISNULL(@PercentComplete, 0),
+                ISNULL(@Sequence, 100),
+                CASE WHEN @BlockedReason_Clear = 1 THEN NULL ELSE ISNULL(@BlockedReason, NULL) END,
+                CASE WHEN @CompletionNotes_Clear = 1 THEN NULL ELSE ISNULL(@CompletionNotes, NULL) END,
+                CASE WHEN @CreatedByPersonID_Clear = 1 THEN NULL ELSE ISNULL(@CreatedByPersonID, NULL) END,
+                CASE WHEN @OverdueNotifiedAt_Clear = 1 THEN NULL ELSE ISNULL(@OverdueNotifiedAt, NULL) END,
+                CASE WHEN @TaskTypeStatusID_Clear = 1 THEN NULL ELSE ISNULL(@TaskTypeStatusID, NULL) END,
+                CASE WHEN @PredictedSLABreachProbability_Clear = 1 THEN NULL ELSE ISNULL(@PredictedSLABreachProbability, NULL) END,
+                CASE WHEN @PredictedSLARiskBand_Clear = 1 THEN NULL ELSE ISNULL(@PredictedSLARiskBand, NULL) END,
+                CASE WHEN @PredictedSLAScoredAt_Clear = 1 THEN NULL ELSE ISNULL(@PredictedSLAScoredAt, NULL) END,
+                CASE WHEN @HealthStatus_Clear = 1 THEN NULL ELSE ISNULL(@HealthStatus, NULL) END,
+                CASE WHEN @ConfidenceScore_Clear = 1 THEN NULL ELSE ISNULL(@ConfidenceScore, NULL) END,
+                CASE WHEN @BaselineValue_Clear = 1 THEN NULL ELSE ISNULL(@BaselineValue, NULL) END,
+                CASE WHEN @TargetValue_Clear = 1 THEN NULL ELSE ISNULL(@TargetValue, NULL) END,
+                CASE WHEN @CurrentValue_Clear = 1 THEN NULL ELSE ISNULL(@CurrentValue, NULL) END,
+                CASE WHEN @UnitOfMeasure_Clear = 1 THEN NULL ELSE ISNULL(@UnitOfMeasure, NULL) END,
+                CASE WHEN @MetricDirection_Clear = 1 THEN NULL ELSE ISNULL(@MetricDirection, NULL) END,
+                ISNULL(@RollupWeight, 1.00),
+                CASE WHEN @PlanningPeriod_Clear = 1 THEN NULL ELSE ISNULL(@PlanningPeriod, NULL) END,
+                CASE WHEN @CheckInCadence_Clear = 1 THEN NULL ELSE ISNULL(@CheckInCadence, NULL) END,
+                CASE WHEN @LastCheckInAt_Clear = 1 THEN NULL ELSE ISNULL(@LastCheckInAt, NULL) END,
+                CASE WHEN @NextCheckInDueAt_Clear = 1 THEN NULL ELSE ISNULL(@NextCheckInDueAt, NULL) END,
+                CASE WHEN @OrganizationID_Clear = 1 THEN NULL ELSE ISNULL(@OrganizationID, NULL) END,
+                ISNULL(@Visibility, 'Team'),
+                CASE WHEN @ForecastCompletionDate_Clear = 1 THEN NULL ELSE ISNULL(@ForecastCompletionDate, NULL) END
+            )
+    END
+    ELSE
+    BEGIN
+        INSERT INTO [${flyway:defaultSchema}].[Task]
+            (
+                [Name], [Description], [TypeID], [CategoryID], [ParentID],
+                [Status], [Priority], [StartedAt], [DueAt], [CompletedAt],
+                [HoursEstimated], [HoursActual], [PercentComplete], [Sequence],
+                [BlockedReason], [CompletionNotes], [CreatedByPersonID],
+                [OverdueNotifiedAt], [TaskTypeStatusID],
+                [PredictedSLABreachProbability], [PredictedSLARiskBand], [PredictedSLAScoredAt],
+                [HealthStatus], [ConfidenceScore], [BaselineValue], [TargetValue], [CurrentValue],
+                [UnitOfMeasure], [MetricDirection], [RollupWeight], [PlanningPeriod],
+                [CheckInCadence], [LastCheckInAt], [NextCheckInDueAt],
+                [OrganizationID], [Visibility], [ForecastCompletionDate]
+            )
+        OUTPUT INSERTED.[ID] INTO @InsertedRow
+        VALUES
+            (
+                @Name,
+                CASE WHEN @Description_Clear = 1 THEN NULL ELSE ISNULL(@Description, NULL) END,
+                @TypeID,
+                CASE WHEN @CategoryID_Clear = 1 THEN NULL ELSE ISNULL(@CategoryID, NULL) END,
+                CASE WHEN @ParentID_Clear = 1 THEN NULL ELSE ISNULL(@ParentID, NULL) END,
+                ISNULL(@Status, 'Open'),
+                ISNULL(@Priority, 'Medium'),
+                CASE WHEN @StartedAt_Clear = 1 THEN NULL ELSE ISNULL(@StartedAt, NULL) END,
+                CASE WHEN @DueAt_Clear = 1 THEN NULL ELSE ISNULL(@DueAt, NULL) END,
+                CASE WHEN @CompletedAt_Clear = 1 THEN NULL ELSE ISNULL(@CompletedAt, NULL) END,
+                CASE WHEN @HoursEstimated_Clear = 1 THEN NULL ELSE ISNULL(@HoursEstimated, NULL) END,
+                CASE WHEN @HoursActual_Clear = 1 THEN NULL ELSE ISNULL(@HoursActual, NULL) END,
+                ISNULL(@PercentComplete, 0),
+                ISNULL(@Sequence, 100),
+                CASE WHEN @BlockedReason_Clear = 1 THEN NULL ELSE ISNULL(@BlockedReason, NULL) END,
+                CASE WHEN @CompletionNotes_Clear = 1 THEN NULL ELSE ISNULL(@CompletionNotes, NULL) END,
+                CASE WHEN @CreatedByPersonID_Clear = 1 THEN NULL ELSE ISNULL(@CreatedByPersonID, NULL) END,
+                CASE WHEN @OverdueNotifiedAt_Clear = 1 THEN NULL ELSE ISNULL(@OverdueNotifiedAt, NULL) END,
+                CASE WHEN @TaskTypeStatusID_Clear = 1 THEN NULL ELSE ISNULL(@TaskTypeStatusID, NULL) END,
+                CASE WHEN @PredictedSLABreachProbability_Clear = 1 THEN NULL ELSE ISNULL(@PredictedSLABreachProbability, NULL) END,
+                CASE WHEN @PredictedSLARiskBand_Clear = 1 THEN NULL ELSE ISNULL(@PredictedSLARiskBand, NULL) END,
+                CASE WHEN @PredictedSLAScoredAt_Clear = 1 THEN NULL ELSE ISNULL(@PredictedSLAScoredAt, NULL) END,
+                CASE WHEN @HealthStatus_Clear = 1 THEN NULL ELSE ISNULL(@HealthStatus, NULL) END,
+                CASE WHEN @ConfidenceScore_Clear = 1 THEN NULL ELSE ISNULL(@ConfidenceScore, NULL) END,
+                CASE WHEN @BaselineValue_Clear = 1 THEN NULL ELSE ISNULL(@BaselineValue, NULL) END,
+                CASE WHEN @TargetValue_Clear = 1 THEN NULL ELSE ISNULL(@TargetValue, NULL) END,
+                CASE WHEN @CurrentValue_Clear = 1 THEN NULL ELSE ISNULL(@CurrentValue, NULL) END,
+                CASE WHEN @UnitOfMeasure_Clear = 1 THEN NULL ELSE ISNULL(@UnitOfMeasure, NULL) END,
+                CASE WHEN @MetricDirection_Clear = 1 THEN NULL ELSE ISNULL(@MetricDirection, NULL) END,
+                ISNULL(@RollupWeight, 1.00),
+                CASE WHEN @PlanningPeriod_Clear = 1 THEN NULL ELSE ISNULL(@PlanningPeriod, NULL) END,
+                CASE WHEN @CheckInCadence_Clear = 1 THEN NULL ELSE ISNULL(@CheckInCadence, NULL) END,
+                CASE WHEN @LastCheckInAt_Clear = 1 THEN NULL ELSE ISNULL(@LastCheckInAt, NULL) END,
+                CASE WHEN @NextCheckInDueAt_Clear = 1 THEN NULL ELSE ISNULL(@NextCheckInDueAt, NULL) END,
+                CASE WHEN @OrganizationID_Clear = 1 THEN NULL ELSE ISNULL(@OrganizationID, NULL) END,
+                ISNULL(@Visibility, 'Team'),
+                CASE WHEN @ForecastCompletionDate_Clear = 1 THEN NULL ELSE ISNULL(@ForecastCompletionDate, NULL) END
+            )
+    END
+    SELECT * FROM [${flyway:defaultSchema}].[vwTasks] WHERE [ID] = (SELECT [ID] FROM @InsertedRow)
+END
+GO
+
+REVOKE EXECUTE ON [${flyway:defaultSchema}].[spCreateTask] FROM [cdp_Developer]
+REVOKE EXECUTE ON [${flyway:defaultSchema}].[spCreateTask] FROM [cdp_Integration]
+REVOKE EXECUTE ON [${flyway:defaultSchema}].[spCreateTask] FROM [cdp_UI]
+GRANT EXECUTE ON [${flyway:defaultSchema}].[spCreateTask] TO [cdp_UI], [cdp_Developer], [cdp_Integration];
+GO
+
+EXEC [${mjSchema}].[spUpdateExistingEntityFieldsFromSchema] @ExcludedSchemaNames='', @EntityIDs='B348FFA2-B1A7-4AC2-B6FD-F4E0C0697466', @IncludedSchemaNames='${flyway:defaultSchema}';
+GO

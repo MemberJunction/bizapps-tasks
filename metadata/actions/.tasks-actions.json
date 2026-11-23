@@ -2044,8 +2044,8 @@
             "ValueType": "Scalar",
             "IsArray": false,
             "IsRequired": false,
-            "Description": "Row-level visibility: Standard (default, visible to team) or Private (restricted to creator, assignees, and root-task participants).",
-            "DefaultValue": "Standard"
+            "Description": "Row-level visibility: Team (default, visible to creator, assignees, root-task owner, and reporting chains), Private (restricted to creator and assignees), or Organization (visible across the task's organization).",
+            "DefaultValue": "Team"
           },
           "primaryKey": {
             "ID": "A8A52E64-4999-44EF-AF4C-28869A9A13CD"
@@ -2573,7 +2573,7 @@
             "ValueType": "Scalar",
             "IsArray": false,
             "IsRequired": false,
-            "Description": "Updated row-level visibility: Standard or Private."
+            "Description": "Updated row-level visibility: Team, Private, or Organization."
           },
           "primaryKey": {
             "ID": "ED15FA0F-89E5-4E43-9693-9544D306C969"
