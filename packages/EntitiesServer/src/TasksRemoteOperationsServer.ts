@@ -12,8 +12,9 @@ import {
     type AgentPolicyVerdict,
     type TypedActionPolicyResultCode,
 } from '@memberjunction/ai-core-plus';
-import { RegisterClass, UUIDsEqual } from '@memberjunction/global';
+import { EscapeSQLString, RegisterClass, UUIDsEqual } from '@memberjunction/global';
 import {
+    GuidLiteral,
     TASKS_BULK_UPDATE_OP_KEY,
     TASKS_INSTANTIATE_TEMPLATE_OP_KEY,
     TASKS_RUN_RECURRING_PLAYBOOKS_OP_KEY,
@@ -722,6 +723,11 @@ export class TasksInstantiateTemplateServerOperation extends TasksInstantiateTem
             }
         }
 
+        const recurrenceTemplateID = input.RecurrenceTemplateID
+            ? assertUuid(input.RecurrenceTemplateID, 'RecurrenceTemplateID')
+            : null;
+        const recurrencePeriodKey = input.RecurrencePeriodKey?.trim() || null;
+
         const sortedItems = topologicalSortTemplateItems(items);
         const itemToTaskID = new Map<string, string>();
         const createdTaskIDs: string[] = [];
@@ -742,6 +748,11 @@ export class TasksInstantiateTemplateServerOperation extends TasksInstantiateTem
             if (effectiveCategoryID) task.CategoryID = effectiveCategoryID;
             if (effectiveOrganizationID) task.OrganizationID = effectiveOrganizationID;
 
+            if (createdTaskIDs.length === 0 && recurrenceTemplateID && recurrencePeriodKey) {
+                task.RecurrenceTemplateID = recurrenceTemplateID;
+                task.RecurrencePeriodKey = recurrencePeriodKey;
+            }
+
             if (item.DaysFromStart != null) {
                 task.DueAt = shiftDateByDays(startDate, item.DaysFromStart);
             }
@@ -753,10 +764,26 @@ export class TasksInstantiateTemplateServerOperation extends TasksInstantiateTem
                 }
             }
 
-            const saved = await task.Save();
+            let saved = false;
+            try {
+                saved = await task.Save();
+            } catch (saveErr) {
+                if (isRecurringUniqueViolation(saveErr)) {
+                    throw new RecurringPlaybookUniqueConflictError(
+                        `Recurring playbook conflict on UX_Task_RecurringPlaybook_Org_Period (${recurrenceTemplateID}, ${effectiveOrganizationID}, ${recurrencePeriodKey})`,
+                    );
+                }
+                throw saveErr;
+            }
             if (!saved) {
+                const msg = task.LatestResult?.CompleteMessage ?? 'unknown error';
+                if (isRecurringUniqueViolation(msg) || isRecurringUniqueViolation(task.LatestResult)) {
+                    throw new RecurringPlaybookUniqueConflictError(
+                        `Recurring playbook conflict on UX_Task_RecurringPlaybook_Org_Period: ${msg}`,
+                    );
+                }
                 throw new Error(
-                    `Failed creating task '${item.Name}' from template: ${task.LatestResult?.CompleteMessage ?? 'unknown error'}`,
+                    `Failed creating task '${item.Name}' from template: ${msg}`,
                 );
             }
 
@@ -809,8 +836,61 @@ export class TasksInstantiateTemplateServerOperation extends TasksInstantiateTem
 
 const PERIOD_KEY_PATTERN = /^[A-Za-z0-9._-]{1,40}$/;
 
-function buildPeriodMarker(periodKey: string, templateID: string): string {
-    return `[Period:${periodKey}][Template:${templateID.toLowerCase()}]`;
+/** Error marker thrown when the DB filtered unique index rejects a concurrent duplicate launch. */
+class RecurringPlaybookUniqueConflictError extends Error {
+    public constructor(message: string) {
+        super(message);
+        this.name = 'RecurringPlaybookUniqueConflictError';
+    }
+}
+
+interface SqlErrorLike {
+    code?: string | number;
+    number?: number;
+    message?: string;
+    CompleteMessage?: string;
+    cause?: SqlErrorLike;
+    originalError?: SqlErrorLike;
+}
+
+/**
+ * Recognizes database unique-constraint / unique-index conflicts across both SQL Server
+ * (`2601`, `2627`, `Cannot insert duplicate key`) and PostgreSQL (`23505`,
+ * `duplicate key value violates unique constraint`), as well as `UX_Task_RecurringPlaybook_Org_Period`.
+ */
+export function isRecurringUniqueViolation(errOrMessage: unknown): boolean {
+    if (errOrMessage instanceof RecurringPlaybookUniqueConflictError) {
+        return true;
+    }
+    const queue: SqlErrorLike[] = [];
+    if (typeof errOrMessage === 'string') {
+        queue.push({ message: errOrMessage });
+    } else if (errOrMessage instanceof Error) {
+        queue.push(errOrMessage as SqlErrorLike);
+    } else if (errOrMessage && typeof errOrMessage === 'object') {
+        queue.push(errOrMessage as SqlErrorLike);
+    }
+
+    while (queue.length > 0) {
+        const current = queue.shift()!;
+        const codeStr = current.code != null ? String(current.code) : '';
+        if (codeStr === '23505' || current.number === 2601 || current.number === 2627) {
+            return true;
+        }
+        const text = `${current.message ?? ''} ${current.CompleteMessage ?? ''}`;
+        if (
+            /UX_Task_RecurringPlaybook_Org_Period/i.test(text) ||
+            /Cannot insert duplicate key/i.test(text) ||
+            /Violation of UNIQUE KEY constraint/i.test(text) ||
+            /duplicate key value violates unique constraint/i.test(text) ||
+            /\b(2601|2627|23505)\b/.test(text)
+        ) {
+            return true;
+        }
+        if (current.cause) queue.push(current.cause);
+        if (current.originalError) queue.push(current.originalError);
+    }
+    return false;
 }
 
 /**
@@ -896,11 +976,6 @@ export class TasksRunRecurringPlaybooksServerOperation extends TasksRunRecurring
             }
         }
 
-        const marker = buildPeriodMarker(periodKey, templateID);
-        // Quote-doubling alone leaves `%`, `_` and `[` live as LIKE wildcards, and
-        // PERIOD_KEY_PATTERN permits `_` — so a key like `2026_12` would also match
-        // `2026-12` and wrongly skip a playbook run. Bracket-escape the wildcards too.
-        const escapedMarker = marker.replace(/'/g, "''").replace(/[[%_]/g, '[$&]');
         const results: RecurringPlaybookOrgResult[] = [];
         let launchedCount = 0;
         let skippedCount = 0;
@@ -908,12 +983,18 @@ export class TasksRunRecurringPlaybooksServerOperation extends TasksRunRecurring
         let totalTasksCreated = 0;
 
         const instantiateRunner = new TasksInstantiateTemplateServerOperation();
+        const escapedPeriodKey = EscapeSQLString(periodKey);
+        const templateGuidLiteral = GuidLiteral(templateID, 'TemplateID');
 
         for (const org of targetOrgs) {
             try {
+                const orgGuidLiteral = GuidLiteral(org.ID, 'OrganizationID');
                 const existingRes = await rv.RunView<{ ID: string }>({
                     EntityName: 'MJ_BizApps_Tasks: Tasks',
-                    ExtraFilter: `OrganizationID='${org.ID}' AND Description LIKE '%${escapedMarker}%'`,
+                    ExtraFilter:
+                        `OrganizationID = ${orgGuidLiteral} ` +
+                        `AND RecurrenceTemplateID = ${templateGuidLiteral} ` +
+                        `AND RecurrencePeriodKey = '${escapedPeriodKey}'`,
                     Fields: ['ID'],
                     MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
                     ResultType: 'simple',
@@ -950,25 +1031,13 @@ export class TasksRunRecurringPlaybooksServerOperation extends TasksRunRecurring
                         StartDate: input.AnchorDate,
                         CategoryID: input.CategoryID ?? null,
                         OrganizationID: org.ID,
+                        RecurrenceTemplateID: templateID,
+                        RecurrencePeriodKey: periodKey,
                         RoleAssignments: input.RoleAssignments ?? [],
                     },
                     provider,
                     user,
                 );
-
-                // Stamp the idempotency marker on the first created root task so re-runs skip cleanly
-                if (instRes.CreatedTaskIDs.length > 0) {
-                    const rootTask = await provider.GetEntityObject<mjBizAppsTasksTaskEntity>(
-                        'MJ_BizApps_Tasks: Tasks',
-                        user,
-                    );
-                    const loaded = await rootTask.InnerLoad(CompositeKey.FromID(instRes.CreatedTaskIDs[0]));
-                    if (loaded) {
-                        const existingDesc = (rootTask.Description ?? '').trim();
-                        rootTask.Description = existingDesc ? `${existingDesc}\n\n${marker}` : marker;
-                        await rootTask.Save();
-                    }
-                }
 
                 launchedCount++;
                 totalTasksCreated += instRes.CreatedCount;
@@ -980,6 +1049,18 @@ export class TasksRunRecurringPlaybooksServerOperation extends TasksRunRecurring
                     CreatedTaskIDs: instRes.CreatedTaskIDs,
                 });
             } catch (err) {
+                if (isRecurringUniqueViolation(err)) {
+                    skippedCount++;
+                    results.push({
+                        OrganizationID: org.ID,
+                        OrganizationName: org.Name,
+                        Status: 'skipped',
+                        CreatedCount: 0,
+                        CreatedTaskIDs: [],
+                        Reason: `Already instantiated for period '${periodKey}' (enforced by UX_Task_RecurringPlaybook_Org_Period).`,
+                    });
+                    continue;
+                }
                 failedCount++;
                 results.push({
                     OrganizationID: org.ID,

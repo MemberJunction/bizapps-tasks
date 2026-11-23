@@ -144,6 +144,10 @@ export interface TasksInstantiateTemplateInput {
     CategoryID?: string | null;
     /** Optional organization/company scope override (falls back to template default). */
     OrganizationID?: string | null;
+    /** Optional recurring playbook template ID for database-enforced uniqueness. */
+    RecurrenceTemplateID?: string | null;
+    /** Optional recurring period key (e.g., `'2026-12'`) paired with `RecurrenceTemplateID` & `OrganizationID`. */
+    RecurrencePeriodKey?: string | null;
     /** Role placeholder mappings to concrete People, MJ Roles, or Organizations. */
     RoleAssignments?: TemplateRoleAssignmentInput[];
 }
@@ -185,9 +189,10 @@ export interface TasksRunRecurringPlaybooksInput {
     /** Kickoff anchor date (`YYYY-MM-DD` or ISO string) used to calculate relative due dates. */
     AnchorDate: string;
     /**
-     * Stable period idempotency key (e.g., `'2026-12'`, `'2026-Q4'`). Any Organization that
-     * already has a root task tagged with `[Period:<PeriodKey>]` from this template is skipped
-     * so scheduled jobs never double-spawn work.
+     * Stable period idempotency key (e.g., `'2026-12'`, `'2026-Q4'`). Enforced atomically by
+     * filtered unique index `UX_Task_RecurringPlaybook_Org_Period` on
+     * `(RecurrenceTemplateID, OrganizationID, RecurrencePeriodKey)` so concurrent or repeated
+     * scheduled runs never double-spawn work.
      */
     PeriodKey: string;
     /** Explicit list of `MJ_BizApps_Common: Organizations.ID` UUIDs to launch for. */

@@ -75,6 +75,8 @@ interface MockTaskRecord {
     DueAt: Date | null;
     StartedAt: Date | null;
     OrganizationID: string | null;
+    RecurrenceTemplateID?: string | null;
+    RecurrencePeriodKey?: string | null;
     CategoryID: string | null;
     TypeID: string | null;
     TaskTypeStatusID: string | null;
@@ -970,8 +972,9 @@ describe('TasksRunRecurringPlaybooksServerOperation', () => {
             expect(live.Output?.SkippedCount).toBe(1);
             expect(live.Output?.TotalTasksCreated).toBe(1);
             expect(savedTasks[0].OrganizationID).toBe(ORG_1);
-            expect(savedTasks[0].Description).toContain('[Period:2026-12]');
-            expect(savedTasks[0].Description).toContain(`[Template:${TEMPLATE_1}]`);
+            expect(savedTasks[0].RecurrenceTemplateID).toBe(TEMPLATE_1);
+            expect(savedTasks[0].RecurrencePeriodKey).toBe('2026-12');
+            expect(savedTasks[0].Description ?? '').not.toContain('[Period:');
 
             // 3. Rejects missing PeriodKey
             const invalid = await op.ExecuteServer(
@@ -986,6 +989,135 @@ describe('TasksRunRecurringPlaybooksServerOperation', () => {
             expect(invalid.ErrorMessage).toMatch(/PeriodKey/i);
         } finally {
             runViewSpy.mockRestore();
+        }
+    });
+
+    it('prevents duplicate child task creation under simultaneous concurrent calls via DB unique index (SQL Server 2601/2627 and PostgreSQL 23505)', async () => {
+        for (const dialectError of [
+            Object.assign(new Error("Cannot insert duplicate key row in object '__mj_BizAppsTasks.Task' with unique index 'UX_Task_RecurringPlaybook_Org_Period'."), { number: 2601 }),
+            Object.assign(new Error('duplicate key value violates unique constraint "UX_Task_RecurringPlaybook_Org_Period"'), { code: '23505' }),
+        ]) {
+            const committedKeys = new Set<string>();
+            const persistedRows: Array<{ OrganizationID: string | null; RecurrenceTemplateID: string | null; RecurrencePeriodKey: string | null }> = [];
+            let seq = 500;
+            let preCheckCalls = 0;
+            let releaseBarrier!: () => void;
+            const barrier = new Promise<void>((resolve) => {
+                releaseBarrier = resolve;
+            });
+
+            const provider = makeTestProvider({
+                EntityByName: vi.fn(() => undefined),
+                GetEntityObject: vi.fn(async (entityName: string) => {
+                    if (entityName === 'MJ_BizApps_Tasks: Task Templates') {
+                        return {
+                            ID: TEMPLATE_1,
+                            Name: 'Month-End Close',
+                            TypeID: TYPE_1,
+                            CategoryID: CAT_1,
+                            OrganizationID: null,
+                            InnerLoad: async () => true,
+                        };
+                    }
+                    const rec = makeMockTask(`00000000-0000-4000-8000-000000000${++seq}`);
+                    rec.Save = vi.fn(async () => {
+                        if (rec.RecurrenceTemplateID && rec.OrganizationID && rec.RecurrencePeriodKey) {
+                            const key = `${rec.RecurrenceTemplateID}:${rec.OrganizationID}:${rec.RecurrencePeriodKey}`;
+                            if (committedKeys.has(key)) {
+                                throw dialectError;
+                            }
+                            committedKeys.add(key);
+                        }
+                        persistedRows.push({
+                            OrganizationID: rec.OrganizationID,
+                            RecurrenceTemplateID: rec.RecurrenceTemplateID ?? null,
+                            RecurrencePeriodKey: rec.RecurrencePeriodKey ?? null,
+                        });
+                        return true;
+                    });
+                    return rec;
+                }),
+            });
+
+            const runViewSpy = vi.spyOn(RunView, 'FromMetadataProvider').mockReturnValue(
+                makeTestRunView(async (params: RunViewParams) => {
+                    if (params.EntityName === 'MJ_BizApps_Common: Organizations') {
+                        return makeRunViewResult([{ ID: ORG_1, Name: 'Acme US' }]);
+                    }
+                    if (params.EntityName === 'MJ_BizApps_Tasks: Tasks') {
+                        // Force both concurrent invocations past the pre-check simultaneously
+                        // so only the DB filtered unique index arbitrates the race.
+                        preCheckCalls++;
+                        if (preCheckCalls === 2) {
+                            releaseBarrier();
+                        }
+                        await barrier;
+                        return makeRunViewResult([]);
+                    }
+                    if (params.EntityName === 'MJ_BizApps_Tasks: Task Template Items') {
+                        return makeRunViewResult([
+                            {
+                                ID: ITEM_PARENT,
+                                Name: 'Root Close Task',
+                                Description: 'Close ledger',
+                                ParentItemID: null,
+                                Priority: 'High',
+                                DaysFromStart: 1,
+                                HoursEstimated: 2,
+                                Sequence: 1,
+                            },
+                            {
+                                ID: ITEM_CHILD,
+                                Name: 'Child Sub-Task',
+                                Description: 'Reconcile AP',
+                                ParentItemID: ITEM_PARENT,
+                                Priority: 'Medium',
+                                DaysFromStart: 2,
+                                HoursEstimated: 1,
+                                Sequence: 2,
+                            },
+                        ]);
+                    }
+                    return makeRunViewResult([]);
+                }),
+            );
+
+            try {
+                const op = new TasksRunRecurringPlaybooksServerOperation();
+                const [r1, r2] = await Promise.all([
+                    op.ExecuteServer(
+                        {
+                            TemplateID: TEMPLATE_1,
+                            AnchorDate: '2026-12-01',
+                            PeriodKey: '2026-12',
+                            OrganizationIDs: [ORG_1],
+                        },
+                        { provider, user: TEST_USER, emitProgress: () => {} },
+                    ),
+                    op.ExecuteServer(
+                        {
+                            TemplateID: TEMPLATE_1,
+                            AnchorDate: '2026-12-01',
+                            PeriodKey: '2026-12',
+                            OrganizationIDs: [ORG_1],
+                        },
+                        { provider, user: TEST_USER, emitProgress: () => {} },
+                    ),
+                ]);
+
+                expect(r1.Success).toBe(true);
+                expect(r2.Success).toBe(true);
+                const launchedTotal = (r1.Output?.LaunchedCount ?? 0) + (r2.Output?.LaunchedCount ?? 0);
+                const skippedTotal = (r1.Output?.SkippedCount ?? 0) + (r2.Output?.SkippedCount ?? 0);
+                const failedTotal = (r1.Output?.FailedCount ?? 0) + (r2.Output?.FailedCount ?? 0);
+                expect(launchedTotal).toBe(1);
+                expect(skippedTotal).toBe(1);
+                expect(failedTotal).toBe(0);
+                // Winner created exactly 2 tasks (root + child); loser spawned 0 duplicate children.
+                expect(persistedRows).toHaveLength(2);
+            } finally {
+                runViewSpy.mockRestore();
+            }
         }
     });
 });
