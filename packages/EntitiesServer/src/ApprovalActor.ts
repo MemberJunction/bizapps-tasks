@@ -19,9 +19,23 @@ import { IsPeopleEntity, PeopleForUser } from './UserPeople.js';
 const USERS_ENTITY = 'MJ: Users';
 const ROLES_ENTITY = 'MJ: Roles';
 const USER_ROLES_ENTITY = 'MJ: User Roles';
+const EMPLOYEES_ENTITY = 'MJ: Employees';
+const ORGANIZATIONS_ENTITY = 'MJ_BizApps_Common: Organizations';
+const RELATIONSHIPS_ENTITY = 'MJ_BizApps_Common: Relationships';
+const RELATIONSHIP_TYPES_ENTITY = 'MJ_BizApps_Common: Relationship Types';
 
 /** One role the user holds. */
 type HeldRole = { RoleID: string | null; Role: string | null };
+type OrgRelationshipTypeRow = { ID: string };
+type OrgRelationshipRow = {
+    FromPersonID: string | null;
+    ToPersonID: string | null;
+    FromOrganizationID: string | null;
+    ToOrganizationID: string | null;
+};
+type UserEmployeeRow = { ID: string; EmployeeID: string | null };
+type EmployeeCompanyRow = { ID: string; CompanyID: string | null; Active: boolean | number };
+type OrganizationRow = { ID: string };
 
 const same = (a: string | null | undefined, b: string | null | undefined): boolean =>
     !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
@@ -34,6 +48,7 @@ export function IsSystemActor(user: UserInfo | null | undefined): boolean {
 export class ApprovalActor {
     private people: Promise<string[]> | null = null;
     private roles: Promise<HeldRole[]> | null = null;
+    private organizations: Promise<string[]> | null = null;
 
     public constructor(
         private readonly user: UserInfo,
@@ -98,10 +113,83 @@ export class ApprovalActor {
         return (await this.heldRoles()).some((r) => (r.Role ?? '').trim().toLowerCase() === exempt);
     }
 
+    /** Every Organization ID the actor belongs to (via active PersonToOrganization Relationships or active Employee -> LinkedCompany). */
+    public OrganizationIDs(): Promise<string[]> {
+        this.organizations ??= this.loadOrganizations();
+        return this.organizations;
+    }
+
+    /** Whether the actor belongs to `organizationID` (fail-closed when non-empty and membership cannot be confirmed). */
+    public async BelongsToOrganization(organizationID: string | null | undefined): Promise<boolean> {
+        if (!organizationID) return true;
+        return (await this.OrganizationIDs()).some((id) => same(id, organizationID));
+    }
+
     /** The role is held when the database says so, or when the signed-in session already carries it. */
     private async holdsRoleID(roleID: string): Promise<boolean> {
         if ((this.user.UserRoles ?? []).some((r) => same(r.RoleID, roleID))) return true;
         return (await this.heldRoles()).some((r) => same(r.RoleID, roleID));
+    }
+
+    private async loadOrganizations(): Promise<string[]> {
+        const orgIDs = new Set<string>();
+        const personIDs = await this.PersonIDs();
+
+        if (personIDs.length > 0 && this.provider.EntityByName(RELATIONSHIP_TYPES_ENTITY) && this.provider.EntityByName(RELATIONSHIPS_ENTITY)) {
+            const relTypes = await this.readRows<OrgRelationshipTypeRow>(
+                RELATIONSHIP_TYPES_ENTITY,
+                `Category = 'PersonToOrganization'`,
+                ['ID'],
+            );
+            const relTypeIDs = relTypes.map((t) => t.ID).filter(Boolean);
+            if (relTypeIDs.length > 0) {
+                const personIn = personIDs.map((id) => GuidLiteral(id, 'PersonID')).join(', ');
+                const typeIn = relTypeIDs.map((id) => GuidLiteral(id, 'RelationshipTypeID')).join(', ');
+                const rels = await this.readRows<OrgRelationshipRow>(
+                    RELATIONSHIPS_ENTITY,
+                    `Status = 'Active' AND RelationshipTypeID IN (${typeIn}) AND (FromPersonID IN (${personIn}) OR ToPersonID IN (${personIn}))`,
+                    ['FromPersonID', 'ToPersonID', 'FromOrganizationID', 'ToOrganizationID'],
+                );
+                for (const rel of rels) {
+                    if (rel.ToOrganizationID && personIDs.some((p) => same(p, rel.FromPersonID))) {
+                        orgIDs.add(rel.ToOrganizationID);
+                    }
+                    if (rel.FromOrganizationID && personIDs.some((p) => same(p, rel.ToPersonID))) {
+                        orgIDs.add(rel.FromOrganizationID);
+                    }
+                }
+            }
+        }
+
+        if (this.provider.EntityByName(USERS_ENTITY) && this.provider.EntityByName(EMPLOYEES_ENTITY) && this.provider.EntityByName(ORGANIZATIONS_ENTITY)) {
+            const users = await this.readRows<UserEmployeeRow>(
+                USERS_ENTITY,
+                `ID = ${GuidLiteral(this.user.ID, 'UserID')}`,
+                ['ID', 'EmployeeID'],
+            );
+            const employeeID = users[0]?.EmployeeID;
+            if (employeeID) {
+                const emps = await this.readRows<EmployeeCompanyRow>(
+                    EMPLOYEES_ENTITY,
+                    `ID = ${GuidLiteral(employeeID, 'EmployeeID')}`,
+                    ['ID', 'CompanyID', 'Active'],
+                );
+                const emp = emps[0];
+                const isActive = emp && (emp.Active === true || emp.Active === 1);
+                if (isActive && emp.CompanyID) {
+                    const orgs = await this.readRows<OrganizationRow>(
+                        ORGANIZATIONS_ENTITY,
+                        `LinkedCompanyID = ${GuidLiteral(emp.CompanyID, 'CompanyID')}`,
+                        ['ID'],
+                    );
+                    for (const org of orgs) {
+                        if (org.ID) orgIDs.add(org.ID);
+                    }
+                }
+            }
+        }
+
+        return [...orgIDs];
     }
 
     /** The user's roles, read fresh so a role just granted counts. */

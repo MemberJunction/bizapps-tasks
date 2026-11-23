@@ -30,6 +30,7 @@ import {
 import { GuidLiteral, IsTaskDecisionOutcomeCode, TaskDecisionOutcomes, TaskService, TasksLimitsResolver } from '@mj-biz-apps/tasks-core';
 import { ApprovalActor, IsSystemActor } from './ApprovalActor.js';
 import {
+    ApprovalOrganizationChangeRefusal,
     ApprovalStatusChangeRefusal,
     ApprovalTypeChangeRefusal,
     TaskCreatorRefusal,
@@ -440,7 +441,8 @@ export class TaskEntityServer extends TaskEntity {
     private async approvalRefusals(): Promise<Array<string | null>> {
         const closing = this.closingStatusBeingSet();
         const previousTypeID = this.previousTypeID();
-        if (!closing && !previousTypeID) return [];
+        const previousOrgID = this.previousOrganizationID();
+        if (!closing && !previousTypeID && previousOrgID === undefined) return [];
         const user = this.ContextCurrentUser;
         const isSystem = IsSystemActor(user);
         const approvalTypeIDs = await this.approvalTypeIDs([this.TypeID, previousTypeID]);
@@ -448,8 +450,25 @@ export class TaskEntityServer extends TaskEntity {
         const wasApproval = previousTypeID ? approvalTypeIDs.some((id) => UUIDsEqual(id, previousTypeID)) : isApproval;
         return [
             previousTypeID ? ApprovalTypeChangeRefusal({ WasApprovalType: wasApproval, IsApprovalType: isApproval, ActorIsSystem: isSystem }) : null,
+            previousOrgID !== undefined
+                ? ApprovalOrganizationChangeRefusal({
+                    WasApprovalType: wasApproval,
+                    IsApprovalType: isApproval,
+                    PreviousOrganizationID: previousOrgID,
+                    NewOrganizationID: this.OrganizationID ?? null,
+                    ActorIsSystem: isSystem,
+                })
+                : null,
             closing && (isApproval || wasApproval) ? await this.closingRefusal(closing, user, isSystem) : null,
         ];
+    }
+
+    /** Returns old OrganizationID when an existing task is modifying OrganizationID, else undefined. */
+    private previousOrganizationID(): string | null | undefined {
+        const field = this.Fields.find((f) => f.CodeName === 'OrganizationID');
+        if (!this.IsSaved || !field?.Dirty || field.OldValue == null) return undefined;
+        const previous = String(field.OldValue);
+        return UUIDsEqual(previous, this.OrganizationID ?? '') ? undefined : previous;
     }
 
     /** The closing status this save moves the task to, or null when it does not close it. */
@@ -486,12 +505,21 @@ export class TaskEntityServer extends TaskEntity {
         const decided = await this.standingDecisionStatus();
         // Who is saving only matters when the status does not follow a decision.
         const standing = decided !== newStatus && user ? await this.closingStanding(newStatus, user, isSystem) : NO_CLOSING_STANDING;
+        const needsOrgCheck =
+            decided !== newStatus &&
+            !!this.OrganizationID &&
+            !isSystem &&
+            !this.approvalWithdrawalAuthorized &&
+            !!user;
+        const actorOrgs = needsOrgCheck && user ? await this.approvalActor(user).OrganizationIDs() : undefined;
         return ApprovalStatusChangeRefusal({
             NewStatus: newStatus,
             DecidedStatus: decided,
             WithdrawalSanctioned: this.approvalWithdrawalAuthorized,
             ActorIsSystem: isSystem,
             HasActor: !!user,
+            TaskOrganizationID: this.OrganizationID ?? null,
+            ActorOrganizationIDs: actorOrgs,
             ...standing,
         });
     }
@@ -545,9 +573,12 @@ export class TaskEntityServer extends TaskEntity {
         const provider = this.ruleMetadataProvider;
         const actor = this.approvalActor(user);
         const creatorIsActor = await actor.IsPerson(this.CreatedByPersonID);
+        const actorOrganizationIDs = this.OrganizationID ? await actor.OrganizationIDs() : undefined;
         const refusal = TaskDecisionRefusal({
             PreventSelfApproval: true,
             IsApprovalTask: true,
+            TaskOrganizationID: this.OrganizationID ?? null,
+            ActorOrganizationIDs: actorOrganizationIDs,
             DeciderUserID: user.ID,
             DeciderPersonIDs: await actor.PersonIDs(),
             DecidedByPersonID: null,

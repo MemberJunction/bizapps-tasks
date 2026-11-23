@@ -33,6 +33,9 @@ export type ApprovalClosingStatus = 'Completed' | 'Cancelled';
 export const SELF_ASSIGN_REFUSAL = 'You cannot assign an approval to yourself. Someone else must approve it.';
 export const ADD_ASSIGNEE_REFUSAL = 'This is an approval task, and your role does not allow adding an assignee to it.';
 export const ADD_ASSIGNEE_NO_USER_REFUSAL = 'An approval assignment cannot be added without a signed-in user.';
+export const CROSS_ORG_ASSIGN_REFUSAL = 'This approval belongs to another organization, so you cannot change its assignees.';
+export const CROSS_ORG_CLOSE_REFUSAL = 'This approval belongs to another organization, so you cannot change its status.';
+export const ORG_CHANGE_REFUSAL = "An approval task's organization cannot be changed after creation.";
 export const COMPLETE_WITHOUT_DECISION_REFUSAL =
     'Only a person who may decide this approval can complete it, and no approving decision stands on it. To approve it, record your decision.';
 export const WITHDRAW_REFUSAL =
@@ -44,8 +47,11 @@ export const CREATOR_NOT_SELF_REFUSAL =
 export const CREATOR_AFTER_CREATE_REFUSAL = "A task's creator is recorded when the task is created and cannot be set afterwards.";
 export const CREATOR_NO_USER_REFUSAL = "A task's creator cannot be checked without a signed-in user.";
 
+const sameID = (a: string | null | undefined, b: string | null | undefined): boolean =>
+    !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
+
 // ---------------------------------------------------------------------------
-// 1. Adding an assignee
+// 1. Adding / managing an assignee
 // ---------------------------------------------------------------------------
 
 /** What the add rule needs to know about a NEW assignment on an approval task. */
@@ -56,6 +62,10 @@ export interface ApprovalAssignmentAddFacts {
     ActorIsSystem: boolean;
     /** Whether anyone is signed in at all. */
     HasActor: boolean;
+    /** The task's organization, when org-scoped. */
+    TaskOrganizationID?: string | null;
+    /** Organizations the acting user belongs to. */
+    ActorOrganizationIDs?: readonly string[];
     /** The assignee is one of the actor's People, the actor's own user row, or an MJ role the actor holds. */
     AssigneeIsActor: boolean;
     /** The actor is the person recorded as the task's creator. */
@@ -66,24 +76,37 @@ export interface ApprovalAssignmentAddFacts {
     ActorMayReassign: boolean;
 }
 
-/**
- * Why a new assignment must not be added to an approval task, or null when it may.
- *
- * The person who asked for an approval names who they are asking, while the request is still open:
- * every approval workflow creates its assignments as the requester. They may even name themselves,
- * because the decision rule refuses a requester their own request; that is what lets a requester who
- * is also the only approver (accounting's CFO building a batch, a reviewer saving an order) raise it.
- * Anyone else needs the reassign right, the same right as changing an assignee, and may never make
- * themselves an assignee: that was the way around "only an assignee decides".
- *
- * @returns a sentence for the person saving, or null.
- */
 export function ApprovalAssignmentAddRefusal(facts: ApprovalAssignmentAddFacts): string | null {
     if (facts.Sanctioned || facts.ActorIsSystem) return null;
     if (!facts.HasActor) return ADD_ASSIGNEE_NO_USER_REFUSAL;
+    if (facts.TaskOrganizationID && !facts.ActorOrganizationIDs?.some((id) => sameID(id, facts.TaskOrganizationID))) {
+        return CROSS_ORG_ASSIGN_REFUSAL;
+    }
     const ownOpenRequest = facts.ActorIsTaskCreator && facts.TaskIsOpen;
     if (facts.AssigneeIsActor) return ownOpenRequest ? null : SELF_ASSIGN_REFUSAL;
     return ownOpenRequest || facts.ActorMayReassign ? null : ADD_ASSIGNEE_REFUSAL;
+}
+
+/** What reassignment/removal checks on an existing assignment of an approval task. */
+export interface ApprovalAssignmentManageFacts {
+    ActorIsSystem: boolean;
+    HasActor: boolean;
+    TaskOrganizationID?: string | null;
+    ActorOrganizationIDs?: readonly string[];
+    AssigneeIsActor?: boolean;
+    ActorMayReassign: boolean;
+    NoUserMessage: string;
+    RoleRefusalMessage: string;
+}
+
+export function ApprovalAssignmentManageRefusal(facts: ApprovalAssignmentManageFacts): string | null {
+    if (facts.ActorIsSystem) return null;
+    if (!facts.HasActor) return facts.NoUserMessage;
+    if (facts.TaskOrganizationID && !facts.ActorOrganizationIDs?.some((id) => sameID(id, facts.TaskOrganizationID))) {
+        return CROSS_ORG_ASSIGN_REFUSAL;
+    }
+    if (facts.AssigneeIsActor) return SELF_ASSIGN_REFUSAL;
+    return facts.ActorMayReassign ? null : facts.RoleRefusalMessage;
 }
 
 // ---------------------------------------------------------------------------
@@ -118,31 +141,51 @@ export interface ApprovalStatusChangeFacts {
     ActorHoldsActiveAssignment: boolean;
     /** The actor holds the reassign right (everyone does while `ApprovalReassignRoles` names no role). */
     ActorMayReassign: boolean;
+    /** The task's organization, when org-scoped. */
+    TaskOrganizationID?: string | null;
+    /** Organizations the acting user belongs to. */
+    ActorOrganizationIDs?: readonly string[];
 }
 
-/**
- * Why an approval task must not move to `NewStatus`, or null when it may.
- *
- * A status that matches the standing decision is the decision path, and who may decide was checked
- * when the decision was saved. Without one:
- *   - `Completed` is allowed only for someone who could have recorded the decision themselves. A
- *     type's OnComplete action and a timesheet part read a completed approval as approved, so a
- *     completion must come from someone entitled to approve; nothing vouches around that, not even
- *     the system user. An assignee can still close what they were asked without approving or
- *     rejecting it (an agent's question answered with completion notes);
- *   - `Cancelled` is a withdrawal, not a rejection. The requester may withdraw their request, an
- *     active assignee may close what they could have rejected, and a holder of the reassign right
- *     or sanctioned server code (a workflow withdrawing its ask, a resubmitted timesheet) may too.
- *
- * @returns a sentence for the person saving, or null.
- */
 export function ApprovalStatusChangeRefusal(facts: ApprovalStatusChangeFacts): string | null {
     if (facts.DecidedStatus === facts.NewStatus) return null;
+    if (
+        facts.NewStatus === 'Cancelled' &&
+        (facts.WithdrawalSanctioned || facts.ActorIsSystem)
+    ) {
+        return null;
+    }
+    if (facts.NewStatus === 'Cancelled' && !facts.HasActor) return WITHDRAW_NO_USER_REFUSAL;
+    if (
+        facts.TaskOrganizationID &&
+        !facts.ActorIsSystem &&
+        !facts.WithdrawalSanctioned &&
+        facts.HasActor &&
+        !facts.ActorOrganizationIDs?.some((id) => sameID(id, facts.TaskOrganizationID))
+    ) {
+        return CROSS_ORG_CLOSE_REFUSAL;
+    }
     if (facts.NewStatus === 'Completed') return facts.ActorMayDecide ? null : COMPLETE_WITHOUT_DECISION_REFUSAL;
-    if (facts.WithdrawalSanctioned || facts.ActorIsSystem) return null;
-    if (!facts.HasActor) return WITHDRAW_NO_USER_REFUSAL;
     const mayWithdraw = facts.ActorIsTaskCreator || facts.ActorHoldsActiveAssignment || facts.ActorMayReassign;
     return mayWithdraw ? null : WITHDRAW_REFUSAL;
+}
+
+/** What checks whether a saved approval task's OrganizationID is changing improperly. */
+export interface ApprovalOrganizationChangeFacts {
+    WasApprovalType: boolean;
+    IsApprovalType: boolean;
+    PreviousOrganizationID: string | null;
+    NewOrganizationID: string | null;
+    ActorIsSystem: boolean;
+}
+
+export function ApprovalOrganizationChangeRefusal(facts: ApprovalOrganizationChangeFacts): string | null {
+    if ((!facts.WasApprovalType && !facts.IsApprovalType) || facts.ActorIsSystem) return null;
+    if (!facts.PreviousOrganizationID) return null;
+    if (!sameID(facts.PreviousOrganizationID, facts.NewOrganizationID)) {
+        return ORG_CHANGE_REFUSAL;
+    }
+    return null;
 }
 
 /** What the type rule needs to know about a saved task whose type is changing. */

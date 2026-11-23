@@ -27,9 +27,15 @@ vi.mock('@memberjunction/core', () => {
       constructor(public KeyValuePairs: unknown[]) {}
     },
     LogError: vi.fn(),
+    TelemetryManager: {
+      Instance: {
+        RecordEvent: vi.fn(),
+      },
+    },
   };
 });
 
+import { ApprovalAuthorizationError } from '../ApprovalErrors.js';
 import { TaskOrchestrationService } from '../TaskOrchestrationService.js';
 
 interface FakeCollection {
@@ -326,5 +332,37 @@ describe('TaskOrchestrationService provider threading & atomic graph creation', 
     expect(task.Assignments.Items[0].Save).not.toHaveBeenCalled();
 
     expect(task.Save).toHaveBeenCalledOnce();
+  });
+
+  it('throws typed ApprovalAuthorizationError on cross-org refusal, self-approval refusal, and empty TaskID', async () => {
+    const svc = new TaskOrchestrationService();
+
+    await expect(
+      svc.RecordDecision({ TaskID: '   ', OutcomeCode: 'Approved' }, user),
+    ).rejects.toMatchObject({
+      name: 'ApprovalAuthorizationError',
+      Code: 'INVALID_TASK_ID',
+    });
+
+    runViewMock.mockResolvedValueOnce({
+      Success: true,
+      Results: [{ ID: 'outcome-approved', Name: 'Approved', Code: 'Approved', IsTerminal: true }],
+    });
+    const crossOrgTask = makeFakeEntity({ ID: 'task-xorg', Status: 'Open' });
+    crossOrgTask.Save.mockResolvedValueOnce(false);
+    crossOrgTask.LatestResult = {
+      CompleteMessage: 'This approval belongs to another organization, so you cannot record a decision on it.',
+    };
+    getEntityObjectMock.mockResolvedValueOnce(crossOrgTask);
+
+    try {
+      await svc.RecordDecision({ TaskID: 'task-xorg', OutcomeCode: 'Approved' }, user);
+      expect.unreachable('Expected ApprovalAuthorizationError');
+    } catch (err: unknown) {
+      expect(err).toBeInstanceOf(ApprovalAuthorizationError);
+      const authErr = err as ApprovalAuthorizationError;
+      expect(authErr.Code).toBe('CROSS_ORGANIZATION_DENIED');
+      expect(authErr.Operation).toBe('RecordDecision');
+    }
   });
 });
