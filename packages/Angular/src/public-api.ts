@@ -59,6 +59,7 @@ export * from './lib/components/approval-decision-panel/approval-decision-panel.
 export * from './lib/components/approval-decision-panel/base-approval-subject-panel.js';
 export * from './lib/components/approval-decision-panel/timesheet-part-approval-panel.component.js';
 export * from './lib/components/approval-inbox/approval-inbox.component.js';
+export * from './lib/components/approval-inbox/approval-inbox-grouping.js';
 export * from './lib/current-person.js';
 export * from './lib/role-assignees.js';
 export * from './lib/task-record-links.js';

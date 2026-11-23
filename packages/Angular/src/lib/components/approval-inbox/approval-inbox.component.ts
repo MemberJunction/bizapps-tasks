@@ -1,10 +1,27 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, inject, Input, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { CompositeKey, RunView } from '@memberjunction/core';
+import { UserInfoEngine } from '@memberjunction/core-entities';
 import { SharedService } from '@memberjunction/ng-shared';
-import { FormatDurationClock, TaskOrchestrationService } from '@mj-biz-apps/tasks-core';
+import { BuildLikeClause, FormatDurationClock, TaskOrchestrationService } from '@mj-biz-apps/tasks-core';
 import { ApprovalDecisionPanelComponent, DecisionRecordedEvent } from '../approval-decision-panel/approval-decision-panel.component';
 import { ApprovalTypePredicate } from './approval-type-predicate';
+import {
+    APPROVAL_INBOX_PREFS_SETTING,
+    ComputeApprovalLatencyIndicator,
+    DefaultApprovalInboxPreferences,
+    GroupApprovalsByOrganization,
+    MatchesApprovalSearchQuery,
+    ParseApprovalInboxPreferences,
+    SerializeApprovalInboxPreferences,
+    SortApprovalItems,
+    StripRawMarkdownForExcerpt,
+    type ApprovalInboxPreferences,
+    type ApprovalInboxSortMode,
+    type ApprovalLatencyIndicator,
+    type OrganizationApprovalGroup,
+} from './approval-inbox-grouping';
 import { AssignedToFilter, CurrentUserRoleIDs } from '../../role-assignees';
 import { LoadTaskRecordLinks, type TaskRecordLink } from '../../task-record-links';
 
@@ -16,6 +33,9 @@ export interface ApprovalRow {
     Priority: string;
     DueAt: Date | null;
     Status: string;
+    OrganizationID?: string | null;
+    Organization?: string | null;
+    __mj_CreatedAt?: Date | string | null;
 }
 
 /**
@@ -30,47 +50,65 @@ export interface ApprovalProjectGroup {
 
 /**
  * Approval inbox — lists the approval-request tasks awaiting a decision from a
- * given approver and embeds the {@link ApprovalDecisionPanelComponent} for
- * recording the outcome. Once a decision is recorded the row clears from the inbox.
- *
- * "Pending" = a task of an approval type (`TaskType.IsApproval`), assigned to the
- * approver or to an MJ role the approver holds, still in an open state (not
- * Completed/Cancelled) and without a terminal decision.
- *
- * Each row names the records the task is linked to (an order under review, say), and each
- * name opens its record.
+ * given approver, groups items by `Task.OrganizationID` with persisted collapse/sort
+ * preferences in `UserInfoEngine`, surfaces approval wait-latency indicators, and
+ * embeds {@link ApprovalDecisionPanelComponent} for recording the outcome.
  *
  * Standalone and Router-free so any Explorer or app can embed it.
- *
- * @example
- * ```html
- * <bizapps-approval-inbox
- *     [ApproverPersonID]="currentUserPersonID"
- *     (DecisionRecorded)="refreshSourceRecord($event)">
- * </bizapps-approval-inbox>
- * ```
  */
 @Component({
     selector: 'bizapps-approval-inbox',
     standalone: true,
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [CommonModule, ApprovalDecisionPanelComponent],
+    imports: [CommonModule, FormsModule, ApprovalDecisionPanelComponent],
     template: `
         <div class="approval-inbox">
             <div class="inbox-card">
                 <div class="inbox-card-header">
-                    <h3 class="inbox-title"><i class="fa-solid fa-stamp"></i> {{ Title }}</h3>
-                    @if (!Loading && !LoadError && Approvals.length > 0) {
-                        <span class="inbox-count">{{ Approvals.length }} pending</span>
-                    }
+                    <h3 class="inbox-title"><i class="fa-solid fa-stamp" aria-hidden="true"></i> {{ Title }}</h3>
+                    <div class="inbox-header-actions">
+                        @if (!Loading && !LoadError && Approvals.length > 0) {
+                            <span class="inbox-count">{{ FilteredApprovals.length }} pending</span>
+                        }
+                        <button
+                            type="button"
+                            class="inbox-toggle-btn"
+                            [class.is-active]="GroupByOrganization"
+                            [attr.aria-pressed]="GroupByOrganization"
+                            (click)="ToggleGroupByOrganization()">
+                            <i class="fa-solid fa-building" aria-hidden="true"></i>
+                            Group by Org
+                        </button>
+                    </div>
                 </div>
+
+                @if (!Loading && !LoadError && Approvals.length > 0) {
+                    <div class="inbox-toolbar">
+                        <input
+                            type="search"
+                            class="inbox-search"
+                            placeholder="Filter approvals by title, notes, or organization…"
+                            aria-label="Filter approvals"
+                            [ngModel]="SearchText"
+                            (ngModelChange)="OnSearchChange($event)" />
+                        <select
+                            class="inbox-sort"
+                            aria-label="Sort approvals"
+                            [ngModel]="SortBy"
+                            (ngModelChange)="OnSortChange($event)">
+                            <option value="due">Sort: Due Date</option>
+                            <option value="latency">Sort: Wait Latency</option>
+                            <option value="priority">Sort: Priority</option>
+                        </select>
+                    </div>
+                }
 
                 @if (Loading) {
                     <div class="inbox-empty">Loading…</div>
                 } @else if (LoadError) {
                     <div class="inbox-error">{{ LoadError }}</div>
-                } @else if (Approvals.length === 0) {
-                    <div class="inbox-empty"><i class="fa-regular fa-circle-check"></i> {{ EmptyText }}</div>
+                } @else if (FilteredApprovals.length === 0) {
+                    <div class="inbox-empty"><i class="fa-regular fa-circle-check" aria-hidden="true"></i> {{ EmptyText }}</div>
                 } @else {
                     @if (ProjectGroups.length > 0) {
                         @for (group of ProjectGroups; track group.ScopeLabel) {
@@ -78,7 +116,7 @@ export interface ApprovalProjectGroup {
                                 <div class="inbox-group-header">
                                     <div class="group-meta">
                                         <span class="group-label">
-                                            <i class="fa-solid fa-folder-tree"></i> {{ group.ScopeLabel }}
+                                            <i class="fa-solid fa-folder-tree" aria-hidden="true"></i> {{ group.ScopeLabel }}
                                         </span>
                                         <span class="group-sub">
                                             {{ group.Approvals.length }} {{ group.Approvals.length === 1 ? 'part' : 'parts' }}
@@ -90,7 +128,7 @@ export interface ApprovalProjectGroup {
                                         class="btn-approve-all"
                                         [disabled]="BatchApprovingLabel === group.ScopeLabel"
                                         (click)="ApproveAllInGroup(group); $event.stopPropagation()">
-                                        <i class="fa-solid fa-check-double"></i>
+                                        <i class="fa-solid fa-check-double" aria-hidden="true"></i>
                                         {{ BatchApprovingLabel === group.ScopeLabel ? 'Approving…' : 'Approve all' }}
                                     </button>
                                 </div>
@@ -101,16 +139,21 @@ export interface ApprovalProjectGroup {
                                             (click)="Select(a.ID)" tabindex="0">
                                             <div class="row-main">
                                                 <span class="row-name">{{ a.Name }}</span>
-                                                @if (a.Description) { <span class="row-desc">{{ a.Description }}</span> }
+                                                @if (ExcerptFor(a.Description)) { <span class="row-desc">{{ ExcerptFor(a.Description) }}</span> }
                                                 @if (ShowLinkedRecords) {
                                                     @for (link of LinksFor(a.ID); track link.EntityName + link.RecordID) {
                                                         <a href="#" class="row-link" (click)="OpenLinkedRecord($event, link)">
-                                                            <i class="fa-solid fa-arrow-up-right-from-square"></i> {{ link.Name }}
+                                                            <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> {{ link.Name }}
                                                         </a>
                                                     }
                                                 }
                                             </div>
-                                            <span class="badge" [class]="priorityBadgeClass(a.Priority)">{{ a.Priority }}</span>
+                                            <div class="row-badges">
+                                                <span class="latency-pill" [class]="'latency-pill--' + LatencyFor(a).Tier">
+                                                    <i class="fa-regular fa-clock" aria-hidden="true"></i> {{ LatencyFor(a).Label }}
+                                                </span>
+                                                <span class="badge" [class]="priorityBadgeClass(a.Priority)">{{ a.Priority }}</span>
+                                            </div>
                                         </li>
                                     }
                                 </ul>
@@ -118,24 +161,82 @@ export interface ApprovalProjectGroup {
                         }
                     }
 
-                    @if (UngroupedApprovals.length > 0) {
+                    @if (GroupByOrganization && OrganizationGroups.length > 0) {
+                        @for (orgGroup of OrganizationGroups; track orgGroup.OrganizationKey) {
+                            <div class="inbox-group" [attr.data-org-key]="orgGroup.OrganizationKey">
+                                <button
+                                    type="button"
+                                    class="inbox-org-header"
+                                    [attr.aria-expanded]="!IsOrganizationCollapsed(orgGroup.OrganizationKey)"
+                                    (click)="ToggleOrganizationGroup(orgGroup.OrganizationKey)">
+                                    <div class="group-meta">
+                                        <i
+                                            class="fa-solid"
+                                            [class.fa-chevron-right]="IsOrganizationCollapsed(orgGroup.OrganizationKey)"
+                                            [class.fa-chevron-down]="!IsOrganizationCollapsed(orgGroup.OrganizationKey)"
+                                            aria-hidden="true"></i>
+                                        <span class="group-label">
+                                            <i class="fa-solid fa-building" aria-hidden="true"></i> {{ orgGroup.OrganizationName }}
+                                        </span>
+                                        <span class="group-count-pill">{{ orgGroup.Count }}</span>
+                                    </div>
+                                    <div class="group-latency" [class]="'group-latency--' + orgGroup.HighestTier">
+                                        <i class="fa-solid fa-gauge-high" aria-hidden="true"></i>
+                                        <span>Avg {{ orgGroup.AvgWaitFormatted }} · Max {{ orgGroup.MaxWaitFormatted }}</span>
+                                    </div>
+                                </button>
+                                @if (!IsOrganizationCollapsed(orgGroup.OrganizationKey)) {
+                                    <ul class="inbox-list">
+                                        @for (a of orgGroup.Items; track a.ID) {
+                                            <li class="inbox-row"
+                                                [class.selected]="a.ID === SelectedApprovalID"
+                                                (click)="Select(a.ID)" tabindex="0">
+                                                <div class="row-main">
+                                                    <span class="row-name">{{ a.Name }}</span>
+                                                    @if (ExcerptFor(a.Description)) { <span class="row-desc">{{ ExcerptFor(a.Description) }}</span> }
+                                                    @if (ShowLinkedRecords) {
+                                                        @for (link of LinksFor(a.ID); track link.EntityName + link.RecordID) {
+                                                            <a href="#" class="row-link" (click)="OpenLinkedRecord($event, link)">
+                                                                <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> {{ link.Name }}
+                                                            </a>
+                                                        }
+                                                    }
+                                                </div>
+                                                <div class="row-badges">
+                                                    <span class="latency-pill" [class]="'latency-pill--' + LatencyFor(a).Tier">
+                                                        <i class="fa-regular fa-clock" aria-hidden="true"></i> {{ LatencyFor(a).Label }}
+                                                    </span>
+                                                    <span class="badge" [class]="priorityBadgeClass(a.Priority)">{{ a.Priority }}</span>
+                                                </div>
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+                            </div>
+                        }
+                    } @else if (FlatUngroupedApprovals.length > 0) {
                         <ul class="inbox-list">
-                            @for (a of UngroupedApprovals; track a.ID) {
+                            @for (a of FlatUngroupedApprovals; track a.ID) {
                                 <li class="inbox-row"
                                     [class.selected]="a.ID === SelectedApprovalID"
                                     (click)="Select(a.ID)" tabindex="0">
                                     <div class="row-main">
                                         <span class="row-name">{{ a.Name }}</span>
-                                        @if (a.Description) { <span class="row-desc">{{ a.Description }}</span> }
+                                        @if (ExcerptFor(a.Description)) { <span class="row-desc">{{ ExcerptFor(a.Description) }}</span> }
                                         @if (ShowLinkedRecords) {
                                             @for (link of LinksFor(a.ID); track link.EntityName + link.RecordID) {
                                                 <a href="#" class="row-link" (click)="OpenLinkedRecord($event, link)">
-                                                    <i class="fa-solid fa-arrow-up-right-from-square"></i> {{ link.Name }}
+                                                    <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> {{ link.Name }}
                                                 </a>
                                             }
                                         }
                                     </div>
-                                    <span class="badge" [class]="priorityBadgeClass(a.Priority)">{{ a.Priority }}</span>
+                                    <div class="row-badges">
+                                        <span class="latency-pill" [class]="'latency-pill--' + LatencyFor(a).Tier">
+                                            <i class="fa-regular fa-clock" aria-hidden="true"></i> {{ LatencyFor(a).Label }}
+                                        </span>
+                                        <span class="badge" [class]="priorityBadgeClass(a.Priority)">{{ a.Priority }}</span>
+                                    </div>
                                 </li>
                             }
                         </ul>
@@ -148,7 +249,7 @@ export interface ApprovalProjectGroup {
                     [TaskID]="SelectedApprovalID"
                     [DecidedByPersonID]="ApproverPersonID"
                     (DecisionRecorded)="onDecisionRecorded($event)"
-                    (Cancelled)="SelectedApprovalID = null">
+                    (Cancelled)="SelectedApprovalID = null; cdr.markForCheck()">
                 </bizapps-approval-decision-panel>
             }
         </div>
@@ -161,20 +262,51 @@ export interface ApprovalProjectGroup {
             background: var(--mj-bg-surface);
             border: 1px solid var(--mj-border-default);
             border-radius: var(--mj-radius-lg, 12px);
-            box-shadow: var(--mj-shadow-sm, 0 1px 2px 0 rgba(0,0,0,0.05));
+            box-shadow: var(--mj-shadow-sm);
             overflow: hidden;
         }
         .inbox-card-header {
-            display: flex; align-items: center; justify-content: space-between;
+            display: flex; align-items: center; justify-content: space-between; gap: var(--mj-space-2, 8px); flex-wrap: wrap;
             padding: var(--mj-space-3, 12px) var(--mj-space-4, 16px);
             border-bottom: 1px solid var(--mj-border-subtle);
         }
+        .inbox-header-actions { display: inline-flex; align-items: center; gap: var(--mj-space-2, 8px); }
         .inbox-title {
             margin: 0; font-size: var(--mj-text-base, 1rem); font-weight: var(--mj-font-semibold, 600);
             color: var(--mj-text-primary); display: flex; align-items: center; gap: var(--mj-space-2, 8px);
         }
         .inbox-title i { color: var(--mj-brand-primary); }
         .inbox-count { font-size: var(--mj-text-sm, 0.875rem); color: var(--mj-text-muted); }
+        .inbox-toggle-btn {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 4px 10px; border-radius: var(--mj-radius-sm, 4px);
+            border: 1px solid var(--mj-border-default);
+            background: var(--mj-bg-surface-sunken); color: var(--mj-text-secondary);
+            font-family: inherit; font-size: var(--mj-text-xs, 0.75rem); font-weight: var(--mj-font-semibold, 600);
+            cursor: pointer;
+        }
+        .inbox-toggle-btn.is-active {
+            border-color: var(--mj-brand-primary);
+            color: var(--mj-brand-primary);
+            background: color-mix(in srgb, var(--mj-brand-primary) 10%, var(--mj-bg-surface));
+        }
+        .inbox-toolbar {
+            display: flex; align-items: center; gap: var(--mj-space-2, 8px); flex-wrap: wrap;
+            padding: var(--mj-space-2, 8px) var(--mj-space-4, 16px);
+            background: var(--mj-bg-surface-sunken);
+            border-bottom: 1px solid var(--mj-border-subtle);
+        }
+        .inbox-search {
+            flex: 1 1 220px; min-width: 0; padding: 6px 10px;
+            border: 1px solid var(--mj-border-default); border-radius: var(--mj-radius-sm, 4px);
+            background: var(--mj-bg-surface); color: var(--mj-text-primary);
+            font-family: inherit; font-size: var(--mj-text-sm, 0.875rem);
+        }
+        .inbox-sort {
+            padding: 6px 10px; border: 1px solid var(--mj-border-default); border-radius: var(--mj-radius-sm, 4px);
+            background: var(--mj-bg-surface); color: var(--mj-text-primary);
+            font-family: inherit; font-size: var(--mj-text-xs, 0.75rem);
+        }
 
         .inbox-empty {
             color: var(--mj-text-muted); padding: var(--mj-space-5, 20px) var(--mj-space-4, 16px);
@@ -199,7 +331,7 @@ export interface ApprovalProjectGroup {
             background: color-mix(in srgb, var(--mj-brand-primary) 8%, var(--mj-bg-surface));
             border-left-color: var(--mj-brand-primary);
         }
-        .row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
         .row-name { color: var(--mj-text-primary); font-weight: var(--mj-font-medium, 500); }
         .row-link {
             color: var(--mj-text-link); font-size: var(--mj-text-sm, 0.875rem); text-decoration: none;
@@ -211,6 +343,16 @@ export interface ApprovalProjectGroup {
             color: var(--mj-text-muted); font-size: var(--mj-text-sm, 0.875rem);
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
+        .row-badges { display: inline-flex; align-items: center; gap: var(--mj-space-2, 8px); flex-shrink: 0; }
+        .latency-pill {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 2px 8px; border-radius: var(--mj-radius-full, 9999px);
+            font-size: var(--mj-text-xs, 0.75rem); font-weight: var(--mj-font-medium, 500);
+            background: var(--mj-bg-surface-sunken); color: var(--mj-text-secondary);
+            border: 1px solid var(--mj-border-default);
+        }
+        .latency-pill--elevated { background: var(--mj-status-warning-bg); color: var(--mj-status-warning-text); }
+        .latency-pill--overdue { background: var(--mj-status-error-bg); color: var(--mj-status-error-text); }
 
         /* ── priority badge (token pill) ── */
         .badge {
@@ -232,26 +374,47 @@ export interface ApprovalProjectGroup {
             background: var(--mj-bg-surface-sunken);
             border-bottom: 1px solid var(--mj-border-subtle);
         }
-        .group-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .inbox-org-header {
+            width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            padding: 9px 16px; border: none; border-bottom: 1px solid var(--mj-border-subtle);
+            background: var(--mj-bg-surface-sunken); color: var(--mj-text-primary);
+            font-family: inherit; text-align: left; cursor: pointer;
+        }
+        .inbox-org-header:hover { background: var(--mj-bg-surface-hover); }
+        .group-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .group-label {
-            font-size: 12px; font-weight: var(--mj-font-bold, 700);
+            font-size: var(--mj-text-xs, 0.75rem); font-weight: var(--mj-font-bold, 700);
             color: var(--mj-text-primary); display: inline-flex; align-items: center; gap: 6px;
         }
-        .group-sub { font-size: 12px; color: var(--mj-text-muted); }
+        .group-count-pill {
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 20px; padding: 1px 7px; border-radius: var(--mj-radius-full, 9999px);
+            font-size: var(--mj-text-xs, 0.75rem); font-weight: var(--mj-font-semibold, 600);
+            background: color-mix(in srgb, var(--mj-brand-primary) 14%, var(--mj-bg-surface));
+            color: var(--mj-brand-primary);
+        }
+        .group-latency {
+            display: inline-flex; align-items: center; gap: 5px;
+            font-size: var(--mj-text-xs, 0.75rem); color: var(--mj-text-muted);
+        }
+        .group-latency--elevated { color: var(--mj-status-warning-text); }
+        .group-latency--overdue { color: var(--mj-status-error-text); }
+        .group-sub { font-size: var(--mj-text-xs, 0.75rem); color: var(--mj-text-muted); }
         .btn-approve-all {
             display: inline-flex; align-items: center; gap: 6px;
             padding: 4px 10px; border-radius: var(--mj-radius-sm, 4px);
-            background: var(--mj-brand-primary); color: var(--mj-text-inverse, #fff);
+            background: var(--mj-brand-primary); color: var(--mj-text-inverse);
             border: 1px solid var(--mj-brand-primary);
-            font-size: 12px; font-weight: var(--mj-font-semibold, 600);
+            font-size: var(--mj-text-xs, 0.75rem); font-weight: var(--mj-font-semibold, 600);
             font-family: inherit; cursor: pointer;
         }
         .btn-approve-all:disabled { opacity: 0.5; cursor: not-allowed; }
     `]
 })
 export class ApprovalInboxComponent implements OnInit {
-    private cdr = inject(ChangeDetectorRef);
+    public cdr = inject(ChangeDetectorRef);
     private orchestration = new TaskOrchestrationService();
+    private prefsLoaded = false;
 
     // ── Inputs ──────────────────────────────────────────────
 
@@ -300,16 +463,24 @@ export class ApprovalInboxComponent implements OnInit {
     public Loading = false;
     public LoadError: string | null = null;
     public Approvals: ApprovalRow[] = [];
+    public FilteredApprovals: ApprovalRow[] = [];
     public ProjectGroups: ApprovalProjectGroup[] = [];
     public UngroupedApprovals: ApprovalRow[] = [];
+    public FlatUngroupedApprovals: ApprovalRow[] = [];
+    public OrganizationGroups: OrganizationApprovalGroup<ApprovalRow>[] = [];
     public SelectedApprovalID: string | null = null;
     public BatchApprovingLabel: string | null = null;
+    public GroupByOrganization = true;
+    public SortBy: ApprovalInboxSortMode = 'due';
+    public SearchText = '';
+    public CollapsedOrgKeys = new Set<string>();
     /** Linked records per task, keyed by lower-cased task ID. */
     public Links = new Map<string, TaskRecordLink[]>();
 
-    async ngOnInit(): Promise<void> {
+    ngOnInit(): void {
+        this.ensurePrefsLoaded();
         if (this._approverPersonID) {
-            await this.Refresh();
+            void this.Refresh();
         }
     }
 
@@ -317,22 +488,26 @@ export class ApprovalInboxComponent implements OnInit {
 
     /** Reloads the pending approvals from the server. */
     async Refresh(): Promise<void> {
+        this.ensurePrefsLoaded();
         if (!this._approverPersonID) {
             this.Approvals = [];
+            this.FilteredApprovals = [];
             this.ProjectGroups = [];
             this.UngroupedApprovals = [];
+            this.FlatUngroupedApprovals = [];
+            this.OrganizationGroups = [];
             return;
         }
         this.Loading = true;
         this.LoadError = null;
-        this.cdr.detectChanges();
+        this.cdr.markForCheck();
         try {
             const filter = await this.buildPendingFilter();
             const result = await new RunView().RunView<ApprovalRow>({
                 EntityName: 'MJ_BizApps_Tasks: Tasks',
                 ExtraFilter: filter,
                 OrderBy: 'DueAt ASC',
-                Fields: ['ID', 'Name', 'Description', 'Priority', 'DueAt', 'Status'],
+                Fields: ['ID', 'Name', 'Description', 'Priority', 'DueAt', 'Status', 'OrganizationID', 'Organization', '__mj_CreatedAt'],
                 ResultType: 'simple',
             });
             if (!result?.Success) {
@@ -341,12 +516,56 @@ export class ApprovalInboxComponent implements OnInit {
             this.Approvals = result.Results ?? [];
             await this.partitionTimesheetGroups();
             this.Links = this.ShowLinkedRecords ? await this.loadLinks(this.Approvals) : new Map();
+            this.rebuildGroups();
         } catch (err) {
             this.LoadError = err instanceof Error ? err.message : String(err);
         } finally {
             this.Loading = false;
-            this.cdr.detectChanges();
+            this.cdr.markForCheck();
         }
+    }
+
+    public ToggleGroupByOrganization(): void {
+        this.GroupByOrganization = !this.GroupByOrganization;
+        this.persistPreferences();
+        this.rebuildGroups();
+        this.cdr.markForCheck();
+    }
+
+    public ToggleOrganizationGroup(orgKey: string): void {
+        const normalized = orgKey.trim().toLowerCase();
+        if (this.CollapsedOrgKeys.has(normalized)) {
+            this.CollapsedOrgKeys.delete(normalized);
+        } else {
+            this.CollapsedOrgKeys.add(normalized);
+        }
+        this.persistPreferences();
+        this.cdr.markForCheck();
+    }
+
+    public IsOrganizationCollapsed(orgKey: string): boolean {
+        return this.CollapsedOrgKeys.has(orgKey.trim().toLowerCase());
+    }
+
+    public OnSearchChange(value: string): void {
+        this.SearchText = value ?? '';
+        this.rebuildGroups();
+        this.cdr.markForCheck();
+    }
+
+    public OnSortChange(mode: ApprovalInboxSortMode): void {
+        this.SortBy = mode;
+        this.persistPreferences();
+        this.rebuildGroups();
+        this.cdr.markForCheck();
+    }
+
+    public LatencyFor(row: ApprovalRow): ApprovalLatencyIndicator {
+        return ComputeApprovalLatencyIndicator(row.__mj_CreatedAt, row.DueAt);
+    }
+
+    public ExcerptFor(raw: string | null | undefined): string {
+        return StripRawMarkdownForExcerpt(raw);
     }
 
     /**
@@ -358,7 +577,7 @@ export class ApprovalInboxComponent implements OnInit {
         }
         this.BatchApprovingLabel = group.ScopeLabel;
         this.LoadError = null;
-        this.cdr.detectChanges();
+        this.cdr.markForCheck();
         try {
             for (const row of group.Approvals) {
                 const res = await this.orchestration.RecordDecision({
@@ -379,11 +598,34 @@ export class ApprovalInboxComponent implements OnInit {
             this.LoadError = err instanceof Error ? err.message : String(err);
         } finally {
             this.BatchApprovingLabel = null;
-            this.cdr.detectChanges();
+            this.cdr.markForCheck();
         }
     }
 
     // ── Internal ────────────────────────────────────────────
+
+    private ensurePrefsLoaded(): void {
+        if (this.prefsLoaded) return;
+        this.prefsLoaded = true;
+        const parsed = ParseApprovalInboxPreferences(
+            UserInfoEngine.Instance.GetSetting(APPROVAL_INBOX_PREFS_SETTING),
+        );
+        this.GroupByOrganization = parsed.groupByOrganization;
+        this.SortBy = parsed.sortBy;
+        this.CollapsedOrgKeys = new Set(parsed.collapsedOrgKeys);
+    }
+
+    private persistPreferences(): void {
+        const prefs: ApprovalInboxPreferences = {
+            groupByOrganization: this.GroupByOrganization,
+            collapsedOrgKeys: [...this.CollapsedOrgKeys],
+            sortBy: this.SortBy,
+        };
+        UserInfoEngine.Instance.SetSettingDebounced(
+            APPROVAL_INBOX_PREFS_SETTING,
+            SerializeApprovalInboxPreferences(prefs),
+        );
+    }
 
     /** The records a listed task is linked to. */
     LinksFor(taskID: string): TaskRecordLink[] {
@@ -408,6 +650,7 @@ export class ApprovalInboxComponent implements OnInit {
 
     Select(approvalID: string): void {
         this.SelectedApprovalID = approvalID;
+        this.cdr.markForCheck();
     }
 
     /** Maps a task priority to its badge modifier class (token-driven status colors). */
@@ -431,8 +674,19 @@ export class ApprovalInboxComponent implements OnInit {
             }))
             .filter((g) => g.Approvals.length > 0);
         this.SelectedApprovalID = null;
+        this.rebuildGroups();
         this.DecisionRecorded.emit(event);
-        this.cdr.detectChanges();
+        this.cdr.markForCheck();
+    }
+
+    private rebuildGroups(): void {
+        const query = this.SearchText.trim();
+        this.FilteredApprovals = this.Approvals.filter((row) => MatchesApprovalSearchQuery(row, query));
+        const filteredUngrouped = this.UngroupedApprovals.filter((row) => MatchesApprovalSearchQuery(row, query));
+        this.FlatUngroupedApprovals = SortApprovalItems(filteredUngrouped, this.SortBy);
+        this.OrganizationGroups = this.GroupByOrganization
+            ? GroupApprovalsByOrganization(filteredUngrouped, { sortBy: this.SortBy })
+            : [];
     }
 
     private async partitionTimesheetGroups(): Promise<void> {
@@ -493,11 +747,18 @@ export class ApprovalInboxComponent implements OnInit {
      */
     private async buildPendingFilter(): Promise<string> {
         const roleIDs = this.ApproverRoleIDs ?? CurrentUserRoleIDs();
-        return [
+        const clauses = [
             `TypeID IN (SELECT ID FROM __mj_BizAppsTasks.vwTaskTypes WHERE ${ApprovalTypePredicate(this.ApprovalTypeName)})`,
             `Status NOT IN ('Completed', 'Cancelled')`,
             AssignedToFilter(this._approverPersonID, roleIDs),
             `ID NOT IN (SELECT d.TaskID FROM __mj_BizAppsTasks.vwTaskDecisions d INNER JOIN __mj_BizAppsTasks.vwTaskDecisionOutcomes o ON d.OutcomeID = o.ID WHERE o.IsTerminal = 1)`,
-        ].join(' AND ');
+        ];
+        const q = this.SearchText.trim();
+        if (q) {
+            const nameLike = BuildLikeClause('Name', q, { caseInsensitive: true });
+            const descLike = BuildLikeClause('Description', q, { caseInsensitive: true });
+            clauses.push(`(${nameLike} OR ${descLike})`);
+        }
+        return clauses.join(' AND ');
     }
 }
