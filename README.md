@@ -91,13 +91,14 @@ Strategic Objectives and Key Results (OKRs) are now managed in **BizApps Plannin
 
 ## What You Get
 
-### 39 Database Tables
+### 40 Database Tables
 
 All tables live in the `__mj_BizAppsTasks` SQL schema, deployed via migrations.
 
 | Category | Tables | Purpose |
 |----------|--------|---------|
 | **Core & Workflow** | Task, TaskType, TaskTypeStatus, TaskCategory, TaskRole, TaskCheckIn, TaskDecision, TaskDecisionOutcome | Work items, IS-A `ExtensionEntity` subtype routing, dynamic domain stages, measurable task check-ins, formal decisions, and action hooks |
+| **Risk & Forecasting** | TaskRiskAssessment | AI project delivery risk & completion forecast snapshots (`HealthStatus`, `ForecastCompletionDate`, `ForecastConfidence`, `MLBreachProbability`, typed `Risks` JSON, `AgentRunID`, token/cost metrics) synced atomically onto root project `Task` records |
 | **Reporting (15Five)** | WorkReport, WorkReportItem | Daily/weekly 5-minute work summaries (`Draft` -> `Submitted` -> `Reviewed`) and supervisor feedback routed via `MJ: Employees.SupervisorID` |
 | **Time & Effort** | TaskTimeEntry, TaskTimer, TaskAgentRun, TaskTimeEntryLink | Human time entries, running timers, AI agent run links, and external record locks (`R8`) |
 | **Timesheets & Approvals** | Timesheet, TimesheetApproval, TimesheetSchedule, TimesheetLink, TimeApprover | Period timesheets, per-project approval parts, cadence overrides, and polymorphic approver rules |
@@ -112,11 +113,11 @@ All tables live in the `__mj_BizAppsTasks` SQL schema, deployed via migrations.
 
 | Package | NPM Name | Role |
 |---------|----------|------|
-| **Entities** | `@mj-biz-apps/tasks-entities` | Strongly-typed entity classes with Zod validation, custom subclasses for status transitions and cycle detection |
-| **Entities Server** | `@mj-biz-apps/tasks-entities-server` | Authoritative server subclasses (`TaskEntityServer`, the `Meeting*EntityServer`s), dynamic status sync, terminal completion, action hook dispatching, and the meetings' rules: times and zone, the status moving forward, the organizer's attendee row, a series' occurrences, the video driver after the commit |
-| **Actions** | `@mj-biz-apps/tasks-actions` | Server-side action handlers and subclasses |
-| **Core** | `@mj-biz-apps/tasks-core` | TaskService, TaskAssignmentService, TaskTemplateService, TaskOrchestrationService; MeetingService, MeetingSeriesService, MeetingAgendaService, MeetingCalendarFile, and the pure meetings rules (status moves, recurrence in a zone, agenda trees, the `.ics` file) |
-| **Server** | `@mj-biz-apps/tasks-server` | GraphQL resolvers, notification handlers, scheduled jobs (overdue tasks, meeting series materialization), and server bootstrap |
+| **Entities** | `@mj-biz-apps/tasks-entities` | Strongly-typed entity classes with Zod validation, custom subclasses for status transitions, cycle detection, and `TaskRiskAssessmentEntity` typed `Risks` JSON parsing |
+| **Entities Server** | `@mj-biz-apps/tasks-entities-server` | Authoritative server subclasses (`TaskEntityServer`, `TaskRiskAssessmentEntityServer` root task health/confidence/forecast sync, and the `Meeting*EntityServer`s), dynamic status sync, terminal completion, action hook dispatching, and the meetings' rules: times and zone, the status moving forward, the organizer's attendee row, a series' occurrences, the video driver after the commit |
+| **Actions** | `@mj-biz-apps/tasks-actions` | Server-side action handlers and subclasses (`Get Project Risk`, `Request Project Risk Review`, typed Task, Meeting, and Work Report actions) |
+| **Core** | `@mj-biz-apps/tasks-core` | TaskService, TaskAssignmentService, TaskTemplateService, TaskOrchestrationService; MeetingService, MeetingSeriesService, MeetingAgendaService, MeetingCalendarFile, and pure project risk rules (`EvaluateProjectRiskCadence`, free/busy privacy guard, `ProjectRiskAnalystRegistry`) |
+| **Server** | `@mj-biz-apps/tasks-server` | GraphQL resolvers, notification handlers, scheduled jobs, `ProjectRiskAnalystService` (High-tier owner-context risk analysis with weekly-to-daily final-20% cadence escalation), and server bootstrap |
 | **Angular** | `@mj-biz-apps/tasks-ng` | UI components, generated forms, Kanban, Gantt, and Dashboard |
 
 ### 10 Reusable Angular Components + Full Dashboard App
