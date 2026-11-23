@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { BaseEntity, RunView, type IMetadataProvider, type RunViewParams, type RunViewResult, type UserInfo } from '@memberjunction/core';
+import { BaseEntity, RunView, UserInfo, type IMetadataProvider, type RunViewParams, type RunViewResult } from '@memberjunction/core';
 import { type MJAIAgentUserPolicyEntity } from '@memberjunction/core-entities';
 import { AgentUserPolicyEngine } from '@memberjunction/ai-core-plus';
 import {
@@ -27,7 +27,42 @@ const ITEM_CHILD = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const TYPE_1 = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const STAGE_1 = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
 
-const TEST_USER = { ID: 'user-1', Name: 'Tester', Email: 'tester@example.com' } as unknown as UserInfo;
+interface MockMetadataProviderOverrides {
+    EntityByName?: (name: string) => { ID: string; Name: string } | undefined;
+    GetEntityObject?: (entityName: string) => Promise<object>;
+}
+
+function makeTestProvider(overrides: MockMetadataProviderOverrides): IMetadataProvider {
+    const base: IMetadataProvider = Object.create(Object.prototype);
+    return Object.assign(base, overrides);
+}
+
+function makeTestUser(): UserInfo {
+    return new UserInfo(makeTestProvider({}), {
+        ID: 'user-1',
+        Name: 'Tester',
+        Email: 'tester@example.com',
+    });
+}
+
+const TEST_USER = makeTestUser();
+
+function makeRunViewResult<T extends object>(results: T[], errorMessage = ''): RunViewResult<T> {
+    return {
+        Success: errorMessage.length === 0,
+        Results: results,
+        RowCount: results.length,
+        TotalRowCount: results.length,
+        ExecutionTime: 0,
+        ErrorMessage: errorMessage,
+    };
+}
+
+function makeTestRunView(impl: (params: RunViewParams) => Promise<RunViewResult>): RunView {
+    const rv = new RunView();
+    vi.spyOn(rv, 'RunView').mockImplementation(impl);
+    return rv;
+}
 
 interface MockTaskRecord {
     ID: string;
@@ -49,7 +84,7 @@ interface MockTaskRecord {
     Dirty: boolean;
     saved: boolean;
     LatestResult?: { CompleteMessage?: string };
-    InnerLoad: (key: { KeyValuePairs: Array<{ Value: unknown }> }) => Promise<boolean>;
+    InnerLoad: (key: { KeyValuePairs: Array<{ Value: string }> }) => Promise<boolean>;
     NewRecord: () => boolean;
     Save: () => Promise<boolean>;
 }
@@ -134,7 +169,7 @@ function makeBulkHarness(tasks: MockTaskRecord[], options?: {
     const existingAssignments = options?.existingAssignments ?? new Map<string, MockAssignmentRecord[]>();
     const existingTagTaskIDs = options?.existingTagTaskIDs ?? new Set<string>();
 
-    const provider = {
+    const provider = makeTestProvider({
         EntityByName: vi.fn((name: string) => {
             if (name === 'MJ_BizApps_Common: People') return { ID: PERSON_ENTITY_ID, Name: name };
             if (name === 'MJ: Roles') return { ID: ROLE_ENTITY_ID, Name: name };
@@ -198,43 +233,40 @@ function makeBulkHarness(tasks: MockTaskRecord[], options?: {
             }
             throw new Error(`Unexpected entity ${entityName}`);
         }),
-    } as unknown as IMetadataProvider;
+    });
 
     const runViewFn = vi.fn(async (params: RunViewParams): Promise<RunViewResult> => {
         if (params.EntityName === 'MJ_BizApps_Tasks: Task Types') {
             if (params.ExtraFilter?.toLowerCase().includes(TYPE_1.toLowerCase())) {
-                return {
-                    Success: true,
-                    Results: [{ ID: TYPE_1, Name: 'General', Code: 'GENERAL', ExtensionEntity: null, IsActive: true }],
-                } as unknown as RunViewResult;
+                return makeRunViewResult([
+                    { ID: TYPE_1, Name: 'General', Code: 'GENERAL', ExtensionEntity: null, IsActive: true },
+                ]);
             }
-            return { Success: true, Results: [] } as unknown as RunViewResult;
+            return makeRunViewResult([]);
         }
         if (params.EntityName === 'MJ_BizApps_Tasks: Task Roles') {
-            return { Success: true, Results: [{ ID: ROLE_PRIMARY, Name: 'Primary' }] } as unknown as RunViewResult;
+            return makeRunViewResult([{ ID: ROLE_PRIMARY, Name: 'Primary' }]);
         }
         if (params.EntityName === 'MJ_BizApps_Tasks: Task Assignments') {
             for (const [tid, list] of existingAssignments.entries()) {
                 if (params.ExtraFilter?.toLowerCase().includes(tid.toLowerCase())) {
-                    return { Success: true, Results: list } as unknown as RunViewResult;
+                    return makeRunViewResult(list);
                 }
             }
-            return { Success: true, Results: [] } as unknown as RunViewResult;
+            return makeRunViewResult([]);
         }
         if (params.EntityName === 'MJ_BizApps_Tasks: Task Tag Links') {
             for (const tid of existingTagTaskIDs) {
                 if (params.ExtraFilter?.toLowerCase().includes(tid.toLowerCase())) {
-                    return { Success: true, Results: [{ ID: 'existing-tag-link' }] } as unknown as RunViewResult;
+                    return makeRunViewResult([{ ID: 'existing-tag-link' }]);
                 }
             }
-            return { Success: true, Results: [] } as unknown as RunViewResult;
+            return makeRunViewResult([]);
         }
-        return { Success: true, Results: [] } as unknown as RunViewResult;
+        return makeRunViewResult([]);
     });
 
-    const runViewSpy = vi.spyOn(RunView, 'FromMetadataProvider').mockReturnValue({
-        RunView: runViewFn,
-    } as unknown as RunView);
+    const runViewSpy = vi.spyOn(RunView, 'FromMetadataProvider').mockReturnValue(makeTestRunView(runViewFn));
 
     return { provider, runViewSpy, createdAssignments, createdTagLinks };
 }
@@ -377,12 +409,13 @@ describe('TasksBulkUpdateServerOperation', () => {
 
             // Also rejects any custom inactive TaskType returned by RunView
             const inactiveCustomId = 'dddddddd-dddd-4ddd-8ddd-dddddddd0099';
-            runViewSpy.mockReturnValueOnce({
-                RunView: vi.fn(async () => ({
-                    Success: true,
-                    Results: [{ ID: inactiveCustomId, Name: 'Retired Custom', Code: 'RETIRED', IsActive: false }],
-                })),
-            } as unknown as RunView);
+            runViewSpy.mockReturnValueOnce(
+                makeTestRunView(async () =>
+                    makeRunViewResult([
+                        { ID: inactiveCustomId, Name: 'Retired Custom', Code: 'RETIRED', IsActive: false },
+                    ]),
+                ),
+            );
 
             const inactiveRes = await op.ExecuteServer(
                 {
@@ -397,13 +430,9 @@ describe('TasksBulkUpdateServerOperation', () => {
 
             // Fails closed when TaskType RunView fails
             const errorTypeId = 'dddddddd-dddd-4ddd-8ddd-dddddddd0088';
-            runViewSpy.mockReturnValueOnce({
-                RunView: vi.fn(async () => ({
-                    Success: false,
-                    Results: [],
-                    ErrorMessage: 'Database connection timeout',
-                })),
-            } as unknown as RunView);
+            runViewSpy.mockReturnValueOnce(
+                makeTestRunView(async () => makeRunViewResult([], 'Database connection timeout')),
+            );
 
             const failedLookupRes = await op.ExecuteServer(
                 {
@@ -518,9 +547,9 @@ describe('TasksBulkUpdateServerOperation', () => {
     });
 
     it('enforces input validation guards (empty list, SQL-injection UUID, >200 cap, missing mode payloads)', async () => {
-        const provider = {
+        const provider = makeTestProvider({
             EntityByName: vi.fn(() => undefined),
-        } as unknown as IMetadataProvider;
+        });
         const op = new TasksBulkUpdateServerOperation();
 
         const emptyRes = await op.ExecuteServer({ TaskIDs: [] }, { provider, user: TEST_USER, emitProgress: () => {} });
@@ -574,7 +603,7 @@ describe('TasksInstantiateTemplateServerOperation', () => {
         const createdDeps: MockDepRecord[] = [];
         let taskSeq = 0;
 
-        const provider = {
+        const provider = makeTestProvider({
             EntityByName: vi.fn((name: string) =>
                 name === 'MJ_BizApps_Common: People' ? { ID: PERSON_ENTITY_ID, Name: name } : undefined,
             ),
@@ -635,60 +664,49 @@ describe('TasksInstantiateTemplateServerOperation', () => {
                 }
                 throw new Error(`Unexpected entity ${entityName}`);
             }),
-        } as unknown as IMetadataProvider;
+        });
 
         const runViewFn = vi.fn(async (params: RunViewParams): Promise<RunViewResult> => {
             if (params.EntityName === 'MJ_BizApps_Tasks: Task Template Items') {
                 // Intentionally put child BEFORE parent to verify topological sort
-                return {
-                    Success: true,
-                    Results: [
-                        {
-                            ID: ITEM_CHILD,
-                            Name: 'Reconcile AR',
-                            Description: 'Sub-step',
-                            ParentItemID: ITEM_PARENT,
-                            Priority: 'High',
-                            DaysFromStart: 5,
-                            HoursEstimated: 2,
-                            Sequence: 20,
-                        },
-                        {
-                            ID: ITEM_PARENT,
-                            Name: 'Close Package',
-                            Description: 'Root',
-                            ParentItemID: null,
-                            Priority: 'Critical',
-                            DaysFromStart: 1,
-                            HoursEstimated: 4,
-                            Sequence: 10,
-                        },
-                    ],
-                } as unknown as RunViewResult;
+                return makeRunViewResult([
+                    {
+                        ID: ITEM_CHILD,
+                        Name: 'Reconcile AR',
+                        Description: 'Sub-step',
+                        ParentItemID: ITEM_PARENT,
+                        Priority: 'High',
+                        DaysFromStart: 5,
+                        HoursEstimated: 2,
+                        Sequence: 20,
+                    },
+                    {
+                        ID: ITEM_PARENT,
+                        Name: 'Close Package',
+                        Description: 'Root',
+                        ParentItemID: null,
+                        Priority: 'Critical',
+                        DaysFromStart: 1,
+                        HoursEstimated: 4,
+                        Sequence: 10,
+                    },
+                ]);
             }
             if (params.EntityName === 'MJ_BizApps_Tasks: Task Template Item Roles') {
-                return {
-                    Success: true,
-                    Results: [{ ItemID: ITEM_CHILD, RoleID: ROLE_PRIMARY }],
-                } as unknown as RunViewResult;
+                return makeRunViewResult([{ ItemID: ITEM_CHILD, RoleID: ROLE_PRIMARY }]);
             }
             if (params.EntityName === 'MJ_BizApps_Tasks: Task Template Item Dependencies') {
-                return {
-                    Success: true,
-                    Results: [
-                        {
-                            ItemID: ITEM_CHILD,
-                            DependsOnItemID: ITEM_PARENT,
-                            DependencyType: 'FinishToStart',
-                        },
-                    ],
-                } as unknown as RunViewResult;
+                return makeRunViewResult([
+                    {
+                        ItemID: ITEM_CHILD,
+                        DependsOnItemID: ITEM_PARENT,
+                        DependencyType: 'FinishToStart',
+                    },
+                ]);
             }
-            return { Success: true, Results: [] } as unknown as RunViewResult;
+            return makeRunViewResult([]);
         });
-        const runViewSpy = vi.spyOn(RunView, 'FromMetadataProvider').mockReturnValue({
-            RunView: runViewFn,
-        } as unknown as RunView);
+        const runViewSpy = vi.spyOn(RunView, 'FromMetadataProvider').mockReturnValue(makeTestRunView(runViewFn));
 
         try {
             const op = new TasksInstantiateTemplateServerOperation();
@@ -736,7 +754,7 @@ describe('TasksInstantiateTemplateServerOperation', () => {
 
     it('falls back to template OrganizationID & CategoryID when caller omits them and rejects invalid TemplateID', async () => {
         const createdTasks: MockTaskRecord[] = [];
-        const provider = {
+        const provider = makeTestProvider({
             EntityByName: vi.fn(() => undefined),
             GetEntityObject: vi.fn(async (entityName: string) => {
                 if (entityName === 'MJ_BizApps_Tasks: Task Templates') {
@@ -756,21 +774,18 @@ describe('TasksInstantiateTemplateServerOperation', () => {
                 };
                 return rec;
             }),
-        } as unknown as IMetadataProvider;
+        });
 
-        const runViewSpy = vi.spyOn(RunView, 'FromMetadataProvider').mockReturnValue({
-            RunView: vi.fn(async (params: RunViewParams) => {
+        const runViewSpy = vi.spyOn(RunView, 'FromMetadataProvider').mockReturnValue(
+            makeTestRunView(async (params: RunViewParams) => {
                 if (params.EntityName === 'MJ_BizApps_Tasks: Task Template Items') {
-                    return {
-                        Success: true,
-                        Results: [
-                            { ID: ITEM_PARENT, Name: 'File VAT Return', Description: null, ParentItemID: null, Priority: 'High', DaysFromStart: 0, HoursEstimated: 3, Sequence: 10 },
-                        ],
-                    } as unknown as RunViewResult;
+                    return makeRunViewResult([
+                        { ID: ITEM_PARENT, Name: 'File VAT Return', Description: null, ParentItemID: null, Priority: 'High', DaysFromStart: 0, HoursEstimated: 3, Sequence: 10 },
+                    ]);
                 }
-                return { Success: true, Results: [] } as unknown as RunViewResult;
+                return makeRunViewResult([]);
             }),
-        } as unknown as RunView);
+        );
 
         try {
             const op = new TasksInstantiateTemplateServerOperation();
@@ -848,7 +863,7 @@ describe('TasksRunRecurringPlaybooksServerOperation', () => {
         const savedTasks: MockTaskRecord[] = [];
         let idCounter = 100;
 
-        const provider = {
+        const provider = makeTestProvider({
             EntityByName: vi.fn(() => undefined),
             GetEntityObject: vi.fn(async (entityName: string) => {
                 if (entityName === 'MJ_BizApps_Tasks: Task Templates') {
@@ -881,50 +896,41 @@ describe('TasksRunRecurringPlaybooksServerOperation', () => {
                 };
                 return rec;
             }),
-        } as unknown as IMetadataProvider;
+        });
 
-        const runViewSpy = vi.spyOn(RunView, 'FromMetadataProvider').mockReturnValue({
-            RunView: vi.fn(async (params: RunViewParams) => {
+        const runViewSpy = vi.spyOn(RunView, 'FromMetadataProvider').mockReturnValue(
+            makeTestRunView(async (params: RunViewParams) => {
                 if (params.EntityName === 'MJ_BizApps_Common: Organizations') {
-                    return {
-                        Success: true,
-                        Results: [
-                            { ID: ORG_1, Name: 'Acme US Operating Co' },
-                            { ID: ORG_2, Name: 'Acme UK Ltd' },
-                        ],
-                    } as unknown as RunViewResult;
+                    return makeRunViewResult([
+                        { ID: ORG_1, Name: 'Acme US Operating Co' },
+                        { ID: ORG_2, Name: 'Acme UK Ltd' },
+                    ]);
                 }
                 if (params.EntityName === 'MJ_BizApps_Tasks: Tasks') {
                     const filter = params.ExtraFilter ?? '';
                     // Simulate ORG_2 already having a launched close for 2026-12
                     if (filter.includes(ORG_2)) {
-                        return {
-                            Success: true,
-                            Results: [{ ID: TASK_2 }],
-                        } as unknown as RunViewResult;
+                        return makeRunViewResult([{ ID: TASK_2 }]);
                     }
-                    return { Success: true, Results: [] } as unknown as RunViewResult;
+                    return makeRunViewResult([]);
                 }
                 if (params.EntityName === 'MJ_BizApps_Tasks: Task Template Items') {
-                    return {
-                        Success: true,
-                        Results: [
-                            {
-                                ID: ITEM_PARENT,
-                                Name: 'Reconcile Bank Accounts',
-                                Description: 'Match statements to GL',
-                                ParentItemID: null,
-                                Priority: 'High',
-                                DaysFromStart: 2,
-                                HoursEstimated: 4,
-                                Sequence: 10,
-                            },
-                        ],
-                    } as unknown as RunViewResult;
+                    return makeRunViewResult([
+                        {
+                            ID: ITEM_PARENT,
+                            Name: 'Reconcile Bank Accounts',
+                            Description: 'Match statements to GL',
+                            ParentItemID: null,
+                            Priority: 'High',
+                            DaysFromStart: 2,
+                            HoursEstimated: 4,
+                            Sequence: 10,
+                        },
+                    ]);
                 }
-                return { Success: true, Results: [] } as unknown as RunViewResult;
+                return makeRunViewResult([]);
             }),
-        } as unknown as RunView);
+        );
 
         try {
             const op = new TasksRunRecurringPlaybooksServerOperation();
