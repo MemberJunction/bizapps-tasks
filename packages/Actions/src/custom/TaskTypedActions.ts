@@ -4,6 +4,7 @@ import { BaseAction } from '@memberjunction/actions';
 import { TypedActionPolicyGuard } from '@memberjunction/ai-core-plus';
 import { EscapeSQLString, IsValidUUID, NormalizeUUID, RegisterClass, UUIDsEqual } from '@memberjunction/global';
 import {
+    BuildLikeClause,
     PEOPLE_ENTITY_NAME,
     rankSimilarTasks,
     ResolveBriefingContributorBounds,
@@ -497,15 +498,16 @@ export class FindTasksAction extends BaseAction {
                     Math.max(maxRows * 2, limits.ResourceGuards.FindTasksSemanticSearchFloor),
                     user,
                 );
-                const escaped = EscapeSQLString(searchText);
+                const nameClause = BuildLikeClause('Name', searchText, { provider: Metadata.Provider });
+                const descClause = BuildLikeClause('Description', searchText, { provider: Metadata.Provider });
                 const semanticIds = Array.from(semanticScores.keys()).filter((id) => IsValidUUID(id));
                 if (semanticIds.length > 0) {
                     const inSemantic = semanticIds.map((id) => `'${EscapeSQLString(id)}'`).join(', ');
                     filters.push(
-                        `(ID IN (${inSemantic}) OR Name LIKE '%${escaped}%' OR Description LIKE '%${escaped}%')`,
+                        `(ID IN (${inSemantic}) OR ${nameClause} OR ${descClause})`,
                     );
                 } else {
-                    filters.push(`(Name LIKE '%${escaped}%' OR Description LIKE '%${escaped}%')`);
+                    filters.push(`(${nameClause} OR ${descClause})`);
                 }
             }
 
@@ -1729,7 +1731,7 @@ export class AssignTaskAction extends BaseAction {
         const res = await rv.RunView<RawNamedEntityRow>(
             {
                 EntityName: entityName,
-                ExtraFilter: `LOWER(Name) LIKE LOWER('%${EscapeSQLString(name.trim())}%')`,
+                ExtraFilter: BuildLikeClause('Name', name.trim(), { caseInsensitive: true, provider: Metadata.Provider }),
                 Fields: ['ID', 'Name'],
                 MaxRows: limits.ResourceGuards.CandidateLookupMaxRows,
                 ResultType: 'simple',

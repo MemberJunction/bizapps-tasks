@@ -31,6 +31,7 @@ import { RegisterClass } from '@memberjunction/global';
 import { GuidLiteral as guid, TasksLimitsResolver, TasksSettings } from '@mj-biz-apps/tasks-core';
 import { mjBizAppsTasksTaskDecisionEntity } from '@mj-biz-apps/tasks-entities';
 import { TaskDecisionRefusal, type DecisionAssignmentFact, type TaskDecisionFacts } from './TaskDecisionAuthority.js';
+import { ApprovalActor, IsSystemActor } from './ApprovalActor.js';
 import { IsPeopleEntity as isPeopleEntity, PEOPLE_ENTITY, PeopleFilterForUser } from './UserPeople.js';
 
 export const TASK_DECISION_ENTITY = 'MJ_BizApps_Tasks: Task Decisions';
@@ -61,7 +62,7 @@ export class TaskDecisionEntityServer extends mjBizAppsTasksTaskDecisionEntity {
                 result.Success = false;
                 result.Errors.push(new ValidationErrorInfo(SOURCE, refusal, null));
             }
-        } catch (err: unknown) {
+        } catch (err) {
             // Fail closed: a decision whose decider cannot be checked is not recorded.
             const msg = err instanceof Error ? err.message : String(err);
             LogError(`TaskDecisionEntityServer: checking the decider on task ${this.TaskID} failed: ${msg}`);
@@ -76,9 +77,31 @@ export class TaskDecisionEntityServer extends mjBizAppsTasksTaskDecisionEntity {
         const provider = Metadata.Provider;
         const user = this.ContextCurrentUser;
         if (!user) {
-            return TasksSettings.PreventSelfApproval(provider)
-                ? 'The decision was not recorded: it was saved without a signed-in user, so who decided it cannot be checked.'
-                : null;
+            if (TasksSettings.PreventSelfApproval(provider)) {
+                return 'The decision was not recorded: it was saved without a signed-in user, so who decided it cannot be checked.';
+            }
+            // Even when PreventSelfApproval is explicitly off, an approval task with RequiresAssigneeDecision
+            // or an OrganizationID must still fail closed when no user context is supplied.
+            const taskFilter = guid(this.TaskID, 'TaskID');
+            const rv = new RunView(this.RunViewProviderToUse);
+            const taskRes = await rv.RunView<{ TypeID: string; OrganizationID?: string | null }>(
+                {
+                    EntityName: TASK_ENTITY,
+                    ExtraFilter: `ID = ${taskFilter}`,
+                    Fields: ['ID', 'TypeID', 'OrganizationID'],
+                    MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
+                    ResultType: 'simple',
+                    BypassCache: true,
+                },
+            );
+            if (!taskRes?.Success) throw new Error(taskRes?.ErrorMessage ?? 'a lookup returned no result');
+            const task = taskRes.Results?.[0];
+            if (!task) throw new Error(`task ${this.TaskID} was not found`);
+            const typeFlags = await this.loadApprovalTypeFlags(rv, task.TypeID, undefined);
+            if (typeFlags.IsApproval && (typeFlags.RequiresAssigneeDecision || task.OrganizationID)) {
+                return 'The decision was not recorded: it was saved without a signed-in user, so who decided it cannot be checked.';
+            }
+            return null;
         }
         await TasksSettings.Load(provider, user);
         const preventSelfApproval = TasksSettings.PreventSelfApproval(provider);
@@ -94,14 +117,21 @@ export class TaskDecisionEntityServer extends mjBizAppsTasksTaskDecisionEntity {
     ): Promise<TaskDecisionFacts | null> {
         const rv = new RunView(this.RunViewProviderToUse);
         const taskFilter = guid(this.TaskID, 'TaskID');
+        type DecidableTaskRow = {
+            TypeID: string;
+            CreatedByPersonID: string | null;
+            OrganizationID?: string | null;
+            Status?: string | null;
+        };
 
         // When PreventSelfApproval is off, first check if the task's TaskType sets RequiresAssigneeDecision (D13)
+        // or if the approval task is scoped to an organization.
         if (!preventSelfApproval) {
-            const taskRes = await rv.RunView<{ TypeID: string; CreatedByPersonID: string | null }>(
+            const taskRes = await rv.RunView<DecidableTaskRow>(
                 {
                     EntityName: TASK_ENTITY,
                     ExtraFilter: `ID = ${taskFilter}`,
-                    Fields: ['ID', 'TypeID', 'CreatedByPersonID'],
+                    Fields: ['ID', 'TypeID', 'CreatedByPersonID', 'OrganizationID', 'Status'],
                     MaxRows: TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.DefaultLookupSingleRow,
                     ResultType: 'simple',
                     BypassCache: true,
@@ -112,25 +142,29 @@ export class TaskDecisionEntityServer extends mjBizAppsTasksTaskDecisionEntity {
             const task = taskRes.Results?.[0];
             if (!task) throw new Error(`task ${this.TaskID} was not found`);
             const typeFlags = await this.loadApprovalTypeFlags(rv, task.TypeID, user);
-            if (!typeFlags.IsApproval || !typeFlags.RequiresAssigneeDecision) {
+            if (!typeFlags.IsApproval || (!typeFlags.RequiresAssigneeDecision && !task.OrganizationID)) {
                 return null;
             }
-            return this.buildFactsForTask(rv, provider, user, task, false, true);
+            return this.buildFactsForTask(rv, provider, user, task, false, typeFlags.RequiresAssigneeDecision);
         }
 
         const personFilter = PeopleFilterForUser(provider, user);
         const [taskRes, assignmentRes, peopleRes] = await rv.RunViews([
-            { EntityName: TASK_ENTITY, ExtraFilter: `ID = ${taskFilter}`, Fields: ['ID', 'TypeID', 'CreatedByPersonID'], ResultType: 'simple', BypassCache: true },
+            { EntityName: TASK_ENTITY, ExtraFilter: `ID = ${taskFilter}`, Fields: ['ID', 'TypeID', 'CreatedByPersonID', 'OrganizationID', 'Status'], ResultType: 'simple', BypassCache: true },
             { EntityName: TASK_ASSIGNMENT_ENTITY, ExtraFilter: `TaskID = ${taskFilter}`, Fields: ['ID', 'AssigneeEntityID', 'AssigneeRecordID', 'Status'], ResultType: 'simple', BypassCache: true },
             { EntityName: PEOPLE_ENTITY, ExtraFilter: personFilter, Fields: ['ID'], ResultType: 'simple', BypassCache: true },
         ], user);
         for (const res of [taskRes, assignmentRes, peopleRes]) {
             if (!res?.Success) throw new Error(res?.ErrorMessage ?? 'a lookup returned no result');
         }
-        const task = (taskRes.Results as Array<{ TypeID: string; CreatedByPersonID: string | null }>)[0];
+        const task = (taskRes.Results as DecidableTaskRow[])[0];
         if (!task) throw new Error(`task ${this.TaskID} was not found`);
         const typeFlags = await this.loadApprovalTypeFlags(rv, task.TypeID, user);
         if (!typeFlags.IsApproval) return null;
+
+        const actor = new ApprovalActor(user, provider, this.RunViewProviderToUse);
+        const actorOrganizationIDs =
+            task.OrganizationID && !IsSystemActor(user) ? await actor.OrganizationIDs() : undefined;
 
         const deciderPersonIDs = (peopleRes.Results as Array<{ ID: string }>).map((p) => p.ID);
         const creatorIsDecider = deciderPersonIDs.some((p) => p.toLowerCase() === (task.CreatedByPersonID ?? '').toLowerCase());
@@ -138,6 +172,9 @@ export class TaskDecisionEntityServer extends mjBizAppsTasksTaskDecisionEntity {
             PreventSelfApproval: true,
             RequiresAssigneeDecision: typeFlags.RequiresAssigneeDecision,
             IsApprovalTask: true,
+            TaskStatus: task.Status ?? null,
+            TaskOrganizationID: task.OrganizationID ?? null,
+            ActorOrganizationIDs: actorOrganizationIDs,
             DeciderUserID: user.ID,
             DeciderPersonIDs: deciderPersonIDs,
             DecidedByPersonID: this.DecidedByPersonID ?? null,
@@ -157,7 +194,7 @@ export class TaskDecisionEntityServer extends mjBizAppsTasksTaskDecisionEntity {
         rv: RunView,
         provider: IMetadataProvider,
         user: UserInfo,
-        task: { TypeID: string; CreatedByPersonID: string | null },
+        task: { TypeID: string; CreatedByPersonID: string | null; OrganizationID?: string | null; Status?: string | null },
         preventSelfApproval: boolean,
         requiresAssigneeDecision: boolean,
     ): Promise<TaskDecisionFacts> {
@@ -170,12 +207,18 @@ export class TaskDecisionEntityServer extends mjBizAppsTasksTaskDecisionEntity {
         for (const res of [assignmentRes, peopleRes]) {
             if (!res?.Success) throw new Error(res?.ErrorMessage ?? 'a lookup returned no result');
         }
+        const actor = new ApprovalActor(user, provider, this.RunViewProviderToUse);
+        const actorOrganizationIDs =
+            task.OrganizationID && !IsSystemActor(user) ? await actor.OrganizationIDs() : undefined;
         const deciderPersonIDs = (peopleRes.Results as Array<{ ID: string }>).map((p) => p.ID);
         const creatorIsDecider = deciderPersonIDs.some((p) => p.toLowerCase() === (task.CreatedByPersonID ?? '').toLowerCase());
         return {
             PreventSelfApproval: preventSelfApproval,
             RequiresAssigneeDecision: requiresAssigneeDecision,
             IsApprovalTask: true,
+            TaskStatus: task.Status ?? null,
+            TaskOrganizationID: task.OrganizationID ?? null,
+            ActorOrganizationIDs: actorOrganizationIDs,
             DeciderUserID: user.ID,
             DeciderPersonIDs: deciderPersonIDs,
             DecidedByPersonID: this.DecidedByPersonID ?? null,
@@ -193,7 +236,7 @@ export class TaskDecisionEntityServer extends mjBizAppsTasksTaskDecisionEntity {
     private async loadApprovalTypeFlags(
         rv: RunView,
         typeID: string,
-        user: UserInfo,
+        user: UserInfo | undefined,
     ): Promise<{ IsApproval: boolean; RequiresAssigneeDecision: boolean }> {
         const res = await rv.RunView<{ IsApproval: boolean; RequiresAssigneeDecision?: boolean }>(
             {

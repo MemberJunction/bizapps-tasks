@@ -104,7 +104,7 @@ export interface DecisionRecordedEvent {
             background: var(--mj-bg-surface);
             border: 1px solid var(--mj-border-default);
             border-radius: var(--mj-radius-lg, 12px);
-            box-shadow: var(--mj-shadow-sm, 0 1px 2px 0 rgba(0,0,0,0.05));
+            box-shadow: var(--mj-shadow-sm);
         }
         .decision-title { margin: 0; font-size: var(--mj-text-lg, 1.125rem); font-weight: var(--mj-font-semibold, 600); color: var(--mj-text-primary); }
         .decision-loading { color: var(--mj-text-muted); padding: var(--mj-space-3, 12px) 0; }
@@ -144,8 +144,8 @@ export interface DecisionRecordedEvent {
         }
         .mj-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .mj-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--mj-brand-primary) 25%, transparent); }
-        .mj-btn--primary { background: var(--mj-brand-primary); color: var(--mj-brand-on-primary, #fff); border-color: var(--mj-brand-primary); }
-        .mj-btn--primary:hover:not(:disabled) { background: var(--mj-brand-primary-hover); border-color: var(--mj-brand-primary-hover); transform: translateY(-1px); box-shadow: var(--mj-shadow-md, 0 4px 6px -1px rgba(0,0,0,0.1)); }
+        .mj-btn--primary { background: var(--mj-brand-primary); color: var(--mj-text-inverse); border-color: var(--mj-brand-primary); }
+        .mj-btn--primary:hover:not(:disabled) { background: var(--mj-brand-primary-hover); border-color: var(--mj-brand-primary-hover); transform: translateY(-1px); box-shadow: var(--mj-shadow-md); }
         .mj-btn--secondary { background: var(--mj-bg-surface-sunken); color: var(--mj-text-primary); border-color: var(--mj-border-default); }
         .mj-btn--secondary:hover:not(:disabled) { background: var(--mj-bg-surface-hover); border-color: var(--mj-border-strong); }
     `]
@@ -216,14 +216,14 @@ export class ApprovalDecisionPanelComponent implements OnInit {
     private async load(): Promise<void> {
         this.Loading = true;
         this.LoadError = null;
-        this.cdr.detectChanges();
+        this.cdr.markForCheck();
         try {
             await Promise.all([this.loadTaskName(), this.loadOutcomes(), this.loadSubjectLinks()]);
         } catch (err) {
             this.LoadError = err instanceof Error ? err.message : String(err);
         } finally {
             this.Loading = false;
-            this.cdr.detectChanges();
+            this.cdr.markForCheck();
         }
     }
 
@@ -281,7 +281,7 @@ export class ApprovalDecisionPanelComponent implements OnInit {
 
         this.Saving = true;
         this.SaveError = null;
-        this.cdr.detectChanges();
+        this.cdr.markForCheck();
         try {
             // Delegate to the shared orchestration service so the decision row,
             // the DecisionRecorded activity log, and the status transition all
@@ -305,7 +305,7 @@ export class ApprovalDecisionPanelComponent implements OnInit {
             this.SaveError = err instanceof Error ? err.message : String(err);
         } finally {
             this.Saving = false;
-            this.cdr.detectChanges();
+            this.cdr.markForCheck();
         }
     }
 }

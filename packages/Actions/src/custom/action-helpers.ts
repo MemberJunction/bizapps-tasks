@@ -12,6 +12,7 @@ import { UserCache } from '@memberjunction/generic-database-provider';
 import { EscapeSQLString, IsValidUUID, UUIDsEqual } from '@memberjunction/global';
 import { ResolveUserIDForPerson } from '@mj-biz-apps/common-entities';
 import {
+    BuildLikeClause,
     ChiefOfStaffWakeRegistry,
     PEOPLE_ENTITY_NAME,
     TasksLimitsResolver,
@@ -513,21 +514,24 @@ export async function resolvePersonByIdentifier(
         const tokens = cleanName.split(/\s+/).filter(Boolean);
         let filter: string;
         if (tokens.length >= 2) {
-            const first = EscapeSQLString(tokens[0]);
-            const last = EscapeSQLString(tokens[tokens.length - 1]);
+            const firstToken = tokens[0];
+            const lastToken = tokens[tokens.length - 1];
+            const firstClause = BuildLikeClause('FirstName', firstToken, { matchMode: 'startsWith', caseInsensitive: true, provider: Metadata.Provider });
+            const lastClause = BuildLikeClause('LastName', lastToken, { matchMode: 'startsWith', caseInsensitive: true, provider: Metadata.Provider });
+            const preferredClause = BuildLikeClause('PreferredName', firstToken, { matchMode: 'startsWith', caseInsensitive: true, provider: Metadata.Provider });
             filter =
                 `Status = 'Active' AND (` +
-                `(LOWER(FirstName) LIKE LOWER('${first}%') AND LOWER(LastName) LIKE LOWER('${last}%')) ` +
-                `OR (LOWER(PreferredName) LIKE LOWER('${first}%') AND LOWER(LastName) LIKE LOWER('${last}%'))` +
+                `(${firstClause} AND ${lastClause}) ` +
+                `OR (${preferredClause} AND ${lastClause})` +
                 `)`;
         } else {
-            const escaped = EscapeSQLString(cleanName);
+            const firstClause = BuildLikeClause('FirstName', cleanName, { matchMode: 'contains', caseInsensitive: true, provider: Metadata.Provider });
+            const lastClause = BuildLikeClause('LastName', cleanName, { matchMode: 'contains', caseInsensitive: true, provider: Metadata.Provider });
+            const preferredClause = BuildLikeClause('PreferredName', cleanName, { matchMode: 'contains', caseInsensitive: true, provider: Metadata.Provider });
+            const emailClause = BuildLikeClause('Email', cleanName, { matchMode: 'contains', caseInsensitive: true, provider: Metadata.Provider });
             filter =
                 `Status = 'Active' AND (` +
-                `LOWER(FirstName) LIKE LOWER('%${escaped}%') ` +
-                `OR LOWER(LastName) LIKE LOWER('%${escaped}%') ` +
-                `OR LOWER(PreferredName) LIKE LOWER('%${escaped}%') ` +
-                `OR LOWER(Email) LIKE LOWER('%${escaped}%')` +
+                `${firstClause} OR ${lastClause} OR ${preferredClause} OR ${emailClause}` +
                 `)`;
         }
 
@@ -663,14 +667,15 @@ export async function resolveOrganizationByIdentifier(
     }
 
     const needle = orgName!;
-    const escaped = EscapeSQLString(needle);
+    const escapedExact = EscapeSQLString(needle);
+    const startsWithClause = BuildLikeClause('Name', needle, { matchMode: 'startsWith', caseInsensitive: true, provider: Metadata.Provider });
     const rv = new RunView();
     const res = await rv.RunView<ResolvedOrganizationCandidate>(
         {
             EntityName: ORGANIZATIONS_ENTITY,
             ExtraFilter:
                 `(Status IS NULL OR Status = 'Active') AND (` +
-                `LOWER(Name) = LOWER('${escaped}') OR LOWER(Name) LIKE LOWER('${escaped}%')` +
+                `LOWER(Name) = LOWER('${escapedExact}') OR ${startsWithClause}` +
                 `)`,
             Fields: ['ID', 'Name'],
             OrderBy: 'Name ASC',

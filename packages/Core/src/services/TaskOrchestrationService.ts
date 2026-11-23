@@ -1,6 +1,8 @@
 import { CompositeKey, IMetadataProvider, IRunViewProvider, Metadata, RunView, UserInfo } from "@memberjunction/core";
 import { EscapeSQLString } from "@memberjunction/global";
 import { TasksLimitsResolver } from "../config/TasksLimits.js";
+import { ApprovalAuthorizationError, type ApprovalAuthorizationErrorCode } from "./ApprovalErrors.js";
+import { RecordApprovalDecisionLatency } from "./ApprovalLatencyService.js";
 import type {
     mjBizAppsTasksTaskEntity,
     mjBizAppsTasksTaskDecisionEntity,
@@ -205,7 +207,16 @@ export class TaskOrchestrationService {
         }
         task.Status = newStatus;
         if (!(await task.Save())) {
-            throw new Error(`Failed to transition task ${taskID} to ${newStatus}: ${task.LatestResult?.CompleteMessage ?? 'unknown error'}`);
+            const detail = task.LatestResult?.CompleteMessage ?? 'unknown error';
+            const code = classifyApprovalErrorCode(detail);
+            if (code) {
+                throw new ApprovalAuthorizationError(
+                    code,
+                    'TransitionStatus',
+                    `Failed to transition task ${taskID} to ${newStatus}: ${detail}`,
+                );
+            }
+            throw new Error(`Failed to transition task ${taskID} to ${newStatus}: ${detail}`);
         }
         return task;
     }
@@ -221,7 +232,7 @@ export class TaskOrchestrationService {
      * Approved/ApprovedWithConditions → Completed, Rejected → Cancelled.
      *
      * Because all three writes execute inside a single `EntitySavePlan` transaction,
-     * a validation refusal (e.g. self-approval or closed-task guard) rejects the entire
+     * a validation refusal (e.g. self-approval, cross-org, or closed-task guard) rejects the entire
      * unit with zero partial rows, and post-commit lifecycle hooks (`OnComplete` / `OnReject`)
      * observe the committed decision row cleanly.
      */
@@ -230,6 +241,17 @@ export class TaskOrchestrationService {
         contextUser?: UserInfo,
         provider?: TaskOrchestrationProvider,
     ): Promise<RecordDecisionResult> {
+        if (!params.TaskID || !params.TaskID.trim()) {
+            throw new ApprovalAuthorizationError('INVALID_TASK_ID', 'RecordDecision', 'TaskID is required.');
+        }
+        if (!IsTaskDecisionOutcomeCode(params.OutcomeCode)) {
+            throw new ApprovalAuthorizationError(
+                'INVALID_OUTCOME',
+                'RecordDecision',
+                `Invalid task decision outcome code '${String(params.OutcomeCode)}'.`,
+            );
+        }
+
         const outcome = await this.resolveOutcome(params.OutcomeCode, contextUser, provider);
         const task = await this.loadTask(params.TaskID, contextUser, provider);
 
@@ -254,8 +276,31 @@ export class TaskOrchestrationService {
         }
 
         if (!(await task.Save())) {
-            throw new Error(`Failed to record decision for task ${params.TaskID}: ${task.LatestResult?.CompleteMessage ?? 'unknown error'}`);
+            const detail = task.LatestResult?.CompleteMessage ?? 'unknown error';
+            const errorCode = classifyApprovalErrorCode(detail) ?? 'UNAUTHORIZED_ACTOR';
+            RecordApprovalDecisionLatency({
+                CreatedAt: task.__mj_CreatedAt,
+                DecidedAt: decision.DecidedAt ?? new Date(),
+                OutcomeCode: params.OutcomeCode,
+                IsTerminal: outcome.IsTerminal,
+                Success: false,
+                ErrorCode: errorCode,
+                ErrorMessage: detail,
+            });
+            throw new ApprovalAuthorizationError(
+                errorCode,
+                'RecordDecision',
+                `Failed to record decision for task ${params.TaskID}: ${detail}`,
+            );
         }
+
+        RecordApprovalDecisionLatency({
+            CreatedAt: task.__mj_CreatedAt,
+            DecidedAt: decision.DecidedAt ?? new Date(),
+            OutcomeCode: params.OutcomeCode,
+            IsTerminal: outcome.IsTerminal,
+            Success: true,
+        });
 
         return { Decision: decision, Task: task, NewStatus: newStatus };
     }
@@ -353,4 +398,31 @@ export class TaskOrchestrationService {
         }
         return outcome;
     }
+}
+
+function classifyApprovalErrorCode(message: string): ApprovalAuthorizationErrorCode | null {
+    const lower = message.toLowerCase();
+    if (
+        lower.includes('another organization') ||
+        lower.includes('cross-organization') ||
+        lower.includes("approval task's organization cannot be changed")
+    ) {
+        return 'CROSS_ORGANIZATION_DENIED';
+    }
+    if (lower.includes('without a signed-in user')) {
+        return 'UNAUTHENTICATED_ACTOR';
+    }
+    if (lower.includes('asked for this approval') || lower.includes('own request') || lower.includes('self-approval')) {
+        return 'SELF_APPROVAL_DENIED';
+    }
+    if (lower.includes('already closed') || lower.includes('already completed')) {
+        return 'TASK_ALREADY_CLOSED';
+    }
+    if (lower.includes('role')) {
+        return 'MISMATCHED_ROLE';
+    }
+    if (lower.includes('not assigned') || lower.includes('may decide') || lower.includes('someone other than you')) {
+        return 'UNAUTHORIZED_ACTOR';
+    }
+    return null;
 }

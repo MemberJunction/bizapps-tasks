@@ -30,6 +30,7 @@ import {
 import { GuidLiteral, IsTaskDecisionOutcomeCode, TaskDecisionOutcomes, TaskService, TasksLimitsResolver } from '@mj-biz-apps/tasks-core';
 import { ApprovalActor, IsSystemActor } from './ApprovalActor.js';
 import {
+    ApprovalOrganizationChangeRefusal,
     ApprovalStatusChangeRefusal,
     ApprovalTypeChangeRefusal,
     TaskCreatorRefusal,
@@ -400,7 +401,7 @@ export class TaskEntityServer extends TaskEntity {
             for (const refusal of refusals) {
                 if (refusal) this.addRefusal(result, refusal);
             }
-        } catch (e: unknown) {
+        } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
             LogError(`TaskEntityServer: checking who may save task ${this.ID ?? '(new)'} failed: ${msg}`);
             this.addRefusal(result, `The task was not saved: whether this change is allowed could not be checked (${msg}).`);
@@ -440,7 +441,8 @@ export class TaskEntityServer extends TaskEntity {
     private async approvalRefusals(): Promise<Array<string | null>> {
         const closing = this.closingStatusBeingSet();
         const previousTypeID = this.previousTypeID();
-        if (!closing && !previousTypeID) return [];
+        const previousOrgID = this.previousOrganizationID();
+        if (!closing && !previousTypeID && previousOrgID === undefined) return [];
         const user = this.ContextCurrentUser;
         const isSystem = IsSystemActor(user);
         const approvalTypeIDs = await this.approvalTypeIDs([this.TypeID, previousTypeID]);
@@ -448,8 +450,25 @@ export class TaskEntityServer extends TaskEntity {
         const wasApproval = previousTypeID ? approvalTypeIDs.some((id) => UUIDsEqual(id, previousTypeID)) : isApproval;
         return [
             previousTypeID ? ApprovalTypeChangeRefusal({ WasApprovalType: wasApproval, IsApprovalType: isApproval, ActorIsSystem: isSystem }) : null,
+            previousOrgID !== undefined
+                ? ApprovalOrganizationChangeRefusal({
+                    WasApprovalType: wasApproval,
+                    IsApprovalType: isApproval,
+                    PreviousOrganizationID: previousOrgID,
+                    NewOrganizationID: this.OrganizationID ?? null,
+                    ActorIsSystem: isSystem,
+                })
+                : null,
             closing && (isApproval || wasApproval) ? await this.closingRefusal(closing, user, isSystem) : null,
         ];
+    }
+
+    /** Returns old OrganizationID when an existing task is modifying OrganizationID, else undefined. */
+    private previousOrganizationID(): string | null | undefined {
+        const field = this.Fields.find((f) => f.CodeName === 'OrganizationID');
+        if (!this.IsSaved || !field?.Dirty || field.OldValue == null) return undefined;
+        const previous = String(field.OldValue);
+        return UUIDsEqual(previous, this.OrganizationID ?? '') ? undefined : previous;
     }
 
     /** The closing status this save moves the task to, or null when it does not close it. */
@@ -486,12 +505,21 @@ export class TaskEntityServer extends TaskEntity {
         const decided = await this.standingDecisionStatus();
         // Who is saving only matters when the status does not follow a decision.
         const standing = decided !== newStatus && user ? await this.closingStanding(newStatus, user, isSystem) : NO_CLOSING_STANDING;
+        const needsOrgCheck =
+            decided !== newStatus &&
+            !!this.OrganizationID &&
+            !isSystem &&
+            !this.approvalWithdrawalAuthorized &&
+            !!user;
+        const actorOrgs = needsOrgCheck && user ? await this.approvalActor(user).OrganizationIDs() : undefined;
         return ApprovalStatusChangeRefusal({
             NewStatus: newStatus,
             DecidedStatus: decided,
             WithdrawalSanctioned: this.approvalWithdrawalAuthorized,
             ActorIsSystem: isSystem,
             HasActor: !!user,
+            TaskOrganizationID: this.OrganizationID ?? null,
+            ActorOrganizationIDs: actorOrgs,
             ...standing,
         });
     }
@@ -545,9 +573,12 @@ export class TaskEntityServer extends TaskEntity {
         const provider = this.ruleMetadataProvider;
         const actor = this.approvalActor(user);
         const creatorIsActor = await actor.IsPerson(this.CreatedByPersonID);
+        const actorOrganizationIDs = this.OrganizationID ? await actor.OrganizationIDs() : undefined;
         const refusal = TaskDecisionRefusal({
             PreventSelfApproval: true,
             IsApprovalTask: true,
+            TaskOrganizationID: this.OrganizationID ?? null,
+            ActorOrganizationIDs: actorOrganizationIDs,
             DeciderUserID: user.ID,
             DeciderPersonIDs: await actor.PersonIDs(),
             DecidedByPersonID: null,
@@ -637,7 +668,7 @@ export class TaskEntityServer extends TaskEntity {
                 this.CreatedByPersonID = personID;
                 this.stampedCreatorPersonID = personID;
             }
-        } catch (e: unknown) {
+        } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
             LogError(`TaskEntityServer: could not record the creator of task "${this.Name}": ${msg}`);
             throw new Error(`The task was not created: its creator could not be recorded (${msg}).`);
@@ -672,7 +703,7 @@ export class TaskEntityServer extends TaskEntity {
             if (parentOrgID) {
                 this.OrganizationID = parentOrgID;
             }
-        } catch (e: unknown) {
+        } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
             LogError(`TaskEntityServer: could not inherit OrganizationID from parent ${this.ParentID}: ${msg}`);
         }
@@ -1220,14 +1251,14 @@ export class TaskEntityServer extends TaskEntity {
             // changed, which prevents the save it raises from looping back here.
             // Runs after commit on this Task's provider, like the action hooks.
             const provider = this.saveProvider;
-            this.runAfterCommit('Task parent-progress rollup', this.capturePostCommitToken(), () =>
-                new TaskService()
-                    .rollupParentProgress(parentID, this.ContextCurrentUser, provider)
-                    .catch((err: unknown) => {
-                        const msg = err instanceof Error ? err.message : String(err);
-                        LogError(`TaskEntityServer: parent-progress rollup failed for parent ${parentID}: ${msg}`);
-                    })
-            );
+            this.runAfterCommit('Task parent-progress rollup', this.capturePostCommitToken(), async () => {
+                try {
+                    await new TaskService().rollupParentProgress(parentID, this.ContextCurrentUser, provider);
+                } catch (err) {
+                    const msg = err instanceof Error ? err.message : String(err);
+                    LogError(`TaskEntityServer: parent-progress rollup failed for parent ${parentID}: ${msg}`);
+                }
+            });
         });
     }
 

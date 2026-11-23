@@ -8244,5 +8244,197 @@
         }
       ]
     }
+  },
+  {
+    "fields": {
+      "Name": "Process Approval Request Outcome",
+      "CategoryID": "@lookup:MJ: Action Categories.Name=Tasks",
+      "Description": "Approve-then-act lifecycle hook for APPROVAL_REQUEST tasks (OnComplete, OnReject, OnCancel). Verifies a standing approving TaskDecision on completion, writes structured audit activity, inspects linked records, and unblocks downstream work via the Chief of Staff wake registry.",
+      "Type": "Custom",
+      "DriverClass": "Tasks.ProcessApprovalOutcomeHook",
+      "IconClass": "fa-solid fa-stamp",
+      "UserPrompt": "Verify approval decision standing and settle downstream links or tasks after an APPROVAL_REQUEST closes.",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "A83A44FD-EB13-4CFA-97FE-DFD212F18EA1"
+    },
+    "relatedEntities": {
+      "MJ: Action Params": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "TaskID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": true,
+            "Description": "UUID of the closed APPROVAL_REQUEST task."
+          },
+          "primaryKey": {
+            "ID": "DDBFEC76-C42B-4AC2-82CF-7ED3FC1CAC3C"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Status",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Terminal macro status after save (Completed or Cancelled)."
+          },
+          "primaryKey": {
+            "ID": "A4C16322-C712-4EBD-9C4D-39E870F0F2AF"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "PreviousStatus",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Macro status prior to transition."
+          },
+          "primaryKey": {
+            "ID": "4736B615-9D14-4607-929C-C4DCDAC842BD"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "TaskTypeCode",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "TaskType Code (typically APPROVAL_REQUEST)."
+          },
+          "primaryKey": {
+            "ID": "F500C0C4-FA3E-498B-AFEB-E23977DA6CE1"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "TaskTypeStatusCode",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional TaskTypeStatus Code (e.g., REJECTED)."
+          },
+          "primaryKey": {
+            "ID": "F5B40F48-E093-4DDB-B850-BCE0182459FC"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "HookEvent",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Resolved hook event (OnComplete, OnReject, or OnCancel)."
+          },
+          "primaryKey": {
+            "ID": "E16590EA-FC2D-4316-96A3-31FA88B422F5"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "OutcomeKind",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Settled outcome classification (Approved, Rejected, or Cancelled)."
+          },
+          "primaryKey": {
+            "ID": "85B99A0D-C7B0-4D65-8144-CAB94864996F"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "LinkedRecordCount",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Number of linked domain records inspected."
+          },
+          "primaryKey": {
+            "ID": "4CE1C930-2068-44E2-A6AE-D8F2B14D5A0C"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "DependentTaskCount",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Number of downstream tasks dependent on this approval."
+          },
+          "primaryKey": {
+            "ID": "8A58C9D1-2DF4-4F07-94A2-E4B9BFFD0B78"
+          }
+        }
+      ],
+      "MJ: Action Result Codes": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "SUCCESS",
+            "IsSuccess": true,
+            "Description": "Approve-then-act hook verified and settled."
+          },
+          "primaryKey": {
+            "ID": "E6CACEB8-E303-4DE6-910E-0ADA321DF1A4"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "UNAUTHORIZED",
+            "IsSuccess": false,
+            "Description": "Missing ContextUser or Completed approval lacks a standing approving TaskDecision."
+          },
+          "primaryKey": {
+            "ID": "958401BB-3430-4DE6-AF6C-F5B795E71DBA"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "VALIDATION_ERROR",
+            "IsSuccess": false,
+            "Description": "Missing or invalid TaskID."
+          },
+          "primaryKey": {
+            "ID": "1956776F-F7CE-47C9-8886-E7303BF401AB"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "FAILED",
+            "IsSuccess": false,
+            "Description": "Unexpected lookup or persistence error during hook execution."
+          },
+          "primaryKey": {
+            "ID": "64EF1DE1-E37B-44E5-8E00-AB5AB6001311"
+          }
+        }
+      ]
+    }
   }
 ]

@@ -41,7 +41,11 @@ import { GuidLiteral as guid } from '@mj-biz-apps/tasks-core';
 import { mjBizAppsTasksTaskAssignmentEntity } from '@mj-biz-apps/tasks-entities';
 import { capturePostCommitToken, runAfterCommit } from './after-commit.js';
 import { ApprovalActor, IsSystemActor } from './ApprovalActor.js';
-import { ApprovalAssignmentAddRefusal, SELF_ASSIGN_REFUSAL } from './ApprovalTaskAuthority.js';
+import {
+    ApprovalAssignmentAddRefusal,
+    ApprovalAssignmentManageRefusal,
+    SELF_ASSIGN_REFUSAL,
+} from './ApprovalTaskAuthority.js';
 import { wakeAssigneesForTaskAssignment } from './cos-wake-helpers.js';
 
 export const TASK_ASSIGNMENT_ENTITY = 'MJ_BizApps_Tasks: Task Assignments';
@@ -56,7 +60,13 @@ const ASSIGNEE_FIELDS = ['TaskID', 'AssigneeEntityID', 'AssigneeRecordID'] as co
 const CLOSED_TASK_STATUSES: readonly string[] = ['Completed', 'Cancelled'];
 
 /** What the rules read from a task an assignment is on. */
-type AssignedTask = { ID: string; TypeID: string | null; CreatedByPersonID: string | null; Status: string };
+type AssignedTask = {
+    ID: string;
+    TypeID: string | null;
+    CreatedByPersonID: string | null;
+    Status: string;
+    OrganizationID?: string | null;
+};
 
 export { SELF_ASSIGN_REFUSAL };
 export const REASSIGN_REFUSAL = 'This is an approval task, and your role does not allow changing who it is assigned to.';
@@ -159,6 +169,7 @@ export class TaskAssignmentEntityServer extends mjBizAppsTasksTaskAssignmentEnti
         if (!task) throw new Error('its task was not found, or you may not read it');
         if (!(await this.anyIsApproval([task], user))) return null;
         const actor = user ? this.actorFor(user) : null;
+        const actorOrgs = actor && task.OrganizationID ? await actor.OrganizationIDs() : undefined;
         const taskIsOpen = !CLOSED_TASK_STATUSES.includes(task.Status);
         const isCreator = actor ? await actor.IsPerson(task.CreatedByPersonID) : false;
         const assigneeIsActor = actor ? await actor.IsAssignee(this.AssigneeEntityID, this.AssigneeRecordID) : false;
@@ -167,6 +178,8 @@ export class TaskAssignmentEntityServer extends mjBizAppsTasksTaskAssignmentEnti
             Sanctioned: false,
             ActorIsSystem: false,
             HasActor: !!user,
+            TaskOrganizationID: task.OrganizationID ?? null,
+            ActorOrganizationIDs: actorOrgs,
             AssigneeIsActor: assigneeIsActor,
             ActorIsTaskCreator: isCreator,
             TaskIsOpen: taskIsOpen,
@@ -178,36 +191,57 @@ export class TaskAssignmentEntityServer extends mjBizAppsTasksTaskAssignmentEnti
     /** Why this reassignment must not be saved, or null. */
     private async reassignRefusal(): Promise<string | null> {
         const user = this.ContextCurrentUser;
-        if (!(await this.touchesApprovalTask(user))) return null;
+        const oldTaskID = this.GetFieldByName('TaskID')?.OldValue as string | null | undefined;
+        const tasks = await this.loadTasks([this.TaskID, oldTaskID], user);
+        if (!(await this.anyIsApproval(tasks, user))) return null;
         if (!user) return NO_USER_REFUSAL;
         const actor = this.actorFor(user);
-        if (await actor.IsAssignee(this.AssigneeEntityID, this.AssigneeRecordID)) return SELF_ASSIGN_REFUSAL;
-        return (await actor.MayReassignApprovals()) ? null : REASSIGN_REFUSAL;
+        const orgID = tasks.map((t) => t.OrganizationID).find((id) => !!id) ?? null;
+        const actorOrgs = orgID && !IsSystemActor(user) ? await actor.OrganizationIDs() : undefined;
+        const assigneeIsActor = await actor.IsAssignee(this.AssigneeEntityID, this.AssigneeRecordID);
+        if (assigneeIsActor) return SELF_ASSIGN_REFUSAL;
+        return ApprovalAssignmentManageRefusal({
+            ActorIsSystem: IsSystemActor(user),
+            HasActor: true,
+            TaskOrganizationID: orgID,
+            ActorOrganizationIDs: actorOrgs,
+            AssigneeIsActor: false,
+            ActorMayReassign: await actor.MayReassignApprovals(),
+            NoUserMessage: NO_USER_REFUSAL,
+            RoleRefusalMessage: REASSIGN_REFUSAL,
+        });
     }
 
     /** Why this assignment must not be deleted, or null. */
     private async deleteRefusal(): Promise<string | null> {
         const user = this.ContextCurrentUser;
-        if (!(await this.touchesApprovalTask(user))) return null;
+        const oldTaskID = this.GetFieldByName('TaskID')?.OldValue as string | null | undefined;
+        const tasks = await this.loadTasks([this.TaskID, oldTaskID], user);
+        if (!(await this.anyIsApproval(tasks, user))) return null;
         if (!user) return NO_USER_REFUSAL;
-        return (await this.actorFor(user).MayReassignApprovals()) ? null : REMOVE_REFUSAL;
+        const actor = this.actorFor(user);
+        const orgID = tasks.map((t) => t.OrganizationID).find((id) => !!id) ?? null;
+        const actorOrgs = orgID && !IsSystemActor(user) ? await actor.OrganizationIDs() : undefined;
+        return ApprovalAssignmentManageRefusal({
+            ActorIsSystem: IsSystemActor(user),
+            HasActor: true,
+            TaskOrganizationID: orgID,
+            ActorOrganizationIDs: actorOrgs,
+            ActorMayReassign: await actor.MayReassignApprovals(),
+            NoUserMessage: NO_USER_REFUSAL,
+            RoleRefusalMessage: REMOVE_REFUSAL,
+        });
     }
 
     /** Runs a check; a check that cannot be completed refuses rather than lets the write through. */
     private async failClosed(check: () => Promise<string | null>): Promise<string | null> {
         try {
             return await check();
-        } catch (err: unknown) {
+        } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             LogError(`TaskAssignmentEntityServer: checking assignment ${this.ID ?? '(new)'} on task ${this.TaskID} failed: ${msg}`);
             return `The assignment was not ${this.IsSaved ? 'changed' : 'saved'}: whether it is an approval could not be checked (${msg}).`;
         }
-    }
-
-    /** Whether the task this assignment is on, or was on before this change, is an approval task. */
-    private async touchesApprovalTask(user: UserInfo | null): Promise<boolean> {
-        const oldTaskID = this.GetFieldByName('TaskID')?.OldValue as string | null | undefined;
-        return this.anyIsApproval(await this.loadTasks([this.TaskID, oldTaskID], user), user);
     }
 
     /** The tasks with these IDs that the user may read, with what the rules read from each. */
@@ -215,7 +249,7 @@ export class TaskAssignmentEntityServer extends mjBizAppsTasksTaskAssignmentEnti
         const taskIDs = [...new Set(ids.filter((id): id is string => !!id).map((id) => id.toUpperCase()))];
         if (taskIDs.length === 0) return [];
         const tasks = await new RunView(this.RunViewProviderToUse).RunView<AssignedTask>(
-            { EntityName: TASK_ENTITY, ExtraFilter: `ID IN (${taskIDs.map((id) => guid(id, 'TaskID')).join(', ')})`, Fields: ['ID', 'TypeID', 'CreatedByPersonID', 'Status'], ResultType: 'simple', BypassCache: true },
+            { EntityName: TASK_ENTITY, ExtraFilter: `ID IN (${taskIDs.map((id) => guid(id, 'TaskID')).join(', ')})`, Fields: ['ID', 'TypeID', 'CreatedByPersonID', 'Status', 'OrganizationID'], ResultType: 'simple', BypassCache: true },
             user ?? undefined,
         );
         if (!tasks?.Success) throw new Error(tasks?.ErrorMessage ?? 'the task lookup returned no result');

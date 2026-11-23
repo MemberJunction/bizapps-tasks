@@ -7992,6 +7992,33 @@ export class mjBizAppsTasksTaskEntity extends BaseEntity<mjBizAppsTasksTaskEntit
     }
 
     /**
+    * * Field Name: RecurrenceTemplateID
+    * * Display Name: Recurrence Template ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Task Templates (vwTaskTemplates.ID)
+    * * Description: Template ID stamped on the root task of a recurring playbook run; combined with OrganizationID and RecurrencePeriodKey in UX_Task_RecurringPlaybook_Org_Period to guarantee atomic idempotency.
+    */
+    get RecurrenceTemplateID(): string | null {
+        return this.Get('RecurrenceTemplateID');
+    }
+    set RecurrenceTemplateID(value: string | null) {
+        this.Set('RecurrenceTemplateID', value);
+    }
+
+    /**
+    * * Field Name: RecurrencePeriodKey
+    * * Display Name: Recurrence Period Key
+    * * SQL Data Type: nvarchar(40)
+    * * Description: Fiscal or recurrence period key (e.g., 2026-12 or 2026-Q4) stamped on the root task of a recurring playbook run for database-enforced uniqueness per organization and template.
+    */
+    get RecurrencePeriodKey(): string | null {
+        return this.Get('RecurrencePeriodKey');
+    }
+    set RecurrencePeriodKey(value: string | null) {
+        this.Set('RecurrencePeriodKey', value);
+    }
+
+    /**
     * * Field Name: Type
     * * Display Name: Type
     * * SQL Data Type: nvarchar(100)

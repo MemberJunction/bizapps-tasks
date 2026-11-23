@@ -39,6 +39,11 @@ export interface DecisionAssignmentFact {
 /** Assignment statuses that may still decide. */
 export const ACTIVE_ASSIGNMENT_STATUSES: readonly DecisionAssignmentFact['Status'][] = ['Pending', 'InProgress'];
 
+export const CROSS_ORG_DECISION_REFUSAL =
+    'This approval belongs to another organization, so you cannot record a decision on it.';
+export const CLOSED_TASK_DECISION_REFUSAL =
+    'This approval task is already closed and cannot accept new decisions.';
+
 /** Everything the rule needs to decide. IDs are compared case-insensitively. */
 export interface TaskDecisionFacts {
     /** The Tasks `PreventSelfApproval` setting. */
@@ -47,6 +52,12 @@ export interface TaskDecisionFacts {
     RequiresAssigneeDecision?: boolean;
     /** Whether the task's type is an approval type. */
     IsApprovalTask: boolean;
+    /** Current persisted status of the task being decided, if known. */
+    TaskStatus?: string | null;
+    /** Organization owning the task being decided, when org-scoped. */
+    TaskOrganizationID?: string | null;
+    /** Organizations the deciding user belongs to (checked whenever `TaskOrganizationID` is set). */
+    ActorOrganizationIDs?: readonly string[];
     /** The user saving the decision. */
     DeciderUserID: string;
     /** Every Person bound to that user (the user's own People link and any People.LinkedUserID match). */
@@ -89,8 +100,18 @@ export function DeciderAssignments(facts: TaskDecisionFacts): DecisionAssignment
  * @returns a sentence for the person deciding, or null.
  */
 export function TaskDecisionRefusal(facts: TaskDecisionFacts): string | null {
+    if (!facts.IsApprovalTask) return null;
+
+    if (facts.TaskOrganizationID && !facts.ActorOrganizationIDs?.some((id) => same(id, facts.TaskOrganizationID))) {
+        return CROSS_ORG_DECISION_REFUSAL;
+    }
+
+    if (facts.TaskStatus === 'Completed' || facts.TaskStatus === 'Cancelled') {
+        return CLOSED_TASK_DECISION_REFUSAL;
+    }
+
     const guardActive = facts.PreventSelfApproval || facts.RequiresAssigneeDecision === true;
-    if (!guardActive || !facts.IsApprovalTask) return null;
+    if (!guardActive) return null;
 
     if (facts.DecidedByPersonID && !facts.DeciderPersonIDs.some((p) => same(p, facts.DecidedByPersonID))) {
         return 'This decision names someone other than you as the person deciding. A decision can only be recorded as your own.';

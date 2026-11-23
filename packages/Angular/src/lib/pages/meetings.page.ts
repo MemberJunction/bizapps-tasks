@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { LogError } from '@memberjunction/core';
+import { LogError, Metadata } from '@memberjunction/core';
 import { MJButtonDirective, MJDialogComponent } from '@memberjunction/ng-ui-components';
+import { BuildLikeClause } from '@mj-biz-apps/tasks-core';
 import {
     MeetingListComponent,
     NewMeetingFormComponent,
@@ -15,7 +16,7 @@ import {
     type PersonOption,
     type VideoProviderOption,
 } from '@mj-biz-apps/tasks-ng-widgets';
-import { MeetingData, quoteSql } from '../meetings/meeting-data';
+import { MeetingData } from '../meetings/meeting-data';
 import { MEETINGS_PAGE_CSS, OpenMeetingRecord } from './meetings-shared';
 
 type StatusFilter = 'open' | MeetingStatus | 'all';
@@ -127,7 +128,7 @@ export class MeetingsPageComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck();
         try {
             const filters: string[] = [];
-            if (this.search.trim()) filters.push(`Name LIKE '%${quoteSql(this.search.trim())}%'`);
+            if (this.search.trim()) filters.push(BuildLikeClause('Name', this.search.trim(), { provider: Metadata.Provider }));
             if (this.typeId) filters.push(`TypeID = '${this.typeId}'`);
             if (this.status === 'open') filters.push(`Status NOT IN ('Cancelled', 'Completed')`);
             else if (this.status !== 'all') filters.push(`Status = '${this.status}'`);

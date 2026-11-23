@@ -11,7 +11,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Metadata, RunView } from '@memberjunction/core';
-import { EscapeSQLString } from '@memberjunction/global';
+import { BuildLikeClause } from '@mj-biz-apps/tasks-core';
 import {
     MJButtonDirective,
     MJDialogComponent,
@@ -323,8 +323,8 @@ export class RecordLinkPickerDialogComponent implements OnChanges {
             const fields = hasFirstLast ? ['ID', 'FirstName', 'LastName'] : ['ID', opt.NameField];
             const extraFilter = q
                 ? hasFirstLast
-                    ? `(FirstName LIKE '%${EscapeSQLString(q)}%' OR LastName LIKE '%${EscapeSQLString(q)}%')`
-                    : `${opt.NameField} LIKE '%${EscapeSQLString(q)}%'`
+                    ? `(${BuildLikeClause('FirstName', q, { provider: Metadata.Provider })} OR ${BuildLikeClause('LastName', q, { provider: Metadata.Provider })})`
+                    : BuildLikeClause(opt.NameField, q, { provider: Metadata.Provider })
                 : undefined;
 
             const res = await rv.RunView<Record<string, string | null>>({

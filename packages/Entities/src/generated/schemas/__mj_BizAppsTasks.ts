@@ -2923,6 +2923,15 @@ export const mjBizAppsTasksTaskSchema = z.object({
         * * Display Name: Forecast Completion Date
         * * SQL Data Type: datetimeoffset
         * * Description: AI-forecasted completion date synced from the latest Task Risk Assessment for project health rollups and Chief of Staff briefings.`),
+    RecurrenceTemplateID: z.string().nullable().describe(`
+        * * Field Name: RecurrenceTemplateID
+        * * Display Name: Recurrence Template ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ_BizApps_Tasks: Task Templates (vwTaskTemplates.ID)`),
+    RecurrencePeriodKey: z.string().nullable().describe(`
+        * * Field Name: RecurrencePeriodKey
+        * * Display Name: Recurrence Period Key
+        * * SQL Data Type: nvarchar(40)`),
     Type: z.string().describe(`
         * * Field Name: Type
         * * Display Name: Type
