@@ -1424,16 +1424,13 @@ export class TaskEditPanelComponent implements OnChanges {
             return;
         }
 
-        const palette = ['#0076b6', '#0d9488', '#16a34a', '#d97706', '#dc2626', '#0891b2'];
-        const color = palette[this.allTags.length % palette.length];
-
         this.creatingTag = true;
         this.cdr.markForCheck();
         try {
             const tag = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskTagEntity>('MJ_BizApps_Tasks: Task Tags');
             tag.NewRecord();
             tag.Name = name;
-            tag.ColorCode = color;
+            tag.ColorCode = null;
             const saved = await tag.Save();
             if (!saved) {
                 this.saveError = tag.LatestResult?.CompleteMessage || 'The tag could not be saved.';

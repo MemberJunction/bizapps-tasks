@@ -328,6 +328,9 @@ describe('GoalsViewComponent Empty State, In-App Help & Legacy OKR Readability',
             const html = templateMatch![1];
             expect(html, `Forbidden #hex literal in HTML of ${relPath}`).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
             expect(html, `Forbidden rgb/rgba/hsl/hsla literal in HTML of ${relPath}`).not.toMatch(/\b(?:rgb|rgba|hsl|hsla)\s*\(/i);
+
+            expect(source, `Forbidden #hex literal in source of ${relPath}`).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+            expect(source, `Forbidden rgb/rgba/hsl/hsla literal in source of ${relPath}`).not.toMatch(/\b(?:rgb|rgba|hsl|hsla)\s*\(/i);
         }
     });
 });
