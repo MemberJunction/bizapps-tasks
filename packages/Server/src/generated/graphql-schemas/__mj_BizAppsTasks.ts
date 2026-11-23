@@ -9381,7 +9381,7 @@ export class mjBizAppsTasksWorkReportItemResolver extends ResolverBase {
 //****************************************************************************
 // ENTITY CLASS for MJ_BizApps_Tasks: Work Reports
 //****************************************************************************
-@ObjectType({ description: "Daily or periodic 15Five work reports summarizing what got done, what is next, blockers, and at-risk objectives for a person, drafted by their Chief of Staff and reviewed with supervisor feedback." })
+@ObjectType({ description: "Daily or periodic work reports summarizing what got done, what is next, blockers, and at-risk objectives for a person, drafted by their Chief of Staff and reviewed with supervisor feedback." })
 export class mjBizAppsTasksWorkReport_ {
     @Field() 
     @MaxLength(36)
@@ -9397,7 +9397,7 @@ export class mjBizAppsTasksWorkReport_ {
     @Field({nullable: true, description: "Inclusive end date of the reporting window."}) 
     PeriodEnd?: Date;
         
-    @Field({nullable: true, description: "Optional concise headline for the report (e.g., Daily 15Five — 2026-11-09)."}) 
+    @Field({nullable: true, description: "Optional concise headline for the report (e.g., Daily Work Report — 2026-11-09)."}) 
     @MaxLength(255)
     Title?: string;
         

@@ -44,5 +44,5 @@ Authoritative server-side entity subclasses and approval engines for BizApps Tas
 
 ## Server Remotable Operations (`TasksRemoteOperationsServer.ts`)
 
-- `TasksBulkUpdateServerOperation` (`@RegisterClass(BaseRemotableOperation, 'BizAppsTasks.BulkUpdateTasks')`): Authoritative server handler for Asana-grade bulk operations across up to 500 tasks per call — deduplicates UUIDs, validates inputs, applies scalar + assignment + tag mutations through `TaskEntityServer` so audit trails and lifecycle hooks fire accurately, and reports partial failures cleanly.
+- `TasksBulkUpdateServerOperation` (`@RegisterClass(BaseRemotableOperation, 'BizAppsTasks.BulkUpdateTasks')`): Authoritative server handler for bulk operations across up to 500 tasks per call — deduplicates UUIDs, validates inputs, applies scalar + assignment + tag mutations through `TaskEntityServer` so audit trails and lifecycle hooks fire accurately, and reports partial failures cleanly.
 - `TasksInstantiateTemplateServerOperation` (`@RegisterClass(BaseRemotableOperation, 'BizAppsTasks.InstantiateTemplate')`): Server handler that topologically sorts template items (parent-before-child), computes relative `DueAt` offsets, stamps `OrganizationID` / `CategoryID`, assigns mapped People or MJ Roles, and wires `TaskDependency` links.

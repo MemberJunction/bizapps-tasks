@@ -18,7 +18,7 @@ import type {
 type DockPopoverKind = 'none' | 'reassign' | 'redate' | 'org' | 'more';
 
 /**
- * Asana-grade Floating Bottom Bulk Action Dock (L1 presentational widget).
+ * Floating Bottom Bulk Action Dock (L1 presentational widget).
  *
  * Summoned cleanly at the bottom edge (`safe-area-inset-bottom` aware) whenever
  * the user checks >= 1 task in a list or tree. Supports 1-click macro statuses
@@ -288,7 +288,7 @@ type DockPopoverKind = 'none' | 'reassign' | 'redate' | 'org' | 'more';
                     }
                     <span class="mjt-dock-sep" aria-hidden="true"></span>
 
-                    <!-- Top 3 Asana Operations: Reassign · Redate · Status -->
+                    <!-- Primary Bulk Operations: Reassign · Redate · Status -->
                     <button
                         type="button"
                         class="mjt-dock-btn"

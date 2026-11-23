@@ -1,6 +1,6 @@
 <mj-page-layout>
     <mj-page-header
-        Title="15Five Work Reports"
+        Title="Work Reports"
         Icon="fa-solid fa-clipboard-check"
         Subtitle="Daily progress reports drafted from your tasks and GitHub activity, with supervisor review">
         <div meta>
@@ -19,7 +19,7 @@
                 [disabled]="IsDrafting || !!PersonMessage"
                 (click)="DraftTodayReport()">
                 <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
-                {{ IsDrafting ? 'Drafting...' : "Draft Today's 15Five" }}
+                {{ IsDrafting ? 'Drafting...' : "Draft Today's Report" }}
             </button>
         </div>
         <div toolbar>
@@ -93,8 +93,8 @@
                 Icon="fa-solid fa-clipboard-check"
                 [Title]="ActiveTab === 'mine' ? 'No Work Reports Found' : 'No Team Reports Awaiting Review'"
                 [Message]="ActiveTab === 'mine'
-                    ? 'Click Draft Today\'s 15Five to generate a five-minute summary from your completed, active, and blocked tasks.'
-                    : 'Submitted 15Five reports from direct reports in MJ: Employees appear here for supervisor feedback.'" />
+                    ? 'Click Draft Today\'s Report to generate a concise progress summary from your completed, active, and blocked tasks.'
+                    : 'Submitted work reports from direct reports in MJ: Employees appear here for supervisor feedback.'" />
         } @else {
             <div
                 id="cos-reports-panel"
@@ -175,7 +175,7 @@
                                 </div>
 
                                 <div class="cos-field-group">
-                                    <label for="cos-draft-body">5-minute summary (Markdown)</label>
+                                    <label for="cos-draft-body">Work report summary (Markdown)</label>
                                     <p id="cos-draft-hint" class="cos-field-hint">
                                         Edit accomplishments, next priorities, and blockers before approving. Submitting notifies your supervisor's Chief of Staff.
                                     </p>

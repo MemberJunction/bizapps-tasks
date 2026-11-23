@@ -112,7 +112,7 @@ const PRIORITY_COLUMNS: KanbanColumnDef[] = [
 ];
 
 /**
- * 5-Mode Smart Kanban Board (Macro Status, Workflow Stages, Priority, Assignee, Organization).
+ * 5-Mode Kanban Board (Macro Status, Workflow Stages, Priority, Assignee, Organization).
  *
  * Designed to WCAG 2.1 AA contrast & calm-surface craft:
  * - 8px colored stage dots in column headers (zero top/left accent stripes)

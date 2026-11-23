@@ -97,8 +97,8 @@ function formatDateInput(value: string | Date): string {
  *
  * Installed into the Chief of Staff application via `NavItem.bizapps-tasks.work-reports`.
  * Provides two tabs:
- * - **My Reports**: draft a daily 15Five from today's task activity, edit & approve drafts, and read supervisor feedback.
- * - **Team Reviews**: inspect direct reports' `Submitted` 15Five reports (resolved through `MJ: Employees.SupervisorID`)
+ * - **My Reports**: draft a daily work report from today's task activity, edit & approve drafts, and read supervisor feedback.
+ * - **Team Reviews**: inspect direct reports' `Submitted` work reports (resolved through `MJ: Employees.SupervisorID`)
  *   and approve/send supervisor feedback.
  *
  * SAFETY BOUNDARY: Only navigational/filter/selection client tools are registered for the co-agent.
@@ -375,14 +375,14 @@ export class ChiefOfStaffWorkReportsResource extends BaseResourceComponent imple
             if (skippedNoActivity || !draftedReportID) {
                 this.Banner = {
                     Type: 'info',
-                    Message: 'No task updates were recorded today yet, so no 15Five draft was created.',
+                    Message: 'No task updates were recorded today yet, so no work report draft was created.',
                 };
                 return;
             }
             this.ActiveTab = 'mine';
             this.SelectedReportID = draftedReportID;
             await this.Load();
-            this.Banner = { Type: 'success', Message: "Drafted today's 15Five report from your task activity." };
+            this.Banner = { Type: 'success', Message: "Drafted today's work report from your task activity." };
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             LogError(`DraftTodayReport failed: ${msg}`);
@@ -615,7 +615,7 @@ export class ChiefOfStaffWorkReportsResource extends BaseResourceComponent imple
                 PersonName: r.Person ?? 'Team Member',
                 PeriodStart: startStr,
                 PeriodEnd: endStr,
-                Title: r.Title?.trim() || `15Five — ${endStr}`,
+                Title: r.Title?.trim() || `Work Report — ${endStr}`,
                 Body: r.Body,
                 Status: r.Status,
                 SupervisorFeedback: r.SupervisorFeedback,

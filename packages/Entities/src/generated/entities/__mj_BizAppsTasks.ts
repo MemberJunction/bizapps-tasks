@@ -9875,7 +9875,7 @@ export class mjBizAppsTasksWorkReportItemEntity extends BaseEntity<mjBizAppsTask
  * * Schema: __mj_BizAppsTasks
  * * Base Table: WorkReport
  * * Base View: vwWorkReports
- * * @description Daily or periodic 15Five work reports summarizing what got done, what is next, blockers, and at-risk objectives for a person, drafted by their Chief of Staff and reviewed with supervisor feedback.
+ * * @description Daily or periodic work reports summarizing what got done, what is next, blockers, and at-risk objectives for a person, drafted by their Chief of Staff and reviewed with supervisor feedback.
  * * Primary Key: ID
  * @extends {BaseEntity}
  * @class
@@ -10009,7 +10009,7 @@ export class mjBizAppsTasksWorkReportEntity extends BaseEntity<mjBizAppsTasksWor
     * * Field Name: Title
     * * Display Name: Title
     * * SQL Data Type: nvarchar(255)
-    * * Description: Optional concise headline for the report (e.g., Daily 15Five — 2026-11-09).
+    * * Description: Optional concise headline for the report (e.g., Daily Work Report — 2026-11-09).
     */
     get Title(): string | null {
         return this.Get('Title');
