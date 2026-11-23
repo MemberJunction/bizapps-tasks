@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RunViewParams, UserInfo } from '@memberjunction/core';
+import { TasksLimitsResolver } from '@mj-biz-apps/tasks-core';
 import type { mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
 
 const ROOT_TASK_ID = '11111111-1111-4111-8111-111111111111';
@@ -246,5 +247,37 @@ describe('TaskRiskAssessmentEntityServer', () => {
         expect(rootTaskMock.Save).not.toHaveBeenCalled();
         expect(rollbackMock).toHaveBeenCalledTimes(1);
         expect(commitMock).not.toHaveBeenCalled();
+    });
+
+    it('bounds ParentID fallback walk by MaxHierarchyDepth when RootParentID is absent', async () => {
+        const maxDepth = TasksLimitsResolver.Instance.GetCurrentLimits().RunawayGuards.MaxHierarchyDepth;
+        const chain: MockTaskRecord[] = [];
+        for (let i = 0; i <= maxDepth + 3; i++) {
+            const id = `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`;
+            const parentId =
+                i < maxDepth + 3
+                    ? `00000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`
+                    : null;
+            chain.push(createTaskMock({ ID: id, ParentID: parentId, RootParentID: null }));
+        }
+
+        let loadCursor = 0;
+        getEntityObjectMock.mockImplementation(async () => {
+            const node = chain[loadCursor] ?? chain[chain.length - 1];
+            loadCursor += 1;
+            return node;
+        });
+
+        const assessment = new TaskRiskAssessmentEntityServer();
+        assessment.TaskID = chain[0].ID;
+        assessment.HealthStatus = 'AtRisk';
+
+        const ok = await assessment.Save();
+
+        expect(ok).toBe(true);
+        // 1 initial load for TaskID + at most maxDepth ancestor loads
+        expect(getEntityObjectMock).toHaveBeenCalledTimes(1 + maxDepth);
+        expect(chain[maxDepth].Save).toHaveBeenCalledTimes(1);
+        expect(chain[maxDepth + 1].Save).not.toHaveBeenCalled();
     });
 });

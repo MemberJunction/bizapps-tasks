@@ -401,30 +401,31 @@ function extractTotalCost(agentRun: { TotalCostRollup?: number | null; TotalCost
  * 5. Deterministic weekly-to-daily timeline cadence escalation in the final 20% of the timeline.
  */
 export class ProjectRiskAnalystService {
+    private static readonly inFlightByTask = new Map<string, Promise<ProjectRiskAssessmentRunResult>>();
     private static readonly inFlightByRootTask = new Map<string, Promise<ProjectRiskAssessmentRunResult>>();
 
     /**
      * Evaluates risk for the project root task containing `options.TaskID`, persisting a
      * `Task Risk Assessments` record and triggering Slice 1 root task synchronization.
-     * Deduplicates concurrent calls for the same task ID.
+     * Deduplicates concurrent calls for both the requested task ID and the resolved root task ID.
      */
     public async AssessProjectRisk(options: AssessProjectRiskOptions): Promise<ProjectRiskAssessmentRunResult> {
         if (!options.TaskID || !IsValidUUID(options.TaskID)) {
             throw new Error(`ProjectRiskAnalystService: invalid TaskID '${options.TaskID}'.`);
         }
 
-        const dedupKey = options.TaskID.trim().toLowerCase();
-        const existingInFlight = ProjectRiskAnalystService.inFlightByRootTask.get(dedupKey);
+        const taskKey = options.TaskID.trim().toLowerCase();
+        const existingInFlight = ProjectRiskAnalystService.inFlightByTask.get(taskKey);
         if (existingInFlight) {
             return existingInFlight;
         }
 
         const runPromise = this.executeAssessProjectRisk(options).finally(() => {
-            if (ProjectRiskAnalystService.inFlightByRootTask.get(dedupKey) === runPromise) {
-                ProjectRiskAnalystService.inFlightByRootTask.delete(dedupKey);
+            if (ProjectRiskAnalystService.inFlightByTask.get(taskKey) === runPromise) {
+                ProjectRiskAnalystService.inFlightByTask.delete(taskKey);
             }
         });
-        ProjectRiskAnalystService.inFlightByRootTask.set(dedupKey, runPromise);
+        ProjectRiskAnalystService.inFlightByTask.set(taskKey, runPromise);
         return runPromise;
     }
 
@@ -452,11 +453,40 @@ export class ProjectRiskAnalystService {
     ): Promise<ProjectRiskAssessmentRunResult> {
         const provider = options.Provider ?? Metadata.Provider;
         const rvProvider = resolveRunViewProvider(options.RunViewProvider, provider);
-        const now = options.Now ?? new Date();
-        const force = options.Force ?? true;
 
         const lookupUser = await this.resolveBootstrapLookupUser(options.CallerContextUser, provider);
         const rootTask = await this.loadRootProjectTask(options.TaskID, rvProvider, lookupUser);
+
+        const rootKey = rootTask.ID.trim().toLowerCase();
+        const existingRootRun = ProjectRiskAnalystService.inFlightByRootTask.get(rootKey);
+        if (existingRootRun) {
+            return existingRootRun;
+        }
+
+        const rootRunPromise = this.executeAssessResolvedRootTask(
+            options,
+            rootTask,
+            lookupUser,
+            provider,
+            rvProvider,
+        ).finally(() => {
+            if (ProjectRiskAnalystService.inFlightByRootTask.get(rootKey) === rootRunPromise) {
+                ProjectRiskAnalystService.inFlightByRootTask.delete(rootKey);
+            }
+        });
+        ProjectRiskAnalystService.inFlightByRootTask.set(rootKey, rootRunPromise);
+        return rootRunPromise;
+    }
+
+    private async executeAssessResolvedRootTask(
+        options: AssessProjectRiskOptions,
+        rootTask: ProjectRootTaskRow,
+        lookupUser: UserInfo,
+        provider: IMetadataProvider,
+        rvProvider: IRunViewProvider | null,
+    ): Promise<ProjectRiskAssessmentRunResult> {
+        const now = options.Now ?? new Date();
+        const force = options.Force ?? true;
 
         const ownerUser = options.OwnerUserResolver
             ? await options.OwnerUserResolver({

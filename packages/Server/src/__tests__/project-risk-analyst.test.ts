@@ -817,4 +817,109 @@ describe('ProjectRiskAnalystService & High-Tier Metadata', () => {
         expect(first.AssessmentID).toBe(ASSESSMENT_ID);
         expect(second.AssessmentID).toBe(ASSESSMENT_ID);
     });
+
+    it('deduplicates concurrent in-flight runs when one caller passes a descendant subtask ID and another passes the root task ID', async () => {
+        const now = new Date('2026-11-22T12:00:00.000Z');
+        const rootTask: ProjectRootTaskRow = {
+            ID: ROOT_TASK_ID,
+            Name: 'Dedup Hierarchy Project',
+            ParentID: null,
+            RootParentID: null,
+            Status: 'InProgress',
+            Priority: 'High',
+            StartedAt: '2026-11-01T00:00:00.000Z',
+            DueAt: '2026-12-10T00:00:00.000Z',
+            PercentComplete: 50,
+            CreatedByPersonID: OWNER_PERSON_ID,
+            HealthStatus: 'OnTrack',
+            ConfidenceScore: 80,
+            ForecastCompletionDate: null,
+            PredictedSLABreachProbability: 0.3,
+            PredictedSLARiskBand: 'Low',
+            PredictedSLAScoredAt: '2026-11-22T00:00:00.000Z',
+            __mj_CreatedAt: '2026-11-01T00:00:00.000Z',
+        };
+
+        const rvProvider: IRunViewProvider = {
+            RunView: vi.fn(async <T>(params: RunViewParams) =>
+                buildQueryResult(params, { rootTask, latestAssessment: [], subtasks: [] }) as RunViewResult<T>,
+            ),
+            RunViews: vi.fn(async <T>(paramsList: RunViewParams[]) =>
+                paramsList.map(
+                    (params) =>
+                        buildQueryResult(params, { rootTask, latestAssessment: [], subtasks: [] }) as RunViewResult<T>,
+                ),
+            ),
+        };
+
+        const mdProvider: IMetadataProvider = {
+            EntityByName: () => undefined,
+            GetEntityObject: vi.fn(async <T>() => {
+                const entity: MockAssessmentEntity = {
+                    ID: ASSESSMENT_ID,
+                    TaskID: ROOT_TASK_ID,
+                    AssessedAt: now,
+                    ForecastCompletionDate: null,
+                    ForecastConfidence: 79,
+                    HealthStatus: 'OnTrack',
+                    MLBreachProbability: 0.3,
+                    Risks: '[]',
+                    AgentRunID: AGENT_RUN_ID,
+                    PromptTokens: 100,
+                    CompletionTokens: 50,
+                    TotalCostUSD: 0.01,
+                    LatestResult: { CompleteMessage: '' },
+                    NewRecord: vi.fn(),
+                    SetParsedRisks: vi.fn(),
+                    Save: vi.fn(async () => true),
+                };
+                return entity as T;
+            }),
+        } as IMetadataProvider;
+
+        const agentExecutor = vi.fn(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 15));
+            return {
+                Success: true,
+                AgentRunID: AGENT_RUN_ID,
+                PromptTokens: 100,
+                CompletionTokens: 50,
+                TotalCostUSD: 0.01,
+                Payload: {
+                    healthStatus: 'OnTrack',
+                    forecastCompletionDate: '2026-12-10T00:00:00.000Z',
+                    forecastConfidence: 79,
+                    summary: 'Healthy trajectory.',
+                    risks: [],
+                },
+            };
+        });
+
+        const [fromSubtask, fromRoot] = await Promise.all([
+            service.AssessProjectRisk({
+                TaskID: SUBTASK_1_ID,
+                Provider: mdProvider,
+                RunViewProvider: rvProvider,
+                CallerContextUser: makeUserInfo(CALLER_USER_ID, 'Caller', 'caller@acme.test'),
+                Force: true,
+                Now: now,
+                AgentExecutor: agentExecutor,
+            }),
+            service.AssessProjectRisk({
+                TaskID: ROOT_TASK_ID,
+                Provider: mdProvider,
+                RunViewProvider: rvProvider,
+                CallerContextUser: makeUserInfo(CALLER_USER_ID, 'Caller', 'caller@acme.test'),
+                Force: true,
+                Now: now,
+                AgentExecutor: agentExecutor,
+            }),
+        ]);
+
+        expect(agentExecutor).toHaveBeenCalledTimes(1);
+        expect(fromSubtask.TaskID).toBe(ROOT_TASK_ID);
+        expect(fromRoot.TaskID).toBe(ROOT_TASK_ID);
+        expect(fromSubtask.AssessmentID).toBe(ASSESSMENT_ID);
+        expect(fromRoot.AssessmentID).toBe(ASSESSMENT_ID);
+    });
 });

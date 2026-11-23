@@ -194,9 +194,10 @@ export class TaskRiskAssessmentEntityServer extends TaskRiskAssessmentEntity {
             }
         }
 
+        const maxDepth = TasksLimitsResolver.Instance.GetCurrentLimits().RunawayGuards.MaxHierarchyDepth;
         const visited = new Set<string>([task.ID.toLowerCase()]);
         let current = task;
-        while (current.ParentID) {
+        for (let depth = 0; depth < maxDepth && current.ParentID; depth++) {
             const parentKey = current.ParentID.toLowerCase();
             if (visited.has(parentKey)) {
                 break;

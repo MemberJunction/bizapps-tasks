@@ -671,7 +671,9 @@ function makeActionRunParams(
 }
 
 function readOut<T>(res: ActionResultSimple, name: string): T {
-    const param = res.Params?.find((p) => p.Name.toLowerCase() === name.toLowerCase());
+    const param =
+        res.Params?.find((p) => p.Name.toLowerCase() === name.toLowerCase() && p.Type !== 'Input') ??
+        res.Params?.find((p) => p.Name.toLowerCase() === name.toLowerCase());
     return param?.Value as T;
 }
 
