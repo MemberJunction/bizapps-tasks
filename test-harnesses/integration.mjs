@@ -43,6 +43,7 @@ const ALL_BUNDLES = [
     'task-org-bulk-ops',
     'task-cos-typed-skills',
     'task-cos-live',
+    'project-risk-assessments',
 ];
 
 const args = process.argv.slice(2);
