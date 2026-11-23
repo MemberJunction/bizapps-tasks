@@ -212,7 +212,7 @@ interface DecidedApprovalRow {
                                             </button>
                                         </div>
                                         <bizapps-approval-decision-panel
-                                            #decisionPanel
+                                            #approvalDecisionPanel
                                             [TaskID]="SelectedTaskID"
                                             [DecidedByPersonID]="PersonID"
                                             (DecisionRecorded)="OnDecisionRecorded($event)"
@@ -409,7 +409,7 @@ export class ApprovalsPageComponent implements OnInit {
     public Loading = false;
     public Busy = false;
 
-    @ViewChild('decisionPanel') public decisionPanel?: ApprovalDecisionPanelComponent;
+    @ViewChild('approvalDecisionPanel') public decisionPanel?: ApprovalDecisionPanelComponent;
 
     public cdr = inject(ChangeDetectorRef);
     private orchestration = new TaskOrchestrationService();

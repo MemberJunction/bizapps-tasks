@@ -884,7 +884,7 @@ export class MyTasksPageComponent implements OnInit {
                         const newTag = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskTagEntity>('MJ_BizApps_Tasks: Task Tags');
                         newTag.NewRecord();
                         newTag.Name = tagName;
-                        newTag.ColorCode = '#0076b6';
+                        newTag.ColorCode = null;
                         if (await newTag.Save()) tagID = newTag.ID;
                     }
                     if (tagID) {

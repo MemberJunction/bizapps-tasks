@@ -92,7 +92,7 @@ export class TaskTemplateItemHierarchyPanel extends BaseFormPanel<mjBizAppsTasks
                 ParentField: 'ParentItemID',
                 SubtitleField: 'Description',
                 DefaultIcon: 'fa-solid fa-list-check',
-                DefaultColor: '#10b981',
+                DefaultColor: 'var(--mj-status-success)',
                 ActiveRecordID: recId || undefined,
                 ExtraFilter: filter,
                 Height: '100%',

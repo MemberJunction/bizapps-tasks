@@ -52,24 +52,24 @@ import { RunningTimerChipComponent } from '../components/running-timer-chip/runn
         :host { display: block; width: 100%; height: 100%; }
         .mjt-page-wrap { display: flex; flex-direction: column; gap: 16px; padding: 16px; box-sizing: border-box; }
         .mjt-header-card {
-            background: var(--mj-bg-surface-card, #ffffff); border: 1px solid var(--mj-border-default, #e2e8f0);
-            border-radius: var(--mj-radius-lg, 12px); padding: 16px 20px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            background: var(--mj-bg-surface-card); border: 1px solid var(--mj-border-default);
+            border-radius: var(--mj-radius-lg, 12px); padding: 16px 20px; box-shadow: var(--mj-shadow-sm);
         }
         .mjt-header-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
         .mjt-identity { display: flex; align-items: center; gap: 14px; }
         .mjt-avatar {
             width: 48px; height: 48px; border-radius: var(--mj-radius-md, 8px);
-            background: var(--mj-brand-primary, #0284c7); color: var(--mj-text-inverse, #ffffff);
+            background: var(--mj-brand-primary); color: var(--mj-text-inverse);
             display: flex; align-items: center; justify-content: center; font-size: 20px;
             box-shadow: var(--mj-shadow-sm); flex-shrink: 0;
         }
         .mjt-title-area { display: flex; flex-direction: column; gap: 2px; }
-        .mjt-title { margin: 0; font-size: 18px; font-weight: 700; color: var(--mj-text-primary, #0f172a); }
-        .mjt-subtitle { margin: 0; font-size: 12px; color: var(--mj-text-muted, #64748b); }
-        .mjt-empty { margin: 0; font-size: 13px; color: var(--mj-text-secondary, #475569); }
+        .mjt-title { margin: 0; font-size: 18px; font-weight: 700; color: var(--mj-text-primary); }
+        .mjt-subtitle { margin: 0; font-size: 12px; color: var(--mj-text-muted); }
+        .mjt-empty { margin: 0; font-size: 13px; color: var(--mj-text-secondary); }
         .mjt-body-card {
-            background: var(--mj-bg-surface-card, #ffffff); border: 1px solid var(--mj-border-default, #e2e8f0);
-            border-radius: var(--mj-radius-lg, 12px); padding: 16px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            background: var(--mj-bg-surface-card); border: 1px solid var(--mj-border-default);
+            border-radius: var(--mj-radius-lg, 12px); padding: 16px; box-shadow: var(--mj-shadow-sm);
         }
     `],
 })

@@ -1299,7 +1299,7 @@ export class TaskListComponent implements OnInit, OnChanges {
             }
             const tagMap = new Map<string, { Name: string; Color: string }>();
             for (const t of tagsRes?.Results ?? []) {
-                tagMap.set(t.ID.toLowerCase(), { Name: t.Name, Color: t.ColorCode ?? '#0076b6' });
+                tagMap.set(t.ID.toLowerCase(), { Name: t.Name, Color: t.ColorCode ?? 'var(--mj-brand-primary)' });
             }
 
             const rolesEntityID = this.ProviderToUse.EntityByName?.('MJ: Roles')?.ID ?? null;
