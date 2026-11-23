@@ -347,13 +347,19 @@ export class TasksBulkUpdateServerOperation extends TasksBulkUpdateOperation {
                 MaxRows: limits.ResourceGuards.DefaultLookupSingleRow,
                 ResultType: 'simple',
             }, user);
-            if (typeRes.Success && typeRes.Results && typeRes.Results.length > 0) {
-                const targetType = typeRes.Results[0];
-                if (!IsGenericCreatableTaskType(targetType)) {
-                    throw new Error(
-                        `TaskType '${targetType.Name ?? targetTypeID}' is inactive or managed outside generic task creation and cannot be assigned via bulk update.`,
-                    );
-                }
+            if (!typeRes.Success) {
+                throw new Error(
+                    `Failed to load TaskType '${targetTypeID}': ${typeRes.ErrorMessage || 'Unknown error'}`,
+                );
+            }
+            if (!typeRes.Results || typeRes.Results.length === 0) {
+                throw new Error(`TaskType '${targetTypeID}' was not found.`);
+            }
+            const targetType = typeRes.Results[0];
+            if (!IsGenericCreatableTaskType(targetType)) {
+                throw new Error(
+                    `TaskType '${targetType.Name ?? targetTypeID}' is inactive or managed outside generic task creation and cannot be assigned via bulk update.`,
+                );
             }
         }
 

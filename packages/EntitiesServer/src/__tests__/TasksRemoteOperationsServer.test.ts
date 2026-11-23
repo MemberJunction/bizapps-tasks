@@ -201,6 +201,15 @@ function makeBulkHarness(tasks: MockTaskRecord[], options?: {
     } as unknown as IMetadataProvider;
 
     const runViewFn = vi.fn(async (params: RunViewParams): Promise<RunViewResult> => {
+        if (params.EntityName === 'MJ_BizApps_Tasks: Task Types') {
+            if (params.ExtraFilter?.toLowerCase().includes(TYPE_1.toLowerCase())) {
+                return {
+                    Success: true,
+                    Results: [{ ID: TYPE_1, Name: 'General', Code: 'GENERAL', ExtensionEntity: null, IsActive: true }],
+                } as unknown as RunViewResult;
+            }
+            return { Success: true, Results: [] } as unknown as RunViewResult;
+        }
         if (params.EntityName === 'MJ_BizApps_Tasks: Task Roles') {
             return { Success: true, Results: [{ ID: ROLE_PRIMARY, Name: 'Primary' }] } as unknown as RunViewResult;
         }
@@ -384,6 +393,41 @@ describe('TasksBulkUpdateServerOperation', () => {
             );
             expect(inactiveRes.Success).toBe(false);
             expect(inactiveRes.ErrorMessage).toMatch(/inactive or managed outside generic task creation/i);
+            expect(task1.saved).toBe(false);
+
+            // Fails closed when TaskType RunView fails
+            const errorTypeId = 'dddddddd-dddd-4ddd-8ddd-dddddddd0088';
+            runViewSpy.mockReturnValueOnce({
+                RunView: vi.fn(async () => ({
+                    Success: false,
+                    Results: [],
+                    ErrorMessage: 'Database connection timeout',
+                })),
+            } as unknown as RunView);
+
+            const failedLookupRes = await op.ExecuteServer(
+                {
+                    TaskIDs: [TASK_1],
+                    TypeID: errorTypeId,
+                },
+                { provider, user: TEST_USER, emitProgress: () => {} },
+            );
+            expect(failedLookupRes.Success).toBe(false);
+            expect(failedLookupRes.ErrorMessage).toContain(`Failed to load TaskType '${errorTypeId}'`);
+            expect(failedLookupRes.ErrorMessage).toContain('Database connection timeout');
+            expect(task1.saved).toBe(false);
+
+            // Fails closed when TaskType ID is not found
+            const unknownTypeId = 'dddddddd-dddd-4ddd-8ddd-dddddddd0077';
+            const notFoundRes = await op.ExecuteServer(
+                {
+                    TaskIDs: [TASK_1],
+                    TypeID: unknownTypeId,
+                },
+                { provider, user: TEST_USER, emitProgress: () => {} },
+            );
+            expect(notFoundRes.Success).toBe(false);
+            expect(notFoundRes.ErrorMessage).toBe(`TaskType '${unknownTypeId}' was not found.`);
             expect(task1.saved).toBe(false);
         } finally {
             runViewSpy.mockRestore();
