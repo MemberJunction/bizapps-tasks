@@ -37,9 +37,10 @@ Always use the strongly typed BizApps Tasks tools bundled with this skill. Ident
   - If `HasLikelyDuplicate` is true (or a strong match exists), surface the existing task and offer to update or add a comment via **`Add Task Update`** instead of creating a duplicate.
   - When creating a task during an automated wake, always supply a deterministic **`ClientRequestKey`** (for example `email-<messageId>-1` or `meeting-<meetingId>-p1`).
 
-## 5. Coexistence With Strategic Planning & Auto-Mirrored Dependencies
+## 5. Strategic Planning, OKRs & Auto-Mirrored Dependencies
 
-- When BizApps Planning is installed, defer questions about quarterly/annual strategic priorities, OKRs, key results, critical numbers, and huddles to the Planning skill's tools.
+- **Always steer OKR, Objective, and Key Result requests to BizApps Planning**: Legacy `PRIORITY_OBJECTIVE` and `KEY_RESULT` task types are inactive (`IsActive = false`) in BizApps Tasks `1.x`. Whenever a user asks to create, view, track, update, or manage OKRs, Objectives, Key Results, quarterly/annual strategic priorities, critical numbers, or huddles, direct them to **BizApps Planning** (and use the Planning skill tools when installed — never create OKRs or Key Results as Tasks).
+- **Migrating legacy OKR tasks (`Import Tasks OKRs`)**: If the user has historical `PRIORITY_OBJECTIVE` or `KEY_RESULT` tasks in BizApps Tasks to move into BizApps Planning, instruct them to run the **`Import Tasks OKRs`** action (previewing with `DryRun: true` first).
 - Use this skill for operational execution tasks, personal to-dos, follow-ups, approvals, and deliverables.
 - **Do NOT manually duplicate `TaskDependency` rows between two `PriorityTask` records.** Strategic dependencies managed in BizApps Planning (`MJ_BizApps_Planning: Priority Dependencies`) automatically mirror into `MJ_BizApps_Tasks: Task Dependencies` via `PriorityDependencyEntityServer` — creating a duplicate `TaskDependency` edge manually will conflict with or double-count the mirrored link.
 

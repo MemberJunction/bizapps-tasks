@@ -54,6 +54,8 @@ Every `TaskType` possesses a stable, unique machine code (`NVARCHAR(50) NOT NULL
 | **Construction Milestone** | `CONSTRUCTION_MILESTONE` | Real Estate / Civil Eng | Permitting, foundation, MEP, and inspection gates |
 | **Media Production Stage** | `MEDIA_PRODUCTION` | Creative / Film | Pre-production, shooting, audio/color, release |
 
+> **OKR Deprecation Note (`1.x`)**: Legacy `PRIORITY_OBJECTIVE` and `KEY_RESULT` task types are deactivated (`IsActive = false`) in `1.x` while preserving existing OKR columns on `Task`. Strategic OKRs are now managed in **BizApps Planning**, and legacy OKR tasks can be migrated using the **`Import Tasks OKRs`** action (see [`docs/OKR_DEPRECATION_AND_PLANNING_MIGRATION.md`](../docs/OKR_DEPRECATION_AND_PLANNING_MIGRATION.md)).
+
 ---
 
 ## 3. Dynamic Task Stages (`TaskTypeStatus`)
