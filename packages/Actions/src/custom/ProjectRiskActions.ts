@@ -723,6 +723,14 @@ export class RequestProjectRiskReviewAction extends BaseAction {
         });
         if (!assessmentCreateGuard.Allowed) return assessmentCreateGuard.Failure!;
 
+        const assessmentReadGuard = await checkTypedPolicyGuard({
+            params,
+            entityName: TASK_RISK_ASSESSMENT_ENTITY,
+            operation: 'Read',
+            actionName: 'Request Project Risk Review',
+        });
+        if (!assessmentReadGuard.Allowed) return assessmentReadGuard.Failure!;
+
         try {
             const resolution = await resolveAuthorizedProjectRootTask(params, taskID, user);
             if (resolution.Status === 'FAILURE') {
@@ -750,6 +758,10 @@ export class RequestProjectRiskReviewAction extends BaseAction {
             });
 
             if (result.Skipped) {
+                const maskedRootTask = applyPolicyFieldMask(
+                    toRootTaskRollup(rootTask),
+                    tasksReadGuard.DeniedFieldPatterns,
+                );
                 const skippedPayload = {
                     Skipped: true,
                     SkipReason: result.SkipReason,
@@ -758,11 +770,11 @@ export class RequestProjectRiskReviewAction extends BaseAction {
                     AssessmentID: null,
                     Cadence: result.Cadence.Cadence,
                     CadenceDetail: result.Cadence,
-                    RootTask: toRootTaskRollup(rootTask),
+                    RootTask: maskedRootTask,
                 };
                 const skipMsg =
                     result.SkipReason ??
-                    `Risk review skipped for project "${rootTask.Name}" within ${result.Cadence.Cadence} cooldown window.`;
+                    `Risk review skipped for project "${maskedRootTask.Name ?? rootTask.ID}" within ${result.Cadence.Cadence} cooldown window.`;
                 setOutputParam(params, 'Skipped', true);
                 setOutputParam(params, 'SkipReason', result.SkipReason);
                 setOutputParam(params, 'TaskID', result.TaskID);
@@ -770,7 +782,7 @@ export class RequestProjectRiskReviewAction extends BaseAction {
                 setOutputParam(params, 'AssessmentID', null);
                 setOutputParam(params, 'Cadence', result.Cadence.Cadence);
                 setOutputParam(params, 'CadenceDetail', JSON.stringify(result.Cadence));
-                setOutputParam(params, 'RootTask', JSON.stringify(skippedPayload.RootTask));
+                setOutputParam(params, 'RootTask', JSON.stringify(maskedRootTask));
                 setOutputParam(params, 'Assessment', JSON.stringify(skippedPayload));
                 setOutputParam(params, 'Summary', skipMsg);
                 return successResult(skipMsg, params, 'SKIPPED_COOLDOWN');
@@ -790,51 +802,88 @@ export class RequestProjectRiskReviewAction extends BaseAction {
                 user,
             );
             const updatedRootRow = (reloadedRes.Success ? reloadedRes.Results?.[0] : undefined) ?? rootTask;
-            const rootRollup = toRootTaskRollup(updatedRootRow);
+            const rootRollup = applyPolicyFieldMask(
+                toRootTaskRollup(updatedRootRow),
+                tasksReadGuard.DeniedFieldPatterns,
+            );
             const assessedAtISO = toIsoOrNull(result.AssessedAt);
             const forecastCompletionDateISO = toIsoOrNull(result.ForecastCompletionDate);
 
-            const responsePayload = {
-                Skipped: false,
-                SkipReason: null,
-                AssessmentID: result.AssessmentID,
+            const assessmentDeniedPatterns = [
+                ...new Set([
+                    ...assessmentCreateGuard.DeniedFieldPatterns,
+                    ...assessmentReadGuard.DeniedFieldPatterns,
+                ]),
+            ];
+            const rawAssessmentSummary: ProjectRiskAssessmentSummary = {
+                AssessmentID: result.AssessmentID ?? '',
                 TaskID: result.TaskID,
-                OwnerUserID: result.OwnerUserID,
-                AssessedAt: assessedAtISO,
-                HealthStatus: result.HealthStatus,
-                ForecastCompletionDate: forecastCompletionDateISO,
+                AssessedAtISO: assessedAtISO ?? '',
+                HealthStatus: result.HealthStatus ?? 'OnTrack',
+                ForecastCompletionDateISO: forecastCompletionDateISO,
                 ForecastConfidence: result.ForecastConfidence,
                 MLBreachProbability: result.MLBreachProbability,
                 Risks: result.Risks,
-                Summary: result.Summary,
                 AgentRunID: result.AgentRunID,
                 PromptTokens: result.PromptTokens,
                 CompletionTokens: result.CompletionTokens,
                 TotalCostUSD: result.TotalCostUSD,
+            };
+            const maskedAssessment = applyPolicyFieldMask(rawAssessmentSummary, assessmentDeniedPatterns);
+            const maskedAssessmentId = result.AssessmentID ? (maskedAssessment.AssessmentID ?? null) : null;
+            const maskedAssessedAt = assessedAtISO ? (maskedAssessment.AssessedAtISO ?? null) : null;
+            const maskedHealthStatus = result.HealthStatus ? (maskedAssessment.HealthStatus ?? null) : null;
+            const maskedForecastCompletionDate = maskedAssessment.ForecastCompletionDateISO ?? null;
+            const maskedForecastConfidence = maskedAssessment.ForecastConfidence ?? null;
+            const maskedMLBreachProbability = maskedAssessment.MLBreachProbability ?? null;
+            const maskedRisks = maskedAssessment.Risks ?? [];
+            const maskedAgentRunId = maskedAssessment.AgentRunID ?? null;
+            const maskedPromptTokens = maskedAssessment.PromptTokens ?? null;
+            const maskedCompletionTokens = maskedAssessment.CompletionTokens ?? null;
+            const maskedTotalCostUSD = maskedAssessment.TotalCostUSD ?? null;
+
+            const responsePayload = {
+                Skipped: false,
+                SkipReason: null,
+                AssessmentID: maskedAssessmentId,
+                TaskID: result.TaskID,
+                OwnerUserID: result.OwnerUserID,
+                AssessedAt: maskedAssessedAt,
+                HealthStatus: maskedHealthStatus,
+                ForecastCompletionDate: maskedForecastCompletionDate,
+                ForecastConfidence: maskedForecastConfidence,
+                MLBreachProbability: maskedMLBreachProbability,
+                Risks: maskedRisks,
+                Summary: result.Summary,
+                AgentRunID: maskedAgentRunId,
+                PromptTokens: maskedPromptTokens,
+                CompletionTokens: maskedCompletionTokens,
+                TotalCostUSD: maskedTotalCostUSD,
                 Cadence: result.Cadence.Cadence,
                 CadenceDetail: result.Cadence,
                 RootTask: rootRollup,
             };
 
             const summary =
-                `Completed risk review for project "${updatedRootRow.Name}": ${result.HealthStatus ?? 'Unknown'} ` +
-                `(confidence: ${result.ForecastConfidence ?? 'n/a'}%, cadence: ${result.Cadence.Cadence}, risks: ${result.Risks.length}).`;
+                `Completed risk review for project "${rootRollup.Name ?? updatedRootRow.ID}": ${maskedHealthStatus ?? 'Unknown'} ` +
+                `(confidence: ${maskedForecastConfidence ?? 'n/a'}%, cadence: ${result.Cadence.Cadence}, risks: ${maskedRisks.length}).`;
 
             setOutputParam(params, 'Skipped', false);
             setOutputParam(params, 'SkipReason', null);
-            setOutputParam(params, 'AssessmentID', result.AssessmentID);
+            setOutputParam(params, 'AssessmentID', maskedAssessmentId);
             setOutputParam(params, 'TaskID', result.TaskID);
             setOutputParam(params, 'OwnerUserID', result.OwnerUserID);
-            setOutputParam(params, 'AssessedAt', assessedAtISO);
-            setOutputParam(params, 'HealthStatus', result.HealthStatus);
-            setOutputParam(params, 'ForecastCompletionDate', forecastCompletionDateISO);
-            setOutputParam(params, 'ForecastConfidence', result.ForecastConfidence);
-            setOutputParam(params, 'MLBreachProbability', result.MLBreachProbability);
-            setOutputParam(params, 'Risks', JSON.stringify(result.Risks));
-            setOutputParam(params, 'AgentRunID', result.AgentRunID);
-            setOutputParam(params, 'PromptTokens', result.PromptTokens);
-            setOutputParam(params, 'CompletionTokens', result.CompletionTokens);
-            setOutputParam(params, 'TotalCostUSD', result.TotalCostUSD);
+            setOutputParam(params, 'AssessedAt', maskedAssessedAt);
+            setOutputParam(params, 'HealthStatus', maskedHealthStatus);
+            setOutputParam(params, 'ForecastCompletionDate', maskedForecastCompletionDate);
+            setOutputParam(params, 'ForecastConfidence', maskedForecastConfidence);
+            setOutputParam(params, 'MLBreachProbabilityOutput', maskedMLBreachProbability);
+            setOutputParam(params, 'MLBreachProbability', maskedMLBreachProbability);
+            setOutputParam(params, 'Risks', JSON.stringify(maskedRisks));
+            setOutputParam(params, 'AgentRunID', maskedAgentRunId);
+            setOutputParam(params, 'PromptTokens', maskedPromptTokens);
+            setOutputParam(params, 'CompletionTokens', maskedCompletionTokens);
+            setOutputParam(params, 'TotalCostUSD', maskedTotalCostUSD);
             setOutputParam(params, 'Cadence', result.Cadence.Cadence);
             setOutputParam(params, 'CadenceDetail', JSON.stringify(result.Cadence));
             setOutputParam(params, 'RootTask', JSON.stringify(rootRollup));

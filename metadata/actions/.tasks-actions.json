@@ -7593,6 +7593,48 @@
         {
           "fields": {
             "ActionID": "@parent:ID",
+            "Name": "PromptTokens",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Prompt token count recorded on the latest assessment."
+          },
+          "primaryKey": {
+            "ID": "B1FCDF62-69E3-4A20-B102-6077652548F3"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "CompletionTokens",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Completion token count recorded on the latest assessment."
+          },
+          "primaryKey": {
+            "ID": "DBE56834-4652-4FE4-8422-220BCF246904"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "TotalCostUSD",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Total AI execution cost in USD recorded on the latest assessment."
+          },
+          "primaryKey": {
+            "ID": "7BEF6CF0-C271-4CFA-BF20-73661A7D6ECF"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
             "Name": "Cadence",
             "Type": "Output",
             "ValueType": "Scalar",
@@ -7602,6 +7644,20 @@
           },
           "primaryKey": {
             "ID": "0610D40F-B544-4781-ABE5-7B6A7ED916EB"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "CadenceDetail",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "JSON object with detailed cadence evaluation metrics (elapsed/remaining ratio, final 20% flag, next due timestamp)."
+          },
+          "primaryKey": {
+            "ID": "F84EB841-9E10-45C8-A924-41274565E2BE"
           }
         },
         {
@@ -7844,6 +7900,62 @@
         {
           "fields": {
             "ActionID": "@parent:ID",
+            "Name": "Skipped",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "True when Force=false and the review was skipped within the active cadence cooldown window."
+          },
+          "primaryKey": {
+            "ID": "947849B9-ABBB-4D93-B406-3DC6D896C51A"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "SkipReason",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Explanation when the review was skipped due to cadence cooldown or terminal task status."
+          },
+          "primaryKey": {
+            "ID": "9BA5DC2A-B2B5-4075-87E5-89BC577C2C73"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "OwnerUserID",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "UUID of the project owner User under whose context the review ran."
+          },
+          "primaryKey": {
+            "ID": "47E48145-2B70-4750-B832-635533D49017"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "AssessedAt",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "ISO-8601 timestamp when the assessment was recorded."
+          },
+          "primaryKey": {
+            "ID": "50C1CFED-6461-41D0-929B-68AD17B39D5D"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
             "Name": "AssessmentID",
             "Type": "Output",
             "ValueType": "Scalar",
@@ -7928,6 +8040,62 @@
         {
           "fields": {
             "ActionID": "@parent:ID",
+            "Name": "AgentRunID",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "UUID of the MJ: AI Agent Runs record created for this risk review."
+          },
+          "primaryKey": {
+            "ID": "1CF312F5-6B32-4994-AB62-D84358BA7C36"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "PromptTokens",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Prompt token count consumed by the risk review agent run."
+          },
+          "primaryKey": {
+            "ID": "103C5CCD-4F58-4427-B219-3F6C19345E69"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "CompletionTokens",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Completion token count produced by the risk review agent run."
+          },
+          "primaryKey": {
+            "ID": "AE9C2CBD-9C3E-4513-9255-AB4328163328"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "TotalCostUSD",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Total AI execution cost in USD for the risk review agent run."
+          },
+          "primaryKey": {
+            "ID": "72BC51BC-3256-47C4-9FA3-05812C371D95"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
             "Name": "Cadence",
             "Type": "Output",
             "ValueType": "Scalar",
@@ -7937,6 +8105,34 @@
           },
           "primaryKey": {
             "ID": "5E75B435-DDD4-4D5C-9805-D5C7FDD4339A"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "CadenceDetail",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "JSON object with detailed cadence evaluation metrics (elapsed/remaining ratio, final 20% flag, next due timestamp)."
+          },
+          "primaryKey": {
+            "ID": "62442F29-F1AC-4796-9509-9084431E5A0D"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "RootTask",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "JSON snapshot of the synchronized root project task rollup."
+          },
+          "primaryKey": {
+            "ID": "EC9B6D88-B63A-4C2A-8079-1FD83275F695"
           }
         },
         {

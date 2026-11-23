@@ -157,7 +157,9 @@ function makeRunParams(userId: string, params: ActionParam[], roles: string[] = 
 }
 
 function readOutput<T>(result: ActionResultSimple, name: string): T | undefined {
-    const p = result.Params?.find((item) => item.Name.toLowerCase() === name.toLowerCase());
+    const p =
+        result.Params?.find((item) => item.Name.toLowerCase() === name.toLowerCase() && item.Type !== 'Input') ??
+        result.Params?.find((item) => item.Name.toLowerCase() === name.toLowerCase());
     return p?.Value as T | undefined;
 }
 
@@ -518,6 +520,7 @@ describe('Project Risk Actions (GetProjectRiskAction & RequestProjectRiskReviewA
             expect(readOutput<string>(res, 'OwnerUserID')).toBe(OWNER_USER_ID);
             expect(readOutput<string>(res, 'HealthStatus')).toBe('OffTrack');
             expect(readOutput<number>(res, 'ForecastConfidence')).toBe(52);
+            expect(readOutput<number>(res, 'MLBreachProbabilityOutput')).toBe(0.81);
             expect(readOutput<number>(res, 'MLBreachProbability')).toBe(0.81);
             expect(readOutput<string>(res, 'Cadence')).toBe('Daily');
 
@@ -529,6 +532,165 @@ describe('Project Risk Actions (GetProjectRiskAction & RequestProjectRiskReviewA
             expect(rootTaskOut.HealthStatus).toBe('OffTrack');
             expect(rootTaskOut.ConfidenceScore).toBe(52);
             expect(rootTaskOut.ForecastCompletionDateISO).toBe('2027-01-12T17:00:00.000Z');
+        });
+
+        it('populates MLBreachProbabilityOutput without mutating Input params of the same name', async () => {
+            ProjectRiskAnalystRegistry.Instance.RegisterHandler(async () => ({
+                Skipped: false,
+                SkipReason: null,
+                TaskID: ROOT_TASK_ID,
+                OwnerUserID: OWNER_USER_ID,
+                AssessmentID: ASSESSMENT_ID_1,
+                AssessedAt: new Date('2026-11-22T12:00:00.000Z'),
+                HealthStatus: 'AtRisk',
+                ForecastCompletionDate: new Date('2027-01-10T17:00:00.000Z'),
+                ForecastConfidence: 68,
+                MLBreachProbability: 0.35,
+                Risks: [],
+                Summary: 'Assessed.',
+                AgentRunID: AGENT_RUN_ID,
+                PromptTokens: 900,
+                CompletionTokens: 200,
+                TotalCostUSD: 0.02,
+                Cadence: {
+                    Cadence: 'Weekly',
+                    IntervalHours: 168,
+                    ElapsedRatio: 0.3,
+                    RemainingRatio: 0.7,
+                    IsFinal20Percent: false,
+                    IsOverdue: false,
+                    Reason: 'First80Percent',
+                    ShouldSkipScheduledRun: false,
+                    SkipReason: null,
+                    NextDueAt: new Date('2026-11-29T12:00:00.000Z'),
+                },
+                Evidence: null,
+            }));
+
+            runViewMock.mockImplementation(async (params: { EntityName: string; ExtraFilter?: string }) => {
+                if (params.EntityName === 'MJ_BizApps_Tasks: Tasks') {
+                    if (params.ExtraFilter?.includes(SUB_TASK_ID)) {
+                        return {
+                            Success: true,
+                            Results: [
+                                makeRootTaskRow({
+                                    ID: SUB_TASK_ID,
+                                    ParentID: ROOT_TASK_ID,
+                                    RootParentID: ROOT_TASK_ID,
+                                }),
+                            ],
+                        };
+                    }
+                    return { Success: true, Results: [makeRootTaskRow()] };
+                }
+                return { Success: true, Results: [] };
+            });
+
+            const res = await requestAction.Run(
+                makeRunParams(
+                    CALLER_USER_ID,
+                    makeParams(
+                        {
+                            TaskID: SUB_TASK_ID,
+                            MLBreachProbability: 0.81,
+                        },
+                        ['MLBreachProbabilityOutput', 'AssessmentID'],
+                    ),
+                ),
+            );
+
+            expect(res.Success).toBe(true);
+            expect(readOutput<number>(res, 'MLBreachProbabilityOutput')).toBe(0.35);
+            expect(readOutput<number>(res, 'MLBreachProbability')).toBe(0.35);
+            expect(readOutput<string>(res, 'TaskID')).toBe(ROOT_TASK_ID);
+
+            const inputProbParam = res.Params?.find(
+                (p) => p.Name === 'MLBreachProbability' && p.Type === 'Input',
+            );
+            const inputTaskParam = res.Params?.find((p) => p.Name === 'TaskID' && p.Type === 'Input');
+            expect(inputProbParam?.Value).toBe(0.81);
+            expect(inputTaskParam?.Value).toBe(SUB_TASK_ID);
+        });
+
+        it('enforces policy field masking on RootTask and assessment fields in RequestProjectRiskReviewAction', async () => {
+            checkEntityAccessMock.mockImplementation(async (input: { entityName: string }) => {
+                if (input.entityName === 'MJ_BizApps_Tasks: Tasks') {
+                    return {
+                        Allowed: true,
+                        DeniedFieldPatterns: ['PredictedSLABreachProbability', 'ConfidenceScore'],
+                    };
+                }
+                if (input.entityName === 'MJ_BizApps_Tasks: Task Risk Assessments') {
+                    return {
+                        Allowed: true,
+                        DeniedFieldPatterns: ['TotalCostUSD', 'MLBreachProbability'],
+                    };
+                }
+                return { Allowed: true, DeniedFieldPatterns: [] };
+            });
+
+            ProjectRiskAnalystRegistry.Instance.RegisterHandler(async () => ({
+                Skipped: false,
+                SkipReason: null,
+                TaskID: ROOT_TASK_ID,
+                OwnerUserID: OWNER_USER_ID,
+                AssessmentID: ASSESSMENT_ID_1,
+                AssessedAt: new Date('2026-11-22T12:00:00.000Z'),
+                HealthStatus: 'AtRisk',
+                ForecastCompletionDate: new Date('2027-01-05T17:00:00.000Z'),
+                ForecastConfidence: 67,
+                MLBreachProbability: 0.415,
+                Risks: [],
+                Summary: 'Assessed.',
+                AgentRunID: AGENT_RUN_ID,
+                PromptTokens: 1200,
+                CompletionTokens: 300,
+                TotalCostUSD: 0.041,
+                Cadence: {
+                    Cadence: 'Weekly',
+                    IntervalHours: 168,
+                    ElapsedRatio: 0.3,
+                    RemainingRatio: 0.7,
+                    IsFinal20Percent: false,
+                    IsOverdue: false,
+                    Reason: 'First80Percent',
+                    ShouldSkipScheduledRun: false,
+                    SkipReason: null,
+                    NextDueAt: new Date('2026-11-29T12:00:00.000Z'),
+                },
+                Evidence: null,
+            }));
+
+            runViewMock.mockImplementation(async (params: { EntityName: string }) => {
+                if (params.EntityName === 'MJ_BizApps_Tasks: Tasks') {
+                    return { Success: true, Results: [makeRootTaskRow()] };
+                }
+                return { Success: true, Results: [] };
+            });
+
+            const res = await requestAction.Run(
+                makeRunParams(CALLER_USER_ID, makeParams({ TaskID: ROOT_TASK_ID })),
+            );
+
+            expect(res.Success).toBe(true);
+            expect(readOutput<number | null>(res, 'MLBreachProbabilityOutput')).toBeNull();
+            expect(readOutput<number | null>(res, 'TotalCostUSD')).toBeNull();
+            expect(readOutput<number>(res, 'PromptTokens')).toBe(1200);
+
+            const rootTaskOut = JSON.parse(readOutput<string>(res, 'RootTask') ?? '{}') as Record<string, unknown>;
+            expect(rootTaskOut).not.toHaveProperty('PredictedSLABreachProbability');
+            expect(rootTaskOut).not.toHaveProperty('ConfidenceScore');
+            expect(rootTaskOut).toHaveProperty('HealthStatus', 'AtRisk');
+
+            const assessmentOut = JSON.parse(readOutput<string>(res, 'Assessment') ?? '{}') as {
+                TotalCostUSD: number | null;
+                MLBreachProbability: number | null;
+                RootTask: Record<string, unknown>;
+            };
+            expect(assessmentOut.TotalCostUSD).toBeNull();
+            expect(assessmentOut.MLBreachProbability).toBeNull();
+            expect(assessmentOut.RootTask).not.toHaveProperty('PredictedSLABreachProbability');
+            expect(assessmentOut.RootTask).not.toHaveProperty('ConfidenceScore');
         });
     });
 });
