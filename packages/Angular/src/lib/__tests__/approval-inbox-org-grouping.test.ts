@@ -278,8 +278,8 @@ describe('ApprovalsPageComponent & ApprovalInboxComponent — Org Grouping, OnPu
     });
 
     it('enforces ChangeDetectionStrategy.OnPush on all touched Angular components', () => {
-        const getCmpMeta = (cls: unknown): { changeDetection?: ChangeDetectionStrategy } =>
-            (cls as { ɵcmp?: { changeDetection?: ChangeDetectionStrategy } }).ɵcmp ?? {};
+        const getCmpMeta = (cls: { ɵcmp?: { changeDetection?: ChangeDetectionStrategy } }): { changeDetection?: ChangeDetectionStrategy } =>
+            cls.ɵcmp ?? {};
         // Check source declarations directly in addition to compiled metadata so OnPush is statically verified.
         const files = [
             resolve(SRC_LIB, 'pages/approvals.page.ts'),

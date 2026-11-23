@@ -200,7 +200,7 @@ export class ApprovalOutcomeHookAction extends BaseAction {
             setOutputParam(params, 'Summary', summary);
 
             return successResult(summary, params);
-        } catch (err: unknown) {
+        } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             LogError(`ApprovalOutcomeHookAction failed for task ${taskID}: ${msg}`);
             return failResult('FAILED', msg, params);

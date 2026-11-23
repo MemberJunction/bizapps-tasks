@@ -62,7 +62,7 @@ export class TaskDecisionEntityServer extends mjBizAppsTasksTaskDecisionEntity {
                 result.Success = false;
                 result.Errors.push(new ValidationErrorInfo(SOURCE, refusal, null));
             }
-        } catch (err: unknown) {
+        } catch (err) {
             // Fail closed: a decision whose decider cannot be checked is not recorded.
             const msg = err instanceof Error ? err.message : String(err);
             LogError(`TaskDecisionEntityServer: checking the decider on task ${this.TaskID} failed: ${msg}`);

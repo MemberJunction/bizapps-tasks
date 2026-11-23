@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { CompositeKey, RunView } from '@memberjunction/core';
 import { UserInfoEngine } from '@memberjunction/core-entities';
 import { SharedService } from '@memberjunction/ng-shared';
-import { BuildLikeClause, FormatDurationClock, TaskOrchestrationService } from '@mj-biz-apps/tasks-core';
+import { FormatDurationClock, TaskOrchestrationService } from '@mj-biz-apps/tasks-core';
 import { ApprovalDecisionPanelComponent, DecisionRecordedEvent } from '../approval-decision-panel/approval-decision-panel.component';
 import { ApprovalTypePredicate } from './approval-type-predicate';
 import {
@@ -67,7 +67,7 @@ export interface ApprovalProjectGroup {
                 <div class="inbox-card-header">
                     <h3 class="inbox-title"><i class="fa-solid fa-stamp" aria-hidden="true"></i> {{ Title }}</h3>
                     <div class="inbox-header-actions">
-                        @if (!Loading && !LoadError && Approvals.length > 0) {
+                        @if (!Loading && !LoadError && (Approvals.length > 0 || SearchText.trim().length > 0)) {
                             <span class="inbox-count">{{ FilteredApprovals.length }} pending</span>
                         }
                         <button
@@ -82,7 +82,7 @@ export interface ApprovalProjectGroup {
                     </div>
                 </div>
 
-                @if (!Loading && !LoadError && Approvals.length > 0) {
+                @if (!Loading && !LoadError && (Approvals.length > 0 || SearchText.trim().length > 0)) {
                     <div class="inbox-toolbar">
                         <input
                             type="search"
@@ -753,12 +753,6 @@ export class ApprovalInboxComponent implements OnInit {
             AssignedToFilter(this._approverPersonID, roleIDs),
             `ID NOT IN (SELECT d.TaskID FROM __mj_BizAppsTasks.vwTaskDecisions d INNER JOIN __mj_BizAppsTasks.vwTaskDecisionOutcomes o ON d.OutcomeID = o.ID WHERE o.IsTerminal = 1)`,
         ];
-        const q = this.SearchText.trim();
-        if (q) {
-            const nameLike = BuildLikeClause('Name', q, { caseInsensitive: true });
-            const descLike = BuildLikeClause('Description', q, { caseInsensitive: true });
-            clauses.push(`(${nameLike} OR ${descLike})`);
-        }
         return clauses.join(' AND ');
     }
 }

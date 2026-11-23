@@ -237,7 +237,7 @@ export class TaskAssignmentEntityServer extends mjBizAppsTasksTaskAssignmentEnti
     private async failClosed(check: () => Promise<string | null>): Promise<string | null> {
         try {
             return await check();
-        } catch (err: unknown) {
+        } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             LogError(`TaskAssignmentEntityServer: checking assignment ${this.ID ?? '(new)'} on task ${this.TaskID} failed: ${msg}`);
             return `The assignment was not ${this.IsSaved ? 'changed' : 'saved'}: whether it is an approval could not be checked (${msg}).`;

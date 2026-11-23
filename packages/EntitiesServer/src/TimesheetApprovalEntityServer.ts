@@ -145,7 +145,7 @@ export class TimesheetApprovalEntityServer extends mjBizAppsTasksTimesheetApprov
             }
 
             return 'Only the timesheet submitter, an assigned approver, or a timesheet manager can update this approval part.';
-        } catch (err: unknown) {
+        } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             LogError(`TimesheetApprovalEntityServer: authority check failed: ${msg}`);
             return `Timesheet approval authority check failed: ${msg}`;

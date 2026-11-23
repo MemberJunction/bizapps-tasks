@@ -1,30 +1,32 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { UserInfo } from '@memberjunction/core';
 
+type MockArg = string | number | boolean | object | null | undefined;
+
 const runViewMock = vi.fn();
 const getEntityObjectMock = vi.fn();
-const runViewProviders: unknown[] = [];
+const runViewProviders: Array<object | undefined> = [];
 
 vi.mock('@memberjunction/core', () => {
   return {
     RunView: class {
-      constructor(provider?: unknown) {
+      constructor(provider?: object) {
         runViewProviders.push(provider);
       }
-      RunView(...args: unknown[]) {
+      RunView(...args: MockArg[]) {
         return runViewMock(...args);
       }
     },
     Metadata: Object.assign(
       class {
-        GetEntityObject(...args: unknown[]) {
+        GetEntityObject(...args: MockArg[]) {
           return getEntityObjectMock(...args);
         }
       },
-      { Provider: { GetEntityObject: (...args: unknown[]) => getEntityObjectMock(...args) } },
+      { Provider: { GetEntityObject: (...args: MockArg[]) => getEntityObjectMock(...args) } },
     ),
     CompositeKey: class {
-      constructor(public KeyValuePairs: unknown[]) {}
+      constructor(public KeyValuePairs: Array<{ FieldName: string; Value: MockArg }>) {}
     },
     LogError: vi.fn(),
     TelemetryManager: {
@@ -43,7 +45,30 @@ interface FakeCollection {
   Create: ReturnType<typeof vi.fn>;
 }
 
-interface FakeEntity extends Record<string, unknown> {
+interface FakeEntity {
+  ID?: string;
+  Name?: string;
+  TypeID?: string;
+  Status?: string;
+  Priority?: string;
+  Description?: string;
+  DueAt?: Date | null;
+  CreatedByPersonID?: string;
+  OutcomeID?: string;
+  DecidedByPersonID?: string;
+  DecisionNotes?: string;
+  TaskAssignmentID?: string;
+  ActivityType?: string;
+  PersonID?: string;
+  NewValue?: string;
+  EntityID?: string;
+  RecordID?: string;
+  AssigneeEntityID?: string;
+  AssigneeRecordID?: string;
+  RoleID?: string;
+  AssignedByPersonID?: string;
+  __mj_CreatedAt?: Date;
+  DecidedAt?: Date;
   NewRecord: ReturnType<typeof vi.fn>;
   InnerLoad: ReturnType<typeof vi.fn>;
   Save: ReturnType<typeof vi.fn>;
@@ -66,7 +91,7 @@ function makeFakeCollection(): FakeCollection {
   };
 }
 
-function makeFakeEntity(initial: Record<string, unknown> = {}): FakeEntity {
+function makeFakeEntity(initial: Partial<FakeEntity> = {}): FakeEntity {
   const entity: FakeEntity = {
     ...initial,
     NewRecord: vi.fn(),
@@ -250,7 +275,7 @@ describe('TaskOrchestrationService BeforeSave (server code vouching for a write)
   it('CreateTask hands the unsaved task to BeforeSave, then saves it', async () => {
     const task = makeFakeEntity();
     getEntityObjectMock.mockResolvedValueOnce(task);
-    const seen: Array<{ creator: unknown; saved: number }> = [];
+    const seen: Array<{ creator: string | null | undefined; saved: number }> = [];
 
     await new TaskOrchestrationService().CreateTask({
       Name: 'Raised for someone else',
@@ -266,7 +291,7 @@ describe('TaskOrchestrationService BeforeSave (server code vouching for a write)
   it('CreateApprovalRequest hands BeforeSave the task with its assignments already attached', async () => {
     const task = makeFakeEntity();
     getEntityObjectMock.mockResolvedValueOnce(task);
-    const vouchedFor: unknown[] = [];
+    const vouchedFor: Array<string | null | undefined> = [];
 
     await new TaskOrchestrationService().CreateApprovalRequest({
       Name: 'Approve batch',
@@ -358,11 +383,35 @@ describe('TaskOrchestrationService provider threading & atomic graph creation', 
     try {
       await svc.RecordDecision({ TaskID: 'task-xorg', OutcomeCode: 'Approved' }, user);
       expect.unreachable('Expected ApprovalAuthorizationError');
-    } catch (err: unknown) {
+    } catch (err) {
       expect(err).toBeInstanceOf(ApprovalAuthorizationError);
       const authErr = err as ApprovalAuthorizationError;
       expect(authErr.Code).toBe('CROSS_ORGANIZATION_DENIED');
       expect(authErr.Operation).toBe('RecordDecision');
+    }
+  });
+
+  it('does not misclassify a generic organization error message as CROSS_ORGANIZATION_DENIED', async () => {
+    const svc = new TaskOrchestrationService();
+
+    runViewMock.mockResolvedValueOnce({
+      Success: true,
+      Results: [{ ID: 'outcome-approved', Name: 'Approved', Code: 'Approved', IsTerminal: true }],
+    });
+    const genericTask = makeFakeEntity({ ID: 'task-org-generic', Status: 'Open' });
+    genericTask.Save.mockResolvedValueOnce(false);
+    genericTask.LatestResult = {
+      CompleteMessage: 'You are not assigned to this organization approval task.',
+    };
+    getEntityObjectMock.mockResolvedValueOnce(genericTask);
+
+    try {
+      await svc.RecordDecision({ TaskID: 'task-org-generic', OutcomeCode: 'Approved' }, user);
+      expect.unreachable('Expected ApprovalAuthorizationError');
+    } catch (err) {
+      expect(err).toBeInstanceOf(ApprovalAuthorizationError);
+      const authErr = err as ApprovalAuthorizationError;
+      expect(authErr.Code).toBe('UNAUTHORIZED_ACTOR');
     }
   });
 });

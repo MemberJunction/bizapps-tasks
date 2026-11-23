@@ -768,7 +768,13 @@ export class TasksInstantiateTemplateServerOperation extends TasksInstantiateTem
             try {
                 saved = await task.Save();
             } catch (saveErr) {
-                if (isRecurringUniqueViolation(saveErr)) {
+                const typedErr: RecurringUniqueErrorInput =
+                    saveErr instanceof Error || typeof saveErr === 'string'
+                        ? saveErr
+                        : saveErr && typeof saveErr === 'object'
+                          ? (saveErr as SqlErrorLike)
+                          : null;
+                if (isRecurringUniqueViolation(typedErr)) {
                     throw new RecurringPlaybookUniqueConflictError(
                         `Recurring playbook conflict on UX_Task_RecurringPlaybook_Org_Period (${recurrenceTemplateID}, ${effectiveOrganizationID}, ${recurrencePeriodKey})`,
                     );
@@ -844,7 +850,7 @@ class RecurringPlaybookUniqueConflictError extends Error {
     }
 }
 
-interface SqlErrorLike {
+export interface SqlErrorLike {
     code?: string | number;
     number?: number;
     message?: string;
@@ -853,12 +859,14 @@ interface SqlErrorLike {
     originalError?: SqlErrorLike;
 }
 
+export type RecurringUniqueErrorInput = Error | SqlErrorLike | string | null | undefined;
+
 /**
  * Recognizes database unique-constraint / unique-index conflicts across both SQL Server
  * (`2601`, `2627`, `Cannot insert duplicate key`) and PostgreSQL (`23505`,
  * `duplicate key value violates unique constraint`), as well as `UX_Task_RecurringPlaybook_Org_Period`.
  */
-export function isRecurringUniqueViolation(errOrMessage: unknown): boolean {
+export function isRecurringUniqueViolation(errOrMessage: RecurringUniqueErrorInput): boolean {
     if (errOrMessage instanceof RecurringPlaybookUniqueConflictError) {
         return true;
     }
@@ -1049,7 +1057,13 @@ export class TasksRunRecurringPlaybooksServerOperation extends TasksRunRecurring
                     CreatedTaskIDs: instRes.CreatedTaskIDs,
                 });
             } catch (err) {
-                if (isRecurringUniqueViolation(err)) {
+                const typedErr: RecurringUniqueErrorInput =
+                    err instanceof Error || typeof err === 'string'
+                        ? err
+                        : err && typeof err === 'object'
+                          ? (err as SqlErrorLike)
+                          : null;
+                if (isRecurringUniqueViolation(typedErr)) {
                     skippedCount++;
                     results.push({
                         OrganizationID: org.ID,

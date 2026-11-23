@@ -401,7 +401,7 @@ export class TaskEntityServer extends TaskEntity {
             for (const refusal of refusals) {
                 if (refusal) this.addRefusal(result, refusal);
             }
-        } catch (e: unknown) {
+        } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
             LogError(`TaskEntityServer: checking who may save task ${this.ID ?? '(new)'} failed: ${msg}`);
             this.addRefusal(result, `The task was not saved: whether this change is allowed could not be checked (${msg}).`);
@@ -668,7 +668,7 @@ export class TaskEntityServer extends TaskEntity {
                 this.CreatedByPersonID = personID;
                 this.stampedCreatorPersonID = personID;
             }
-        } catch (e: unknown) {
+        } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
             LogError(`TaskEntityServer: could not record the creator of task "${this.Name}": ${msg}`);
             throw new Error(`The task was not created: its creator could not be recorded (${msg}).`);
@@ -703,7 +703,7 @@ export class TaskEntityServer extends TaskEntity {
             if (parentOrgID) {
                 this.OrganizationID = parentOrgID;
             }
-        } catch (e: unknown) {
+        } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
             LogError(`TaskEntityServer: could not inherit OrganizationID from parent ${this.ParentID}: ${msg}`);
         }
@@ -1251,14 +1251,14 @@ export class TaskEntityServer extends TaskEntity {
             // changed, which prevents the save it raises from looping back here.
             // Runs after commit on this Task's provider, like the action hooks.
             const provider = this.saveProvider;
-            this.runAfterCommit('Task parent-progress rollup', this.capturePostCommitToken(), () =>
-                new TaskService()
-                    .rollupParentProgress(parentID, this.ContextCurrentUser, provider)
-                    .catch((err: unknown) => {
-                        const msg = err instanceof Error ? err.message : String(err);
-                        LogError(`TaskEntityServer: parent-progress rollup failed for parent ${parentID}: ${msg}`);
-                    })
-            );
+            this.runAfterCommit('Task parent-progress rollup', this.capturePostCommitToken(), async () => {
+                try {
+                    await new TaskService().rollupParentProgress(parentID, this.ContextCurrentUser, provider);
+                } catch (err) {
+                    const msg = err instanceof Error ? err.message : String(err);
+                    LogError(`TaskEntityServer: parent-progress rollup failed for parent ${parentID}: ${msg}`);
+                }
+            });
         });
     }
 

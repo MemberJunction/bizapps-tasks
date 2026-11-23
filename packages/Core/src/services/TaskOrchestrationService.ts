@@ -402,7 +402,11 @@ export class TaskOrchestrationService {
 
 function classifyApprovalErrorCode(message: string): ApprovalAuthorizationErrorCode | null {
     const lower = message.toLowerCase();
-    if (lower.includes('another organization') || lower.includes('cross-organization') || lower.includes('organization')) {
+    if (
+        lower.includes('another organization') ||
+        lower.includes('cross-organization') ||
+        lower.includes("approval task's organization cannot be changed")
+    ) {
         return 'CROSS_ORGANIZATION_DENIED';
     }
     if (lower.includes('without a signed-in user')) {
