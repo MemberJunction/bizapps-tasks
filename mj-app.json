@@ -4,7 +4,7 @@
   "name": "mj-bizapps-tasks",
   "displayName": "Tasks",
   "description": "Reusable task management with multi-person assignment, sub-tasks, dependencies, Kanban/Gantt views, templates, and activity tracking",
-  "version": "1.13.0",
+  "version": "6.3.0-edge.1",
   "license": "BUSL-1.1",
   "icon": "fa-solid fa-list-check",
   "publisher": {
@@ -15,7 +15,7 @@
   "mjVersionRange": ">=6.3.0-edge.1 <7.0.0",
   "dependencies": {
     "mj-bizapps-common": {
-      "version": ">=5.69.0 <6.0.0",
+      "version": ">=5.69.0 <7.0.0",
       "repository": "https://github.com/MemberJunction/bizapps-common"
     }
   },

@@ -1,7 +1,7 @@
 {
   "name": "@mj-biz-apps/tasks-core",
   "type": "module",
-  "version": "1.13.0",
+  "version": "6.3.0-edge.1",
   "description": "BizApps Tasks Core Services - TaskService, TaskAssignmentService, TaskTemplateService, and the meetings services",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -38,7 +38,7 @@
     "vitest": "1.6.1"
   },
   "dependencies": {
-    "@mj-biz-apps/tasks-entities": "^1.13.0",
+    "@mj-biz-apps/tasks-entities": "^6.3.0-edge.1",
     "luxon": "^3.7.2",
     "rrule": "^2.8.1"
   },
@@ -46,7 +46,7 @@
     "@memberjunction/core": "^6.3.0-edge.1",
     "@memberjunction/core-entities": "^6.3.0-edge.1",
     "@memberjunction/global": "^6.3.0-edge.1",
-    "@mj-biz-apps/common-entities": "^5.55.0"
+    "@mj-biz-apps/common-entities": ">=5.55.0 <7.0.0"
   },
   "repository": {
     "type": "git",

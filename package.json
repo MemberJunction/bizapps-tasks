@@ -1,7 +1,7 @@
 {
   "name": "bizapps-tasks",
   "private": true,
-  "version": "1.0.0",
+  "version": "6.3.0-edge.1",
   "license": "BUSL-1.1",
   "description": "BizApps Tasks - Reusable task management app for MemberJunction business applications",
   "workspaces": [

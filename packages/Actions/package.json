@@ -1,7 +1,7 @@
 {
   "name": "@mj-biz-apps/tasks-actions",
   "type": "module",
-  "version": "1.13.0",
+  "version": "6.3.0-edge.1",
   "description": "BizApps Tasks Action Subclasses",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -33,8 +33,8 @@
     "@mj-biz-apps/common-entities": "5.63.0"
   },
   "dependencies": {
-    "@mj-biz-apps/tasks-entities": "^1.13.0",
-    "@mj-biz-apps/tasks-core": "^1.13.0"
+    "@mj-biz-apps/tasks-entities": "^6.3.0-edge.1",
+    "@mj-biz-apps/tasks-core": "^6.3.0-edge.1"
   },
   "peerDependencies": {
     "@memberjunction/core": "^6.3.0-edge.1",
@@ -48,7 +48,7 @@
     "@memberjunction/aiengine": "^6.3.0-edge.1",
     "@memberjunction/generic-database-provider": "^6.3.0-edge.1",
     "@memberjunction/storage": "^6.3.0-edge.1",
-    "@mj-biz-apps/common-entities": "^5.55.0"
+    "@mj-biz-apps/common-entities": ">=5.55.0 <7.0.0"
   },
   "repository": {
     "type": "git",
