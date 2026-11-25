@@ -2,14 +2,17 @@ import {
     ChangeDetectionStrategy,
     ChangeDetectorRef,
     Component,
+    ContentChild,
     EventEmitter,
     Input,
     OnChanges,
     OnInit,
     Output,
     SimpleChanges,
+    TemplateRef,
     inject,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CompositeKey, Metadata, RunView, type IMetadataProvider, type IRunViewProvider } from '@memberjunction/core';
 import { EscapeSQLString, NormalizeUUID, UUIDsEqual } from '@memberjunction/global';
@@ -24,10 +27,16 @@ import {
     MatchesAssigneeFilter,
     MatchesDueDateFilter,
     type TaskAssigneeFilterRef,
+    type TaskBadgeDescriptor,
     type TaskDueDateFilterKey,
 } from '@mj-biz-apps/tasks-core';
 import type { mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
-import type { TaskPriorityValue, TaskStatusValue, TaskWidgetTypeStatus } from '@mj-biz-apps/tasks-ng-widgets';
+import type {
+    TaskPriorityValue,
+    TaskStatusValue,
+    TaskWidgetItem,
+    TaskWidgetTypeStatus,
+} from '@mj-biz-apps/tasks-ng-widgets';
 import { CurrentUserRoleIDs, RoleAssigneeName } from '../../role-assignees';
 import {
     FilterTasksByPendingSuggestions,
@@ -83,6 +92,12 @@ export interface TaskClickRow {
     Name: string;
 }
 
+export interface KanbanCardBadgeContext {
+    $implicit: KanbanCardData;
+    card: KanbanCardData;
+    taskId: string;
+}
+
 const PRIORITY_COLORS: Record<string, string> = {
     Critical: 'var(--mj-status-error)',
     High: 'var(--mj-status-warning)',
@@ -125,7 +140,7 @@ const PRIORITY_COLUMNS: KanbanColumnDef[] = [
     selector: 'bizapps-task-kanban',
     standalone: true,
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [FormsModule],
+    imports: [FormsModule, NgTemplateOutlet],
     template: `
         <div class="mjt-kb-wrap" [class.has-selection]="SelectedIDs.length > 0">
             @if (ShowGroupByBar) {
@@ -229,15 +244,36 @@ const PRIORITY_COLUMNS: KanbanColumnDef[] = [
                                         <p class="mjt-kb-card-sub">{{ card.Subtitle }}</p>
                                     }
 
-                                    @if (task) {
+                                    @if (task || EffectiveCardBadgesTemplate || resolveCardBadges(card.ID).length > 0) {
                                         <div class="mjt-kb-card-meta">
-                                            @if (GroupBy !== 'organization' && task.Organization) {
+                                            @if (EffectiveCardBadgesTemplate) {
+                                                <span class="mjt-kb-slot-badges" (click)="$event.stopPropagation()">
+                                                    <ng-container
+                                                        *ngTemplateOutlet="
+                                                            EffectiveCardBadgesTemplate;
+                                                            context: { $implicit: card, card: card, taskId: card.ID }
+                                                        ">
+                                                    </ng-container>
+                                                </span>
+                                            }
+                                            @for (badge of resolveCardBadges(card.ID); track badge.Label) {
+                                                <span
+                                                    class="mjt-kb-badge"
+                                                    [class]="'mjt-kb-badge mjt-kb-badge--' + badge.Tone"
+                                                    [attr.title]="badge.Tooltip || badge.Label">
+                                                    @if (badge.Icon) {
+                                                        <i [class]="badge.Icon" aria-hidden="true"></i>
+                                                    }
+                                                    <span>{{ badge.Label }}</span>
+                                                </span>
+                                            }
+                                            @if (task && GroupBy !== 'organization' && task.Organization) {
                                                 <span class="mjt-kb-chip mjt-kb-chip--org" [title]="task.Organization">
                                                     <i class="fa-solid fa-building" aria-hidden="true"></i>
                                                     <span>{{ task.Organization }}</span>
                                                 </span>
                                             }
-                                            @if (GroupBy !== 'workflow' && task.TaskTypeStatus) {
+                                            @if (task && GroupBy !== 'workflow' && task.TaskTypeStatus) {
                                                 <span class="mjt-kb-chip mjt-kb-chip--stage">{{ task.TaskTypeStatus }}</span>
                                             }
                                         </div>
@@ -432,6 +468,17 @@ const PRIORITY_COLUMNS: KanbanColumnDef[] = [
             display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
         }
         .mjt-kb-card-meta { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+        .mjt-kb-slot-badges { display: inline-flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+        .mjt-kb-badge {
+            display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px;
+            border-radius: var(--mj-radius-full, 9999px); font-size: 11px; font-weight: var(--mj-font-semibold, 600);
+            border: 1px solid transparent; white-space: nowrap;
+        }
+        .mjt-kb-badge--neutral { background: var(--mj-bg-surface-sunken); color: var(--mj-text-secondary); border-color: var(--mj-border-default); }
+        .mjt-kb-badge--info { background: var(--mj-status-info-bg); color: var(--mj-status-info-text); border-color: color-mix(in oklab, var(--mj-brand-primary) 26%, transparent); }
+        .mjt-kb-badge--success { background: var(--mj-status-success-bg); color: var(--mj-status-success-text); border-color: color-mix(in oklab, var(--mj-status-success) 30%, transparent); }
+        .mjt-kb-badge--warning { background: var(--mj-status-warning-bg); color: var(--mj-status-warning-text); border-color: color-mix(in oklab, var(--mj-status-warning) 32%, transparent); }
+        .mjt-kb-badge--error { background: var(--mj-status-error-bg); color: var(--mj-status-error-text); border-color: color-mix(in oklab, var(--mj-status-error) 32%, transparent); }
         .mjt-kb-chip {
             display: inline-flex; align-items: center; gap: 4px;
             padding: 1px 7px; border-radius: var(--mj-radius-sm, 4px);
@@ -478,6 +525,8 @@ const PRIORITY_COLUMNS: KanbanColumnDef[] = [
 })
 export class TaskKanbanComponent implements OnInit, OnChanges {
     @Input() Provider: IMetadataProvider | null = null;
+    /** Optional pre-loaded controlled tasks. When non-null, zero internal RunView queries fire. */
+    @Input() Tasks: readonly TaskWidgetItem[] | null = null;
     @Input() CategoryID: string | null = null;
     @Input() ExtraFilter: string | null = null;
     @Input() SearchText = '';
@@ -491,6 +540,20 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
     @Input() ReadOnly = false;
     @Input() EnableBulkSelect = false;
     @Input() SelectedIDs: string[] = [];
+    /** Optional resolver returning declarative badges rendered on each Kanban card. */
+    @Input() CardBadgeResolver: ((taskId: string) => readonly TaskBadgeDescriptor[]) | null = null;
+    /** Optional forwarded template for card badges (e.g. from TaskPanelComponent). */
+    @Input() CardBadgesTemplate: TemplateRef<KanbanCardBadgeContext> | null = null;
+
+    @ContentChild('cardBadges') public contentCardBadges?: TemplateRef<KanbanCardBadgeContext>;
+
+    public get EffectiveCardBadgesTemplate(): TemplateRef<KanbanCardBadgeContext> | null {
+        return this.contentCardBadges ?? this.CardBadgesTemplate ?? null;
+    }
+
+    public resolveCardBadges(taskId: string): readonly TaskBadgeDescriptor[] {
+        return this.CardBadgeResolver ? this.CardBadgeResolver(taskId) : [];
+    }
 
     private _pendingSuggestionsOnly = false;
     private isInitialized = false;
@@ -547,26 +610,44 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
 
     public ngOnInit(): void {
         this.isInitialized = true;
-        const saved = UserInfoEngine.Instance.GetSetting(KANBAN_GROUP_SETTING);
-        if (
-            saved === 'status' ||
-            saved === 'workflow' ||
-            saved === 'priority' ||
-            saved === 'assignee' ||
-            saved === 'organization'
-        ) {
-            this.GroupBy = saved;
+        try {
+            const saved = UserInfoEngine.Instance.GetSetting(KANBAN_GROUP_SETTING);
+            if (
+                saved === 'status' ||
+                saved === 'workflow' ||
+                saved === 'priority' ||
+                saved === 'assignee' ||
+                saved === 'organization'
+            ) {
+                this.GroupBy = saved;
+            }
+        } catch {
+            // UserInfoEngine may not be initialized in isolated unit tests
         }
-        void this.LoadTasks();
+        if (this.Tasks !== null) {
+            this.applyControlledTasks();
+        } else {
+            void this.LoadTasks();
+        }
     }
 
     public ngOnChanges(changes: SimpleChanges): void {
+        if (changes['Tasks']) {
+            if (this.Tasks !== null) {
+                this.applyControlledTasks();
+                return;
+            } else if (!changes['Tasks'].firstChange) {
+                void this.LoadTasks();
+                return;
+            }
+        }
         const queryChanged =
-            (changes['ExtraFilter'] && !changes['ExtraFilter'].firstChange) ||
-            (changes['CategoryID'] && !changes['CategoryID'].firstChange) ||
-            (changes['PriorityFilter'] && !changes['PriorityFilter'].firstChange) ||
-            (changes['TypeIDFilter'] && !changes['TypeIDFilter'].firstChange) ||
-            (changes['OrganizationIDFilter'] && !changes['OrganizationIDFilter'].firstChange);
+            this.Tasks === null &&
+            ((changes['ExtraFilter'] && !changes['ExtraFilter'].firstChange) ||
+                (changes['CategoryID'] && !changes['CategoryID'].firstChange) ||
+                (changes['PriorityFilter'] && !changes['PriorityFilter'].firstChange) ||
+                (changes['TypeIDFilter'] && !changes['TypeIDFilter'].firstChange) ||
+                (changes['OrganizationIDFilter'] && !changes['OrganizationIDFilter'].firstChange));
         if (queryChanged) {
             void this.LoadTasks();
         } else if (
@@ -579,12 +660,20 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
     }
 
     public Refresh(): void {
+        if (this.Tasks !== null) {
+            this.applyControlledTasks();
+            return;
+        }
         void this.LoadTasks(true);
     }
 
     public onGroupByChange(mode: KanbanGroupByMode): void {
         this.GroupBy = mode;
-        UserInfoEngine.Instance.SetSettingDebounced(KANBAN_GROUP_SETTING, mode);
+        try {
+            UserInfoEngine.Instance.SetSettingDebounced(KANBAN_GROUP_SETTING, mode);
+        } catch {
+            // Safe fallback when UserInfoEngine isn't initialized
+        }
         this.rebuildBoard();
     }
 
@@ -742,7 +831,68 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
         return new RunView();
     }
 
+    private applyControlledTasks(): void {
+        const inputTasks = this.Tasks ?? [];
+        this.fieldSuggestionsAvailable = false;
+        this.pendingSuggestionsByTask.clear();
+        this.workflowStatuses = [];
+        this.assigneeByTask.clear();
+        this.assigneesByTask.clear();
+
+        this.rawTasks = inputTasks
+            .filter((t) => t.Status !== 'Cancelled')
+            .map((t) => {
+                const dueRaw = t.DueAt ?? t.DueDate ?? null;
+                const dueIso = dueRaw instanceof Date ? dueRaw.toISOString() : (dueRaw ?? null);
+                const key = t.ID.toLowerCase();
+
+                if (t.Assignees && t.Assignees.length > 0) {
+                    const list = t.Assignees.map((a) => ({
+                        RecordID: a.RecordID,
+                        EntityName: a.EntityName,
+                        DisplayName: a.DisplayName,
+                    }));
+                    this.assigneesByTask.set(key, list);
+                    this.assigneeByTask.set(key, list[0].DisplayName);
+                } else if (t.AssigneeNames && t.AssigneeNames.length > 0) {
+                    const list = t.AssigneeNames.map((name, idx) => ({
+                        RecordID: `name:${idx}:${name}`,
+                        DisplayName: name,
+                    }));
+                    this.assigneesByTask.set(key, list);
+                    this.assigneeByTask.set(key, list[0].DisplayName);
+                }
+
+                return {
+                    ID: t.ID,
+                    Name: t.Name,
+                    Description: t.Description ?? null,
+                    Status: t.Status,
+                    Priority: t.Priority ?? 'Medium',
+                    DueAt: dueIso,
+                    PercentComplete: t.PercentComplete ?? 0,
+                    HoursEstimated: t.HoursEstimated ?? null,
+                    ParentID: t.ParentID ?? null,
+                    TypeID: t.TypeID,
+                    Type: t.TaskTypeName ?? t.TypeName ?? null,
+                    TaskTypeStatusID: t.TaskTypeStatusID ?? null,
+                    TaskTypeStatus: t.TaskTypeStatusName ?? null,
+                    OrganizationID: t.OrganizationID ?? null,
+                    Organization: t.OrganizationName ?? null,
+                };
+            });
+
+        if (this.GroupBy === 'workflow') {
+            this.GroupBy = 'status';
+        }
+        this.rebuildBoard();
+    }
+
     public async LoadTasks(bypassCache = false): Promise<void> {
+        if (this.Tasks !== null) {
+            this.applyControlledTasks();
+            return;
+        }
         const rv = this.createRunView();
         const filters: string[] = ["Status <> 'Cancelled'"];
         if (this.CategoryID) filters.push(`CategoryID = '${EscapeSQLString(this.CategoryID)}'`);
@@ -755,7 +905,7 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
         }
         if (this.ExtraFilter) filters.push(this.ExtraFilter);
 
-        const [tasksRes, statusesRes, assignmentsRes, peopleRes] = await Promise.all([
+        const [tasksRes, statusesRes] = await Promise.all([
             rv.RunView<KanbanTaskData>({
                 EntityName: 'MJ_BizApps_Tasks: Tasks',
                 ExtraFilter: filters.join(' AND '),
@@ -769,23 +919,53 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
                 OrderBy: 'Sequence ASC',
                 ResultType: 'simple',
             }),
-            this.createRunView().RunView<{ TaskID: string; AssigneeEntityID: string; AssigneeRecordID: string }>({
-                EntityName: 'MJ_BizApps_Tasks: Task Assignments',
-                Fields: ['TaskID', 'AssigneeEntityID', 'AssigneeRecordID'],
-                ResultType: 'simple',
-                BypassCache: bypassCache,
-            }),
-            this.createRunView().RunView<{ ID: string; FirstName: string; LastName: string }>({
-                EntityName: 'MJ_BizApps_Common: People',
-                Fields: ['ID', 'FirstName', 'LastName'],
-                ResultType: 'simple',
-            }),
         ]);
 
         const loadedTasks = tasksRes?.Results ?? [];
-        const suggestions = await TaskFieldSuggestionsHelper.LoadPendingSuggestions(this.ProviderToUse, {
-            taskIds: loadedTasks.map((t) => t.ID),
-        });
+        const taskIds = loadedTasks.map((t) => t.ID);
+        const assignmentScopeFilter =
+            taskIds.length > 0 && taskIds.length <= 500
+                ? `TaskID IN (${taskIds.map((id) => `'${EscapeSQLString(id)}'`).join(',')})`
+                : undefined;
+
+        const [assignmentsRes, suggestions] = await Promise.all([
+            taskIds.length === 0
+                ? Promise.resolve({ Results: [] as Array<{ TaskID: string; AssigneeEntityID: string; AssigneeRecordID: string }> })
+                : this.createRunView().RunView<{ TaskID: string; AssigneeEntityID: string; AssigneeRecordID: string }>({
+                      EntityName: 'MJ_BizApps_Tasks: Task Assignments',
+                      ExtraFilter: assignmentScopeFilter,
+                      Fields: ['TaskID', 'AssigneeEntityID', 'AssigneeRecordID'],
+                      ResultType: 'simple',
+                      BypassCache: bypassCache,
+                  }),
+            taskIds.length === 0
+                ? Promise.resolve({ available: false, byTaskId: new Map<string, TaskPendingSuggestionsSummary>() })
+                : TaskFieldSuggestionsHelper.LoadPendingSuggestions(this.ProviderToUse, { taskIds }),
+        ]);
+
+        const rolesEntityID = this.ProviderToUse.EntityByName?.('MJ: Roles')?.ID ?? null;
+        const assignedPersonIds = [
+            ...new Set(
+                (assignmentsRes?.Results ?? [])
+                    .filter((a) => !rolesEntityID || !UUIDsEqual(a.AssigneeEntityID, rolesEntityID))
+                    .map((a) => a.AssigneeRecordID)
+                    .filter(Boolean),
+            ),
+        ];
+
+        const peopleRes =
+            assignedPersonIds.length === 0
+                ? { Results: [] as Array<{ ID: string; FirstName: string; LastName: string }> }
+                : await this.createRunView().RunView<{ ID: string; FirstName: string; LastName: string }>({
+                      EntityName: 'MJ_BizApps_Common: People',
+                      ExtraFilter:
+                          assignedPersonIds.length <= 500
+                              ? `ID IN (${assignedPersonIds.map((id) => `'${EscapeSQLString(id)}'`).join(',')})`
+                              : undefined,
+                      Fields: ['ID', 'FirstName', 'LastName'],
+                      ResultType: 'simple',
+                  });
+
         this.fieldSuggestionsAvailable = suggestions.available;
         this.pendingSuggestionsByTask = suggestions.byTaskId;
 

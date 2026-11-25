@@ -55,6 +55,7 @@ import {
 import { RunningTimerChipComponent } from '../components/running-timer-chip/running-timer-chip.component';
 
 export interface PendingApprovalItem extends TaskWidgetItem {
+    Priority: NonNullable<TaskWidgetItem['Priority']>;
     OrganizationID?: string | null;
     Organization?: string | null;
     CreatedAt?: string | null;

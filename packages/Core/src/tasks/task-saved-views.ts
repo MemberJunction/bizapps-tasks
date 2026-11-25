@@ -15,7 +15,7 @@ export interface SavedTaskFilterView {
     ID: string;
     Name: string;
     CategoryID: string | null;
-    ViewMode?: 'list' | 'kanban' | 'gantt';
+    ViewMode?: 'wbs' | 'list' | 'kanban' | 'gantt';
     SearchText?: string;
     Filters: SavedTaskFilterMap;
     CreatedAt: string;
@@ -48,7 +48,7 @@ export function ParseSavedTaskFilterViews(raw: string | null | undefined): Saved
             if (!id || !name) continue;
             const viewModeRaw = entry.ViewMode;
             const viewMode =
-                viewModeRaw === 'list' || viewModeRaw === 'kanban' || viewModeRaw === 'gantt'
+                viewModeRaw === 'wbs' || viewModeRaw === 'list' || viewModeRaw === 'kanban' || viewModeRaw === 'gantt'
                     ? viewModeRaw
                     : undefined;
             const filtersRaw = entry.Filters;

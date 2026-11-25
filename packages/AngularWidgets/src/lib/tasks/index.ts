@@ -11,5 +11,7 @@ export * from './task-mobile-milestone-stack.component';
 export * from './task-adaptive-spotlight.component';
 export * from './task-connected-tasks.component';
 export * from './task-command-palette.component';
+export * from './task-wbs-summary-strip.component';
+export * from './task-wbs-tree.component';
 
 export function LoadTasksWidgets(): void {}

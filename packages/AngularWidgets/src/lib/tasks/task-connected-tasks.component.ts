@@ -169,9 +169,11 @@ import type {
                                     </span>
                                 }
 
-                                <span class="mjt-pill" [class]="priorityPillClass(task.Priority)">
-                                    {{ task.Priority }}
-                                </span>
+                                @if (task.Priority) {
+                                    <span class="mjt-pill" [class]="priorityPillClass(task.Priority)">
+                                        {{ task.Priority }}
+                                    </span>
+                                }
 
                                 @if (task.Assignees && task.Assignees.length > 0) {
                                     <span class="mjt-avatar-pill" [title]="task.Assignees[0].DisplayName">

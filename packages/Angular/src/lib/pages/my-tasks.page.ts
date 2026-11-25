@@ -996,7 +996,7 @@ export class MyTasksPageComponent implements OnInit {
         return IsTaskSlaAtRisk(task);
     }
 
-    public priorityClass(priority: string): string {
+    public priorityClass(priority: string | null | undefined): string {
         switch (priority) {
             case 'Critical': return 'mjt-badge--error';
             case 'High': return 'mjt-badge--warn';

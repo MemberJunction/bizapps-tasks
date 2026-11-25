@@ -118,15 +118,15 @@ packages/Angular/src/lib/components/my-time/my-time.component.ts,2079,String(val
 packages/Angular/src/lib/components/record-link-picker/record-link-picker-dialog.component.ts,335,MaxRows,25,RecordLinkPickerDialogComponent.SearchRecords,UX,deferred-ux:ResourceGuards
 packages/Angular/src/lib/components/running-timer-chip/running-timer-chip.component.ts,354,MaxRows,1,RunningTimerChipComponent.Refresh,UX,deferred-ux:ResourceGuards
 packages/Angular/src/lib/components/running-timer-chip/running-timer-chip.component.ts,446,setInterval,1000,RunningTimerChipComponent.startTickInterval,UX,retained-ux-local
-packages/Angular/src/lib/components/task-detail-panel/task-detail-panel.component.ts,999,MaxRows,1,TaskDetailPanelComponent.loadTypeAndSpotlight,UX,deferred-ux:ResourceGuards
+packages/Angular/src/lib/components/task-detail-panel/task-detail-panel.component.ts,1037,MaxRows,1,TaskDetailPanelComponent.loadTypeAndSpotlight,UX,deferred-ux:ResourceGuards
 packages/Angular/src/lib/components/task-drawer-shell/task-drawer-shell.component.ts,65,WidthPx,560,TaskDrawerShellComponent,UX,retained-ux-local
 packages/Angular/src/lib/components/task-edit-panel/task-edit-panel.component.ts,1229,MaxRows,250,TaskEditPanelComponent.loadLookups,UX,deferred-ux:ResourceGuards
-packages/Angular/src/lib/components/task-gantt/task-gantt.component.ts,678,MaxRows,500,TaskGanttComponent.LoadData,UX,deferred-ux:ResourceGuards
-packages/Angular/src/lib/components/task-gantt/task-gantt.component.ts,702,MaxRows,500,TaskGanttComponent.LoadData,UX,deferred-ux:ResourceGuards
-packages/Angular/src/lib/components/task-gantt/task-gantt.component.ts,709,MaxRows,1000,TaskGanttComponent.LoadData,UX,deferred-ux:ResourceGuards
-packages/Angular/src/lib/components/task-gantt/task-gantt.component.ts,873,setTimeout,60,TaskGanttComponent.scheduleBarDecoration,UX,retained-ux-local
-packages/Angular/src/lib/components/task-gantt/task-gantt.component.ts,895,bar.offsetWidth_Bound,136,TaskGanttComponent.decorateGanttBars.<anon>,UX,retained-ux-local
-packages/Angular/src/lib/components/task-list/task-list.component.ts,824,setTimeout,150,TaskListComponent.onSearchChange,UX,retained-ux-local
+packages/Angular/src/lib/components/task-gantt/task-gantt.component.ts,809,MaxRows,500,TaskGanttComponent.LoadData,UX,deferred-ux:ResourceGuards
+packages/Angular/src/lib/components/task-gantt/task-gantt.component.ts,827,MaxRows,500,TaskGanttComponent.LoadData,UX,deferred-ux:ResourceGuards
+packages/Angular/src/lib/components/task-gantt/task-gantt.component.ts,834,MaxRows,1000,TaskGanttComponent.LoadData,UX,deferred-ux:ResourceGuards
+packages/Angular/src/lib/components/task-gantt/task-gantt.component.ts,1019,setTimeout,60,TaskGanttComponent.scheduleBarDecoration,UX,retained-ux-local
+packages/Angular/src/lib/components/task-gantt/task-gantt.component.ts,1041,bar.offsetWidth_Bound,136,TaskGanttComponent.decorateGanttBars.<anon>,UX,retained-ux-local
+packages/Angular/src/lib/components/task-list/task-list.component.ts,945,setTimeout,150,TaskListComponent.onSearchChange,UX,retained-ux-local
 packages/Angular/src/lib/components/task-overview/task-overview.component.ts,586,MaxRows,10,TaskOverviewComponent.LoadData,UX,deferred-ux:ResourceGuards
 packages/Angular/src/lib/components/task-overview/task-overview.component.ts,601,MaxRows,1,TaskOverviewComponent.LoadData,UX,deferred-ux:ResourceGuards
 packages/Angular/src/lib/components/task-overview/task-overview.component.ts,617,MaxRows,5,TaskOverviewComponent.LoadData,UX,deferred-ux:ResourceGuards
@@ -158,6 +158,7 @@ packages/AngularWidgets/src/lib/tasks/task-adaptive-spotlight.component.ts,223,M
 packages/AngularWidgets/src/lib/tasks/task-command-palette.component.ts,256,[...this.Items].slice_Cap,14,TaskCommandPaletteComponent.FilteredItems,UX,retained-ux-local
 packages/AngularWidgets/src/lib/tasks/task-command-palette.component.ts,262,this.Items.filter( (i) => i.Label.toLowerCase().includes(q) || (i.Subtitle?.toLowerCase().includ_Cap,14,TaskCommandPaletteComponent.FilteredItems,UX,retained-ux-local
 packages/AngularWidgets/src/lib/tasks/task-okr-checkin.component.ts,272,DraftConfidence,7,TaskOkrCheckInComponent,UX,retained-ux-local
+packages/AngularWidgets/src/lib/tasks/task-wbs-summary-strip.component.ts,222,Math.min_Bound,100,TaskWbsSummaryStripComponent.clampPercent,UX,retained-ux-local
 packages/Core/src/config/BriefingLimitsHelper.ts,43,Briefing.DefaultWorkReportsBriefingLookbackDays,TasksLimitsResolver,ResolveBriefingContributorBounds,Tuning,routed:TasksLimitsResolver.Instance.GetCurrentLimits().Briefing.DefaultWorkReportsBriefingLookbackDays
 packages/Core/src/config/BriefingLimitsHelper.ts,44,Briefing.DefaultMeetingsBriefingLookbackDays,TasksLimitsResolver,ResolveBriefingContributorBounds,Tuning,routed:TasksLimitsResolver.Instance.GetCurrentLimits().Briefing.DefaultMeetingsBriefingLookbackDays
 packages/Core/src/config/BriefingLimitsHelper.ts,47,RunawayGuards.BriefingWorkReportsMaxLookbackDays,TasksLimitsResolver,ResolveBriefingContributorBounds,RunawayGuard,routed:TasksLimitsResolver.Instance.GetCurrentLimits().RunawayGuards.BriefingWorkReportsMaxLookbackDays

@@ -25,4 +25,5 @@ export * from './services/MeetingNotesService.js';
 export * from './services/MeetingCalendarFile.js';
 export * from './meetings/index.js';
 export * from './tasks/index.js';
+export * from './wbs/wbs-tree.js';
 export * from './risk/index.js';

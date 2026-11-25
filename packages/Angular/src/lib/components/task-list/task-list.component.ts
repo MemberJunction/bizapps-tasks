@@ -2,25 +2,30 @@ import {
     ChangeDetectionStrategy,
     ChangeDetectorRef,
     Component,
+    ContentChild,
     EventEmitter,
     Input,
     OnChanges,
     OnInit,
     Output,
     SimpleChanges,
+    TemplateRef,
     inject,
 } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CompositeKey, Metadata, RunView, type IMetadataProvider, type IRunViewProvider } from '@memberjunction/core';
 import { EscapeSQLString, NormalizeUUID, UUIDsEqual } from '@memberjunction/global';
 import { BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { MJButtonDirective, MJEmptyStateComponent } from '@memberjunction/ng-ui-components';
 import {
+    BuildWbsTree,
     MatchesAssigneeFilter,
     MatchesDueDateFilter,
     TasksBulkUpdateOperation,
+    type TaskBadgeDescriptor,
     type TaskDueDateFilterKey,
+    type TaskWbsNode,
 } from '@mj-biz-apps/tasks-core';
 import type {
     mjBizAppsTasksTaskAssignmentEntity,
@@ -42,6 +47,8 @@ import {
     type TaskPriorityValue,
     type TaskQuickCaptureSubmitEvent,
     type TaskStatusValue,
+    type TaskWbsRowTemplateContext,
+    type TaskWidgetItem,
 } from '@mj-biz-apps/tasks-ng-widgets';
 import { CurrentUserRoleIDs, RoleAssigneeName } from '../../role-assignees';
 import { LoadTaskRecordLinks, type TaskRecordLink } from '../../task-record-links';
@@ -132,6 +139,7 @@ export class BeforeStatusChangeEvent {
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         DatePipe,
+        NgTemplateOutlet,
         FormsModule,
         BaseFormsModule,
         MJButtonDirective,
@@ -269,6 +277,22 @@ export class BeforeStatusChangeEvent {
                                         <div class="mjt-row-copy">
                                             <div class="mjt-row-title-line">
                                                 <span class="mjt-row-title">{{ task.Name }}</span>
+                                                @if (EffectiveRowBadgesTemplate) {
+                                                    <span class="mjt-row-slot-badges" (click)="$event.stopPropagation()">
+                                                        <ng-container *ngTemplateOutlet="EffectiveRowBadgesTemplate; context: rowBadgeContext(task)"></ng-container>
+                                                    </span>
+                                                }
+                                                @for (badge of resolveRowBadges(task); track badge.Label) {
+                                                    <span
+                                                        class="mjt-badge-pill"
+                                                        [class]="'mjt-badge-pill mjt-badge-pill--' + badge.Tone"
+                                                        [attr.title]="badge.Tooltip || badge.Label">
+                                                        @if (badge.Icon) {
+                                                            <i [class]="badge.Icon" aria-hidden="true"></i>
+                                                        }
+                                                        <span>{{ badge.Label }}</span>
+                                                    </span>
+                                                }
                                                 @if (task.TaskTypeStatusName) {
                                                     <span class="mjt-stage-pill">{{ task.TaskTypeStatusName }}</span>
                                                 }
@@ -489,6 +513,17 @@ export class BeforeStatusChangeEvent {
             font-size: var(--mj-text-sm, 14px); font-weight: var(--mj-font-medium, 500);
             color: var(--mj-text-primary); line-height: 1.35;
         }
+        .mjt-row-slot-badges { display: inline-flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+        .mjt-badge-pill {
+            display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px;
+            border-radius: var(--mj-radius-full, 9999px); font-size: 11px; font-weight: var(--mj-font-semibold, 600);
+            border: 1px solid transparent; white-space: nowrap;
+        }
+        .mjt-badge-pill--neutral { background: var(--mj-bg-surface-sunken); color: var(--mj-text-secondary); border-color: var(--mj-border-default); }
+        .mjt-badge-pill--info { background: var(--mj-status-info-bg); color: var(--mj-status-info-text); border-color: color-mix(in oklab, var(--mj-brand-primary) 26%, transparent); }
+        .mjt-badge-pill--success { background: var(--mj-status-success-bg); color: var(--mj-status-success-text); border-color: color-mix(in oklab, var(--mj-status-success) 30%, transparent); }
+        .mjt-badge-pill--warning { background: var(--mj-status-warning-bg); color: var(--mj-status-warning-text); border-color: color-mix(in oklab, var(--mj-status-warning) 32%, transparent); }
+        .mjt-badge-pill--error { background: var(--mj-status-error-bg); color: var(--mj-status-error-text); border-color: color-mix(in oklab, var(--mj-status-error) 32%, transparent); }
         .mjt-stage-pill {
             font-size: 11px; font-weight: var(--mj-font-semibold, 600); padding: 1px 7px;
             border-radius: var(--mj-radius-full, 9999px);
@@ -559,6 +594,8 @@ export class BeforeStatusChangeEvent {
 })
 export class TaskListComponent implements OnInit, OnChanges {
     @Input() Provider: IMetadataProvider | null = null;
+    /** Optional pre-loaded controlled tasks. When non-null, zero internal RunView queries fire. */
+    @Input() Tasks: readonly TaskWidgetItem[] | null = null;
     @Input() CategoryID: string | null = null;
     @Input() ExtraFilter: string | null = null;
     @Input() StatusFilter: string | null = null;
@@ -578,6 +615,38 @@ export class TaskListComponent implements OnInit, OnChanges {
     @Input() ReadOnly = false;
     @Input() ExternalBulkDock = false;
     @Input() SelectedIDs: string[] | null = null;
+    /** Optional resolver returning declarative badges rendered on each row. */
+    @Input() RowBadgeResolver: ((task: TaskRow) => readonly TaskBadgeDescriptor[]) | null = null;
+    /** Optional forwarded template for row badges (e.g. from TaskPanelComponent). */
+    @Input() RowBadgesTemplate: TemplateRef<TaskWbsRowTemplateContext> | null = null;
+
+    @ContentChild('rowBadges') public contentRowBadges?: TemplateRef<TaskWbsRowTemplateContext>;
+
+    public get EffectiveRowBadgesTemplate(): TemplateRef<TaskWbsRowTemplateContext> | null {
+        return this.contentRowBadges ?? this.RowBadgesTemplate ?? null;
+    }
+
+    public rowBadgeContext(task: TaskRow): TaskWbsRowTemplateContext {
+        const controlled = this.Tasks?.find((t) => UUIDsEqual(t.ID, task.ID));
+        const item: TaskWidgetItem = controlled ?? {
+            ID: task.ID,
+            Name: task.Name,
+            Description: task.Description,
+            ParentID: task.ParentID,
+            Status: this.asStatus(task.Status),
+            DueAt: task.DueAt,
+            PercentComplete: task.PercentComplete,
+            HoursEstimated: task.HoursEstimated,
+            OrganizationID: task.OrganizationID ?? null,
+            OrganizationName: task.OrganizationName ?? null,
+            TaskTypeStatusName: task.TaskTypeStatusName ?? null,
+        };
+        return { $implicit: item, depth: task.Depth };
+    }
+
+    public resolveRowBadges(task: TaskRow): readonly TaskBadgeDescriptor[] {
+        return this.RowBadgeResolver ? this.RowBadgeResolver(task) : [];
+    }
 
     private _pendingSuggestionsOnly = false;
     private isInitialized = false;
@@ -675,17 +744,31 @@ export class TaskListComponent implements OnInit, OnChanges {
         this.isInitialized = true;
         if (this.StatusFilter) this.statusFilter = this.StatusFilter;
         if (this.SearchText) this.searchText = this.SearchText;
-        void this.loadTasks();
-        if (this.ShowQuickAdd) void this.loadQuickAddPeople();
+        if (this.Tasks !== null) {
+            this.applyControlledTasks();
+        } else {
+            void this.loadTasks();
+            if (this.ShowQuickAdd && !this.ReadOnly) void this.loadQuickAddPeople();
+        }
     }
 
     public ngOnChanges(changes: SimpleChanges): void {
+        if (changes['Tasks']) {
+            if (this.Tasks !== null) {
+                this.applyControlledTasks();
+                return;
+            } else if (!changes['Tasks'].firstChange) {
+                void this.loadTasks();
+                return;
+            }
+        }
         const reloadNeeded =
-            (changes['ExtraFilter'] && !changes['ExtraFilter'].firstChange) ||
-            (changes['CategoryID'] && !changes['CategoryID'].firstChange) ||
-            (changes['PriorityFilter'] && !changes['PriorityFilter'].firstChange) ||
-            (changes['TypeIDFilter'] && !changes['TypeIDFilter'].firstChange) ||
-            (changes['OrganizationIDFilter'] && !changes['OrganizationIDFilter'].firstChange);
+            this.Tasks === null &&
+            ((changes['ExtraFilter'] && !changes['ExtraFilter'].firstChange) ||
+                (changes['CategoryID'] && !changes['CategoryID'].firstChange) ||
+                (changes['PriorityFilter'] && !changes['PriorityFilter'].firstChange) ||
+                (changes['TypeIDFilter'] && !changes['TypeIDFilter'].firstChange) ||
+                (changes['OrganizationIDFilter'] && !changes['OrganizationIDFilter'].firstChange));
         if (changes['StatusFilter'] && !changes['StatusFilter'].firstChange) {
             this.statusFilter = this.StatusFilter ?? '';
             this.applyFilters();
@@ -710,6 +793,10 @@ export class TaskListComponent implements OnInit, OnChanges {
     }
 
     public async Refresh(): Promise<void> {
+        if (this.Tasks !== null) {
+            this.applyControlledTasks();
+            return;
+        }
         await this.loadTasks();
     }
 
@@ -724,10 +811,23 @@ export class TaskListComponent implements OnInit, OnChanges {
         this.cdr.markForCheck();
     }
 
+    private isIdExpanded(taskID: string): boolean {
+        if (this.expandedIDs.has(taskID)) return true;
+        for (const id of this.expandedIDs) {
+            if (UUIDsEqual(id, taskID)) return true;
+        }
+        return false;
+    }
+
     public ToggleExpand(taskID: string): void {
-        if (this.expandedIDs.has(taskID)) {
-            this.expandedIDs.delete(taskID);
-        } else {
+        let removed = false;
+        for (const id of [...this.expandedIDs]) {
+            if (UUIDsEqual(id, taskID)) {
+                this.expandedIDs.delete(id);
+                removed = true;
+            }
+        }
+        if (!removed) {
             this.expandedIDs.add(taskID);
         }
         this.cdr.markForCheck();
@@ -737,9 +837,30 @@ export class TaskListComponent implements OnInit, OnChanges {
         this.ToggleExpand(taskID);
     }
 
+    /**
+     * Walks the entire ancestor chain up to depth 0 so collapsing any ancestor
+     * hides all of its descendants (preventing orphaned grandchildren).
+     */
     public isParentExpanded(task: TaskRow): boolean {
         if (!task.ParentID) return true;
-        return this.expandedIDs.has(task.ParentID);
+        const byId = new Map<string, TaskRow>();
+        for (const row of this.tasks) {
+            byId.set(row.ID.toLowerCase(), row);
+        }
+        const visited = new Set<string>([task.ID.toLowerCase()]);
+        let curParentId: string | null = task.ParentID;
+        while (curParentId) {
+            const norm = curParentId.toLowerCase();
+            if (visited.has(norm)) break;
+            visited.add(norm);
+            if (!this.isIdExpanded(curParentId)) {
+                return false;
+            }
+            const parentRow = byId.get(norm);
+            if (!parentRow) break;
+            curParentId = parentRow.ParentID;
+        }
+        return true;
     }
 
     public isSelected(taskID: string): boolean {
@@ -860,7 +981,16 @@ export class TaskListComponent implements OnInit, OnChanges {
     public applyFilters(): void {
         const q = this.searchText.trim().toLowerCase();
         const currentRoles = CurrentUserRoleIDs();
-        let list = this.tasks.filter((t) => {
+        const hasActiveFilter = Boolean(
+            q ||
+                this.statusFilter ||
+                this.OrganizationIDFilter ||
+                this.DueDateFilter ||
+                this.AssigneeFilter ||
+                this._pendingSuggestionsOnly,
+        );
+
+        let matched = this.tasks.filter((t) => {
             if (this.statusFilter && t.Status !== this.statusFilter) return false;
             if (this.OrganizationIDFilter === '__none__') {
                 if (t.OrganizationID) return false;
@@ -888,14 +1018,126 @@ export class TaskListComponent implements OnInit, OnChanges {
         });
         if (this._pendingSuggestionsOnly) {
             if (this.pendingSuggestionsByTask.size > 0) {
-                list = FilterTasksByPendingSuggestions(list, true, this.pendingSuggestionsByTask);
+                matched = FilterTasksByPendingSuggestions(matched, true, this.pendingSuggestionsByTask);
             } else {
-                list = list.filter((t) => (t.PendingSuggestionCount ?? 0) > 0);
+                matched = matched.filter((t) => (t.PendingSuggestionCount ?? 0) > 0);
             }
         }
+
+        // Preserve full ancestor chains for hierarchical tasks when filters are active
+        let list = matched;
+        if (hasActiveFilter && matched.length > 0 && matched.length < this.tasks.length) {
+            const byId = new Map<string, TaskRow>();
+            for (const row of this.tasks) {
+                byId.set(row.ID.toLowerCase(), row);
+            }
+            const keepIds = new Set<string>();
+            for (const row of matched) {
+                keepIds.add(row.ID.toLowerCase());
+                let curParentId = row.ParentID;
+                const seen = new Set<string>([row.ID.toLowerCase()]);
+                while (curParentId) {
+                    const norm = curParentId.toLowerCase();
+                    if (seen.has(norm)) break;
+                    seen.add(norm);
+                    const parentRow = byId.get(norm);
+                    if (!parentRow) break;
+                    keepIds.add(norm);
+                    this.expandedIDs.add(parentRow.ID);
+                    curParentId = parentRow.ParentID;
+                }
+            }
+            list = this.tasks.filter((row) => keepIds.has(row.ID.toLowerCase()));
+        }
+
         this.filteredTasks = list;
         this.VisibleTaskIDsChange.emit(list.map((t) => t.ID));
         this.cdr.markForCheck();
+    }
+
+    private applyControlledTasks(): void {
+        const inputTasks = this.Tasks ?? [];
+        const tree = BuildWbsTree(inputTasks);
+        const ordered: TaskRow[] = [];
+        const now = new Date();
+
+        const visit = (node: TaskWbsNode<TaskWidgetItem>): void => {
+            const item = node.Item;
+            const dueRaw = item.DueAt ?? item.DueDate ?? null;
+            const dueAt = dueRaw ? (dueRaw instanceof Date ? dueRaw : new Date(dueRaw)) : null;
+            const validDue = dueAt && !Number.isNaN(dueAt.getTime()) ? dueAt : null;
+            const { isOverdue, isDueSoon } = computeDueStatus(validDue, item.Status, now);
+
+            const assignees =
+                item.Assignees && item.Assignees.length > 0
+                    ? item.Assignees.map((a) => ({
+                          Name: a.DisplayName,
+                          Role: a.RoleName ?? '',
+                          Status: a.Status,
+                          RecordID: a.RecordID,
+                          EntityName: a.EntityName,
+                          IsRole: a.IsRole,
+                      }))
+                    : item.AssigneeNames && item.AssigneeNames.length > 0
+                      ? item.AssigneeNames.map((name) => ({
+                            Name: name,
+                            Role: '',
+                            Status: 'Pending',
+                        }))
+                      : undefined;
+
+            const tags = item.Tags?.map((t) => ({
+                Name: t.Name,
+                Color: t.ColorCode ?? 'var(--mj-brand-primary)',
+            }));
+
+            const linkedRecords = item.LinkedRecords?.map((l) => ({
+                TaskID: item.ID,
+                EntityName: l.EntityName,
+                RecordID: l.RecordID,
+                Name: l.DisplayName,
+            }));
+
+            const completedDirectChildren = node.Children.filter((c) => c.Item.Status === 'Completed').length;
+
+            ordered.push({
+                ID: item.ID,
+                Name: item.Name,
+                Description: item.Description ?? null,
+                Status: item.Status,
+                Priority: item.Priority ?? 'Medium',
+                DueAt: validDue,
+                PercentComplete: node.EffectivePercentComplete,
+                HoursEstimated: item.HoursEstimated ?? null,
+                ParentID: item.ParentID ?? null,
+                Depth: node.Depth,
+                OrganizationID: item.OrganizationID ?? null,
+                OrganizationName: item.OrganizationName ?? null,
+                Assignees: assignees,
+                Tags: tags,
+                LinkedRecords: linkedRecords,
+                TaskTypeStatusName: item.TaskTypeStatusName ?? null,
+                IsOverdue: isOverdue,
+                IsDueSoon: isDueSoon,
+                ChildCount: node.Children.length,
+                CompletedChildCount: completedDirectChildren,
+            });
+
+            if (node.Children.length > 0 && node.Depth === 0) {
+                this.expandedIDs.add(item.ID);
+            }
+            for (const child of node.Children) {
+                visit(child);
+            }
+        };
+
+        for (const root of tree) {
+            visit(root);
+        }
+
+        this.loading = false;
+        this.tasks = ordered;
+        this.applyFilters();
     }
 
     public onTaskClick(task: TaskRow): void {
@@ -1152,6 +1394,10 @@ export class TaskListComponent implements OnInit, OnChanges {
     }
 
     public async loadTasks(): Promise<void> {
+        if (this.Tasks !== null) {
+            this.applyControlledTasks();
+            return;
+        }
         this.loading = true;
         this.cdr.markForCheck();
         try {
@@ -1166,125 +1412,200 @@ export class TaskListComponent implements OnInit, OnChanges {
             }
             if (this.ExtraFilter) filters.push(this.ExtraFilter);
 
-            const [tasksRes, assignmentsRes, peopleRes, rolesRes, tagLinksRes, tagsRes, orgsRes, catsRes, typesRes, stagesRes] = await Promise.all([
-                this.createRunView().RunView<{
-                    ID: string;
-                    Name: string;
-                    Description: string | null;
-                    Status: string;
-                    Priority: string;
-                    DueAt: string | null;
-                    PercentComplete: number | null;
-                    HoursEstimated: number | null;
-                    LoggedMinutes?: number | null;
-                    ParentID: string | null;
-                    TaskTypeStatus: string | null;
-                    OrganizationID?: string | null;
-                    Organization?: string | null;
-                }>({
-                    EntityName: 'MJ_BizApps_Tasks: Tasks',
-                    ExtraFilter: filters.join(' AND '),
-                    OrderBy: 'Sequence ASC, DueAt ASC',
-                    ResultType: 'simple',
-                    BypassCache: true,
-                }),
-                this.createRunView().RunView<{ TaskID: string; AssigneeEntityID: string; AssigneeRecordID: string; RoleID: string | null; Status: string | null }>({
-                    EntityName: 'MJ_BizApps_Tasks: Task Assignments',
-                    ResultType: 'simple',
-                    BypassCache: true,
-                }),
-                this.createRunView().RunView<TaskListPersonRow>({
-                    EntityName: 'MJ_BizApps_Common: People',
-                    Fields: ['ID', 'FirstName', 'LastName'],
-                    OrderBy: 'FirstName ASC, LastName ASC',
-                    ResultType: 'simple',
-                }),
-                this.createRunView().RunView<{ ID: string; Name: string }>({
-                    EntityName: 'MJ_BizApps_Tasks: Task Roles',
-                    Fields: ['ID', 'Name'],
-                    OrderBy: 'Sequence ASC',
-                    ResultType: 'simple',
-                }),
-                this.createRunView().RunView<{ TaskID: string; TagID: string }>({
-                    EntityName: 'MJ_BizApps_Tasks: Task Tag Links',
-                    Fields: ['TaskID', 'TagID'],
-                    ResultType: 'simple',
-                }),
-                this.createRunView().RunView<{ ID: string; Name: string; ColorCode: string | null }>({
-                    EntityName: 'MJ_BizApps_Tasks: Task Tags',
-                    Fields: ['ID', 'Name', 'ColorCode'],
-                    OrderBy: 'Name ASC',
-                    ResultType: 'simple',
-                }),
-                this.createRunView().RunView<{ ID: string; Name: string; LinkedCompanyID: string | null }>({
-                    EntityName: 'MJ_BizApps_Common: Organizations',
-                    ExtraFilter: "Status = 'Active'",
-                    Fields: ['ID', 'Name', 'LinkedCompanyID'],
-                    OrderBy: 'Name ASC',
-                    ResultType: 'simple',
-                }),
-                this.createRunView().RunView<{ ID: string; Name: string }>({
-                    EntityName: 'MJ_BizApps_Tasks: Task Categories',
-                    ExtraFilter: 'IsActive = 1',
-                    Fields: ['ID', 'Name'],
-                    OrderBy: 'Sequence ASC, Name ASC',
-                    ResultType: 'simple',
-                }),
-                this.createRunView().RunView<TaskTypeLookupRow>({
-                    EntityName: 'MJ_BizApps_Tasks: Task Types',
-                    ExtraFilter: 'IsActive = 1',
-                    Fields: [...GENERIC_TASK_TYPE_FIELDS],
-                    OrderBy: 'Name ASC',
-                    ResultType: 'simple',
-                }),
-                this.createRunView().RunView<{ ID: string; Name: string }>({
-                    EntityName: 'MJ_BizApps_Tasks: Task Type Status',
-                    ExtraFilter: 'IsActive = 1',
-                    Fields: ['ID', 'Name'],
-                    OrderBy: 'Sequence ASC',
-                    ResultType: 'simple',
-                }),
-            ]);
-
-            this.bulkPeopleOptions = (peopleRes?.Results ?? []).map((p) => ({
-                ID: p.ID,
-                Label: `${p.FirstName ?? ''} ${p.LastName ?? ''}`.trim(),
-                EntityName: 'MJ_BizApps_Common: People',
-            }));
-            this.bulkRoleOptions = (this.ProviderToUse.Roles ?? []).map((r) => ({
-                ID: r.ID,
-                Label: r.Name,
-                EntityName: 'MJ: Roles',
-            }));
-            this.bulkTaskRoleOptions = (rolesRes?.Results ?? []).map((r) => ({ ID: r.ID, Label: r.Name }));
-            this.bulkOrgOptions = [...(orgsRes?.Results ?? [])]
-                .sort((a, b) => {
-                    if (Boolean(a.LinkedCompanyID) !== Boolean(b.LinkedCompanyID)) {
-                        return a.LinkedCompanyID ? -1 : 1;
-                    }
-                    return a.Name.localeCompare(b.Name);
-                })
-                .map((o) => ({
-                    ID: o.ID,
-                    Label: o.Name,
-                    Sublabel: o.LinkedCompanyID ? 'Company' : undefined,
-                }));
-            this.bulkCategoryOptions = (catsRes?.Results ?? []).map((c) => ({ ID: c.ID, Label: c.Name }));
-            this.bulkTaskTypeOptions = FilterGenericCreatableTaskTypes(typesRes?.Results ?? []).map((t) => ({
-                ID: t.ID,
-                Label: t.Name,
-            }));
-            this.bulkStageOptions = (stagesRes?.Results ?? []).map((s) => ({ ID: s.ID, Label: s.Name }));
-            this.bulkTagOptions = (tagsRes?.Results ?? []).map((t) => ({ ID: t.ID, Label: t.Name }));
+            const tasksRes = await this.createRunView().RunView<{
+                ID: string;
+                Name: string;
+                Description: string | null;
+                Status: string;
+                Priority: string;
+                DueAt: string | null;
+                PercentComplete: number | null;
+                HoursEstimated: number | null;
+                LoggedMinutes?: number | null;
+                ParentID: string | null;
+                TaskTypeStatus: string | null;
+                OrganizationID?: string | null;
+                Organization?: string | null;
+            }>({
+                EntityName: 'MJ_BizApps_Tasks: Tasks',
+                ExtraFilter: filters.join(' AND '),
+                OrderBy: 'Sequence ASC, DueAt ASC',
+                ResultType: 'simple',
+                BypassCache: true,
+            });
 
             const raw = tasksRes?.Results ?? [];
             const taskIds = raw.map((r) => r.ID);
+            const scopeFilter =
+                taskIds.length > 0 && taskIds.length <= 500
+                    ? `TaskID IN (${taskIds.map((id) => `'${EscapeSQLString(id)}'`).join(',')})`
+                    : undefined;
+
+            const emptyRes = Promise.resolve({ Results: [] as never[] });
+
+            const [assignmentsRes, rolesRes, tagLinksRes, tagsRes, orgsRes, catsRes, typesRes, stagesRes] =
+                await Promise.all([
+                    taskIds.length === 0
+                        ? emptyRes
+                        : this.createRunView().RunView<{
+                              TaskID: string;
+                              AssigneeEntityID: string;
+                              AssigneeRecordID: string;
+                              RoleID: string | null;
+                              Status: string | null;
+                          }>({
+                              EntityName: 'MJ_BizApps_Tasks: Task Assignments',
+                              ExtraFilter: scopeFilter,
+                              ResultType: 'simple',
+                              BypassCache: true,
+                          }),
+                    this.ReadOnly && taskIds.length === 0
+                        ? emptyRes
+                        : this.createRunView().RunView<{ ID: string; Name: string }>({
+                              EntityName: 'MJ_BizApps_Tasks: Task Roles',
+                              Fields: ['ID', 'Name'],
+                              OrderBy: 'Sequence ASC',
+                              ResultType: 'simple',
+                          }),
+                    taskIds.length === 0
+                        ? emptyRes
+                        : this.createRunView().RunView<{ TaskID: string; TagID: string }>({
+                              EntityName: 'MJ_BizApps_Tasks: Task Tag Links',
+                              ExtraFilter: scopeFilter,
+                              Fields: ['TaskID', 'TagID'],
+                              ResultType: 'simple',
+                          }),
+                    this.ReadOnly
+                        ? emptyRes
+                        : this.createRunView().RunView<{ ID: string; Name: string; ColorCode: string | null }>({
+                              EntityName: 'MJ_BizApps_Tasks: Task Tags',
+                              Fields: ['ID', 'Name', 'ColorCode'],
+                              OrderBy: 'Name ASC',
+                              ResultType: 'simple',
+                          }),
+                    this.ReadOnly
+                        ? emptyRes
+                        : this.createRunView().RunView<{ ID: string; Name: string; LinkedCompanyID: string | null }>({
+                              EntityName: 'MJ_BizApps_Common: Organizations',
+                              ExtraFilter: "Status = 'Active'",
+                              Fields: ['ID', 'Name', 'LinkedCompanyID'],
+                              OrderBy: 'Name ASC',
+                              ResultType: 'simple',
+                          }),
+                    this.ReadOnly
+                        ? emptyRes
+                        : this.createRunView().RunView<{ ID: string; Name: string }>({
+                              EntityName: 'MJ_BizApps_Tasks: Task Categories',
+                              ExtraFilter: 'IsActive = 1',
+                              Fields: ['ID', 'Name'],
+                              OrderBy: 'Sequence ASC, Name ASC',
+                              ResultType: 'simple',
+                          }),
+                    this.ReadOnly
+                        ? emptyRes
+                        : this.createRunView().RunView<TaskTypeLookupRow>({
+                              EntityName: 'MJ_BizApps_Tasks: Task Types',
+                              ExtraFilter: 'IsActive = 1',
+                              Fields: [...GENERIC_TASK_TYPE_FIELDS],
+                              OrderBy: 'Name ASC',
+                              ResultType: 'simple',
+                          }),
+                    this.ReadOnly
+                        ? emptyRes
+                        : this.createRunView().RunView<{ ID: string; Name: string }>({
+                              EntityName: 'MJ_BizApps_Tasks: Task Type Status',
+                              ExtraFilter: 'IsActive = 1',
+                              Fields: ['ID', 'Name'],
+                              OrderBy: 'Sequence ASC',
+                              ResultType: 'simple',
+                          }),
+                ]);
+
+            const rolesEntityID = this.ProviderToUse.EntityByName?.('MJ: Roles')?.ID ?? null;
+            const assignedPersonIds = [
+                ...new Set(
+                    (assignmentsRes?.Results ?? [])
+                        .filter((a) => !rolesEntityID || !UUIDsEqual(a.AssigneeEntityID, rolesEntityID))
+                        .map((a) => a.AssigneeRecordID)
+                        .filter(Boolean),
+                ),
+            ];
+            const linkedTagIds = [...new Set((tagLinksRes?.Results ?? []).map((tl) => tl.TagID).filter(Boolean))];
+
+            const [peopleRes, readOnlyTagsRes] = await Promise.all([
+                this.ReadOnly
+                    ? assignedPersonIds.length > 0 && assignedPersonIds.length <= 500
+                        ? this.createRunView().RunView<TaskListPersonRow>({
+                              EntityName: 'MJ_BizApps_Common: People',
+                              ExtraFilter: `ID IN (${assignedPersonIds.map((id) => `'${EscapeSQLString(id)}'`).join(',')})`,
+                              Fields: ['ID', 'FirstName', 'LastName'],
+                              ResultType: 'simple',
+                          })
+                        : emptyRes
+                    : this.createRunView().RunView<TaskListPersonRow>({
+                          EntityName: 'MJ_BizApps_Common: People',
+                          Fields: ['ID', 'FirstName', 'LastName'],
+                          OrderBy: 'FirstName ASC, LastName ASC',
+                          ResultType: 'simple',
+                      }),
+                this.ReadOnly && linkedTagIds.length > 0 && linkedTagIds.length <= 500
+                    ? this.createRunView().RunView<{ ID: string; Name: string; ColorCode: string | null }>({
+                          EntityName: 'MJ_BizApps_Tasks: Task Tags',
+                          ExtraFilter: `ID IN (${linkedTagIds.map((id) => `'${EscapeSQLString(id)}'`).join(',')})`,
+                          Fields: ['ID', 'Name', 'ColorCode'],
+                          ResultType: 'simple',
+                      })
+                    : emptyRes,
+            ]);
+
+            const effectiveTagRows = this.ReadOnly ? (readOnlyTagsRes?.Results ?? []) : (tagsRes?.Results ?? []);
+
+            if (!this.ReadOnly) {
+                this.bulkPeopleOptions = (peopleRes?.Results ?? []).map((p) => ({
+                    ID: p.ID,
+                    Label: `${p.FirstName ?? ''} ${p.LastName ?? ''}`.trim(),
+                    EntityName: 'MJ_BizApps_Common: People',
+                }));
+                this.bulkRoleOptions = (this.ProviderToUse.Roles ?? []).map((r) => ({
+                    ID: r.ID,
+                    Label: r.Name,
+                    EntityName: 'MJ: Roles',
+                }));
+                this.bulkTaskRoleOptions = (rolesRes?.Results ?? []).map((r) => ({ ID: r.ID, Label: r.Name }));
+                this.bulkOrgOptions = [...(orgsRes?.Results ?? [])]
+                    .sort((a, b) => {
+                        if (Boolean(a.LinkedCompanyID) !== Boolean(b.LinkedCompanyID)) {
+                            return a.LinkedCompanyID ? -1 : 1;
+                        }
+                        return a.Name.localeCompare(b.Name);
+                    })
+                    .map((o) => ({
+                        ID: o.ID,
+                        Label: o.Name,
+                        Sublabel: o.LinkedCompanyID ? 'Company' : undefined,
+                    }));
+                this.bulkCategoryOptions = (catsRes?.Results ?? []).map((c) => ({ ID: c.ID, Label: c.Name }));
+                this.bulkTaskTypeOptions = FilterGenericCreatableTaskTypes(typesRes?.Results ?? []).map((t) => ({
+                    ID: t.ID,
+                    Label: t.Name,
+                }));
+                this.bulkStageOptions = (stagesRes?.Results ?? []).map((s) => ({ ID: s.ID, Label: s.Name }));
+                this.bulkTagOptions = effectiveTagRows.map((t) => ({ ID: t.ID, Label: t.Name }));
+            }
+
             const [linksMap, suggestionsRes] = await Promise.all([
-                LoadTaskRecordLinks(taskIds).catch(() => new Map<string, TaskRecordLink[]>()),
-                TaskFieldSuggestionsHelper.LoadPendingSuggestions(this.ProviderToUse, { taskIds }).catch(() => ({
-                    available: false,
-                    byTaskId: new Map<string, TaskPendingSuggestionsSummary>(),
-                })),
+                taskIds.length > 0
+                    ? LoadTaskRecordLinks(taskIds).catch(() => new Map<string, TaskRecordLink[]>())
+                    : Promise.resolve(new Map<string, TaskRecordLink[]>()),
+                taskIds.length > 0
+                    ? TaskFieldSuggestionsHelper.LoadPendingSuggestions(this.ProviderToUse, { taskIds }).catch(() => ({
+                          available: false,
+                          byTaskId: new Map<string, TaskPendingSuggestionsSummary>(),
+                      }))
+                    : Promise.resolve({
+                          available: false,
+                          byTaskId: new Map<string, TaskPendingSuggestionsSummary>(),
+                      }),
             ]);
             this.fieldSuggestionsAvailable = suggestionsRes.available;
             this.pendingSuggestionsByTask = suggestionsRes.byTaskId;
@@ -1298,11 +1619,9 @@ export class TaskListComponent implements OnInit, OnChanges {
                 roleMap.set(r.ID.toLowerCase(), r.Name);
             }
             const tagMap = new Map<string, { Name: string; Color: string }>();
-            for (const t of tagsRes?.Results ?? []) {
+            for (const t of effectiveTagRows) {
                 tagMap.set(t.ID.toLowerCase(), { Name: t.Name, Color: t.ColorCode ?? 'var(--mj-brand-primary)' });
             }
-
-            const rolesEntityID = this.ProviderToUse.EntityByName?.('MJ: Roles')?.ID ?? null;
             const assigneesByTask = new Map<
                 string,
                 { Name: string; Role: string; Status: string; RecordID: string; EntityName: string; IsRole: boolean }[]
