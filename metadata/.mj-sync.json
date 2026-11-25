@@ -38,7 +38,10 @@
     "scheduled-jobs",
     "chief-of-staff-skills",
     "rhythm-templates",
-    "chief-of-staff-nav-items"
+    "chief-of-staff-nav-items",
+    "tours",
+    "learning-paths",
+    "tour-publications"
   ],
   "emitSyncNotes": false,
   "sqlLogging": {

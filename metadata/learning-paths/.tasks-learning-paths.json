@@ -1,0 +1,55 @@
+[
+  {
+    "fields": {
+      "Name": "Tasks, Approvals & Meetings Mastery",
+      "PathKey": "tasks.essentials",
+      "Description": "Master daily execution in Tasks and Meetings: My Work horizons, dependencies and decision logs, approvals, reusable templates, time tracking, and recurring meeting series.",
+      "ApplicationID": "@lookup:MJ: Applications.Name=Tasks",
+      "Status": "Active",
+      "Configuration": {
+        "AllowSkipOptional": true,
+        "ShowNextConcreteStep": true
+      }
+    },
+    "primaryKey": {
+      "ID": "15EFC543-EB76-4D1F-B853-0575F7309AAC"
+    },
+    "relatedEntities": {
+      "MJ: Learning Path Tours": [
+        {
+          "fields": {
+            "LearningPathID": "@parent:ID",
+            "TourID": "@lookup:MJ: Tours.TourKey=tasks.my-work-inbox",
+            "Sequence": 1,
+            "IsRequired": true
+          },
+          "primaryKey": {
+            "ID": "BD03ED2E-A8FA-41D1-B812-AF1FF737A280"
+          }
+        },
+        {
+          "fields": {
+            "LearningPathID": "@parent:ID",
+            "TourID": "@lookup:MJ: Tours.TourKey=tasks.approvals-templates-time",
+            "Sequence": 2,
+            "IsRequired": true
+          },
+          "primaryKey": {
+            "ID": "6AC9910E-208F-4782-8650-59CD3828B5B5"
+          }
+        },
+        {
+          "fields": {
+            "LearningPathID": "@parent:ID",
+            "TourID": "@lookup:MJ: Tours.TourKey=meetings.agendas-series",
+            "Sequence": 3,
+            "IsRequired": true
+          },
+          "primaryKey": {
+            "ID": "034FAAB4-F01C-441B-9FDF-83FC90980EC7"
+          }
+        }
+      ]
+    }
+  }
+]
