@@ -23,5 +23,7 @@ export * from './lib/new-meeting-dialog.component';
 
 export function LoadTasksMeetingWidgets(): void {}
 
-// Reusable Tasks L1/L2 widgets (zero Explorer or Router dependencies)
+// Reusable Tasks L1/L2 widgets (zero Explorer or Router dependencies).
+// NOTE: For pure WBS tree types & algorithms (TaskWbsNodeInput, TaskWbsNode, TaskWbsSummaryMetrics,
+// TaskWbsFlatRow, TaskBadgeDescriptor, BuildWbsTree, etc.), import directly from '@mj-biz-apps/tasks-core'.
 export * from './lib/tasks/index';

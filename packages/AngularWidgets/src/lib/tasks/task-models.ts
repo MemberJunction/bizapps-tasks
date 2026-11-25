@@ -6,6 +6,8 @@ import type {
 } from '@mj-biz-apps/tasks-entities';
 import type {
     TaskUiArchetype,
+    TaskWbsNode,
+    TaskWbsSummaryMetrics,
     TaskWorkspaceSummary,
     TasksBulkUpdateInput,
 } from '@mj-biz-apps/tasks-core';
@@ -75,15 +77,25 @@ export interface TaskWidgetTag {
     ColorCode: string | null;
 }
 
+/** Semantic kind badge rendered on WBS tree rows. */
+export type TaskWbsKindLabel = 'Phase' | 'Milestone' | 'Task' | 'Subtask';
+
+/** Semantic row highlight tone returned by a host RowToneResolver. */
+export type TaskWbsRowTone = 'default' | 'muted' | 'warning' | 'error' | 'info';
+
 /**
- * Rich L1/L2 view model for rendering a task across `<mjt-connected-tasks>`,
- * `<mjt-approval-card>`, `<mjt-mobile-milestone-stack>`, and Explorer dashboards.
+ * Rich L1/L2 view model for rendering a task across `<mjt-wbs-tree>`,
+ * `<mjt-connected-tasks>`, `<mjt-approval-card>`, `<mjt-mobile-milestone-stack>`,
+ * and Explorer dashboards.
  */
 export interface TaskWidgetItem extends TaskWorkspaceSummary {
-    Description: string | null;
+    Description?: string | null;
+    DueDate?: Date | string | null;
     TypeID?: string;
     TypeName?: string | null;
+    TaskTypeName?: string | null;
     TypeCode?: string | null;
+    KindLabel?: TaskWbsKindLabel | null;
     CategoryID?: string | null;
     CategoryName?: string | null;
     OrganizationID?: string | null;
@@ -92,6 +104,7 @@ export interface TaskWidgetItem extends TaskWorkspaceSummary {
     TaskTypeStatusName?: string | null;
     BlockedReason?: string | null;
     Assignees?: TaskWidgetAssignee[];
+    AssigneeNames?: readonly string[];
     LinkedRecords?: TaskWidgetLinkedRecord[];
     Tags?: TaskWidgetTag[];
     ChildCount?: number;
@@ -101,6 +114,52 @@ export interface TaskWidgetItem extends TaskWorkspaceSummary {
     OnCompleteActionName?: string | null;
     OnRejectActionName?: string | null;
     OnCancelActionName?: string | null;
+}
+
+/** Portfolio / multi-section WBS group rendered by `<mjt-wbs-tree [Groups]>`. */
+export interface TaskWbsGroup<TData = object> {
+    ID: string;
+    Title: string;
+    Subtitle?: string;
+    TagLabel?: string;
+    IsNested?: boolean;
+    Tasks: readonly TaskWidgetItem[];
+    Data?: TData;
+}
+
+/** Declarative custom filter chip accepted by `<mjt-wbs-tree [CustomFilters]>`. */
+export interface TaskWbsFilterDef {
+    Key: string;
+    Label: string;
+    Icon?: string;
+    Predicate: (task: TaskWidgetItem) => boolean;
+}
+
+/** KPI tile rendered by `<mjt-wbs-summary-strip>`. */
+export interface TaskSummaryTile {
+    Key: string;
+    Label: string;
+    Value: string | number;
+    Subtext?: string;
+    Icon?: string;
+    Tone?: 'default' | 'info' | 'success' | 'warning' | 'error';
+    Alert?: boolean;
+    ProgressPercent?: number | null;
+}
+
+/** Template context passed to `<mjt-wbs-tree>` and `<bizapps-task-list>` `#rowBadges` and `#rowMeta` slots. */
+export interface TaskWbsRowTemplateContext {
+    $implicit: TaskWidgetItem;
+    node?: TaskWbsNode<TaskWidgetItem>;
+    wbsCode?: string;
+    depth?: number;
+}
+
+/** Template context passed to `<mjt-wbs-tree>` `#groupHeaderMeta`, `#groupHeaderActions`, and `#groupFooter` slots. */
+export interface TaskWbsGroupTemplateContext<TData = object> {
+    $implicit: TaskWbsGroup<TData>;
+    summary: TaskWbsSummaryMetrics;
+    expanded: boolean;
 }
 
 /** Payload emitted when the user submits a quick-captured task. */

@@ -26,7 +26,9 @@ import type { TaskApprovalActionEvent, TaskWidgetItem, TaskWidgetLinkedRecord } 
                             <i class="fa-solid fa-stamp" aria-hidden="true"></i> Approval
                         </span>
                         <h4 class="mjt-app-title">{{ Task.Name }}</h4>
+                    @if (Task.Priority) {
                         <span class="mjt-pill" [class]="priorityPillClass(Task.Priority)">{{ Task.Priority }}</span>
+                    }
                     </div>
 
                     @if (Task.Description && !Compact) {

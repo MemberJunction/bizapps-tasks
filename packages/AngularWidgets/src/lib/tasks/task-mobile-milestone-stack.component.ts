@@ -74,9 +74,9 @@ import type { TaskStatusValue, TaskWidgetItem } from './task-models';
                                                 }
                                             </div>
                                         </div>
-                                        <span class="mjt-ms-pct mjt-mono">{{ task.PercentComplete }}%</span>
+                                        <span class="mjt-ms-pct mjt-mono">{{ task.PercentComplete ?? 0 }}%</span>
                                     </div>
-                                    <mj-progress-bar [Value]="task.PercentComplete"></mj-progress-bar>
+                                    <mj-progress-bar [Value]="task.PercentComplete ?? 0"></mj-progress-bar>
                                 </article>
                             }
                         </div>

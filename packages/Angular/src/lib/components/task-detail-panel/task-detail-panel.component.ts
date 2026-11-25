@@ -2,14 +2,16 @@ import {
     ChangeDetectionStrategy,
     ChangeDetectorRef,
     Component,
+    ContentChild,
     EventEmitter,
     Input,
     OnChanges,
     Output,
     SimpleChanges,
+    TemplateRef,
     inject,
 } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CompositeKey, Metadata, RunView, type IMetadataProvider, type IRunViewProvider } from '@memberjunction/core';
 import { EscapeSQLString, IsValidUUID, NormalizeUUID, UUIDsEqual } from '@memberjunction/global';
@@ -96,6 +98,12 @@ export class BeforeCommentPostedEvent {
     ) {}
 }
 
+/** Template context passed to `<bizapps-task-detail-panel>` `#detailTopExtension`. */
+export interface TaskDetailTopExtensionContext {
+    $implicit: string;
+    taskId: string;
+}
+
 /**
  * Zero-Bounce Inline Task Inspector (L3 Explorer component).
  *
@@ -111,6 +119,7 @@ export class BeforeCommentPostedEvent {
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         DatePipe,
+        NgTemplateOutlet,
         FormsModule,
         BaseFormsModule,
         MJButtonDirective,
@@ -153,10 +162,12 @@ export class BeforeCommentPostedEvent {
                                     <span>{{ autoSaveState === 'saving' ? 'Saving...' : 'Auto-saved' }}</span>
                                 </span>
                             }
-                            <button type="button" mjButton variant="outline" size="sm" (click)="onOpenFullRecord()" title="Open full Task record">
-                                <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
-                                <span>Open Form</span>
-                            </button>
+                            @if (ShowOpenForm) {
+                                <button type="button" mjButton variant="outline" size="sm" (click)="onOpenFullRecord()" title="Open full Task record">
+                                    <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
+                                    <span>Open Form</span>
+                                </button>
+                            }
                             @if (ShowDelete && !ReadOnly) {
                                 @if (!confirmingDelete) {
                                     <button type="button" mjButton variant="flat" size="sm" aria-label="Delete task" (click)="confirmingDelete = true">
@@ -199,6 +210,18 @@ export class BeforeCommentPostedEvent {
                             [ReadOnly]="ReadOnly || busy"
                             (StageSelected)="onStageSelected($event)">
                         </mjt-workflow-stepper>
+                    }
+
+                    <!-- Optional Host Extension Slot (e.g. linked PR/Issue badge) -->
+                    @if (EffectiveDetailTopExtensionTemplate && TaskID) {
+                        <div class="mjt-insp-top-ext">
+                            <ng-container
+                                *ngTemplateOutlet="
+                                    EffectiveDetailTopExtensionTemplate;
+                                    context: { $implicit: TaskID, taskId: TaskID }
+                                ">
+                            </ng-container>
+                        </div>
                     }
 
                     <!-- Inline Editable Meta Strip (Status / Priority / Due) -->
@@ -271,9 +294,11 @@ export class BeforeCommentPostedEvent {
                                     <p>{{ pendingSuggestionSummary.topPreviewLabel }}</p>
                                 }
                             </div>
-                            <button type="button" mjButton variant="outline" size="sm" (click)="onOpenFullRecord()">
-                                Review
-                            </button>
+                            @if (ShowOpenForm) {
+                                <button type="button" mjButton variant="outline" size="sm" (click)="onOpenFullRecord()">
+                                    Review
+                                </button>
+                            }
                         </div>
                     }
 
@@ -356,11 +381,13 @@ export class BeforeCommentPostedEvent {
                     </div>
 
                     <!-- Time & Effort -->
-                    <bizapps-task-time-effort
-                        [TaskID]="TaskID"
-                        [PersonID]="PersonID"
-                        [ReadOnly]="ReadOnly">
-                    </bizapps-task-time-effort>
+                    @if (ShowTimeEffort) {
+                        <bizapps-task-time-effort
+                            [TaskID]="TaskID"
+                            [PersonID]="PersonID"
+                            [ReadOnly]="ReadOnly">
+                        </bizapps-task-time-effort>
+                    }
 
                     <!-- Work Breakdown (Sub-tasks) -->
                     <div class="mjt-block">
@@ -831,6 +858,18 @@ export class TaskDetailPanelComponent implements OnChanges {
     @Input() PersonID: string | null = null;
     @Input() ShowDelete = false;
     @Input() ReadOnly = false;
+    /** Controls visibility of the Explorer "Open Form" button. */
+    @Input() ShowOpenForm = true;
+    /** Controls visibility of the Time & Effort tracking section. */
+    @Input() ShowTimeEffort = true;
+    /** Optional forwarded template for `#detailTopExtension` (e.g. from TaskPanelComponent). */
+    @Input() DetailTopExtensionTemplate: TemplateRef<TaskDetailTopExtensionContext> | null = null;
+
+    @ContentChild('detailTopExtension') public contentDetailTopExtension?: TemplateRef<TaskDetailTopExtensionContext>;
+
+    public get EffectiveDetailTopExtensionTemplate(): TemplateRef<TaskDetailTopExtensionContext> | null {
+        return this.contentDetailTopExtension ?? this.DetailTopExtensionTemplate ?? null;
+    }
 
     public get ProviderToUse(): IMetadataProvider {
         return this.Provider ?? Metadata.Provider;
@@ -983,9 +1022,8 @@ export class TaskDetailPanelComponent implements OnChanges {
 
     private async loadTypeAndSpotlight(): Promise<void> {
         if (!this.taskEntity) return;
-        const rv = new RunView();
         const [typeRes, statusesRes, depsRes] = await Promise.all([
-            rv.RunView<{
+            this.createRunView().RunView<{
                 ID: string;
                 Name: string;
                 Code: string;
@@ -999,13 +1037,13 @@ export class TaskDetailPanelComponent implements OnChanges {
                 MaxRows: 1,
                 ResultType: 'simple',
             }),
-            new RunView().RunView<TaskWidgetTypeStatus>({
+            this.createRunView().RunView<TaskWidgetTypeStatus>({
                 EntityName: 'MJ_BizApps_Tasks: Task Type Status',
                 ExtraFilter: `TaskTypeID = '${EscapeSQLString(this.taskEntity.TypeID)}' AND IsActive = 1`,
                 OrderBy: 'Sequence ASC',
                 ResultType: 'simple',
             }),
-            new RunView().RunView<{ DependsOnTask: string }>({
+            this.createRunView().RunView<{ DependsOnTask: string }>({
                 EntityName: 'MJ_BizApps_Tasks: Task Dependencies',
                 ExtraFilter: `TaskID = '${EscapeSQLString(this.taskEntity.ID)}'`,
                 Fields: ['DependsOnTask'],
@@ -1088,7 +1126,7 @@ export class TaskDetailPanelComponent implements OnChanges {
                 EntityName: l.EntityName,
                 RecordID: l.RecordID,
                 DisplayName: l.Name,
-                IconClass: Metadata.Provider.EntityByName(l.EntityName)?.Icon || 'fa-solid fa-link',
+                IconClass: this.ProviderToUse.EntityByName(l.EntityName)?.Icon || 'fa-solid fa-link',
             }));
         } catch {
             this.linkedRecords = [];
@@ -1097,7 +1135,7 @@ export class TaskDetailPanelComponent implements OnChanges {
 
     private async loadSubtasks(): Promise<void> {
         if (!this.TaskID) return;
-        const res = await new RunView().RunView<ChildSubtaskRow>({
+        const res = await this.createRunView().RunView<ChildSubtaskRow>({
             EntityName: 'MJ_BizApps_Tasks: Tasks',
             ExtraFilter: `ParentID = '${EscapeSQLString(this.TaskID)}' AND Status <> 'Cancelled'`,
             Fields: ['ID', 'Name', 'Status', 'Priority', 'PercentComplete'],
@@ -1354,7 +1392,7 @@ export class TaskDetailPanelComponent implements OnChanges {
         this.busy = true;
         this.cdr.markForCheck();
         try {
-            const entity = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskAssignmentEntity>('MJ_BizApps_Tasks: Task Assignments');
+            const entity = await this.ProviderToUse.GetEntityObject<mjBizAppsTasksTaskAssignmentEntity>('MJ_BizApps_Tasks: Task Assignments');
             await entity.InnerLoad(CompositeKey.FromID(row.AssignmentID));
             entity.Status = next;
             if (await entity.Save()) {
@@ -1370,10 +1408,10 @@ export class TaskDetailPanelComponent implements OnChanges {
     public async onLinkRecordSelected(rec: TaskWidgetLinkedRecord): Promise<void> {
         this.showLinkPicker = false;
         if (!this.TaskID) return;
-        const entity = Metadata.Provider.EntityByName(rec.EntityName);
+        const entity = this.ProviderToUse.EntityByName(rec.EntityName);
         if (!entity) return;
 
-        const link = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskLinkEntity>('MJ_BizApps_Tasks: Task Links');
+        const link = await this.ProviderToUse.GetEntityObject<mjBizAppsTasksTaskLinkEntity>('MJ_BizApps_Tasks: Task Links');
         link.NewRecord();
         link.TaskID = this.TaskID;
         link.EntityID = entity.ID;
@@ -1393,7 +1431,7 @@ export class TaskDetailPanelComponent implements OnChanges {
         this.busy = true;
         this.cdr.markForCheck();
         try {
-            const entity = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
+            const entity = await this.ProviderToUse.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
             await entity.InnerLoad(CompositeKey.FromID(child.ID));
             entity.Status = nextStatus;
             entity.PercentComplete = nextStatus === 'Completed' ? 100 : 0;
@@ -1414,7 +1452,7 @@ export class TaskDetailPanelComponent implements OnChanges {
         this.busy = true;
         this.cdr.markForCheck();
         try {
-            const child = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
+            const child = await this.ProviderToUse.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
             child.NewRecord();
             child.Name = title;
             child.ParentID = this.taskEntity.ID;
@@ -1462,11 +1500,11 @@ export class TaskDetailPanelComponent implements OnChanges {
         this.busy = true;
         this.cdr.markForCheck();
         try {
-            const ci = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskCheckInEntity>('MJ_BizApps_Tasks: Task Check Ins');
+            const ci = await this.ProviderToUse.GetEntityObject<mjBizAppsTasksTaskCheckInEntity>('MJ_BizApps_Tasks: Task Check Ins');
             ci.NewRecord();
             ci.TaskID = event.TaskID;
             ci.AuthorPersonID = this.PersonID;
-            ci.AuthorUserID = Metadata.Provider.CurrentUser?.ID ?? null;
+            ci.AuthorUserID = this.ProviderToUse.CurrentUser?.ID ?? null;
             ci.CheckInAt = new Date();
             ci.HealthStatus = event.HealthStatus;
             ci.ConfidenceScore = event.ConfidenceScore;
@@ -1501,7 +1539,7 @@ export class TaskDetailPanelComponent implements OnChanges {
         this.BeforeCommentPosted.emit(before);
         if (before.Cancel) return;
 
-        const comment = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskCommentEntity>('MJ_BizApps_Tasks: Task Comments');
+        const comment = await this.ProviderToUse.GetEntityObject<mjBizAppsTasksTaskCommentEntity>('MJ_BizApps_Tasks: Task Comments');
         comment.NewRecord();
         comment.TaskID = this.TaskID;
         if (this.PersonID) comment.PersonID = this.PersonID;
@@ -1522,7 +1560,7 @@ export class TaskDetailPanelComponent implements OnChanges {
     public async onDelete(): Promise<void> {
         this.confirmingDelete = false;
         if (!this.TaskID || !IsValidUUID(this.TaskID)) return;
-        const entity = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
+        const entity = await this.ProviderToUse.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
         const pk = new CompositeKey([{ FieldName: 'ID', Value: this.TaskID }]);
         const loaded = await entity.InnerLoad(pk);
         if (!loaded) return;

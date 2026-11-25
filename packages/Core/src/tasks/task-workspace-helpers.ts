@@ -7,19 +7,19 @@ import type {
 export interface TaskWorkspaceSummary {
     ID: string;
     Name: string;
-    ParentID: string | null;
+    ParentID?: string | null;
     Status: mjBizAppsTasksTaskEntity['Status'];
-    Priority: mjBizAppsTasksTaskEntity['Priority'];
-    DueAt: Date | string | null;
+    Priority?: mjBizAppsTasksTaskEntity['Priority'];
+    DueAt?: Date | string | null;
     StartedAt?: Date | string | null;
-    PercentComplete: number;
+    PercentComplete?: number | null;
     IsApproval?: boolean;
     HasPendingDecision?: boolean;
     PredictedSLARiskBand?: mjBizAppsTasksTaskEntity['PredictedSLARiskBand'];
     PredictedSLABreachProbability?: number | null;
     HoursEstimated?: number | null;
     HoursActual?: number | null;
-    Sequence?: number;
+    Sequence?: number | null;
 }
 
 /** Action Horizon bucket for the My Work workspace. */

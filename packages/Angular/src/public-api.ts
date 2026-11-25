@@ -39,6 +39,9 @@ export * from './lib/generated/generated-forms.module.js';
 export * from './lib/tasks.module.js';
 
 // Standalone components
+// NOTE: For pure WBS tree types/algorithms import from '@mj-biz-apps/tasks-core';
+// for L1/L2 presentational widgets (TaskWbsTreeComponent, TaskWbsSummaryStripComponent,
+// TaskWidgetItem, TaskWbsGroup, etc.) import directly from '@mj-biz-apps/tasks-ng-widgets'.
 export * from './lib/components/task-priority-badge/task-priority-badge.component.js';
 export * from './lib/components/task-assignee-list/task-assignee-list.component.js';
 export * from './lib/components/task-bulk-actions-bar/task-bulk-actions-bar.component.js';

@@ -14,7 +14,7 @@ import {
     ViewChild,
     inject,
 } from '@angular/core';
-import { CompositeKey, Metadata, RunView } from '@memberjunction/core';
+import { CompositeKey, Metadata, RunView, type IMetadataProvider, type IRunViewProvider } from '@memberjunction/core';
 import { EscapeSQLString, UUIDsEqual } from '@memberjunction/global';
 import { UserInfoEngine } from '@memberjunction/core-entities';
 import {
@@ -63,6 +63,14 @@ import {
 import type { TaskClickRow } from '../task-kanban/task-kanban.component';
 
 const TASK_ID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+/** Controlled dependency edge accepted by `<bizapps-task-gantt [Dependencies]>`. */
+export interface TaskGanttDependencyInput {
+    ID?: string;
+    TaskID: string;
+    DependsOnTaskID: string;
+    DependencyType?: mjBizAppsTasksTaskDependencyEntity['DependencyType'];
+}
 
 interface GanttTaskRow {
     ID: string;
@@ -298,6 +306,11 @@ function escapeGanttHtml(raw: string): string {
     `],
 })
 export class TaskGanttComponent implements OnInit, AfterViewInit, OnChanges, OnDestroy {
+    @Input() Provider: IMetadataProvider | null = null;
+    /** Optional pre-loaded controlled tasks. When non-null, zero internal RunView queries fire. */
+    @Input() Tasks: readonly TaskWidgetItem[] | null = null;
+    /** Optional pre-loaded dependency edges paired with `[Tasks]`. */
+    @Input() Dependencies: readonly TaskGanttDependencyInput[] | null = null;
     @Input() CategoryID: string | null = null;
     @Input() ParentTaskID: string | null = null;
     @Input() IncludeParentSummary = true;
@@ -315,6 +328,18 @@ export class TaskGanttComponent implements OnInit, AfterViewInit, OnChanges, OnD
     @Input() Columns: GanttColumnDef[] | null = null;
     @Input() EnableBulkSelect = false;
     @Input() SelectedIDs: string[] = [];
+
+    public get ProviderToUse(): IMetadataProvider {
+        return this.Provider ?? Metadata.Provider;
+    }
+
+    private createRunView(): RunView {
+        const p = this.ProviderToUse;
+        if (p && typeof (p as Partial<IRunViewProvider>).RunView === 'function') {
+            return RunView.FromMetadataProvider(p);
+        }
+        return new RunView();
+    }
 
     @Output() TaskClicked = new EventEmitter<string>();
     @Output() TaskRowClicked = new EventEmitter<TaskClickRow>();
@@ -569,12 +594,20 @@ export class TaskGanttComponent implements OnInit, AfterViewInit, OnChanges, OnD
             }
         });
 
-        this.Pref = ParseTasksGanttPref(
-            UserInfoEngine.Instance.GetSetting(TASKS_GANTT_PREF_SETTING),
-            UserInfoEngine.Instance.GetSetting(TASKS_GANTT_ZOOM_SETTING),
-        );
-        this.ZoomLevel = this.Pref.zoomLevel;
-        void this.LoadData();
+        try {
+            this.Pref = ParseTasksGanttPref(
+                UserInfoEngine.Instance.GetSetting(TASKS_GANTT_PREF_SETTING),
+                UserInfoEngine.Instance.GetSetting(TASKS_GANTT_ZOOM_SETTING),
+            );
+            this.ZoomLevel = this.Pref.zoomLevel;
+        } catch {
+            // UserInfoEngine may not be initialized in isolated unit tests
+        }
+        if (this.Tasks !== null) {
+            this.applyControlledData();
+        } else {
+            void this.LoadData();
+        }
     }
 
     public ngAfterViewInit(): void {
@@ -621,13 +654,23 @@ export class TaskGanttComponent implements OnInit, AfterViewInit, OnChanges, OnD
             this.syncCheckboxStatesInDom();
             this.scheduleBarDecoration();
         }
+        if (changes['Tasks'] || changes['Dependencies']) {
+            if (this.Tasks !== null) {
+                this.applyControlledData();
+                return;
+            } else if (changes['Tasks'] && !changes['Tasks'].firstChange) {
+                void this.LoadData();
+                return;
+            }
+        }
         if (
-            changes['CategoryID'] ||
-            changes['ParentTaskID'] ||
-            changes['ExtraFilter'] ||
-            changes['PriorityFilter'] ||
-            changes['TypeIDFilter'] ||
-            changes['OrganizationIDFilter']
+            this.Tasks === null &&
+            (changes['CategoryID'] ||
+                changes['ParentTaskID'] ||
+                changes['ExtraFilter'] ||
+                changes['PriorityFilter'] ||
+                changes['TypeIDFilter'] ||
+                changes['OrganizationIDFilter'])
         ) {
             void this.LoadData();
         } else if (
@@ -640,14 +683,103 @@ export class TaskGanttComponent implements OnInit, AfterViewInit, OnChanges, OnD
     }
 
     public Refresh(): void {
+        if (this.Tasks !== null) {
+            this.applyControlledData();
+            return;
+        }
         void this.LoadData();
     }
 
+    private applyControlledData(): void {
+        const inputTasks = this.Tasks ?? [];
+        this.rawTasks = inputTasks
+            .filter((t) => t.Status !== 'Cancelled')
+            .map((t, idx) => {
+                const startRaw = t.StartedAt ?? null;
+                const startIso = startRaw instanceof Date ? startRaw.toISOString() : startRaw;
+                const dueRaw = t.DueAt ?? t.DueDate ?? null;
+                const dueIso = dueRaw instanceof Date ? dueRaw.toISOString() : dueRaw;
+                return {
+                    ID: t.ID,
+                    Name: t.Name,
+                    Description: t.Description ?? null,
+                    StartedAt: startIso,
+                    DueAt: dueIso,
+                    PercentComplete: t.PercentComplete ?? 0,
+                    HoursEstimated: t.HoursEstimated ?? null,
+                    ParentID: t.ParentID ?? null,
+                    Status: t.Status,
+                    Priority: t.Priority ?? 'Medium',
+                    TaskTypeStatus: t.TaskTypeStatusName ?? null,
+                    OrganizationID: t.OrganizationID ?? null,
+                    Organization: t.OrganizationName ?? null,
+                    Sequence: t.Sequence ?? idx + 1,
+                };
+            });
+
+        this.rawDeps = (this.Dependencies ?? []).map((d, idx) => ({
+            ID: d.ID || `${d.DependsOnTaskID}->${d.TaskID}:${idx}`,
+            TaskID: d.TaskID,
+            DependsOnTaskID: d.DependsOnTaskID,
+            DependencyType: d.DependencyType ?? 'FinishToStart',
+        }));
+
+        this.assigneesByTask.clear();
+        for (const t of inputTasks) {
+            const tKey = t.ID.toLowerCase();
+            if (t.Assignees && t.Assignees.length > 0) {
+                this.assigneesByTask.set(
+                    tKey,
+                    t.Assignees.map((a) => ({
+                        EntityName: a.EntityName ?? 'MJ_BizApps_Common: People',
+                        RecordID: a.RecordID,
+                        DisplayName: a.DisplayName,
+                        IsRole: Boolean(a.IsRole),
+                    })),
+                );
+            } else if (t.AssigneeNames && t.AssigneeNames.length > 0) {
+                this.assigneesByTask.set(
+                    tKey,
+                    t.AssigneeNames.map((name, idx) => ({
+                        EntityName: 'MJ_BizApps_Common: People',
+                        RecordID: `name:${idx}:${name}`,
+                        DisplayName: name,
+                        IsRole: false,
+                    })),
+                );
+            }
+        }
+
+        this.orgNameByTask.clear();
+        this.dueDateByTask.clear();
+        this.statusByTask.clear();
+        for (const t of this.rawTasks) {
+            const key = t.ID.toLowerCase();
+            if (t.Organization) {
+                this.orgNameByTask.set(key, t.Organization);
+            }
+            if (t.DueAt) {
+                this.dueDateByTask.set(
+                    key,
+                    new Date(t.DueAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                );
+            }
+            this.statusByTask.set(key, t.Status);
+        }
+
+        this.loading = false;
+        this.rebuildViewModels();
+    }
+
     public async LoadData(): Promise<void> {
+        if (this.Tasks !== null) {
+            this.applyControlledData();
+            return;
+        }
         this.loading = true;
         this.cdr.markForCheck();
         try {
-            const rv = new RunView();
+            const rv = this.createRunView();
             const filters: string[] = ["Status <> 'Cancelled'"];
 
             if (this.ParentTaskID) {
@@ -669,20 +801,13 @@ export class TaskGanttComponent implements OnInit, AfterViewInit, OnChanges, OnD
                 if (this.ExtraFilter) filters.push(this.ExtraFilter);
             }
 
-            const [tasksResult, peopleResult] = await Promise.all([
-                rv.RunView<GanttTaskRow>({
-                    EntityName: 'MJ_BizApps_Tasks: Tasks',
-                    ExtraFilter: filters.join(' AND '),
-                    OrderBy: 'Sequence ASC',
-                    ResultType: 'simple',
-                    MaxRows: 500,
-                }),
-                new RunView().RunView<{ ID: string; FirstName: string; LastName: string }>({
-                    EntityName: 'MJ_BizApps_Common: People',
-                    Fields: ['ID', 'FirstName', 'LastName'],
-                    ResultType: 'simple',
-                }),
-            ]);
+            const tasksResult = await rv.RunView<GanttTaskRow>({
+                EntityName: 'MJ_BizApps_Tasks: Tasks',
+                ExtraFilter: filters.join(' AND '),
+                OrderBy: 'Sequence ASC',
+                ResultType: 'simple',
+                MaxRows: 500,
+            });
 
             this.rawTasks = tasksResult?.Results ?? [];
             const taskIds = this.rawTasks.map((t) => t.ID).filter((id) => TASK_ID_RE.test(id));
@@ -690,7 +815,7 @@ export class TaskGanttComponent implements OnInit, AfterViewInit, OnChanges, OnD
                 taskIds.length === 0
                     ? [null, null]
                     : await Promise.all([
-                          new RunView().RunView<{
+                          this.createRunView().RunView<{
                               ID: string;
                               TaskID: string;
                               DependsOnTaskID: string;
@@ -701,7 +826,7 @@ export class TaskGanttComponent implements OnInit, AfterViewInit, OnChanges, OnD
                               ResultType: 'simple',
                               MaxRows: 500,
                           }),
-                          new RunView().RunView<{ TaskID: string; AssigneeEntityID: string; AssigneeRecordID: string }>({
+                          this.createRunView().RunView<{ TaskID: string; AssigneeEntityID: string; AssigneeRecordID: string }>({
                               EntityName: 'MJ_BizApps_Tasks: Task Assignments',
                               ExtraFilter: `TaskID IN (${taskIds.map((id) => `'${id}'`).join(',')})`,
                               Fields: ['TaskID', 'AssigneeEntityID', 'AssigneeRecordID'],
@@ -711,11 +836,32 @@ export class TaskGanttComponent implements OnInit, AfterViewInit, OnChanges, OnD
                       ]);
             this.rawDeps = depsResult?.Results ?? [];
 
+            const rolesEntityID = this.ProviderToUse.EntityByName?.('MJ: Roles')?.ID?.toLowerCase() ?? null;
+            const assignedPersonIds = [
+                ...new Set(
+                    (assignResult?.Results ?? [])
+                        .filter((a) => !rolesEntityID || a.AssigneeEntityID.toLowerCase() !== rolesEntityID)
+                        .map((a) => a.AssigneeRecordID)
+                        .filter(Boolean),
+                ),
+            ];
+            const peopleResult =
+                assignedPersonIds.length === 0
+                    ? null
+                    : await this.createRunView().RunView<{ ID: string; FirstName: string; LastName: string }>({
+                          EntityName: 'MJ_BizApps_Common: People',
+                          ExtraFilter:
+                              assignedPersonIds.length <= 500
+                                  ? `ID IN (${assignedPersonIds.map((id) => `'${EscapeSQLString(id)}'`).join(',')})`
+                                  : undefined,
+                          Fields: ['ID', 'FirstName', 'LastName'],
+                          ResultType: 'simple',
+                      });
+
             const personMap = new Map<string, string>();
             for (const p of peopleResult?.Results ?? []) {
                 personMap.set(p.ID.toLowerCase(), `${p.FirstName ?? ''} ${p.LastName ?? ''}`.trim());
             }
-            const rolesEntityID = Metadata.Provider.EntityByName('MJ: Roles')?.ID?.toLowerCase() ?? null;
 
             this.assigneesByTask.clear();
             for (const a of assignResult?.Results ?? []) {
@@ -930,7 +1076,7 @@ export class TaskGanttComponent implements OnInit, AfterViewInit, OnChanges, OnD
 
     public async onMobileStatusToggle(event: { TaskID: string; NewStatus: TaskStatusValue }): Promise<void> {
         if (this.ReadOnly) return;
-        const entity = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
+        const entity = await this.ProviderToUse.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
         await entity.InnerLoad(CompositeKey.FromID(event.TaskID));
         entity.Status = event.NewStatus;
         entity.PercentComplete = event.NewStatus === 'Completed' ? 100 : 0;
