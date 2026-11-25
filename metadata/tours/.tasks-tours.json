@@ -206,7 +206,16 @@
             "TourID": "@parent:ID",
             "FromStepID": "0EA70CBB-1C26-4449-A041-EFD91BA8A92B",
             "ToStepID": "250DCD92-03CB-43C3-A4B5-615B00297ACC",
-            "Condition": "Choice:dependencies",
+            "Condition": {
+              "logic": "and",
+              "filters": [
+                {
+                  "field": "lastChoiceKey",
+                  "operator": "eq",
+                  "value": "dependencies"
+                }
+              ]
+            },
             "Label": "Dependencies & Blockers",
             "Priority": 100,
             "Sequence": 1,
@@ -221,7 +230,16 @@
             "TourID": "@parent:ID",
             "FromStepID": "0EA70CBB-1C26-4449-A041-EFD91BA8A92B",
             "ToStepID": "450EDF6F-4758-4D88-A269-A9D76CCAD3ED",
-            "Condition": "Choice:decisions",
+            "Condition": {
+              "logic": "and",
+              "filters": [
+                {
+                  "field": "lastChoiceKey",
+                  "operator": "eq",
+                  "value": "decisions"
+                }
+              ]
+            },
             "Label": "Decisions & Escalations",
             "Priority": 90,
             "Sequence": 2,
