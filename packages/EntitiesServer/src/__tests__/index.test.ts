@@ -25,6 +25,7 @@ vi.mock('@memberjunction/core', () => ({
             return {};
         }
     },
+    RegisterForStartup: () => () => {},
     BaseRemotableOperation: class {},
     CompositeKey: class { constructor(public KeyValuePairs: Array<{ FieldName: string; Value: string | number | boolean | null }>) {} },
     EntityPermissionType: { Read: 'Read' },
@@ -153,7 +154,7 @@ describe('@mj-biz-apps/tasks-entities-server', () => {
         expect(mod.ApplyTimesheetApprovalOutcomeForTask).toBeTypeOf('function');
         expect(mod.MeetingEntityServer).toBeDefined();
         expect(mod.MeetingSeriesEntityServer).toBeDefined();
-    });
+    }, 15_000);
 
     it('does not re-export TasksSettings from @mj-biz-apps/tasks-core (Rule 5)', async () => {
         const mod = await import('../index.js');

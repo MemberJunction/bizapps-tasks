@@ -41,6 +41,13 @@ vi.mock('@memberjunction/core', () => {
     }
     return {
         BaseEntity: class {},
+        BaseEngine: class {
+            public static getInstance() {
+                return {};
+            }
+        },
+        RegisterForStartup: () => () => {},
+        Metadata: { Provider: {} },
         CompositeKey: class {
             public KeyValuePairs: unknown[] = [];
         },

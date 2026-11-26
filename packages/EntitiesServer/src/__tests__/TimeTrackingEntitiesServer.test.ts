@@ -133,6 +133,7 @@ vi.mock('@memberjunction/core', () => {
                 return {};
             }
         },
+        RegisterForStartup: () => () => {},
         BaseRemotableOperation: class {},
         EntityPermissionType: { Read: 'Read' },
         LogError: vi.fn(),
