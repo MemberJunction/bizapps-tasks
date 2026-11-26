@@ -279,6 +279,23 @@ All `bizapps-tasks` packages (`@mj-biz-apps/tasks-core`, `@mj-biz-apps/tasks-ng`
 
 ---
 
+### 11. MJ DOCS (`MJ: Artifacts`) VS. `MJ: Comments` VS. QUICK NOTES RUBRIC
+
+All text- and document-bearing entities in `bizapps-tasks` follow a strict 3-category storage rubric so long-form documents gain MJ Docs versioning/rendering without bloating high-frequency relational notes:
+
+| Category | Pattern | BizApps Tasks Entities | Storage & UX Rules |
+| :--- | :--- | :--- | :--- |
+| **Category A — Direct MJ Doc Backing** | Nullable `ArtifactID` FK (`[__mj].[Artifact]([ID])`) + filtered index (`WHERE [ArtifactID] IS NOT NULL`) | `WorkReport` | Canonical executive / AI-authored reports store versioned content in `MJ: Artifacts` + `MJ: Artifact Versions`. Resolve in batch via `ArtifactDualReadResolver` (`ResultType: 'simple'`, chunked `ID IN (...)`) and render with `<mj-artifact-viewer-panel>`, falling back cleanly to legacy `Body` when `ArtifactID IS NULL` or inaccessible. Never drop or rename `Body` within `1.x` (`PUBLISH_NO_BREAK_POLICY.md`). |
+| **Category B — Hybrid Scratchpad + Publishable MJ Doc** | Nullable `ArtifactID` FK + preserved fast `Body` & structured JSON | `MeetingNote` (`Body` + `ProposedTasks` JSON) | Keep live collaborative editing and structured extraction (`ProposedTasks`) fast on the entity row. Provide an explicit, idempotent **Publish as MJ Doc** server action (`Tasks.PublishMeetingNoteAsMJDoc` / `PublishMeetingNoteAsMJDocAction`) that creates `MJ: Artifacts` + v1 on first publish, appends `VersionNumber = max + 1` on repeat publishes without duplicate artifacts, preserves `Body` and `ProposedTasks`, and toggles between `<mj-artifact-viewer-panel>` (**Published MJ Doc**) and **Live Scratchpad**. |
+| **Category C — Lightweight Relational Notes** | Strictly relational columns on the entity table (NO `ArtifactID` FK) | `TaskComment`, `TaskCheckIn`, `Task.BlockedReason`, `Timesheet`, `TaskTimeEntry.Notes` | High-frequency, short, tightly scoped operational notes remain purely relational. Do **not** add `ArtifactID` columns or create `MJ: Artifacts` records for Category C entities. |
+
+#### When to Use `MJ: Comments` vs. `MJ: Artifacts` (MJ Docs)
+- **Use `MJ: Comments` / `MJ: Field Suggestions`** for record-anchored discussion threads, lightweight inline review annotations, and AI-proposed field changes (`FIELD_SUGGESTION`) attached to an entity record (`LinkedEntityID` + `LinkedRecordID`).
+- **Use `MJ: Artifacts` (MJ Docs)** for standalone, formatted, versioned, shareable documents (executive work reports, published meeting minutes, formal deliverables) that benefit from `<mj-artifact-viewer-panel>`, version history, MIME metadata, and cross-workspace document discovery.
+- **Use Category C relational columns** for transactional work-item notes (`TaskComment`, `TaskCheckIn`, `Task.BlockedReason`, `TaskTimeEntry.Notes`) that are queried inline with task lists, Gantt/Board cards, and timesheet grids.
+
+---
+
 ## 📚 Development Guides
 
 The `/guides/` folder contains comprehensive best practices guides for specific development tasks. **Always consult these guides when working on related features:**

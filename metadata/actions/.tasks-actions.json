@@ -8458,11 +8458,11 @@
           "fields": {
             "ActionID": "@parent:ID",
             "Name": "MeetingNoteID",
-            "Type": "Input",
+            "Type": "Both",
             "ValueType": "Scalar",
             "IsArray": false,
             "IsRequired": true,
-            "Description": "UUID of the MJ_BizApps_Tasks: Meeting Notes record to publish as an MJ Doc."
+            "Description": "UUID of the MJ_BizApps_Tasks: Meeting Notes record to publish as an MJ Doc (echoed on output)."
           },
           "primaryKey": {
             "ID": "D1A4E891-4B2A-4F65-9E13-7A82D5C1B401"
@@ -8536,20 +8536,6 @@
           },
           "primaryKey": {
             "ID": "D1A4E891-4B2A-4F65-9E13-7A82D5C1B406"
-          }
-        },
-        {
-          "fields": {
-            "ActionID": "@parent:ID",
-            "Name": "MeetingNoteID",
-            "Type": "Output",
-            "ValueType": "Scalar",
-            "IsArray": false,
-            "IsRequired": false,
-            "Description": "ID of the published Meeting Note record."
-          },
-          "primaryKey": {
-            "ID": "D1A4E891-4B2A-4F65-9E13-7A82D5C1B407"
           }
         },
         {

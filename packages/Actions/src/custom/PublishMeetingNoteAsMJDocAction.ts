@@ -51,6 +51,11 @@ interface RawArtifactTypeRow {
     ID: string;
     Name: string;
     ContentType?: string | null;
+    IsEnabled?: boolean | number | null;
+}
+
+function isRowEnabled(row: RawArtifactTypeRow): boolean {
+    return row.IsEnabled !== false && row.IsEnabled !== 0;
 }
 
 interface RawArtifactVersionNumberRow {
@@ -99,14 +104,14 @@ async function resolveArtifactTypeId(
         const byName = await rv.RunView<RawArtifactTypeRow>(
             {
                 EntityName: MJ_ARTIFACT_TYPES_ENTITY_NAME,
-                ExtraFilter: `LOWER(Name) = LOWER('${EscapeSQLString(requestedName)}') AND IsEnabled = 1`,
-                Fields: ['ID', 'Name', 'ContentType'],
-                MaxRows: limits.ResourceGuards.DefaultLookupSingleRow,
+                ExtraFilter: `LOWER(Name) = LOWER('${EscapeSQLString(requestedName)}')`,
+                Fields: ['ID', 'Name', 'ContentType', 'IsEnabled'],
+                MaxRows: limits.ResourceGuards.CandidateLookupMaxRows,
                 ResultType: 'simple',
             },
             contextUser,
         );
-        const match = byName?.Success ? byName.Results?.[0] : undefined;
+        const match = byName?.Success ? byName.Results?.find((r) => isRowEnabled(r)) : undefined;
         if (!match?.ID) {
             throw new Error(`No enabled MJ: Artifact Type matched '${requestedName}'.`);
         }
@@ -117,17 +122,18 @@ async function resolveArtifactTypeId(
         {
             EntityName: MJ_ARTIFACT_TYPES_ENTITY_NAME,
             ExtraFilter:
-                `IsEnabled = 1 AND (ContentType = 'text/markdown' OR LOWER(Name) IN ('markdown document', 'markdown'))`,
-            Fields: ['ID', 'Name', 'ContentType'],
+                `ContentType = 'text/markdown' OR LOWER(Name) IN ('markdown document', 'markdown')`,
+            Fields: ['ID', 'Name', 'ContentType', 'IsEnabled'],
             OrderBy: 'Name ASC',
             MaxRows: limits.ResourceGuards.CandidateLookupMaxRows,
             ResultType: 'simple',
         },
         contextUser,
     );
+    const enabledMdTypes = mdTypes?.Success ? (mdTypes.Results ?? []).filter((r) => isRowEnabled(r)) : [];
     const preferred =
-        mdTypes?.Success && mdTypes.Results?.length
-            ? (mdTypes.Results.find((r) => r.Name.trim().toLowerCase() === 'markdown document') ?? mdTypes.Results[0])
+        enabledMdTypes.length > 0
+            ? (enabledMdTypes.find((r) => r.Name.trim().toLowerCase() === 'markdown document') ?? enabledMdTypes[0])
             : undefined;
 
     return preferred?.ID ?? DEFAULT_MARKDOWN_ARTIFACT_TYPE_ID;

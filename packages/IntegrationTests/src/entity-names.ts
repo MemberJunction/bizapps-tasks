@@ -57,3 +57,7 @@ export const ROLE_ENTITY = 'MJ: Roles';
 export const QUERY_ENTITY = 'MJ: Queries';
 export const PERSON_ENTITY = 'MJ_BizApps_Common: People';
 export const ORGANIZATION_ENTITY = 'MJ_BizApps_Common: Organizations';
+export const ARTIFACT_ENTITY = 'MJ: Artifacts';
+export const ARTIFACT_VERSION_ENTITY = 'MJ: Artifact Versions';
+export const ARTIFACT_TYPE_ENTITY = 'MJ: Artifact Types';
+export const ENVIRONMENT_ENTITY = 'MJ: Environments';

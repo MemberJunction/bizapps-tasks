@@ -12,7 +12,7 @@ The meeting widgets of BizApps Tasks (the meetings plan, § 5), with no Explorer
 | `bizapps-attendee-response`, `bizapps-response-chip`, `bizapps-meeting-status-chip` | The answer control and the chips |
 | `bizapps-meeting-people` | Who is invited, their answers and attendance; invite a person or a guest; remove |
 | `bizapps-meeting-agenda` | The agenda builder: nesting, order, type, presenter, durations added up against the meeting's length, the type's template |
-| `bizapps-meeting-notes` | Notes by hand, on the meeting or on an item, Draft or Final (AI drafting comes with T3) |
+| `bizapps-meeting-notes` | Notes by hand, on the meeting or on an item, Draft or Final, with linked MJ Doc badge (`ArtifactID`) and `PublishAsMJDocRequested` / `OpenArtifactRequested` outputs for Category B MJ Docs promotion |
 | `bizapps-meeting-followups` | The tasks linked to the meeting, and a form that files a new one |
 | `bizapps-meeting-links` | What the meeting belongs to |
 | `bizapps-meeting-live` | The live meeting: the current item and its timer, next and previous, attendance, a quick note, a follow-up, End |

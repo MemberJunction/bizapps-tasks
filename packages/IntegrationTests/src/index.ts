@@ -25,6 +25,7 @@ export * from './wire.js';
 export * from './world/world.js';
 export * from './world/load-world.js';
 export * from './world/meeting-world.js';
+export * from './world/artifact-convergence-world.js';
 export * from './persona-provider.js';
 export * from './checks/task-world.checks.js';
 export * from './checks/task-hierarchy.checks.js';
@@ -47,5 +48,6 @@ export * from './checks/task-org-bulk-ops.checks.js';
 export * from './checks/task-cos-typed-skills.checks.js';
 export * from './checks/task-cos-live.checks.js';
 export * from './checks/project-risk-assessments.checks.js';
+export * from './checks/ArtifactConvergence.check.js';
 
 export function LoadTasksIntegrationTests(): void {}
