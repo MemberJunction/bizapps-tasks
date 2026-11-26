@@ -1,5 +1,6 @@
 <mj-page-layout>
     <mj-page-header
+        data-mj-tour-anchor="tasks.work-reports.header"
         Title="Work Reports"
         Icon="fa-solid fa-clipboard-check"
         Subtitle="Daily progress reports drafted from your tasks and GitHub activity, with supervisor review">
@@ -23,7 +24,7 @@
             </button>
         </div>
         <div toolbar>
-            <div class="cos-reports-tabs" role="tablist" aria-label="Work report views" (keydown)="OnTabKeydown($event)">
+            <div class="cos-reports-tabs" role="tablist" aria-label="Work report views" data-mj-tour-anchor="tasks.work-reports.tabs" (keydown)="OnTabKeydown($event)">
                 <button
                     id="cos-reports-tab-mine"
                     type="button"

@@ -1,0 +1,643 @@
+[
+  {
+    "fields": {
+      "Name": "My Work Inbox, Dependencies & Decisions",
+      "TourKey": "tasks.my-work-inbox",
+      "Description": "Navigate your My Work action horizons, switch between List, Kanban, and Gantt views, and explore either Task Dependencies & Blockers or Decision Logs & Escalations.",
+      "ApplicationID": "@lookup:MJ: Applications.Name=Tasks",
+      "RunInAuthenticatedHosts": true,
+      "Status": "Draft",
+      "EstimatedMinutes": 3,
+      "Priority": 85,
+      "DefaultGuideMode": "Visual",
+      "AllowAgentActions": false,
+      "Goal": {
+        "Type": "Navigation",
+        "AppName": "Tasks",
+        "NavItemKey": "MyTasksSectionResource",
+        "Description": "User explores My Work Inbox and branches into either Task Dependencies & Blockers or Decision Logs & Escalations."
+      },
+      "StartLocation": {
+        "Application": "Tasks",
+        "NavItem": "MyTasksSectionResource"
+      }
+    },
+    "primaryKey": {
+      "ID": "6D3AC108-512C-4CA2-9F6D-E93C68203BE8"
+    },
+    "relatedEntities": {
+      "MJ: Tour Steps": [
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "StepKey": "tasks-inbox-welcome",
+            "Sequence": 1,
+            "StepTypeID": "@lookup:MJ: Tour Step Types.Name=Modal",
+            "Title": "Welcome to Tasks & My Work",
+            "Body": "Organize deliverables across **My Work** action horizons and **All Work** views (List, Board, and Critical-Path Gantt), with sub-tasks, dependencies, decisions, and connected records.",
+            "Configuration": {
+              "Variant": "welcome",
+              "PrimaryButtonText": "Explore My Work",
+              "ShowProgress": true
+            },
+            "Placement": "Center",
+            "Mode": "Show",
+            "Prepare": {
+              "ApplicationName": "Tasks",
+              "DriverClass": "MyTasksSectionResource"
+            },
+            "Completion": {
+              "Type": "NextButton"
+            },
+            "OnMissing": "Center",
+            "IsOptional": false
+          },
+          "primaryKey": {
+            "ID": "646217E7-C9EA-4A17-A863-D5AB1696D10C"
+          }
+        },
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "StepKey": "tasks-my-work-horizons",
+            "Sequence": 2,
+            "StepTypeID": "@lookup:MJ: Tour Step Types.Name=Spotlight",
+            "Title": "My Work Action Horizons & Quick Jump",
+            "Body": "Focus on overdue, today, and upcoming deliverables in **My Work**, use Quick Jump (`Cmd/Ctrl+J`), or switch to **All Work** to filter by category and saved views.",
+            "Configuration": {
+              "ShowProgress": true
+            },
+            "Anchor": {
+              "Strategy": "NavItem",
+              "DriverClass": "MyTasksSectionResource"
+            },
+            "Placement": "Bottom",
+            "Mode": "Guide",
+            "Completion": {
+              "Type": "NextButton"
+            },
+            "OnMissing": "Center",
+            "IsOptional": false
+          },
+          "primaryKey": {
+            "ID": "81960C07-19A8-47B6-B794-FCE623FF3697"
+          }
+        },
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "StepKey": "tasks-choose-branch",
+            "Sequence": 3,
+            "StepTypeID": "@lookup:MJ: Tour Step Types.Name=Choice",
+            "Title": "Choose Your Task Deep Dive",
+            "Body": "Pick which capability you want to explore next on a task record.",
+            "Configuration": {
+              "Question": "Which task workflow would you like to explore?",
+              "Options": [
+                {
+                  "Key": "dependencies",
+                  "Label": "Task Dependencies & Blockers",
+                  "Description": "Link prerequisite tasks and visualize critical blockers."
+                },
+                {
+                  "Key": "decisions",
+                  "Label": "Decision Logs & Escalations",
+                  "Description": "Capture structured stakeholder decisions directly on tasks."
+                }
+              ],
+              "ShowProgress": true
+            },
+            "Placement": "Center",
+            "Mode": "Guide",
+            "Completion": {
+              "Type": "NextButton"
+            },
+            "OnMissing": "Center",
+            "IsOptional": false
+          },
+          "primaryKey": {
+            "ID": "0EA70CBB-1C26-4449-A041-EFD91BA8A92B"
+          }
+        },
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "StepKey": "tasks-track-dependencies",
+            "Sequence": 4,
+            "StepTypeID": "@lookup:MJ: Tour Step Types.Name=Spotlight",
+            "Title": "Track: Prerequisite Dependencies & Blockers",
+            "Body": "Break work into **Sub-tasks** via quick-capture syntax, switch between List, Board, Gantt, and Hierarchy views, and model **Task Dependencies** so upstream blockers surface before deadlines slip.",
+            "Configuration": {
+              "ShowProgress": true
+            },
+            "Anchor": {
+              "Strategy": "Registered",
+              "Key": "tasks.subtasks.panel"
+            },
+            "Placement": "Bottom",
+            "Mode": "Guide",
+            "Completion": {
+              "Type": "NextButton"
+            },
+            "OnMissing": "Center",
+            "IsOptional": false
+          },
+          "primaryKey": {
+            "ID": "250DCD92-03CB-43C3-A4B5-615B00297ACC"
+          }
+        },
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "StepKey": "tasks-track-decisions",
+            "Sequence": 5,
+            "StepTypeID": "@lookup:MJ: Tour Step Types.Name=Spotlight",
+            "Title": "Track: Structured Decisions & Outcomes",
+            "Body": "Use the task hero workflow stepper and **Task Decisions** to record stakeholder sign-offs, decision outcomes, and risk assessments right alongside the connected Organization and parent task.",
+            "Configuration": {
+              "ShowProgress": true
+            },
+            "Anchor": {
+              "Strategy": "Registered",
+              "Key": "tasks.header.hero"
+            },
+            "Placement": "Bottom",
+            "Mode": "Guide",
+            "Completion": {
+              "Type": "NextButton"
+            },
+            "OnMissing": "Center",
+            "IsOptional": false
+          },
+          "primaryKey": {
+            "ID": "450EDF6F-4758-4D88-A269-A9D76CCAD3ED"
+          }
+        },
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "StepKey": "tasks-inbox-summary",
+            "Sequence": 6,
+            "StepTypeID": "@lookup:MJ: Tour Step Types.Name=Modal",
+            "Title": "Next: Approvals, Templates & Time",
+            "Body": "You are ready to triage My Work, break down dependencies, and log decisions. Continue to **Approvals, Task Templates & Time Entries** to automate repeatable playbooks and track effort.",
+            "Configuration": {
+              "Variant": "summary",
+              "PrimaryButtonText": "Finish",
+              "NextTourKey": "tasks.approvals-templates-time",
+              "ShowProgress": true
+            },
+            "Placement": "Center",
+            "Mode": "Show",
+            "Completion": {
+              "Type": "NextButton"
+            },
+            "OnMissing": "Center",
+            "IsOptional": false
+          },
+          "primaryKey": {
+            "ID": "BA41FBDF-7AA9-4579-833B-290D2BD16816"
+          }
+        }
+      ],
+      "MJ: Tour Step Paths": [
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "FromStepID": "0EA70CBB-1C26-4449-A041-EFD91BA8A92B",
+            "ToStepID": "250DCD92-03CB-43C3-A4B5-615B00297ACC",
+            "Condition": {
+              "logic": "and",
+              "filters": [
+                {
+                  "field": "lastChoiceKey",
+                  "operator": "eq",
+                  "value": "dependencies"
+                }
+              ]
+            },
+            "Label": "Dependencies & Blockers",
+            "Priority": 100,
+            "Sequence": 1,
+            "IsDefault": false
+          },
+          "primaryKey": {
+            "ID": "C6534058-6255-45C9-86DE-8E5A69CED75E"
+          }
+        },
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "FromStepID": "0EA70CBB-1C26-4449-A041-EFD91BA8A92B",
+            "ToStepID": "450EDF6F-4758-4D88-A269-A9D76CCAD3ED",
+            "Condition": {
+              "logic": "and",
+              "filters": [
+                {
+                  "field": "lastChoiceKey",
+                  "operator": "eq",
+                  "value": "decisions"
+                }
+              ]
+            },
+            "Label": "Decisions & Escalations",
+            "Priority": 90,
+            "Sequence": 2,
+            "IsDefault": false
+          },
+          "primaryKey": {
+            "ID": "856F8191-2309-48EA-80D8-5591CF415B88"
+          }
+        },
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "FromStepID": "0EA70CBB-1C26-4449-A041-EFD91BA8A92B",
+            "ToStepID": "250DCD92-03CB-43C3-A4B5-615B00297ACC",
+            "Condition": null,
+            "Label": "Default Track",
+            "Priority": 0,
+            "Sequence": 3,
+            "IsDefault": true
+          },
+          "primaryKey": {
+            "ID": "A6BFCBAE-6967-49FB-8F58-B89E664FC374"
+          }
+        },
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "FromStepID": "250DCD92-03CB-43C3-A4B5-615B00297ACC",
+            "ToStepID": "BA41FBDF-7AA9-4579-833B-290D2BD16816",
+            "Condition": null,
+            "Label": "To Summary",
+            "Priority": 10,
+            "Sequence": 1,
+            "IsDefault": true
+          },
+          "primaryKey": {
+            "ID": "0CE20E60-348B-4DF4-9635-065C076FA195"
+          }
+        },
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "FromStepID": "450EDF6F-4758-4D88-A269-A9D76CCAD3ED",
+            "ToStepID": "BA41FBDF-7AA9-4579-833B-290D2BD16816",
+            "Condition": null,
+            "Label": "To Summary",
+            "Priority": 10,
+            "Sequence": 1,
+            "IsDefault": true
+          },
+          "primaryKey": {
+            "ID": "C2821A69-EE2C-4E57-8E7D-E70D1E980C49"
+          }
+        }
+      ],
+      "MJ: Tour Prerequisites": [
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "PrerequisiteType": "Tour",
+            "RequiredTourID": "@lookup:MJ: Tours.TourKey=common.directory",
+            "Strength": "Recommended",
+            "Sequence": 1
+          },
+          "primaryKey": {
+            "ID": "A52BC9C0-5FDA-47CD-92F8-82D1E8D3B123"
+          }
+        }
+      ],
+      "MJ: Tour Triggers": [
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "TriggerType": "FirstVisit",
+            "Configuration": {
+              "Application": "Tasks"
+            },
+            "Delivery": "Offer",
+            "CooldownDays": 30,
+            "Priority": 85,
+            "Status": "Active"
+          },
+          "primaryKey": {
+            "ID": "A35F8AB8-BB79-4EBA-AFF5-9FD9BE9142F5"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "fields": {
+      "Name": "Approvals, Task Templates & Time Entries",
+      "TourKey": "tasks.approvals-templates-time",
+      "Description": "Review pending approval queues, launch reusable multi-step task templates with role assignments, and log time entries, timers, and daily work reports.",
+      "ApplicationID": "@lookup:MJ: Applications.Name=Tasks",
+      "RunInAuthenticatedHosts": true,
+      "Status": "Draft",
+      "EstimatedMinutes": 3,
+      "Priority": 80,
+      "DefaultGuideMode": "Visual",
+      "AllowAgentActions": false,
+      "Goal": {
+        "Type": "Navigation",
+        "AppName": "Tasks",
+        "NavItemKey": "ApprovalsSectionResource",
+        "Description": "User learns Approvals Inbox, Templates Wizard, My Time & Timesheets, and Work Reports."
+      },
+      "StartLocation": {
+        "Application": "Tasks",
+        "NavItem": "ApprovalsSectionResource"
+      }
+    },
+    "primaryKey": {
+      "ID": "FD203642-10AE-4AD3-AD1D-150E68AC73AF"
+    },
+    "relatedEntities": {
+      "MJ: Tour Steps": [
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "StepKey": "tasks-att-welcome",
+            "Sequence": 1,
+            "StepTypeID": "@lookup:MJ: Tour Step Types.Name=Modal",
+            "Title": "Approvals, Playbooks & Time Tracking",
+            "Body": "Streamline recurring operational work with **Approvals**, repeatable **Task Templates**, and **My Time** timesheets and work reports.",
+            "Configuration": {
+              "Variant": "welcome",
+              "PrimaryButtonText": "Explore Workflows",
+              "ShowProgress": true
+            },
+            "Placement": "Center",
+            "Mode": "Show",
+            "Prepare": {
+              "ApplicationName": "Tasks",
+              "DriverClass": "ApprovalsSectionResource"
+            },
+            "Completion": {
+              "Type": "NextButton"
+            },
+            "OnMissing": "Center",
+            "IsOptional": false
+          },
+          "primaryKey": {
+            "ID": "E2278E77-79C2-4501-8420-24CEA8AF2E65"
+          }
+        },
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "StepKey": "tasks-att-approvals",
+            "Sequence": 2,
+            "StepTypeID": "@lookup:MJ: Tour Step Types.Name=Spotlight",
+            "Title": "Approvals Inbox & Organization Queues",
+            "Body": "Review pending decisions grouped by Organization or priority in **Approvals**, inspect linked business records, and record formal outcomes with rationale.",
+            "Configuration": {
+              "ShowProgress": true
+            },
+            "Anchor": {
+              "Strategy": "NavItem",
+              "DriverClass": "ApprovalsSectionResource"
+            },
+            "Placement": "Bottom",
+            "Mode": "Guide",
+            "Completion": {
+              "Type": "NextButton"
+            },
+            "OnMissing": "Center",
+            "IsOptional": false
+          },
+          "primaryKey": {
+            "ID": "84E129DA-EF36-42CA-B111-6909158D5C78"
+          }
+        },
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "StepKey": "tasks-att-templates",
+            "Sequence": 3,
+            "StepTypeID": "@lookup:MJ: Tour Step Types.Name=Spotlight",
+            "Title": "Instantiate Reusable Task Templates",
+            "Body": "Open **Templates** to launch repeatable playbooks that automatically generate task hierarchies, relative due dates, dependencies, and role-based assignments in one click.",
+            "Configuration": {
+              "ShowProgress": true
+            },
+            "Anchor": {
+              "Strategy": "NavItem",
+              "DriverClass": "TemplatesSectionResource"
+            },
+            "Placement": "Bottom",
+            "Mode": "Guide",
+            "Completion": {
+              "Type": "NextButton"
+            },
+            "OnMissing": "Center",
+            "IsOptional": false
+          },
+          "primaryKey": {
+            "ID": "F47E6957-886E-4E80-87C8-45B2185D908B"
+          }
+        },
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "StepKey": "tasks-att-time-reports",
+            "Sequence": 4,
+            "StepTypeID": "@lookup:MJ: Tour Step Types.Name=Modal",
+            "Title": "My Time, Timesheets & Work Reports",
+            "Body": "Track hours in **My Time** using live task timers or the weekly time entry grid, submit timesheets for approval, and draft progress summaries in **Work Reports**.",
+            "Configuration": {
+              "Variant": "summary",
+              "PrimaryButtonText": "Finish",
+              "NextTourKey": "meetings.agendas-series",
+              "ShowProgress": true
+            },
+            "Placement": "Center",
+            "Mode": "Show",
+            "Completion": {
+              "Type": "NextButton"
+            },
+            "OnMissing": "Center",
+            "IsOptional": false
+          },
+          "primaryKey": {
+            "ID": "0CDE7713-F87C-4E5D-949C-6AF4CF6CA689"
+          }
+        }
+      ],
+      "MJ: Tour Prerequisites": [
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "PrerequisiteType": "Tour",
+            "RequiredTourID": "@lookup:MJ: Tours.TourKey=tasks.my-work-inbox",
+            "Strength": "Recommended",
+            "Sequence": 1
+          },
+          "primaryKey": {
+            "ID": "E61BDD7B-D396-42C8-8EC0-B16C431C3423"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "fields": {
+      "Name": "Recurring Meetings, Agendas & Action Items",
+      "TourKey": "meetings.agendas-series",
+      "Description": "Run structured meetings with reusable agenda templates, materialize recurring meeting series, capture live notes, and file follow-up tasks.",
+      "ApplicationID": "@lookup:MJ: Applications.Name=Meetings",
+      "RunInAuthenticatedHosts": true,
+      "Status": "Draft",
+      "EstimatedMinutes": 2,
+      "Priority": 85,
+      "DefaultGuideMode": "Visual",
+      "AllowAgentActions": false,
+      "Goal": {
+        "Type": "Navigation",
+        "AppName": "Meetings",
+        "NavItemKey": "MyMeetingsSectionResource",
+        "Description": "User learns My Meetings, Meetings catalog, Meeting Series recurrence, and live agenda/follow-up task workflows."
+      },
+      "StartLocation": {
+        "Application": "Meetings",
+        "NavItem": "MyMeetingsSectionResource"
+      }
+    },
+    "primaryKey": {
+      "ID": "058B1526-AFC8-4EDB-89D9-94A3F9F1ADA9"
+    },
+    "relatedEntities": {
+      "MJ: Tour Steps": [
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "StepKey": "meetings-welcome",
+            "Sequence": 1,
+            "StepTypeID": "@lookup:MJ: Tour Step Types.Name=Modal",
+            "Title": "Structured Meetings & Follow-Ups",
+            "Body": "The **Meetings** app brings agendas, attendee RSVPs, recurring series, live facilitation, and follow-up task creation into one connected workspace.",
+            "Configuration": {
+              "Variant": "welcome",
+              "PrimaryButtonText": "Explore Meetings",
+              "ShowProgress": true
+            },
+            "Placement": "Center",
+            "Mode": "Show",
+            "Prepare": {
+              "ApplicationName": "Meetings",
+              "DriverClass": "MyMeetingsSectionResource"
+            },
+            "Completion": {
+              "Type": "NextButton"
+            },
+            "OnMissing": "Center",
+            "IsOptional": false
+          },
+          "primaryKey": {
+            "ID": "41EC820E-FA87-4A19-B409-EEAEAC7CB11C"
+          }
+        },
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "StepKey": "meetings-my-agendas",
+            "Sequence": 2,
+            "StepTypeID": "@lookup:MJ: Tour Step Types.Name=Spotlight",
+            "Title": "My Meetings & Live Agenda Runner",
+            "Body": "Start in **My meetings** to respond to invitations or open any meeting's structured **Agenda**, attendee list, and live session timer.",
+            "Configuration": {
+              "ShowProgress": true
+            },
+            "Anchor": {
+              "Strategy": "NavItem",
+              "DriverClass": "MyMeetingsSectionResource"
+            },
+            "Placement": "Bottom",
+            "Mode": "Guide",
+            "Completion": {
+              "Type": "NextButton"
+            },
+            "OnMissing": "Center",
+            "IsOptional": false
+          },
+          "primaryKey": {
+            "ID": "E5350A5E-C9B6-4E88-927D-163B7F095729"
+          }
+        },
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "StepKey": "meetings-series",
+            "Sequence": 3,
+            "StepTypeID": "@lookup:MJ: Tour Step Types.Name=Spotlight",
+            "Title": "Recurring Meeting Series",
+            "Body": "Use **Series** to define recurring cadences with shared agenda templates. Each occurrence materializes ahead of time as its own meeting record, and updates to the series propagate to upcoming sessions.",
+            "Configuration": {
+              "ShowProgress": true
+            },
+            "Anchor": {
+              "Strategy": "NavItem",
+              "DriverClass": "MeetingSeriesSectionResource"
+            },
+            "Placement": "Bottom",
+            "Mode": "Guide",
+            "Completion": {
+              "Type": "NextButton"
+            },
+            "OnMissing": "Center",
+            "IsOptional": false
+          },
+          "primaryKey": {
+            "ID": "05E9A395-5FFE-4B27-993B-27A302491DA2"
+          }
+        },
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "StepKey": "meetings-followups-summary",
+            "Sequence": 4,
+            "StepTypeID": "@lookup:MJ: Tour Step Types.Name=Modal",
+            "Title": "Capture Notes & File Follow-Up Tasks",
+            "Body": "During or after a meeting, record shared **Notes** and convert action items directly into **Tasks** linked back to the meeting so nothing falls through the cracks.",
+            "Configuration": {
+              "Variant": "summary",
+              "PrimaryButtonText": "Finish",
+              "ShowProgress": true
+            },
+            "Placement": "Center",
+            "Mode": "Show",
+            "Completion": {
+              "Type": "NextButton"
+            },
+            "OnMissing": "Center",
+            "IsOptional": false
+          },
+          "primaryKey": {
+            "ID": "5E280577-7361-4DC9-83AD-E52548CD1665"
+          }
+        }
+      ],
+      "MJ: Tour Triggers": [
+        {
+          "fields": {
+            "TourID": "@parent:ID",
+            "TriggerType": "FirstVisit",
+            "Configuration": {
+              "Application": "Meetings"
+            },
+            "Delivery": "Offer",
+            "CooldownDays": 30,
+            "Priority": 85,
+            "Status": "Active"
+          },
+          "primaryKey": {
+            "ID": "47A3FBBF-E710-4822-9D0E-6B5AFCCE1A62"
+          }
+        }
+      ]
+    }
+  }
+]
