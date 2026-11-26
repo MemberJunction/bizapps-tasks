@@ -2,12 +2,18 @@
 /**
  * PostgreSQL counterpart & deterministic split-bake provenance guard for BizApps Tasks.
  *
- * Enforces on every newly added T-SQL migration (`migrations/*.sql`) between <base-ref> and <head-ref>:
- *   1. A paired PostgreSQL migration exists at `migrations-pg/<stem>.pg.sql`.
- *   2. Line 1 of the `.pg.sql` file carries the deterministic provenance stamp emitted by
- *      `mj migrate convert --split --bake-codegen`:
- *        -- @mj-pg-provenance: split-bake v1 source=<stem>.sql source-sha256=<64hex> mode=<baked|needs-hand-rebaked>
- *   3. The `source-sha256` matches the actual SHA-256 digest of `migrations/<stem>.sql`.
+ * Enforces between <base-ref> and <head-ref>:
+ *   - For every newly added T-SQL migration (`migrations/*.sql`, diff status `A`):
+ *       1. A paired PostgreSQL migration exists at `migrations-pg/<stem>.pg.sql`.
+ *       2. Line 1 of the `.pg.sql` file carries the deterministic provenance stamp emitted by
+ *          `mj migrate convert --split --bake-codegen`:
+ *            -- @mj-pg-provenance: split-bake v1 source=<stem>.sql source-sha256=<64hex> mode=<baked|needs-hand-rebaked>
+ *       3. The `source-sha256` matches the actual SHA-256 digest of `migrations/<stem>.sql`.
+ *   - For every modified T-SQL migration (`migrations/*.sql`, diff status `M`):
+ *       If its paired `migrations-pg/<stem>.pg.sql` already carries a `-- @mj-pg-provenance:`
+ *       header on line 1, enforces the same provenance & SHA-256 freshness check (catching stale
+ *       SHA-256 on edited provenance-stamped migrations without false-failing legacy pre-provenance
+ *       migrations).
  *
  * Usage:
  *   node .github/scripts/check-pg-provenance.mjs <base-ref> <head-ref>
@@ -90,24 +96,59 @@ export function CheckMigrationPair(repoRoot, tsqlRelPath) {
 }
 
 /**
- * Inspects all newly added `migrations/*.sql` files between `baseRef` and `headRef`.
+ * Returns true if the paired `.pg.sql` file exists and line 1 starts with `-- @mj-pg-provenance:`.
+ */
+export function HasPgProvenanceHeader(repoRoot, tsqlRelPath) {
+    const fileName = basename(tsqlRelPath);
+    const stem = fileName.replace(/\.sql$/i, '');
+    const pgAbs = join(repoRoot, `migrations-pg/${stem}.pg.sql`);
+    if (!existsSync(pgAbs)) {
+        return false;
+    }
+    const firstLine = readFileSync(pgAbs, 'utf8').split('\n')[0] ?? '';
+    return firstLine.startsWith('-- @mj-pg-provenance:');
+}
+
+/**
+ * Inspects newly added (`A`) and modified (`M`) `migrations/*.sql` files between `baseRef` and `headRef`.
+ * Newly added migrations always require a paired `.pg.sql` with a valid split-bake provenance header
+ * and matching SHA-256. Modified migrations are enforced whenever their `.pg.sql` counterpart already
+ * carries a `-- @mj-pg-provenance:` header, catching SHA-256 drift without false-failing legacy
+ * pre-provenance migrations.
  */
 export function CheckRepoPgProvenance(repoRoot, baseRef, headRef) {
-    const out = execFileSync(
+    const amOut = execFileSync(
         'git',
-        ['diff', '--name-only', '--diff-filter=A', baseRef, headRef, '--', 'migrations/*.sql'],
+        ['diff', '--name-only', '--diff-filter=AM', baseRef, headRef, '--', 'migrations/*.sql'],
         { cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
     );
-    const added = out
+    const touched = amOut
         .split(/\r?\n/)
         .map((s) => s.trim())
         .filter((s) => s.length > 0 && s.endsWith('.sql'));
 
-    if (added.length === 0) {
+    if (touched.length === 0) {
         return { ok: true, checked: [], failures: [] };
     }
 
-    const checked = added.map((rel) => CheckMigrationPair(repoRoot, rel));
+    const addedOut = execFileSync(
+        'git',
+        ['diff', '--name-only', '--diff-filter=A', baseRef, headRef, '--', 'migrations/*.sql'],
+        { cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+    const addedSet = new Set(
+        addedOut
+            .split(/\r?\n/)
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0 && s.endsWith('.sql')),
+    );
+
+    const targets = touched.filter((rel) => addedSet.has(rel) || HasPgProvenanceHeader(repoRoot, rel));
+    if (targets.length === 0) {
+        return { ok: true, checked: [], failures: [] };
+    }
+
+    const checked = targets.map((rel) => CheckMigrationPair(repoRoot, rel));
     const failures = checked.filter((r) => !r.ok);
     return { ok: failures.length === 0, checked, failures };
 }
@@ -190,7 +231,7 @@ if (isDirectlyExecuted()) {
 
     const result = CheckRepoPgProvenance(process.cwd(), baseRef, headRef);
     if (result.checked.length === 0) {
-        console.log(`No new T-SQL migrations added between ${baseRef} and ${headRef}.`);
+        console.log(`No new or provenance-tracked T-SQL migrations changed between ${baseRef} and ${headRef}.`);
         process.exit(0);
     }
     for (const item of result.checked) {
