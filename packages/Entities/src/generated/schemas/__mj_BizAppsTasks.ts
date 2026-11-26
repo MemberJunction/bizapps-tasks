@@ -480,6 +480,12 @@ export const mjBizAppsTasksMeetingNoteSchema = z.object({
         * * Display Name: Updated At
         * * SQL Data Type: datetimeoffset
         * * Default Value: getutcdate()`),
+    ArtifactID: z.string().nullable().describe(`
+        * * Field Name: ArtifactID
+        * * Display Name: Artifact ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: Artifacts (vwArtifacts.ID)
+        * * Description: Optional foreign key to an MJ: Artifacts (MJ Doc) record storing published canonical meeting minutes. Enables Category B hybrid authoring while preserving live MeetingNote.Body scratchpad and ProposedTasks JSON.`),
     Meeting: z.string().nullable().describe(`
         * * Field Name: Meeting
         * * Display Name: Meeting
@@ -495,6 +501,10 @@ export const mjBizAppsTasksMeetingNoteSchema = z.object({
     AIPromptRun: z.string().nullable().describe(`
         * * Field Name: AIPromptRun
         * * Display Name: AI Prompt Run
+        * * SQL Data Type: nvarchar(255)`),
+    Artifact: z.string().nullable().describe(`
+        * * Field Name: Artifact
+        * * Display Name: Artifact
         * * SQL Data Type: nvarchar(255)`),
 });
 
@@ -3667,6 +3677,12 @@ export const mjBizAppsTasksWorkReportSchema = z.object({
         * * Display Name: Updated At
         * * SQL Data Type: datetimeoffset
         * * Default Value: getutcdate()`),
+    ArtifactID: z.string().nullable().describe(`
+        * * Field Name: ArtifactID
+        * * Display Name: Artifact ID
+        * * SQL Data Type: uniqueidentifier
+        * * Related Entity/Foreign Key: MJ: Artifacts (vwArtifacts.ID)
+        * * Description: Optional foreign key to an MJ: Artifacts (MJ Doc) record backing this work report. Enables Category A MJ Doc authoring and versioning while preserving legacy Body for backward compatibility.`),
     Person: z.string().nullable().describe(`
         * * Field Name: Person
         * * Display Name: Person Name
@@ -3679,6 +3695,10 @@ export const mjBizAppsTasksWorkReportSchema = z.object({
         * * Field Name: ReviewedByPerson
         * * Display Name: Reviewed By Person Name
         * * SQL Data Type: nvarchar(250)`),
+    Artifact: z.string().nullable().describe(`
+        * * Field Name: Artifact
+        * * Display Name: Artifact
+        * * SQL Data Type: nvarchar(255)`),
 });
 
 export type mjBizAppsTasksWorkReportEntityType = z.infer<typeof mjBizAppsTasksWorkReportSchema>;

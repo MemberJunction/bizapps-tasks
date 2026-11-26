@@ -1326,6 +1326,20 @@ export class mjBizAppsTasksMeetingNoteEntity extends BaseEntity<mjBizAppsTasksMe
     }
 
     /**
+    * * Field Name: ArtifactID
+    * * Display Name: Artifact ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ: Artifacts (vwArtifacts.ID)
+    * * Description: Optional foreign key to an MJ: Artifacts (MJ Doc) record storing published canonical meeting minutes. Enables Category B hybrid authoring while preserving live MeetingNote.Body scratchpad and ProposedTasks JSON.
+    */
+    get ArtifactID(): string | null {
+        return this.Get('ArtifactID');
+    }
+    set ArtifactID(value: string | null) {
+        this.Set('ArtifactID', value);
+    }
+
+    /**
     * * Field Name: Meeting
     * * Display Name: Meeting
     * * SQL Data Type: nvarchar(255)
@@ -1359,6 +1373,15 @@ export class mjBizAppsTasksMeetingNoteEntity extends BaseEntity<mjBizAppsTasksMe
     */
     get AIPromptRun(): string | null {
         return this.Get('AIPromptRun');
+    }
+
+    /**
+    * * Field Name: Artifact
+    * * Display Name: Artifact
+    * * SQL Data Type: nvarchar(255)
+    */
+    get Artifact(): string | null {
+        return this.Get('Artifact');
     }
 }
 
@@ -10134,6 +10157,20 @@ export class mjBizAppsTasksWorkReportEntity extends BaseEntity<mjBizAppsTasksWor
     }
 
     /**
+    * * Field Name: ArtifactID
+    * * Display Name: Artifact ID
+    * * SQL Data Type: uniqueidentifier
+    * * Related Entity/Foreign Key: MJ: Artifacts (vwArtifacts.ID)
+    * * Description: Optional foreign key to an MJ: Artifacts (MJ Doc) record backing this work report. Enables Category A MJ Doc authoring and versioning while preserving legacy Body for backward compatibility.
+    */
+    get ArtifactID(): string | null {
+        return this.Get('ArtifactID');
+    }
+    set ArtifactID(value: string | null) {
+        this.Set('ArtifactID', value);
+    }
+
+    /**
     * * Field Name: Person
     * * Display Name: Person Name
     * * SQL Data Type: nvarchar(250)
@@ -10158,6 +10195,15 @@ export class mjBizAppsTasksWorkReportEntity extends BaseEntity<mjBizAppsTasksWor
     */
     get ReviewedByPerson(): string | null {
         return this.Get('ReviewedByPerson');
+    }
+
+    /**
+    * * Field Name: Artifact
+    * * Display Name: Artifact
+    * * SQL Data Type: nvarchar(255)
+    */
+    get Artifact(): string | null {
+        return this.Get('Artifact');
     }
 }
 
