@@ -6,7 +6,8 @@
       "V202611221800__v1.16.x__Deactivate_Legacy_OKR_TaskTypes.sql",
       "V202611222000__v1.16.x__Task_Risk_Assessments.sql",
       "V202611222115__v1.16.x__Task_Visibility_Team_Organization.sql",
-      "V202611230210__v1.16.x__Recurring_Playbook_Unique_Index.sql"
+      "V202611230210__v1.16.x__Recurring_Playbook_Unique_Index.sql",
+      "V202611261400__v1.16.x__WorkReport_MeetingNote_ArtifactID.sql"
     ]
   },
   "lines": {
