@@ -64,22 +64,22 @@ export class TasksSectionResource extends BaseResourceComponent implements After
         this.navigationService?.SetAgentClientTools(this, [
             {
                 Name: 'SwitchTasksView',
-                Description: 'Switch the All Work view between list, kanban, or gantt.',
+                Description: 'Switch the All Work view between wbs, list, kanban, or gantt.',
                 ParameterSchema: {
                     type: 'object',
                     properties: {
-                        view: { type: 'string', enum: ['list', 'kanban', 'gantt'] },
+                        view: { type: 'string', enum: ['wbs', 'list', 'kanban', 'gantt'] },
                     },
                     required: ['view'],
                 },
                 Handler: async (params: Record<string, unknown>) => {
                     const view = String(params['view'] ?? '') as TaskViewMode;
-                    if (view === 'list' || view === 'kanban' || view === 'gantt') {
+                    if (view === 'wbs' || view === 'list' || view === 'kanban' || view === 'gantt') {
                         this.page?.SetView(view);
                         this.publishAgentContext();
                         return { Success: true, Message: `Switched view to ${view}.` };
                     }
-                    return { Success: false, ErrorMessage: 'Invalid view. Use list, kanban, or gantt.' };
+                    return { Success: false, ErrorMessage: 'Invalid view. Use wbs, list, kanban, or gantt.' };
                 },
             },
             {
@@ -124,7 +124,7 @@ export class TasksSectionResource extends BaseResourceComponent implements After
     private publishAgentContext(): void {
         this.navigationService?.SetAgentContext(this, {
             Surface: 'BizApps Tasks — All Work',
-            ViewMode: this.page?.ViewMode ?? 'list',
+            ViewMode: this.page?.ViewMode ?? 'wbs',
             SelectedCategoryID: this.page?.SelectedCategoryID ?? null,
             SearchText: this.page?.SearchText ?? '',
             ActiveTasks: this.page?.KPIs.TotalActive ?? 0,
