@@ -119,7 +119,7 @@ packages/Angular/src/lib/components/record-link-picker/record-link-picker-dialog
 packages/Angular/src/lib/components/running-timer-chip/running-timer-chip.component.ts,354,MaxRows,1,RunningTimerChipComponent.Refresh,UX,deferred-ux:ResourceGuards
 packages/Angular/src/lib/components/running-timer-chip/running-timer-chip.component.ts,446,setInterval,1000,RunningTimerChipComponent.startTickInterval,UX,retained-ux-local
 packages/Angular/src/lib/components/task-drawer-shell/task-drawer-shell.component.ts,65,WidthPx,560,TaskDrawerShellComponent,UX,retained-ux-local
-packages/Angular/src/lib/components/task-edit-panel/task-edit-panel.component.ts,1208,MaxRows,250,TaskEditPanelComponent.loadLookups,UX,deferred-ux:ResourceGuards
+packages/Angular/src/lib/components/task-edit-panel/task-edit-panel.component.ts,1185,MaxRows,250,TaskEditPanelComponent.loadLookups,UX,deferred-ux:ResourceGuards
 packages/Angular/src/lib/components/task-gantt/task-gantt.component.ts,850,MaxRows,500,TaskGanttComponent.LoadData,UX,deferred-ux:ResourceGuards
 packages/Angular/src/lib/components/task-gantt/task-gantt.component.ts,862,MaxRows,500,TaskGanttComponent.LoadData,UX,deferred-ux:ResourceGuards
 packages/Angular/src/lib/components/task-gantt/task-gantt.component.ts,869,MaxRows,1000,TaskGanttComponent.LoadData,UX,deferred-ux:ResourceGuards
@@ -145,7 +145,7 @@ packages/Angular/src/lib/meetings/meeting-data.ts,810,setTimeout,1000,downloadTe
 packages/Angular/src/lib/pages/meetings.page.ts,116,setTimeout,250,MeetingsPageComponent.reload,UX,retained-ux-local
 packages/Angular/src/lib/pages/my-tasks.page.ts,764,this.AllTasks.slice_Cap,20,MyTasksPageComponent.CommandItems,UX,retained-ux-local
 packages/Angular/src/lib/pages/my-tasks.page.ts,1001,MaxRows,1,MyTasksPageComponent.OnQuickCapture,UX,deferred-ux:ResourceGuards
-packages/Angular/src/lib/pages/tasks-dashboard.page.ts,1856,MaxRows,1000,TasksDashboardPageComponent.LoadKPIs,UX,deferred-ux:ResourceGuards
+packages/Angular/src/lib/pages/tasks-dashboard.page.ts,1835,MaxRows,1000,TasksDashboardPageComponent.LoadKPIs,UX,deferred-ux:ResourceGuards
 packages/Angular/src/lib/role-assignees.ts,15,DEFAULT_TASK_ID_BATCH,400,<module>,UX,retained-ux-local
 packages/Angular/src/lib/task-field-suggestions.helper.ts,83,MAX_INLINE_SQL_TASK_IDS,200,<module>,UX,deferred-ux:ResourceGuards
 packages/Angular/src/lib/task-field-suggestions.helper.ts,84,MAX_PREVIEW_VALUE_LENGTH,36,<module>,UX,retained-ux-local

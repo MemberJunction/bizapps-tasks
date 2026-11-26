@@ -48,13 +48,14 @@ export * from './lib/components/task-bulk-actions-bar/task-bulk-actions-bar.comp
 export * from './lib/components/task-list/task-list.component.js';
 export * from './lib/components/my-tasks/my-tasks.component.js';
 export * from './lib/components/task-detail-panel/task-detail-panel.component.js';
+export * from './lib/components/task-detail-panel/task-detail-contributions-slot.component.js';
 export * from './lib/components/task-edit-panel/task-edit-panel.component.js';
 export * from './lib/components/task-kanban/task-kanban.component.js';
 export * from './lib/components/task-gantt/task-gantt.component.js';
 export * from './lib/components/task-template-wizard/task-template-wizard.component.js';
 export * from './lib/components/task-dashboard/task-dashboard.component.js';
 export * from './lib/components/task-panel/task-panel.component.js';
-export * from './lib/components/goals-view/goals-view.component.js';
+export * from './lib/task-detail-contribution.js';
 export * from './lib/components/task-drawer-shell/task-drawer-shell.component.js';
 export * from './lib/components/record-link-picker/record-link-picker-dialog.component.js';
 export * from './lib/components/connected-tasks-host/connected-tasks-host.component.js';

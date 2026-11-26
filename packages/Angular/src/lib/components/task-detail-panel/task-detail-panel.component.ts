@@ -68,6 +68,8 @@ import {
 import { RecordLinkPickerDialogComponent } from '../record-link-picker/record-link-picker-dialog.component';
 import { TaskTimeEffortComponent } from '../task-time-effort/task-time-effort.component';
 import type { TaskAssigneeInfo } from '../task-assignee-list/task-assignee-list.component';
+import type { TaskDetailContributionLink } from '../../task-detail-contribution';
+import { TaskDetailContributionsSlotComponent } from './task-detail-contributions-slot.component';
 
 export interface ActivityEntry {
     Type: 'activity' | 'comment';
@@ -155,6 +157,7 @@ export interface TaskDetailTopExtensionContext {
         TaskAdaptiveSpotlightComponent,
         RecordLinkPickerDialogComponent,
         TaskTimeEffortComponent,
+        TaskDetailContributionsSlotComponent,
     ],
     template: `
         @if (TaskID) {
@@ -308,6 +311,16 @@ export interface TaskDetailTopExtensionContext {
                         (CheckInSubmitted)="onCheckInSubmitted($event)"
                         (LinkedRecordClicked)="openLinkedRecord($event)">
                     </mjt-adaptive-spotlight>
+
+                    <!-- Dynamic Downstream App Contributions (0px when no contributions match) -->
+                    <bizapps-task-detail-contributions
+                        [TaskID]="TaskID"
+                        [TaskEntity]="taskEntity"
+                        [TaskLinks]="contributionLinks"
+                        [Provider]="ProviderToUse"
+                        [ReadOnly]="ReadOnly"
+                        [OpenEntityRecord]="openEntityRecordByName">
+                    </bizapps-task-detail-contributions>
 
                     <!-- Pending AI / Ambient Field Suggestions -->
                     @if (pendingSuggestionSummary && pendingSuggestionSummary.pendingCount > 0) {
@@ -916,6 +929,7 @@ export class TaskDetailPanelComponent implements OnChanges {
     public parentTaskName: string | null = null;
     public assignees: InspectorAssigneeRow[] = [];
     public linkedRecords: TaskWidgetLinkedRecord[] = [];
+    public contributionLinks: TaskDetailContributionLink[] = [];
     public subtasks: ChildSubtaskRow[] = [];
     public organizations: { ID: string; Name: string; LinkedCompanyID: string | null }[] = [];
     public typeStatuses: TaskWidgetTypeStatus[] = [];
@@ -1141,11 +1155,27 @@ export class TaskDetailPanelComponent implements OnChanges {
             ]);
 
             const links = resolvedLinksByTask.get(taskId.toLowerCase()) ?? [];
+            const entityIdByKey = new Map<string, string>();
+            for (const row of linkRows) {
+                const entity = p.EntityByID?.(row.EntityID);
+                if (entity) {
+                    entityIdByKey.set(`${entity.Name.toLowerCase()}|${row.RecordID.toLowerCase()}`, row.EntityID);
+                }
+            }
             this.linkedRecords = links.map((l) => ({
                 EntityName: l.EntityName,
                 RecordID: l.RecordID,
                 DisplayName: l.Name,
                 IconClass: p.EntityByName(l.EntityName)?.Icon || 'fa-solid fa-link',
+            }));
+            this.contributionLinks = this.linkedRecords.map((rec) => ({
+                EntityName: rec.EntityName,
+                EntityID:
+                    entityIdByKey.get(`${rec.EntityName.toLowerCase()}|${rec.RecordID.toLowerCase()}`) ??
+                    p.EntityByName(rec.EntityName)?.ID,
+                RecordID: rec.RecordID,
+                DisplayName: rec.DisplayName,
+                IconClass: rec.IconClass,
             }));
 
             this.assignees = assignmentRows.map((a) => {
@@ -1250,19 +1280,29 @@ export class TaskDetailPanelComponent implements OnChanges {
     private async loadLinkedRecords(): Promise<void> {
         if (!this.TaskID) {
             this.linkedRecords = [];
+            this.contributionLinks = [];
             return;
         }
         try {
-            const byTask = await LoadTaskRecordLinks([this.TaskID], this.ProviderToUse);
+            const p = this.ProviderToUse;
+            const byTask = await LoadTaskRecordLinks([this.TaskID], p);
             const links = byTask.get(this.TaskID.toLowerCase()) ?? [];
             this.linkedRecords = links.map((l) => ({
                 EntityName: l.EntityName,
                 RecordID: l.RecordID,
                 DisplayName: l.Name,
-                IconClass: this.ProviderToUse.EntityByName(l.EntityName)?.Icon || 'fa-solid fa-link',
+                IconClass: p.EntityByName(l.EntityName)?.Icon || 'fa-solid fa-link',
+            }));
+            this.contributionLinks = this.linkedRecords.map((rec) => ({
+                EntityName: rec.EntityName,
+                EntityID: p.EntityByName(rec.EntityName)?.ID,
+                RecordID: rec.RecordID,
+                DisplayName: rec.DisplayName,
+                IconClass: rec.IconClass,
             }));
         } catch {
             this.linkedRecords = [];
+            this.contributionLinks = [];
         }
     }
 
@@ -1498,8 +1538,13 @@ export class TaskDetailPanelComponent implements OnChanges {
         }
     }
 
+    public readonly openEntityRecordByName = (entityName: string, recordId: string): void => {
+        if (!entityName || !recordId) return;
+        SharedService.Instance.OpenEntityRecord(entityName, CompositeKey.FromID(recordId));
+    };
+
     public openLinkedRecord(rec: TaskWidgetLinkedRecord): void {
-        SharedService.Instance.OpenEntityRecord(rec.EntityName, CompositeKey.FromID(rec.RecordID));
+        this.openEntityRecordByName(rec.EntityName, rec.RecordID);
     }
 
     public async toggleSubtaskComplete(child: ChildSubtaskRow, nextStatus: TaskStatusValue): Promise<void> {
