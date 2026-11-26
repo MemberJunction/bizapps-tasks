@@ -143,9 +143,9 @@ packages/Angular/src/lib/meetings/meeting-data.ts,118,DETAIL_SHARE_MS,3000,<modu
 packages/Angular/src/lib/meetings/meeting-data.ts,177,maxRows,500,MeetingData.rows,UX,deferred-ux:ResourceGuards
 packages/Angular/src/lib/meetings/meeting-data.ts,810,setTimeout,1000,downloadTextFile,UX,retained-ux-local
 packages/Angular/src/lib/pages/meetings.page.ts,116,setTimeout,250,MeetingsPageComponent.reload,UX,retained-ux-local
-packages/Angular/src/lib/pages/my-tasks.page.ts,697,this.AllTasks.slice_Cap,20,MyTasksPageComponent.CommandItems,UX,retained-ux-local
-packages/Angular/src/lib/pages/my-tasks.page.ts,910,MaxRows,1,MyTasksPageComponent.OnQuickCapture,UX,deferred-ux:ResourceGuards
-packages/Angular/src/lib/pages/tasks-dashboard.page.ts,1151,MaxRows,1000,TasksDashboardPageComponent.LoadKPIs,UX,deferred-ux:ResourceGuards
+packages/Angular/src/lib/pages/my-tasks.page.ts,764,this.AllTasks.slice_Cap,20,MyTasksPageComponent.CommandItems,UX,retained-ux-local
+packages/Angular/src/lib/pages/my-tasks.page.ts,1001,MaxRows,1,MyTasksPageComponent.OnQuickCapture,UX,deferred-ux:ResourceGuards
+packages/Angular/src/lib/pages/tasks-dashboard.page.ts,1856,MaxRows,1000,TasksDashboardPageComponent.LoadKPIs,UX,deferred-ux:ResourceGuards
 packages/Angular/src/lib/role-assignees.ts,15,DEFAULT_TASK_ID_BATCH,400,<module>,UX,retained-ux-local
 packages/Angular/src/lib/task-field-suggestions.helper.ts,83,MAX_INLINE_SQL_TASK_IDS,200,<module>,UX,deferred-ux:ResourceGuards
 packages/Angular/src/lib/task-field-suggestions.helper.ts,84,MAX_PREVIEW_VALUE_LENGTH,36,<module>,UX,retained-ux-local

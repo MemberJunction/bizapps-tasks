@@ -256,7 +256,19 @@ const BUILTIN_FILTERS: readonly BuiltInFilterOption[] = [
                         Size="compact">
                     </mj-empty-state>
                 } @else {
-                    <div class="mjt-wbs-rows" role="tree">
+                    @if (EnableBulkSelect && !ReadOnly) {
+                        <div class="mjt-wbs-select-strip">
+                            <label class="mjt-wbs-select-all">
+                                <input
+                                    type="checkbox"
+                                    [checked]="AllVisibleSelected"
+                                    [indeterminate]="SelectedIDs.length > 0 && !AllVisibleSelected"
+                                    (change)="ToggleSelectAllVisible()" />
+                                <span>{{ SelectedIDs.length > 0 ? SelectedIDs.length + ' of ' + VisibleRows.length + ' selected' : 'Select tasks for bulk actions (Shift+click for range)' }}</span>
+                            </label>
+                        </div>
+                    }
+                    <div class="mjt-wbs-rows" role="tree" [class.has-selection]="EnableBulkSelect && SelectedIDs.length > 0">
                         @for (row of VisibleRows; track row.Item.ID) {
                             <ng-container *ngTemplateOutlet="rowTemplate; context: { $implicit: row }"></ng-container>
                         }
@@ -277,6 +289,7 @@ const BUILTIN_FILTERS: readonly BuiltInFilterOption[] = [
                 [attr.aria-level]="row.Depth + 1"
                 [attr.aria-expanded]="row.HasChildren ? row.Expanded : null"
                 [attr.data-row-tone]="rowTone"
+                [class.is-selected]="EnableBulkSelect && IsTaskSelected(task.ID)"
                 [class.is-done]="task.Status === 'Completed'"
                 [class.is-blocked]="task.Status === 'Blocked'"
                 [class.is-parent]="row.HasChildren"
@@ -284,6 +297,15 @@ const BUILTIN_FILTERS: readonly BuiltInFilterOption[] = [
                 (click)="onRowClick(task)"
                 (dblclick)="onRowDoubleClick(task)">
                 <div class="mjt-wbs-row-left">
+                    @if (EnableBulkSelect && !ReadOnly) {
+                        <input
+                            type="checkbox"
+                            class="mjt-wbs-bulk-chk"
+                            [checked]="IsTaskSelected(task.ID)"
+                            [attr.aria-label]="'Select ' + task.Name"
+                            (click)="OnSelectionCheckboxClick($event, task.ID)" />
+                    }
+
                     @if (ShowTreeConnectors && row.Depth > 0) {
                         <span class="mjt-wbs-guides" aria-hidden="true">
                             @for (lvl of depthGuides(row.Depth); track lvl) {
@@ -398,6 +420,17 @@ const BUILTIN_FILTERS: readonly BuiltInFilterOption[] = [
                         <span class="mjt-pill" [class]="statusPillClass(task.Status)">
                             {{ statusLabel(task.Status) }}
                         </span>
+                    }
+
+                    @if (ShowAddSubtaskAction && !ReadOnly) {
+                        <button
+                            type="button"
+                            class="mjt-wbs-add-sub"
+                            [attr.title]="'Add subtask under ' + task.Name"
+                            [attr.aria-label]="'Add subtask under ' + task.Name"
+                            (click)="$event.stopPropagation(); onAddSubtaskClick(task)">
+                            <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                        </button>
                     }
 
                     @if (EffectiveRowMetaTemplate) {
@@ -639,6 +672,70 @@ const BUILTIN_FILTERS: readonly BuiltInFilterOption[] = [
         .mjt-wbs-group-footer {
             padding-top: 8px;
             border-top: 1px solid var(--mj-border-subtle);
+        }
+        .mjt-wbs-select-strip {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 2px 12px;
+        }
+        .mjt-wbs-select-all {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11.5px;
+            color: var(--mj-text-muted);
+            cursor: pointer;
+            user-select: none;
+        }
+        .mjt-wbs-select-all input {
+            accent-color: var(--mj-brand-primary);
+            cursor: pointer;
+        }
+        .mjt-wbs-bulk-chk {
+            width: 15px;
+            height: 15px;
+            accent-color: var(--mj-brand-primary);
+            cursor: pointer;
+            flex-shrink: 0;
+            opacity: 0;
+            transition: opacity 140ms ease;
+        }
+        .mjt-wbs-row:hover .mjt-wbs-bulk-chk,
+        .mjt-wbs-row:focus-within .mjt-wbs-bulk-chk,
+        .mjt-wbs-rows.has-selection .mjt-wbs-bulk-chk,
+        .mjt-wbs-bulk-chk:checked {
+            opacity: 1;
+        }
+        .mjt-wbs-row.is-selected {
+            border-color: var(--mj-brand-primary);
+            background: var(--mj-surface-base-bg-selected, color-mix(in oklab, var(--mj-brand-primary) 8%, var(--mj-bg-surface)));
+        }
+        .mjt-wbs-add-sub {
+            width: 24px;
+            height: 24px;
+            border-radius: var(--mj-radius-sm, 6px);
+            border: 1px solid transparent;
+            background: transparent;
+            color: var(--mj-text-muted);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 11px;
+            opacity: 0;
+            transition: opacity 140ms ease, border-color 140ms ease, background 140ms ease, color 140ms ease;
+            flex-shrink: 0;
+        }
+        .mjt-wbs-row:hover .mjt-wbs-add-sub,
+        .mjt-wbs-row:focus-within .mjt-wbs-add-sub,
+        .mjt-wbs-add-sub:focus-visible {
+            opacity: 1;
+        }
+        .mjt-wbs-add-sub:hover {
+            border-color: var(--mj-brand-primary);
+            background: color-mix(in oklab, var(--mj-brand-primary) 10%, var(--mj-bg-surface));
+            color: var(--mj-brand-primary);
         }
         .mjt-wbs-rows {
             display: flex;
@@ -888,6 +985,13 @@ const BUILTIN_FILTERS: readonly BuiltInFilterOption[] = [
             font-weight: var(--mj-font-semibold, 600);
         }
         @media (max-width: 720px) {
+            .mjt-wbs-select-strip,
+            .mjt-wbs-bulk-chk {
+                display: none;
+            }
+            .mjt-wbs-add-sub {
+                opacity: 1;
+            }
             .mjt-wbs-row {
                 flex-direction: column;
                 align-items: stretch;
@@ -916,6 +1020,9 @@ export class TaskWbsTreeComponent {
     @Input() ShowToolbar = true;
     @Input() CustomFilters: readonly TaskWbsFilterDef[] = [];
     @Input() ReadOnly = false;
+    @Input() EnableBulkSelect = false;
+    @Input() SelectedIDs: readonly string[] = [];
+    @Input() ShowAddSubtaskAction = false;
     @Input() RowBadgeResolver: ((task: TaskWidgetItem) => readonly TaskBadgeDescriptor[]) | null = null;
     @Input() RowToneResolver: ((task: TaskWidgetItem) => TaskWbsRowTone) | null = null;
     @Input() EmptyTitle = 'No tasks match your filter';
@@ -938,6 +1045,7 @@ export class TaskWbsTreeComponent {
     @Output() TaskDoubleClicked = new EventEmitter<TaskWidgetItem>();
     @Output() StatusToggled = new EventEmitter<{ TaskID: string; NewStatus: TaskStatusValue }>();
     @Output() CreateTaskRequested = new EventEmitter<{ GroupID?: string; ParentTaskID?: string }>();
+    @Output() SelectedIDsChange = new EventEmitter<string[]>();
 
     public readonly BuiltInFilters = BUILTIN_FILTERS;
     public SearchText = '';
@@ -946,6 +1054,7 @@ export class TaskWbsTreeComponent {
     public CollapsedNodeIDs = new Set<string>();
     public CollapsedGroupIDs = new Set<string>();
 
+    private lastCheckedTaskID: string | null = null;
     private cdr = inject(ChangeDetectorRef, { optional: true });
 
     public get IsGroupMode(): boolean {
@@ -1200,6 +1309,92 @@ export class TaskWbsTreeComponent {
         const parts = name.trim().split(/\s+/).filter(Boolean);
         if (parts.length <= 1) return name.trim();
         return `${parts[0]} ${parts[parts.length - 1][0]}.`;
+    }
+
+    public get AllVisibleSelected(): boolean {
+        const visibleIds = this.GetVisibleTaskIDs();
+        return visibleIds.length > 0 && visibleIds.every((id) => this.IsTaskSelected(id));
+    }
+
+    public GetVisibleTaskIDs(): string[] {
+        if (this.IsGroupMode) {
+            const ids: string[] = [];
+            const seen = new Set<string>();
+            for (const rg of this.RenderedGroups) {
+                for (const row of rg.Rows) {
+                    const key = row.Item.ID.toLowerCase();
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        ids.push(row.Item.ID);
+                    }
+                }
+            }
+            return ids;
+        }
+        return this.VisibleRows.map((row) => row.Item.ID);
+    }
+
+    public IsTaskSelected(taskId: string): boolean {
+        const target = taskId.toLowerCase();
+        return (this.SelectedIDs ?? []).some((id) => id.toLowerCase() === target);
+    }
+
+    public OnSelectionCheckboxClick(event: MouseEvent, taskId: string): void {
+        event.stopPropagation();
+        if (!this.EnableBulkSelect || this.ReadOnly) return;
+
+        if (event.shiftKey && this.lastCheckedTaskID) {
+            const visibleIds = this.GetVisibleTaskIDs();
+            const fromIdx = visibleIds.findIndex((id) => id.toLowerCase() === this.lastCheckedTaskID?.toLowerCase());
+            const toIdx = visibleIds.findIndex((id) => id.toLowerCase() === taskId.toLowerCase());
+            if (fromIdx >= 0 && toIdx >= 0) {
+                const start = Math.min(fromIdx, toIdx);
+                const end = Math.max(fromIdx, toIdx);
+                const existingSet = new Set((this.SelectedIDs ?? []).map((id) => id.toLowerCase()));
+                const merged = [...(this.SelectedIDs ?? [])];
+                for (let i = start; i <= end; i++) {
+                    const id = visibleIds[i];
+                    const norm = id.toLowerCase();
+                    if (!existingSet.has(norm)) {
+                        existingSet.add(norm);
+                        merged.push(id);
+                    }
+                }
+                this.SelectedIDs = merged;
+                this.lastCheckedTaskID = taskId;
+                this.SelectedIDsChange.emit([...merged]);
+                this.cdr?.markForCheck();
+                return;
+            }
+        }
+
+        this.ToggleTaskSelection(taskId);
+        this.lastCheckedTaskID = taskId;
+    }
+
+    public ToggleTaskSelection(taskId: string): void {
+        if (!this.EnableBulkSelect || this.ReadOnly) return;
+        const target = taskId.toLowerCase();
+        const current = this.SelectedIDs ?? [];
+        const next = this.IsTaskSelected(taskId)
+            ? current.filter((id) => id.toLowerCase() !== target)
+            : [...current, taskId];
+        this.SelectedIDs = next;
+        this.SelectedIDsChange.emit([...next]);
+        this.cdr?.markForCheck();
+    }
+
+    public ToggleSelectAllVisible(): void {
+        if (!this.EnableBulkSelect || this.ReadOnly) return;
+        const next = this.AllVisibleSelected ? [] : this.GetVisibleTaskIDs();
+        this.SelectedIDs = next;
+        this.SelectedIDsChange.emit([...next]);
+        this.cdr?.markForCheck();
+    }
+
+    public onAddSubtaskClick(task: TaskWidgetItem): void {
+        if (this.ReadOnly) return;
+        this.CreateTaskRequested.emit({ ParentTaskID: task.ID });
     }
 
     public onRowClick(task: TaskWidgetItem): void {

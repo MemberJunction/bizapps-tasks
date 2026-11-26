@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { CompositeKey, LogError, Metadata, type IMetadataProvider, type RunViewParams } from '@memberjunction/core';
+import { UserInfoEngine } from '@memberjunction/core-entities';
 import { EscapeSQLString } from '@memberjunction/global';
 import { BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { SharedService } from '@memberjunction/ng-shared';
@@ -25,18 +26,23 @@ import {
     MJPageSearchComponent,
     MJRefreshButtonComponent,
     MJStatBadgeComponent,
+    MJViewToggleComponent,
     type FilterFieldConfig,
+    type ViewToggleOption,
 } from '@memberjunction/ng-ui-components';
 import {
+    BuildWbsTree,
     ClassifyTaskHorizon,
     ComputeChildRollups,
     ComputeTaskUrgencyCounts,
+    FilterWbsTreePreservingAncestors,
     FormatTaskStatusLabel,
     IsTaskOverdue,
     IsTaskSlaAtRisk,
     TaskOrchestrationService,
     TasksEngineBase,
     type TaskUrgencyCounts,
+    type TaskWbsNode,
 } from '@mj-biz-apps/tasks-core';
 import type {
     mjBizAppsTasksTaskAssignmentEntity,
@@ -53,6 +59,7 @@ import {
     TaskCompletionRingComponent,
     TaskQuickCaptureComponent,
     TaskUrgencyStripComponent,
+    TaskWbsTreeComponent,
     type TaskApprovalActionEvent,
     type TaskCommandPaletteItem,
     type TaskPriorityValue,
@@ -71,6 +78,10 @@ import { RunningTimerChipComponent } from '../components/running-timer-chip/runn
 import { TaskDetailPanelComponent } from '../components/task-detail-panel/task-detail-panel.component';
 import { TaskDrawerShellComponent } from '../components/task-drawer-shell/task-drawer-shell.component';
 import { TaskEditPanelComponent } from '../components/task-edit-panel/task-edit-panel.component';
+
+export type MyTasksViewMode = 'list' | 'wbs';
+
+const MY_TASKS_VIEW_MODE_SETTING = 'mj.tasks.myTasksViewMode.v1';
 
 interface MyWorkTaskRow {
     ID: string;
@@ -112,10 +123,12 @@ interface MyWorkTaskRow {
         MJFilterPanelComponent,
         MJRefreshButtonComponent,
         MJStatBadgeComponent,
+        MJViewToggleComponent,
         MJButtonDirective,
         MJEmptyStateComponent,
         TaskQuickCaptureComponent,
         TaskUrgencyStripComponent,
+        TaskWbsTreeComponent,
         TaskApprovalCardComponent,
         TaskCompletionRingComponent,
         TaskCommandPaletteComponent,
@@ -155,8 +168,9 @@ interface MyWorkTaskRow {
                     </button>
                 </div>
 
-                <div toolbar>
+                <div toolbar class="mjt-my-toolbar">
                     <mj-page-search
+                        class="mjt-my-search"
                         Placeholder="Filter my work..."
                         [Value]="SearchText"
                         (ValueChange)="SearchText = $event; cdr.markForCheck()">
@@ -174,6 +188,11 @@ interface MyWorkTaskRow {
                             (Reset)="ResetFilters()">
                         </mj-filter-panel>
                     </mj-filter-popover>
+                    <mj-view-toggle
+                        [Options]="ViewToggleOptions"
+                        [ActiveKey]="ViewMode"
+                        (KeyChange)="OnViewToggleChange($event)">
+                    </mj-view-toggle>
                 </div>
             </mj-page-header>
 
@@ -228,6 +247,22 @@ interface MyWorkTaskRow {
                                 ActionIcon="fa-solid fa-plus"
                                 (Action)="OpenCreate()">
                             </mj-empty-state>
+                        } @else if (ViewMode === 'wbs') {
+                            <mjt-wbs-tree
+                                [Tasks]="WbsTasks"
+                                [ShowWbsCodes]="true"
+                                [ShowTreeConnectors]="true"
+                                [ShowProgressBars]="true"
+                                [ShowStatusPill]="true"
+                                [ShowTypeBadge]="true"
+                                [ShowBlockedReason]="true"
+                                [ShowToolbar]="true"
+                                EmptyTitle="You're all caught up"
+                                EmptyMessage="Capture a new task above or clear active filters to see more."
+                                (TaskClicked)="OpenInspector($event.ID)"
+                                (TaskDoubleClicked)="OpenFullRecord($event.ID)"
+                                (StatusToggled)="OnStatusToggle($event.TaskID, $event.NewStatus)">
+                            </mjt-wbs-tree>
                         } @else {
                             <!-- 3. Horizon 1: Needs Your Decision -->
                             @if (DecisionTasks.length > 0) {
@@ -485,6 +520,12 @@ interface MyWorkTaskRow {
             max-width: 1040px; width: 100%; margin: 0 auto; min-width: 0;
             padding-bottom: 80px;
         }
+        .mjt-my-toolbar {
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap; width: 100%;
+        }
+        .mjt-my-search {
+            flex: 1 1 200px; min-width: 160px;
+        }
         .mjt-toolbar-btn { background: var(--mj-bg-surface-elevated, var(--mj-bg-surface)); }
         .mjt-loading { padding: 36px; text-align: center; color: var(--mj-text-muted); font-size: var(--mj-text-sm, 14px); }
         .mjt-toast-banner {
@@ -579,6 +620,11 @@ export class MyTasksPageComponent implements OnInit {
     public readonly NoPersonMessage = NO_PERSON_MESSAGE;
     public readonly LookupFailedMessage = PERSON_LOOKUP_FAILED_MESSAGE;
 
+    public ViewToggleOptions: ViewToggleOption[] = [
+        { key: 'list', icon: 'fa-solid fa-list', label: 'List', title: 'Action Horizons List View' },
+        { key: 'wbs', icon: 'fa-solid fa-sitemap', label: 'WBS', title: 'WBS Hierarchy View' },
+    ];
+    public ViewMode: MyTasksViewMode = 'list';
     public AllTasks: TaskWidgetItem[] = [];
     public Loading = false;
     public Busy = false;
@@ -644,27 +690,48 @@ export class MyTasksPageComponent implements OnInit {
     }
 
     public get FilteredTasks(): TaskWidgetItem[] {
+        return this.AllTasks.filter((t) => this.matchesFilters(t));
+    }
+
+    /**
+     * Ancestor-preserving WBS task projection for `ViewMode === 'wbs'` so matching
+     * child tasks remain nested under their assigned parent phases/milestones.
+     */
+    public get WbsTasks(): TaskWidgetItem[] {
+        if (this.AllTasks.length === 0) return [];
+        const tree = BuildWbsTree(this.AllTasks);
+        const filteredTree = FilterWbsTreePreservingAncestors(tree, (item) => this.matchesFilters(item));
+        const out: TaskWidgetItem[] = [];
+        const flatten = (nodes: readonly TaskWbsNode<TaskWidgetItem>[]): void => {
+            for (const node of nodes) {
+                out.push(node.Item);
+                if (node.Children.length > 0) flatten(node.Children);
+            }
+        };
+        flatten(filteredTree);
+        return out;
+    }
+
+    private matchesFilters(t: TaskWidgetItem): boolean {
         const q = this.SearchText.trim().toLowerCase();
         const pri = this.FilterValues['priority'] as string | null;
         const showCompleted = this.FilterValues['showCompleted'] === 'show';
 
-        return this.AllTasks.filter((t) => {
-            if (!showCompleted && (t.Status === 'Completed' || t.Status === 'Cancelled')) return false;
-            if (pri && t.Priority !== pri) return false;
-            if (this.UrgencyFilter === 'overdue' && !IsTaskOverdue(t.DueAt, t.Status)) return false;
-            if (this.UrgencyFilter === 'blocked' && t.Status !== 'Blocked') return false;
-            if (this.UrgencyFilter === 'approvals' && !t.IsApproval) return false;
-            if (this.UrgencyFilter === 'sla' && !IsTaskSlaAtRisk(t)) return false;
-            if (
-                q &&
-                !t.Name.toLowerCase().includes(q) &&
-                !(t.Description?.toLowerCase().includes(q) ?? false) &&
-                !(t.CategoryName?.toLowerCase().includes(q) ?? false)
-            ) {
-                return false;
-            }
-            return true;
-        });
+        if (!showCompleted && (t.Status === 'Completed' || t.Status === 'Cancelled')) return false;
+        if (pri && t.Priority !== pri) return false;
+        if (this.UrgencyFilter === 'overdue' && !IsTaskOverdue(t.DueAt, t.Status)) return false;
+        if (this.UrgencyFilter === 'blocked' && t.Status !== 'Blocked') return false;
+        if (this.UrgencyFilter === 'approvals' && !t.IsApproval) return false;
+        if (this.UrgencyFilter === 'sla' && !IsTaskSlaAtRisk(t)) return false;
+        if (
+            q &&
+            !t.Name.toLowerCase().includes(q) &&
+            !(t.Description?.toLowerCase().includes(q) ?? false) &&
+            !(t.CategoryName?.toLowerCase().includes(q) ?? false)
+        ) {
+            return false;
+        }
+        return true;
     }
 
     public get DecisionTasks(): TaskWidgetItem[] {
@@ -708,6 +775,14 @@ export class MyTasksPageComponent implements OnInit {
 
     public async ngOnInit(): Promise<void> {
         try {
+            const savedView = UserInfoEngine.Instance.GetSetting(MY_TASKS_VIEW_MODE_SETTING);
+            if (savedView === 'list' || savedView === 'wbs') {
+                this.ViewMode = savedView;
+            }
+        } catch {
+            // Safe fallback when UserInfoEngine is not initialized in isolated tests
+        }
+        try {
             this.PersonID = await ResolveCurrentPersonID();
         } catch (err) {
             LogError(err);
@@ -718,6 +793,22 @@ export class MyTasksPageComponent implements OnInit {
             await this.LoadMyWork(false);
         }
         this.cdr.markForCheck();
+    }
+
+    public SetViewMode(mode: MyTasksViewMode): void {
+        this.ViewMode = mode;
+        try {
+            UserInfoEngine.Instance.SetSettingDebounced(MY_TASKS_VIEW_MODE_SETTING, mode);
+        } catch {
+            // Safe fallback when UserInfoEngine is not initialized
+        }
+        this.cdr.markForCheck();
+    }
+
+    public OnViewToggleChange(key: string): void {
+        if (key === 'list' || key === 'wbs') {
+            this.SetViewMode(key);
+        }
     }
 
     public async LoadMyWork(bypassCache: boolean): Promise<void> {

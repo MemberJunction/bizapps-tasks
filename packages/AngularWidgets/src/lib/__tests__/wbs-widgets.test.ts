@@ -214,4 +214,38 @@ describe('WBS widgets (TaskWbsSummaryStripComponent & TaskWbsTreeComponent)', ()
         tree.onRingToggle(sampleTasks[2], 'Completed');
         expect(toggled).toEqual([{ TaskID: 'task-1', NewStatus: 'Completed' }]);
     });
+
+    it('TaskWbsTreeComponent supports EnableBulkSelect (single, Shift+click range, Select All) and ShowAddSubtaskAction', () => {
+        const tree = createWbsTree();
+        tree.Tasks = sampleTasks;
+        tree.EnableBulkSelect = true;
+        tree.ShowAddSubtaskAction = true;
+
+        const selections: string[][] = [];
+        tree.SelectedIDsChange.subscribe((ids) => selections.push(ids));
+
+        const stop = vi.fn();
+        tree.OnSelectionCheckboxClick({ shiftKey: false, stopPropagation: stop } as unknown as MouseEvent, 'phase-1');
+        expect(stop).toHaveBeenCalledTimes(1);
+        expect(tree.SelectedIDs).toEqual(['phase-1']);
+
+        // Shift+click task-1 selects phase-1, ms-1, task-1 in visible tree order
+        tree.OnSelectionCheckboxClick({ shiftKey: true, stopPropagation: stop } as unknown as MouseEvent, 'task-1');
+        expect(tree.SelectedIDs).toEqual(['phase-1', 'ms-1', 'task-1']);
+
+        // ToggleSelectAllVisible selects all 5 visible rows, then clears on second call
+        tree.ToggleSelectAllVisible();
+        expect(tree.SelectedIDs).toEqual(['phase-1', 'ms-1', 'task-1', 'sub-1', 'phase-2']);
+        expect(tree.AllVisibleSelected).toBe(true);
+
+        tree.ToggleSelectAllVisible();
+        expect(tree.SelectedIDs).toEqual([]);
+        expect(selections.at(-1)).toEqual([]);
+
+        // ShowAddSubtaskAction emits CreateTaskRequested with ParentTaskID
+        const createRequests: Array<{ GroupID?: string; ParentTaskID?: string }> = [];
+        tree.CreateTaskRequested.subscribe((req) => createRequests.push(req));
+        tree.onAddSubtaskClick(sampleTasks[1]);
+        expect(createRequests).toEqual([{ ParentTaskID: 'ms-1' }]);
+    });
 });
