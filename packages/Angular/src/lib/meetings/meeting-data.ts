@@ -4,6 +4,7 @@
  * form panels own an instance each; the widgets never read a record.
  */
 import { CompositeKey, LogError, Metadata, RunView, type UserInfo } from '@memberjunction/core';
+import { GraphQLActionClient, GraphQLDataProvider } from '@memberjunction/graphql-dataprovider';
 import type {
     mjBizAppsTasksMeetingAgendaItemEntity,
     mjBizAppsTasksMeetingAttendeeEntity,
@@ -15,6 +16,8 @@ import type {
     TaskEntity,
 } from '@mj-biz-apps/tasks-entities';
 import {
+    ArtifactDualReadResolver,
+    GetResolvedArtifactContent,
     MEETING_AGENDA_ITEM_ENTITY,
     MEETING_AGENDA_ITEM_TYPE_ENTITY,
     MEETING_ATTENDEE_ENTITY,
@@ -27,6 +30,7 @@ import {
     MeetingCalendarFile,
     MeetingNotesService,
     MeetingService,
+    PUBLISH_MEETING_NOTE_AS_MJ_DOC_ACTION_ID,
     TaskAssignmentService,
     VIDEO_PROVIDER_ENTITY,
     callerAdministersMeetings,
@@ -346,22 +350,33 @@ export class MeetingData {
 
     async LoadNotes(meetingId: string): Promise<NoteModel[]> {
         const personId = await this.CurrentPersonId();
-        const rows = await this.rows<{ ID: string; AgendaItemID: string | null; Kind: NoteModel['kind']; Title: string | null; Body: string; Source: NoteModel['source']; Status: NoteModel['status']; AuthorPersonID: string | null; AuthorPerson: string | null; ProposedTasks: string | null; __mj_UpdatedAt: string }>(
-            MEETING_NOTE_ENTITY, `MeetingID = '${meetingId}'`, ['ID', 'AgendaItemID', 'Kind', 'Title', 'Body', 'Source', 'Status', 'AuthorPersonID', 'AuthorPerson', 'ProposedTasks', '__mj_UpdatedAt'], '__mj_UpdatedAt DESC', 500,
+        const rows = await this.rows<{ ID: string; AgendaItemID: string | null; Kind: NoteModel['kind']; Title: string | null; Body: string; ArtifactID?: string | null; Source: NoteModel['source']; Status: NoteModel['status']; AuthorPersonID: string | null; AuthorPerson: string | null; ProposedTasks: string | null; __mj_UpdatedAt: string }>(
+            MEETING_NOTE_ENTITY, `MeetingID = '${meetingId}'`, ['ID', 'AgendaItemID', 'Kind', 'Title', 'Body', 'ArtifactID', 'Source', 'Status', 'AuthorPersonID', 'AuthorPerson', 'ProposedTasks', '__mj_UpdatedAt'], '__mj_UpdatedAt DESC', 500,
         );
-        return rows.map((r) => ({
-            id: r.ID,
-            agendaItemId: r.AgendaItemID,
-            kind: r.Kind,
-            title: r.Title,
-            body: r.Body,
-            source: r.Source,
-            status: r.Status,
-            authorName: r.AuthorPerson,
-            updatedLabel: dateLabel(r.__mj_UpdatedAt),
-            isMine: !!personId && same(r.AuthorPersonID, personId),
-            proposedTasks: parseProposedTasks(r.ProposedTasks),
-        }));
+        const resolvedArtifacts = await ArtifactDualReadResolver.Instance.ResolveBatch(rows, {
+            ContextUser: this.user,
+            IncludeContent: false,
+        });
+        return rows.map((r) => {
+            const resolved = GetResolvedArtifactContent(resolvedArtifacts, r.ID);
+            return {
+                id: r.ID,
+                agendaItemId: r.AgendaItemID,
+                kind: r.Kind,
+                title: r.Title,
+                body: r.Body,
+                source: r.Source,
+                status: r.Status,
+                authorName: r.AuthorPerson,
+                updatedLabel: dateLabel(r.__mj_UpdatedAt),
+                isMine: !!personId && same(r.AuthorPersonID, personId),
+                proposedTasks: parseProposedTasks(r.ProposedTasks),
+                artifactId: r.ArtifactID ?? null,
+                artifactName: resolved?.ArtifactName ?? null,
+                artifactVersionNumber: resolved?.VersionNumber ?? null,
+                artifactAccessible: resolved?.Source === 'artifact',
+            };
+        });
     }
 
     async LoadLinks(meetingId: string): Promise<LinkModel[]> {
@@ -701,6 +716,52 @@ export class MeetingData {
         MeetingData.ForgetDetails();
         try {
             await new MeetingNotesService(Metadata.Provider).dismissProposedTask(action.noteId, action.proposal.id, this.user);
+        } finally {
+            MeetingData.ForgetDetails();
+        }
+    }
+
+    /**
+     * Publishes a Category B `MeetingNote` as an MJ Doc (creating `MJ: Artifacts` + Version 1
+     * or appending Version N+1 idempotently) via `Tasks.PublishMeetingNoteAsMJDoc`.
+     */
+    async PublishNoteAsMJDoc(noteId: string): Promise<{
+        artifactId: string;
+        artifactVersionId: string;
+        versionNumber: number;
+        createdNewArtifact: boolean;
+    }> {
+        MeetingData.ForgetDetails();
+        try {
+            const provider = Metadata.Provider;
+            if (!provider || !('ExecuteGQL' in provider || provider instanceof GraphQLDataProvider)) {
+                throw new Error('Publishing as an MJ Doc requires a live server GraphQL connection.');
+            }
+            const client = new GraphQLActionClient(provider as GraphQLDataProvider);
+            const res = await client.RunAction(PUBLISH_MEETING_NOTE_AS_MJ_DOC_ACTION_ID, [
+                { Name: 'MeetingNoteID', Value: noteId, Type: 'Input' },
+                { Name: 'ArtifactID', Value: null, Type: 'Output' },
+                { Name: 'ArtifactVersionID', Value: null, Type: 'Output' },
+                { Name: 'VersionNumber', Value: null, Type: 'Output' },
+                { Name: 'CreatedNewArtifact', Value: null, Type: 'Output' },
+            ]);
+            if (!res.Success) {
+                throw new Error(res.Message || 'Failed to publish meeting note as MJ Doc.');
+            }
+            const readOut = (name: string): string => {
+                const match = res.Params?.find((p) => p.Name.toLowerCase() === name.toLowerCase());
+                return match?.Value != null ? String(match.Value).trim() : '';
+            };
+            const artifactId = readOut('ArtifactID');
+            if (!artifactId) {
+                throw new Error('Publish action succeeded without returning an ArtifactID.');
+            }
+            return {
+                artifactId,
+                artifactVersionId: readOut('ArtifactVersionID'),
+                versionNumber: Number(readOut('VersionNumber')) || 1,
+                createdNewArtifact: readOut('CreatedNewArtifact').toLowerCase() === 'true',
+            };
         } finally {
             MeetingData.ForgetDetails();
         }

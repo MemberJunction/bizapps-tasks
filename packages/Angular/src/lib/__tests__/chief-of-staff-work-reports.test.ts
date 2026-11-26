@@ -21,6 +21,10 @@ const {
     runActionMock: vi.fn(),
 }));
 
+vi.mock('@memberjunction/ng-artifacts', () => ({
+    ArtifactsModule: class {},
+}));
+
 vi.mock('@memberjunction/graphql-dataprovider', () => ({
     GraphQLDataProvider: class {},
     GraphQLActionClient: class {

@@ -47,7 +47,11 @@ import {
 } from './sections/tasks-sections.component';
 import { ChiefOfStaffWorkReportsResource } from './chief-of-staff/chief-of-staff-work-reports.component';
 import { mjBizAppsTasksTaskRiskAssessmentFormComponent } from './generated/Entities/mjBizAppsTasksTaskRiskAssessment/mjbizappstaskstaskriskassessment.form.component';
+import { mjBizAppsTasksWorkReportFormComponent } from './generated/Entities/mjBizAppsTasksWorkReport/mjbizappstasksworkreport.form.component';
+import { mjBizAppsTasksMeetingNoteFormComponent } from './generated/Entities/mjBizAppsTasksMeetingNote/mjbizappstasksmeetingnote.form.component';
 import { TaskRiskAssessmentRisksPanel } from './form-panels/task-risk-assessment.panel';
+import { WorkReportArtifactPanel } from './form-panels/work-report-artifact.panel';
+import { MeetingNoteArtifactPanel } from './form-panels/meeting-note-artifact.panel';
 
 @NgModule({
     imports: [
@@ -142,4 +146,8 @@ export function LoadBizAppsTasksClient() {
     LoadMeetingsSectionResources();
     void mjBizAppsTasksTaskRiskAssessmentFormComponent;
     void TaskRiskAssessmentRisksPanel;
+    void mjBizAppsTasksWorkReportFormComponent;
+    void mjBizAppsTasksMeetingNoteFormComponent;
+    void WorkReportArtifactPanel;
+    void MeetingNoteArtifactPanel;
 }

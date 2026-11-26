@@ -118,6 +118,12 @@
                                     <span>{{ r.PersonName }}</span>
                                     <span>{{ r.PeriodStart }} – {{ r.PeriodEnd }}</span>
                                     <span>{{ r.Items.length }} {{ r.Items.length === 1 ? 'item' : 'items' }}</span>
+                                    @if (r.ArtifactID) {
+                                        <span class="cos-doc-badge">
+                                            <i class="fa-solid fa-book-open" aria-hidden="true"></i>
+                                            MJ Doc@if (r.ArtifactVersionNumber) { v{{ r.ArtifactVersionNumber }}}
+                                        </span>
+                                    }
                                 </div>
                             </button>
                         </li>
@@ -207,8 +213,59 @@
                             </form>
                         } @else {
                             <section class="cos-readonly-body" aria-labelledby="cos-report-body-heading">
-                                <h3 id="cos-report-body-heading" class="cos-section-heading">Report Summary</h3>
-                                <pre class="cos-markdown-preview">{{ sel.Body }}</pre>
+                                <div class="cos-body-header">
+                                    <h3 id="cos-report-body-heading" class="cos-section-heading">
+                                        {{ sel.ArtifactID && sel.ResolvedContentSource === 'artifact' && DocumentViewMode === 'artifact' ? 'Published MJ Doc' : 'Report Summary' }}
+                                    </h3>
+                                    @if (sel.ArtifactID && sel.ResolvedContentSource === 'artifact') {
+                                        <div class="cos-reports-tabs" role="tablist" aria-label="Work report display mode">
+                                            <button
+                                                type="button"
+                                                role="tab"
+                                                class="cos-tab-btn"
+                                                [class.active]="DocumentViewMode === 'artifact'"
+                                                [attr.aria-selected]="DocumentViewMode === 'artifact'"
+                                                (click)="SetDocumentViewMode('artifact')">
+                                                <i class="fa-solid fa-book-open" aria-hidden="true"></i>
+                                                MJ Doc
+                                            </button>
+                                            <button
+                                                type="button"
+                                                role="tab"
+                                                class="cos-tab-btn"
+                                                [class.active]="DocumentViewMode === 'body'"
+                                                [attr.aria-selected]="DocumentViewMode === 'body'"
+                                                (click)="SetDocumentViewMode('body')">
+                                                <i class="fa-solid fa-align-left" aria-hidden="true"></i>
+                                                Legacy Summary
+                                            </button>
+                                        </div>
+                                    }
+                                </div>
+                                @if (sel.ArtifactID && sel.ResolvedContentSource === 'artifact' && DocumentViewMode === 'artifact') {
+                                    <div class="cos-artifact-viewer-host">
+                                        <mj-artifact-viewer-panel
+                                            [artifactId]="sel.ArtifactID"
+                                            [VersionNumber]="sel.ArtifactVersionNumber ?? undefined"
+                                            [CurrentUser]="ProviderToUse.CurrentUser"
+                                            [ShowHeader]="true"
+                                            [ShowTabs]="true"
+                                            [ShowCloseButton]="false"
+                                            [ShowSaveToCollection]="true"
+                                            [CanEdit]="false">
+                                        </mj-artifact-viewer-panel>
+                                    </div>
+                                } @else {
+                                    @if (sel.ArtifactID && sel.ResolvedContentSource !== 'artifact') {
+                                        <p class="cos-fallback-notice" role="status">
+                                            <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+                                            Linked MJ Doc is unavailable for your account — displaying legacy report summary.
+                                        </p>
+                                    }
+                                    <div class="cos-markdown-preview">
+                                        <mj-markdown [data]="sel.Body"></mj-markdown>
+                                    </div>
+                                }
                             </section>
                         }
 

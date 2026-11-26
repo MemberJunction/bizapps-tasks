@@ -8,6 +8,7 @@ import {
     MeetingNotesComponent,
     canDraftNotesWithAI,
     canManageNoteProposals,
+    canPublishNoteAsMJDoc,
 } from '../meeting-notes.component';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -86,5 +87,18 @@ describe('MeetingNotesComponent Markdown rendering and styling', () => {
         expect(canDraftNotesWithAI(false)).toBe(false);
         expect(canManageNoteProposals(true, false, true)).toBe(true);
         expect(canManageNoteProposals(true, false, false)).toBe(false);
+    });
+
+    it('guards Publish as MJ Doc CTA against blank body, unauthorized callers, and concurrent in-flight publishes', () => {
+        const note = { id: 'note-1', isMine: true, body: '## Notes\n- Decision made' };
+        expect(canPublishNoteAsMJDoc(true, false, note, false, null)).toBe(true);
+        // Blank body blocked
+        expect(canPublishNoteAsMJDoc(true, true, { ...note, body: '   ' }, false, null)).toBe(false);
+        // Concurrent in-flight publish blocked
+        expect(canPublishNoteAsMJDoc(true, true, note, false, 'note-1')).toBe(false);
+        expect(canPublishNoteAsMJDoc(true, true, note, true, null)).toBe(false);
+        // Unauthorized caller blocked
+        expect(canPublishNoteAsMJDoc(false, false, note, false, null)).toBe(false);
+        expect(canPublishNoteAsMJDoc(true, false, { ...note, isMine: false }, false, null)).toBe(false);
     });
 });

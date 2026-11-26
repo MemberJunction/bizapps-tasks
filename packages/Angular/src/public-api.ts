@@ -78,6 +78,10 @@ export * from './lib/form-panels/task-header.panel.js';
 export * from './lib/form-panels/task-category-hierarchy.panel.js';
 export * from './lib/form-panels/task-template-item-hierarchy.panel.js';
 export * from './lib/form-panels/task-risk-assessment.panel.js';
+export * from './lib/form-panels/work-report-artifact.panel.js';
+export * from './lib/form-panels/meeting-note-artifact.panel.js';
+export { mjBizAppsTasksWorkReportFormComponent } from './lib/generated/Entities/mjBizAppsTasksWorkReport/mjbizappstasksworkreport.form.component.js';
+export { mjBizAppsTasksMeetingNoteFormComponent } from './lib/generated/Entities/mjBizAppsTasksMeetingNote/mjbizappstasksmeetingnote.form.component.js';
 
 // Pages & Section Resources
 export * from './lib/pages/tasks-dashboard.page.js';

@@ -2,6 +2,7 @@ import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BaseFormsModule } from '@memberjunction/ng-base-forms';
+import { ArtifactsModule } from '@memberjunction/ng-artifacts';
 import { MJButtonDirective, MjSlidePanelComponent } from '@memberjunction/ng-ui-components';
 import {
     MeetingAgendaComponent,
@@ -25,6 +26,7 @@ const MODULE_PANELS = [MeetingHeroPanel, MeetingAgendaPanel, MeetingPeoplePanel,
         CommonModule,
         FormsModule,
         BaseFormsModule,
+        ArtifactsModule,
         MJButtonDirective,
         MjSlidePanelComponent,
         MeetingHeaderComponent,
