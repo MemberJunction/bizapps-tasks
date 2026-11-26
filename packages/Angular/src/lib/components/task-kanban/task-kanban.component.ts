@@ -15,7 +15,7 @@ import {
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CompositeKey, Metadata, RunView, type IMetadataProvider, type IRunViewProvider } from '@memberjunction/core';
-import { EscapeSQLString, NormalizeUUID, UUIDsEqual } from '@memberjunction/global';
+import { EscapeSQLString, IsValidUUID, NormalizeUUID, UUIDsEqual } from '@memberjunction/global';
 import { UserInfoEngine } from '@memberjunction/core-entities';
 import type {
     KanbanCardData,
@@ -26,6 +26,7 @@ import {
     FormatDurationMinutes,
     MatchesAssigneeFilter,
     MatchesDueDateFilter,
+    TasksEngineBase,
     type TaskAssigneeFilterRef,
     type TaskBadgeDescriptor,
     type TaskDueDateFilterKey,
@@ -38,6 +39,7 @@ import type {
     TaskWidgetTypeStatus,
 } from '@mj-biz-apps/tasks-ng-widgets';
 import { CurrentUserRoleIDs, RoleAssigneeName } from '../../role-assignees';
+import { EnsureTasksEngineLoaded, MapTaskTypeStatusesToWidget } from '../../tasks-engine.helper';
 import {
     FilterTasksByPendingSuggestions,
     FormatPendingSuggestionTooltip,
@@ -527,6 +529,8 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
     @Input() Provider: IMetadataProvider | null = null;
     /** Optional pre-loaded controlled tasks. When non-null, zero internal RunView queries fire. */
     @Input() Tasks: readonly TaskWidgetItem[] | null = null;
+    /** Optional project root TaskID to share {@link TasksEngineBase.LoadProjectSubtree} across WBS/Kanban/Gantt. */
+    @Input() ParentTaskID: string | null = null;
     @Input() CategoryID: string | null = null;
     @Input() ExtraFilter: string | null = null;
     @Input() SearchText = '';
@@ -643,7 +647,8 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
         }
         const queryChanged =
             this.Tasks === null &&
-            ((changes['ExtraFilter'] && !changes['ExtraFilter'].firstChange) ||
+            ((changes['ParentTaskID'] && !changes['ParentTaskID'].firstChange) ||
+                (changes['ExtraFilter'] && !changes['ExtraFilter'].firstChange) ||
                 (changes['CategoryID'] && !changes['CategoryID'].firstChange) ||
                 (changes['PriorityFilter'] && !changes['PriorityFilter'].firstChange) ||
                 (changes['TypeIDFilter'] && !changes['TypeIDFilter'].firstChange) ||
@@ -893,44 +898,81 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
             this.applyControlledTasks();
             return;
         }
+        const provider = this.ProviderToUse;
         const rv = this.createRunView();
-        const filters: string[] = ["Status <> 'Cancelled'"];
-        if (this.CategoryID) filters.push(`CategoryID = '${EscapeSQLString(this.CategoryID)}'`);
-        if (this.PriorityFilter) filters.push(`Priority = '${EscapeSQLString(this.PriorityFilter)}'`);
-        if (this.TypeIDFilter) filters.push(`TypeID = '${EscapeSQLString(this.TypeIDFilter)}'`);
-        if (this.OrganizationIDFilter === '__none__') {
-            filters.push('OrganizationID IS NULL');
-        } else if (this.OrganizationIDFilter) {
-            filters.push(`OrganizationID = '${EscapeSQLString(this.OrganizationIDFilter)}'`);
-        }
-        if (this.ExtraFilter) filters.push(this.ExtraFilter);
+        const useProjectSubtree =
+            Boolean(this.ParentTaskID && IsValidUUID(this.ParentTaskID)) &&
+            !this.ExtraFilter &&
+            !this.CategoryID &&
+            !this.PriorityFilter &&
+            !this.TypeIDFilter &&
+            !this.OrganizationIDFilter;
 
-        const [tasksRes, statusesRes] = await Promise.all([
-            rv.RunView<KanbanTaskData>({
+        let loadedTasks: KanbanTaskData[] = [];
+        let assignmentRows: Array<{ TaskID: string; AssigneeEntityID: string; AssigneeRecordID: string }> = [];
+
+        const enginePromise = EnsureTasksEngineLoaded(provider);
+
+        if (useProjectSubtree && this.ParentTaskID) {
+            const bundle = await TasksEngineBase.Instance.LoadProjectSubtree(this.ParentTaskID, {
+                provider,
+                forceRefresh: bypassCache,
+            });
+            loadedTasks = bundle.Tasks.map((t) => ({
+                ID: t.ID,
+                Name: t.Name,
+                Description: t.Description,
+                Status: t.Status,
+                Priority: t.Priority,
+                DueAt: t.DueAt,
+                PercentComplete: t.PercentComplete,
+                HoursEstimated: t.HoursEstimated,
+                LoggedMinutes: t.LoggedMinutes ?? null,
+                ParentID: t.ParentID,
+                TypeID: t.TypeID,
+                Type: t.Type ?? null,
+                TaskTypeStatusID: t.TaskTypeStatusID ?? null,
+                TaskTypeStatus: t.TaskTypeStatus ?? null,
+                OrganizationID: t.OrganizationID ?? null,
+                Organization: t.Organization ?? null,
+            }));
+            assignmentRows = bundle.Assignments.map((a) => ({
+                TaskID: a.TaskID,
+                AssigneeEntityID: a.AssigneeEntityID,
+                AssigneeRecordID: a.AssigneeRecordID,
+            }));
+        } else {
+            const filters: string[] = ["Status <> 'Cancelled'"];
+            if (this.CategoryID) filters.push(`CategoryID = '${EscapeSQLString(this.CategoryID)}'`);
+            if (this.PriorityFilter) filters.push(`Priority = '${EscapeSQLString(this.PriorityFilter)}'`);
+            if (this.TypeIDFilter) filters.push(`TypeID = '${EscapeSQLString(this.TypeIDFilter)}'`);
+            if (this.OrganizationIDFilter === '__none__') {
+                filters.push('OrganizationID IS NULL');
+            } else if (this.OrganizationIDFilter) {
+                filters.push(`OrganizationID = '${EscapeSQLString(this.OrganizationIDFilter)}'`);
+            }
+            if (this.ExtraFilter) filters.push(this.ExtraFilter);
+
+            const tasksRes = await rv.RunView<KanbanTaskData>({
                 EntityName: 'MJ_BizApps_Tasks: Tasks',
                 ExtraFilter: filters.join(' AND '),
                 OrderBy: 'Sequence ASC',
                 ResultType: 'simple',
                 BypassCache: bypassCache,
-            }),
-            this.createRunView().RunView<TaskWidgetTypeStatus>({
-                EntityName: 'MJ_BizApps_Tasks: Task Type Status',
-                ExtraFilter: 'IsActive = 1',
-                OrderBy: 'Sequence ASC',
-                ResultType: 'simple',
-            }),
-        ]);
+            });
+            loadedTasks = tasksRes?.Results ?? [];
+        }
 
-        const loadedTasks = tasksRes?.Results ?? [];
         const taskIds = loadedTasks.map((t) => t.ID);
         const assignmentScopeFilter =
             taskIds.length > 0 && taskIds.length <= 500
                 ? `TaskID IN (${taskIds.map((id) => `'${EscapeSQLString(id)}'`).join(',')})`
                 : undefined;
 
-        const [assignmentsRes, suggestions] = await Promise.all([
-            taskIds.length === 0
-                ? Promise.resolve({ Results: [] as Array<{ TaskID: string; AssigneeEntityID: string; AssigneeRecordID: string }> })
+        const [engine, assignmentsRes, suggestions] = await Promise.all([
+            enginePromise,
+            useProjectSubtree || taskIds.length === 0
+                ? Promise.resolve({ Results: assignmentRows })
                 : this.createRunView().RunView<{ TaskID: string; AssigneeEntityID: string; AssigneeRecordID: string }>({
                       EntityName: 'MJ_BizApps_Tasks: Task Assignments',
                       ExtraFilter: assignmentScopeFilter,
@@ -940,31 +982,24 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
                   }),
             taskIds.length === 0
                 ? Promise.resolve({ available: false, byTaskId: new Map<string, TaskPendingSuggestionsSummary>() })
-                : TaskFieldSuggestionsHelper.LoadPendingSuggestions(this.ProviderToUse, { taskIds }),
+                : TaskFieldSuggestionsHelper.LoadPendingSuggestions(provider, { taskIds }),
         ]);
 
-        const rolesEntityID = this.ProviderToUse.EntityByName?.('MJ: Roles')?.ID ?? null;
+        const effectiveAssignments = useProjectSubtree ? assignmentRows : (assignmentsRes?.Results ?? []);
+        const rolesEntityID = provider.EntityByName?.('MJ: Roles')?.ID ?? null;
         const assignedPersonIds = [
             ...new Set(
-                (assignmentsRes?.Results ?? [])
+                effectiveAssignments
                     .filter((a) => !rolesEntityID || !UUIDsEqual(a.AssigneeEntityID, rolesEntityID))
                     .map((a) => a.AssigneeRecordID)
                     .filter(Boolean),
             ),
         ];
 
-        const peopleRes =
+        const peopleMap =
             assignedPersonIds.length === 0
-                ? { Results: [] as Array<{ ID: string; FirstName: string; LastName: string }> }
-                : await this.createRunView().RunView<{ ID: string; FirstName: string; LastName: string }>({
-                      EntityName: 'MJ_BizApps_Common: People',
-                      ExtraFilter:
-                          assignedPersonIds.length <= 500
-                              ? `ID IN (${assignedPersonIds.map((id) => `'${EscapeSQLString(id)}'`).join(',')})`
-                              : undefined,
-                      Fields: ['ID', 'FirstName', 'LastName'],
-                      ResultType: 'simple',
-                  });
+                ? new Map()
+                : await TasksEngineBase.Instance.GetOrLoadPeopleByIds(assignedPersonIds, provider).catch(() => new Map());
 
         this.fieldSuggestionsAvailable = suggestions.available;
         this.pendingSuggestionsByTask = suggestions.byTaskId;
@@ -978,18 +1013,14 @@ export class TaskKanbanComponent implements OnInit, OnChanges {
                 PendingSuggestionTooltip: FormatPendingSuggestionTooltip(summary ?? null),
             };
         });
-        this.workflowStatuses = statusesRes?.Results ?? [];
+        this.workflowStatuses = MapTaskTypeStatusesToWidget(engine.ActiveTypeStatuses);
 
-        const personNames = new Map<string, string>();
-        for (const p of peopleRes?.Results ?? []) {
-            personNames.set(p.ID.toLowerCase(), `${p.FirstName} ${p.LastName}`.trim());
-        }
         this.assigneeByTask.clear();
         this.assigneesByTask.clear();
-        for (const a of assignmentsRes?.Results ?? []) {
+        for (const a of effectiveAssignments) {
             const key = a.TaskID.toLowerCase();
             const displayName =
-                personNames.get(a.AssigneeRecordID.toLowerCase()) ??
+                peopleMap.get(a.AssigneeRecordID.toLowerCase())?.FullName ??
                 RoleAssigneeName(a.AssigneeEntityID, a.AssigneeRecordID) ??
                 'Assigned';
             const list = this.assigneesByTask.get(key) ?? [];

@@ -50,9 +50,17 @@ vi.mock('@memberjunction/core', async (importOriginal) => {
     const provider = {
         Entities: [],
         Roles: [],
-        EntityByName: () => undefined,
+        EntityByName: (name: string) => ({
+            ID: `ent-${name}`,
+            Name: name,
+            Fields: [],
+            PrimaryKeys: [{ Name: 'ID', IsUniqueIdentifier: true }],
+            GetUserPermisions: () => ({ CanRead: true }),
+        }),
         EntityByID: () => undefined,
         GetEntityObject: (entityName: string) => getEntityObjectMock(entityName),
+        RunView: (params: RunViewParams) => runViewMock(params),
+        RunViews: (paramsList: RunViewParams[]) => Promise.all(paramsList.map((p) => runViewMock(p))),
     };
     return {
         ...actual,
@@ -62,6 +70,9 @@ vi.mock('@memberjunction/core', async (importOriginal) => {
             }
             RunView(params: RunViewParams): Promise<MockRunViewResult | undefined> {
                 return runViewMock(params);
+            }
+            RunViews(paramsList: RunViewParams[]): Promise<Array<MockRunViewResult | undefined>> {
+                return Promise.all(paramsList.map((p) => runViewMock(p)));
             }
         },
         Metadata: Object.assign(
@@ -87,6 +98,7 @@ import {
     GOALS_PLANNING_APP_NAME,
     GoalsViewComponent,
 } from '../components/goals-view/goals-view.component';
+import { TasksEngineBase } from '@mj-biz-apps/tasks-core';
 import { TaskEditPanelComponent } from '../components/task-edit-panel/task-edit-panel.component';
 import { TasksDashboardPageComponent } from '../pages/tasks-dashboard.page';
 
@@ -114,6 +126,13 @@ function createInContext<T>(factory: () => T): T {
 
 beforeEach(() => {
     vi.resetAllMocks();
+    const engine = TasksEngineBase.Instance as unknown as Record<string, unknown>;
+    engine['_loaded'] = false;
+    engine['_loading'] = false;
+    engine['_taskTypes'] = [];
+    engine['_taskTypesById'] = null;
+    engine['_taskTypesByCode'] = null;
+    TasksEngineBase.Instance.ClearUserScopedCaches();
 });
 
 describe('GoalsViewComponent Empty State, In-App Help & Legacy OKR Readability', () => {

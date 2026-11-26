@@ -10,7 +10,7 @@ import {
     inject,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { CompositeKey, LogError, Metadata, RunView, type IMetadataProvider } from '@memberjunction/core';
+import { CompositeKey, LogError, Metadata, type IMetadataProvider, type RunViewParams } from '@memberjunction/core';
 import { EscapeSQLString } from '@memberjunction/global';
 import { BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { SharedService } from '@memberjunction/ng-shared';
@@ -35,6 +35,7 @@ import {
     IsTaskOverdue,
     IsTaskSlaAtRisk,
     TaskOrchestrationService,
+    TasksEngineBase,
     type TaskUrgencyCounts,
 } from '@mj-biz-apps/tasks-core';
 import type {
@@ -44,7 +45,8 @@ import type {
     mjBizAppsTasksTaskTagEntity,
     mjBizAppsTasksTaskTagLinkEntity,
 } from '@mj-biz-apps/tasks-entities';
-import { ResolveDefaultGenericTaskTypeID } from '../task-type-filter.helper';
+import { ResolveDefaultGenericTaskTypeID, SelectDefaultGenericTaskTypeID } from '../task-type-filter.helper';
+import { CreateTasksRunView, EnsureTasksEngineLoaded, RunViewsBatch } from '../tasks-engine.helper';
 import {
     TaskApprovalCardComponent,
     TaskCommandPaletteComponent,
@@ -739,35 +741,19 @@ export class MyTasksPageComponent implements OnInit {
             }
 
             const chunks = ChunkTaskIDs(assignedRes.TaskIDs);
-            const [taskChunkResults, typesRes, peopleRes] = await Promise.all([
-                Promise.all(
-                    chunks.map((chunk) =>
-                        new RunView().RunView<MyWorkTaskRow>({
-                            EntityName: 'MJ_BizApps_Tasks: Tasks',
-                            ExtraFilter: `${BuildTaskIDsInFilter(chunk)} AND Status <> 'Cancelled'`,
-                            OrderBy: 'DueAt ASC, Sequence ASC',
-                            ResultType: 'simple',
-                            BypassCache: bypassCache,
-                        }),
-                    ),
-                ),
-                new RunView().RunView<{
-                    ID: string;
-                    Code: string;
-                    IsApproval: boolean;
-                    OnCompleteAction: string | null;
-                    OnRejectAction: string | null;
-                    OnCancelAction: string | null;
-                }>({
-                    EntityName: 'MJ_BizApps_Tasks: Task Types',
-                    Fields: ['ID', 'Code', 'IsApproval', 'OnCompleteAction', 'OnRejectAction', 'OnCancelAction'],
-                    ResultType: 'simple',
-                }),
-                new RunView().RunView<{ ID: string; FirstName: string; LastName: string }>({
-                    EntityName: 'MJ_BizApps_Common: People',
-                    Fields: ['ID', 'FirstName', 'LastName'],
-                    ResultType: 'simple',
-                }),
+            const rv = CreateTasksRunView(effectiveProvider);
+            const chunkParams: RunViewParams[] = chunks.map((chunk) => ({
+                EntityName: 'MJ_BizApps_Tasks: Tasks',
+                ExtraFilter: `${BuildTaskIDsInFilter(chunk)} AND Status <> 'Cancelled'`,
+                OrderBy: 'DueAt ASC, Sequence ASC',
+                ResultType: 'simple',
+                BypassCache: bypassCache,
+            }));
+
+            const [taskChunkResults, engine, people] = await Promise.all([
+                RunViewsBatch(rv, chunkParams),
+                EnsureTasksEngineLoaded(effectiveProvider),
+                TasksEngineBase.Instance.GetOrLoadAllPeople(effectiveProvider).catch(() => []),
             ]);
 
             const failedChunk = taskChunkResults.find((res) => !res?.Success);
@@ -779,14 +765,15 @@ export class MyTasksPageComponent implements OnInit {
                 return;
             }
 
-            this.peopleLookup = peopleRes?.Results ?? [];
-            const typeMap = new Map(
-                (typesRes?.Results ?? []).map((tt) => [tt.ID.toLowerCase(), tt]),
-            );
+            this.peopleLookup = people.map((p) => ({
+                ID: p.ID,
+                FirstName: p.FirstName,
+                LastName: p.LastName,
+            }));
             const seenIds = new Set<string>();
             const rows: MyWorkTaskRow[] = [];
             for (const res of taskChunkResults) {
-                for (const row of res.Results ?? []) {
+                for (const row of (res.Results ?? []) as MyWorkTaskRow[]) {
                     const key = row.ID.toLowerCase();
                     if (!seenIds.has(key)) {
                         seenIds.add(key);
@@ -796,14 +783,14 @@ export class MyTasksPageComponent implements OnInit {
             }
             let linksMap = new Map<string, { EntityName: string; RecordID: string; Name: string }[]>();
             try {
-                linksMap = await LoadTaskRecordLinks(rows.map((r) => r.ID));
+                linksMap = await LoadTaskRecordLinks(rows.map((r) => r.ID), effectiveProvider);
             } catch {
                 // optional enrichment
             }
 
             const rollups = ComputeChildRollups(rows);
             this.AllTasks = rows.map((r) => {
-                const tt = typeMap.get(r.TypeID.toLowerCase());
+                const tt = engine.TaskTypeById(r.TypeID);
                 const childStat = rollups.get(r.ID.toLowerCase());
                 const links = (linksMap.get(r.ID.toLowerCase()) ?? []).map((l) => ({
                     EntityName: l.EntityName,
@@ -864,7 +851,11 @@ export class MyTasksPageComponent implements OnInit {
         this.Busy = true;
         this.cdr.markForCheck();
         try {
-            const typeID = await ResolveDefaultGenericTaskTypeID(new RunView());
+            const effectiveProvider = this.Provider ?? Metadata.Provider;
+            const engine = await EnsureTasksEngineLoaded(effectiveProvider);
+            const cachedTypeId =
+                engine.TaskTypes.length > 0 ? SelectDefaultGenericTaskTypeID(engine.TaskTypes) : null;
+            const typeID = cachedTypeId ?? (await ResolveDefaultGenericTaskTypeID(CreateTasksRunView(effectiveProvider)));
             if (!typeID) return;
 
             const task = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
@@ -910,14 +901,17 @@ export class MyTasksPageComponent implements OnInit {
 
                 // Persist #Tags if parsed
                 for (const tagName of event.TagNames) {
-                    const existing = await new RunView().RunView<{ ID: string }>({
-                        EntityName: 'MJ_BizApps_Tasks: Task Tags',
-                        ExtraFilter: `Name = '${EscapeSQLString(tagName)}'`,
-                        Fields: ['ID'],
-                        MaxRows: 1,
-                        ResultType: 'simple',
-                    });
-                    let tagID = existing?.Results?.[0]?.ID;
+                    let tagID: string | undefined = engine.TaskTagByName(tagName)?.ID;
+                    if (!tagID && engine.TaskTags.length === 0) {
+                        const existing = await CreateTasksRunView(effectiveProvider).RunView<{ ID: string }>({
+                            EntityName: 'MJ_BizApps_Tasks: Task Tags',
+                            ExtraFilter: `Name = '${EscapeSQLString(tagName)}'`,
+                            Fields: ['ID'],
+                            MaxRows: 1,
+                            ResultType: 'simple',
+                        });
+                        tagID = existing?.Results?.[0]?.ID;
+                    }
                     if (!tagID) {
                         const newTag = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskTagEntity>('MJ_BizApps_Tasks: Task Tags');
                         newTag.NewRecord();

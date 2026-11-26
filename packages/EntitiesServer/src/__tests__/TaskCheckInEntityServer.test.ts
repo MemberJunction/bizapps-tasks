@@ -56,6 +56,7 @@ vi.mock('@memberjunction/core', () => ({
       return {};
     }
   },
+  RegisterForStartup: () => () => {},
   BaseRemotableOperation: class {},
   LogError: vi.fn(),
   Metadata: {

@@ -1,3 +1,4 @@
+export * from './engine/TasksEngineBase.js';
 export * from './services/sql-guards.js';
 export * from './services/ApprovalErrors.js';
 export * from './services/ApprovalLatencyService.js';
