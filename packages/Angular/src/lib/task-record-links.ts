@@ -1,4 +1,4 @@
-import { CompositeKey, Metadata, RunView, type IMetadataProvider } from '@memberjunction/core';
+import { CompositeKey, Metadata, RunView, type IMetadataProvider, type IRunViewProvider } from '@memberjunction/core';
 import { IsValidUUID } from '@memberjunction/global';
 
 /** A record a task is linked to (its Task Link), with a name to show. */
@@ -10,7 +10,7 @@ export interface TaskRecordLink {
     Name: string;
 }
 
-interface TaskLinkRow {
+export interface TaskLinkRow {
     TaskID: string;
     EntityID: string;
     RecordID: string;
@@ -18,25 +18,17 @@ interface TaskLinkRow {
 }
 
 /**
- * The records each task links to, keyed by lower-cased task ID, so a list of approvals can show and
- * open the order (or other record) each one is about. Tasks with no link are absent from the map.
- *
- * @throws when the Task Links lookup fails.
+ * Resolves display names for pre-fetched `MJ_BizApps_Tasks: Task Links` rows (e.g. from a
+ * batched `rv.RunViews([...])` request) and groups them by lower-cased `TaskID`.
  */
-export async function LoadTaskRecordLinks(taskIDs: readonly string[], provider: IMetadataProvider = Metadata.Provider): Promise<Map<string, TaskRecordLink[]>> {
-    const ids = taskIDs.filter((id) => IsValidUUID(id));
+export async function ResolveTaskRecordLinksFromRows(
+    rows: readonly TaskLinkRow[],
+    provider: IMetadataProvider = Metadata.Provider,
+): Promise<Map<string, TaskRecordLink[]>> {
     const byTask = new Map<string, TaskRecordLink[]>();
-    if (ids.length === 0) return byTask;
+    if (rows.length === 0) return byTask;
 
-    const result = await new RunView().RunView<TaskLinkRow>({
-        EntityName: 'MJ_BizApps_Tasks: Task Links',
-        ExtraFilter: `TaskID IN (${ids.map((id) => `'${id}'`).join(',')})`,
-        Fields: ['TaskID', 'EntityID', 'RecordID', 'Description'],
-        ResultType: 'simple',
-    });
-    if (!result?.Success) throw new Error(result?.ErrorMessage || 'Failed to load linked records');
-
-    const links = (result.Results ?? []).flatMap((row) => {
+    const links = rows.flatMap((row) => {
         const entity = provider.EntityByID(row.EntityID);
         return entity ? [{ row, entityName: entity.Name }] : [];
     });
@@ -54,6 +46,31 @@ export async function LoadTaskRecordLinks(taskIDs: readonly string[], provider: 
         byTask.set(key, list);
     }
     return byTask;
+}
+
+/**
+ * The records each task links to, keyed by lower-cased task ID, so a list of approvals can show and
+ * open the order (or other record) each one is about. Tasks with no link are absent from the map.
+ *
+ * @throws when the Task Links lookup fails.
+ */
+export async function LoadTaskRecordLinks(taskIDs: readonly string[], provider: IMetadataProvider = Metadata.Provider): Promise<Map<string, TaskRecordLink[]>> {
+    const ids = taskIDs.filter((id) => IsValidUUID(id));
+    if (ids.length === 0) return new Map<string, TaskRecordLink[]>();
+
+    const rv =
+        provider && typeof (provider as Partial<IRunViewProvider>).RunView === 'function'
+            ? RunView.FromMetadataProvider(provider)
+            : new RunView();
+    const result = await rv.RunView<TaskLinkRow>({
+        EntityName: 'MJ_BizApps_Tasks: Task Links',
+        ExtraFilter: `TaskID IN (${ids.map((id) => `'${id}'`).join(',')})`,
+        Fields: ['TaskID', 'EntityID', 'RecordID', 'Description'],
+        ResultType: 'simple',
+    });
+    if (!result?.Success) throw new Error(result?.ErrorMessage || 'Failed to load linked records');
+
+    return ResolveTaskRecordLinksFromRows(result.Results ?? [], provider);
 }
 
 /** Record display names; a failed name lookup leaves the names out rather than failing the list. */

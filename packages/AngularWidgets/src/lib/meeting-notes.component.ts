@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MarkdownModule } from '@memberjunction/ng-markdown';
 import { MJButtonDirective } from '@memberjunction/ng-ui-components';
 import { MEETING_TOKENS_CSS } from './tokens';
 import { settleSubmittedDraft } from './meeting-live.component';
@@ -13,6 +14,106 @@ import type {
     ProposedTaskModel,
     TranscriptDraft,
 } from './types';
+
+interface MentionTokenPayload {
+    _mode?: string;
+    name?: string;
+    Name?: string;
+    displayName?: string;
+    label?: string;
+}
+
+function parseMentionToken(jsonText: string): string | null {
+    try {
+        const parsed = JSON.parse(jsonText) as MentionTokenPayload | null;
+        if (!parsed || typeof parsed !== 'object' || parsed._mode !== 'mention') {
+            return null;
+        }
+        const candidate = parsed.name ?? parsed.displayName ?? parsed.Name ?? parsed.label;
+        if (typeof candidate !== 'string') return null;
+        const trimmed = candidate.trim();
+        return trimmed.length > 0 ? trimmed : null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Replaces `@{"_mode":"mention",...}` JSON mention tokens with `@Name` using a
+ * balanced-brace scan so escaped quotes and nested objects are handled cleanly.
+ */
+function replaceMentionTokens(input: string): string {
+    if (!input.includes('@{')) return input;
+    let out = '';
+    let idx = 0;
+    while (idx < input.length) {
+        const start = input.indexOf('@{', idx);
+        if (start === -1) {
+            out += input.slice(idx);
+            break;
+        }
+        out += input.slice(idx, start);
+        const braceStart = start + 1;
+        let depth = 0;
+        let inString = false;
+        let escaped = false;
+        let end = -1;
+        for (let i = braceStart; i < input.length; i++) {
+            const ch = input[i];
+            if (inString) {
+                if (escaped) {
+                    escaped = false;
+                } else if (ch === '\\') {
+                    escaped = true;
+                } else if (ch === '"') {
+                    inString = false;
+                }
+            } else if (ch === '"') {
+                inString = true;
+            } else if (ch === '{') {
+                depth++;
+            } else if (ch === '}') {
+                depth--;
+                if (depth === 0) {
+                    end = i;
+                    break;
+                }
+            }
+        }
+        if (end === -1) {
+            out += input.slice(start);
+            break;
+        }
+        const jsonSlice = input.slice(braceStart, end + 1);
+        const mentionName = parseMentionToken(jsonSlice);
+        if (mentionName) {
+            out += `@${mentionName}`;
+        } else {
+            out += input.slice(start, end + 1);
+        }
+        idx = end + 1;
+    }
+    return out;
+}
+
+/**
+ * Normalizes meeting note body text before Markdown rendering:
+ * - Converts `[[EntityName|RecordID|DisplayName]]` tokens into `**DisplayName**`
+ * - Converts `@{"_mode":"mention",...}` JSON tokens into `@Name`
+ * - Normalizes CRLF line endings to LF
+ */
+export function FormatMeetingNoteMarkdown(raw: string): string {
+    if (!raw) return '';
+    const normalized = raw.replace(/\r\n?/g, '\n');
+    const withRecords = normalized.replace(
+        /\[\[[^|\]]+\|[^|\]]+\|([^\]]+)\]\]/g,
+        (_match: string, displayName: string) => {
+            const clean = displayName.trim();
+            return clean ? `**${clean}**` : '';
+        },
+    );
+    return replaceMentionTokens(withRecords);
+}
 
 export function canDraftNotesWithAI(canEditAll: boolean): boolean {
     return canEditAll;
@@ -29,7 +130,7 @@ export function canManageNoteProposals(canWrite: boolean, canEditAll: boolean, i
 @Component({
     selector: 'bizapps-meeting-notes',
     standalone: true,
-    imports: [FormsModule, MJButtonDirective],
+    imports: [FormsModule, MJButtonDirective, MarkdownModule],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         <div class="head mjt-row">
@@ -86,7 +187,7 @@ export function canManageNoteProposals(canWrite: boolean, canEditAll: boolean, i
                         </select>
                     </label>
                 </div>
-                <label><span class="mjt-label">Note</span><textarea class="mjt-textarea" name="body" rows="6" [(ngModel)]="d.body" placeholder="What happened, what was agreed (Markdown is kept as text)" required></textarea></label>
+                <label><span class="mjt-label">Note</span><textarea class="mjt-textarea" name="body" rows="6" [(ngModel)]="d.body" placeholder="Capture decisions, takeaways, and action items (Markdown supported)…" required></textarea></label>
                 <div class="mjt-row">
                     <label class="check"><input type="checkbox" name="final" [checked]="d.status === 'Final'" (change)="d.status = d.status === 'Final' ? 'Draft' : 'Final'" /> Final</label>
                     <span class="mjt-grow"></span>
@@ -98,8 +199,8 @@ export function canManageNoteProposals(canWrite: boolean, canEditAll: boolean, i
         @if (!Notes.length && !draft && !transcriptDraft) { <div class="mjt-empty">No notes yet.</div> }
         @for (note of Notes; track note.id) {
             <article class="note" [attr.aria-label]="'Note: ' + (note.title || note.kind)">
-                <div class="mjt-row wrap">
-                    <span class="mjt-strong">{{ note.title || note.kind }}</span>
+                <div class="note-header mjt-row wrap">
+                    <span class="note-title mjt-strong">{{ note.title || note.kind }}</span>
                     <span [class]="note.kind === 'Decision' ? 'mjt-chip mjt-chip--ok' : note.kind === 'Summary' ? 'mjt-chip mjt-chip--info' : 'mjt-chip'">{{ note.kind }}</span>
                     @if (note.status === 'Draft') { <span class="mjt-chip mjt-chip--warn">Draft</span> }
                     @if (note.source === 'AI') { <span class="mjt-chip" title="Drafted by AI from the transcript"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>AI</span> }
@@ -109,8 +210,10 @@ export function canManageNoteProposals(canWrite: boolean, canEditAll: boolean, i
                         <button mjButton Variant="icon" Size="sm" [disabled]="Busy" aria-label="Delete note" (click)="DeleteRequested.emit(note)"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
                     }
                 </div>
-                <div class="mjt-small mjt-muted">@if (note.authorName) { {{ note.authorName }} · }{{ note.updatedLabel }}@if (note.agendaItemId) { · on {{ itemName(note.agendaItemId) }}}</div>
-                <div class="body">{{ note.body }}</div>
+                <div class="note-meta mjt-small mjt-muted">@if (note.authorName) { {{ note.authorName }} · }{{ note.updatedLabel }}@if (note.agendaItemId) { · on {{ itemName(note.agendaItemId) }}}</div>
+                <div class="body">
+                    <mj-markdown [data]="FormatMeetingNoteMarkdown(note.body)"></mj-markdown>
+                </div>
                 @if (note.proposedTasks?.length) {
                     <div class="proposals" aria-label="Proposed action items">
                         <div class="proposals-head mjt-small mjt-strong"><i class="fa-solid fa-list-check" aria-hidden="true"></i> Proposed action items ({{ note.proposedTasks!.length }})</div>
@@ -141,15 +244,143 @@ export function canManageNoteProposals(canWrite: boolean, canEditAll: boolean, i
     `,
     styles: [MEETING_TOKENS_CSS, `
         :host { display: block; }
-        .head { margin-bottom: 8px; }
+        .head { margin-bottom: 10px; }
         .wrap { flex-wrap: wrap; align-items: flex-end; }
-        .editor { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px dashed var(--mjt-border-strong); border-radius: var(--mjt-radius-lg); margin-bottom: 10px; }
+        .editor {
+            display: flex; flex-direction: column; gap: 10px;
+            padding: 14px 16px;
+            border: 1px dashed var(--mj-border-strong, var(--mjt-border-strong));
+            border-radius: var(--mj-radius-lg, var(--mjt-radius-lg));
+            background: var(--mj-bg-surface-card, var(--mjt-surface));
+            margin-bottom: 12px;
+        }
         .check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
-        .note { padding: 12px 14px; border: 1px solid var(--mjt-border); border-radius: var(--mjt-radius-lg); background: var(--mjt-surface); margin-bottom: 8px; color: var(--mjt-text); }
-        .body { margin-top: 8px; white-space: pre-wrap; font-size: 14px; line-height: 1.5; }
-        .proposals { margin-top: 10px; padding: 10px 12px; border-top: 1px solid var(--mjt-border); background: var(--mjt-surface-subtle, rgba(148, 163, 184, 0.08)); border-radius: var(--mjt-radius); display: flex; flex-direction: column; gap: 6px; }
+        .note {
+            padding: 16px 18px;
+            border: 1px solid var(--mj-border-default, var(--mjt-border));
+            border-radius: var(--mj-radius-lg, var(--mjt-radius-lg));
+            background: var(--mj-bg-surface-card, var(--mjt-surface));
+            margin-bottom: 12px;
+            color: var(--mj-text-primary, var(--mjt-text));
+        }
+        .note-header { align-items: center; gap: 8px; }
+        .note-title { font-size: var(--mj-text-base, 15px); color: var(--mj-text-primary, var(--mjt-text)); }
+        .note-meta { margin-top: 4px; color: var(--mj-text-muted, var(--mjt-text-muted)); }
+        .body {
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid var(--mj-border-subtle, var(--mjt-border));
+            font-size: var(--mj-text-sm, 14px);
+            line-height: 1.6;
+            color: var(--mj-text-primary, var(--mjt-text));
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+        :host ::ng-deep .body .mj-markdown-container {
+            color: var(--mj-text-primary, var(--mjt-text));
+            font-size: var(--mj-text-sm, 14px);
+            line-height: 1.6;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+        :host ::ng-deep .body .mj-markdown-container > :first-child { margin-top: 0; }
+        :host ::ng-deep .body .mj-markdown-container > :last-child { margin-bottom: 0; }
+        :host ::ng-deep .body .mj-markdown-container h1,
+        :host ::ng-deep .body .mj-markdown-container h2,
+        :host ::ng-deep .body .mj-markdown-container h3,
+        :host ::ng-deep .body .mj-markdown-container h4 {
+            color: var(--mj-text-primary, var(--mjt-text));
+            font-weight: var(--mj-font-semibold, 600);
+            line-height: 1.35;
+            margin: 14px 0 6px;
+        }
+        :host ::ng-deep .body .mj-markdown-container h1 {
+            font-size: var(--mj-text-lg, 17px);
+            padding-bottom: 4px;
+            border-bottom: 1px solid var(--mj-border-subtle, var(--mjt-border));
+        }
+        :host ::ng-deep .body .mj-markdown-container h2 {
+            font-size: var(--mj-text-base, 15px);
+            padding-bottom: 3px;
+            border-bottom: 1px solid var(--mj-border-subtle, var(--mjt-border));
+        }
+        :host ::ng-deep .body .mj-markdown-container h3 { font-size: var(--mj-text-sm, 14px); }
+        :host ::ng-deep .body .mj-markdown-container h4 {
+            font-size: var(--mj-text-xs, 13px);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: var(--mj-text-secondary, var(--mjt-text-muted));
+        }
+        :host ::ng-deep .body .mj-markdown-container p {
+            margin: 0 0 10px;
+            color: var(--mj-text-primary, var(--mjt-text));
+        }
+        :host ::ng-deep .body .mj-markdown-container ul,
+        :host ::ng-deep .body .mj-markdown-container ol {
+            margin: 0 0 10px;
+            padding-left: 20px;
+        }
+        :host ::ng-deep .body .mj-markdown-container li {
+            margin: 4px 0;
+            line-height: 1.55;
+        }
+        :host ::ng-deep .body .mj-markdown-container li > ul,
+        :host ::ng-deep .body .mj-markdown-container li > ol {
+            margin: 4px 0 2px;
+        }
+        :host ::ng-deep .body .mj-markdown-container strong {
+            font-weight: var(--mj-font-semibold, 600);
+            color: var(--mj-text-primary, var(--mjt-text));
+        }
+        :host ::ng-deep .body .mj-markdown-container blockquote {
+            margin: 10px 0;
+            padding: 8px 12px;
+            border-left: 3px solid var(--mj-brand-primary, var(--mjt-brand));
+            background: var(--mj-bg-surface-sunken, var(--mjt-surface-sunken));
+            border-radius: 0 var(--mj-radius-sm, 6px) var(--mj-radius-sm, 6px) 0;
+            color: var(--mj-text-secondary, var(--mjt-text-muted));
+        }
+        :host ::ng-deep .body .mj-markdown-container code {
+            font-family: var(--mj-font-family-mono, monospace);
+            font-size: 0.875em;
+            padding: 1px 5px;
+            border-radius: var(--mj-radius-sm, 4px);
+            background: var(--mj-bg-surface-sunken, var(--mjt-surface-sunken));
+            border: 1px solid var(--mj-border-subtle, var(--mjt-border));
+            color: var(--mj-text-primary, var(--mjt-text));
+        }
+        :host ::ng-deep .body .mj-markdown-container pre {
+            margin: 10px 0;
+            padding: 10px 12px;
+            border-radius: var(--mj-radius-md, var(--mjt-radius));
+            background: var(--mj-bg-surface-sunken, var(--mjt-surface-sunken));
+            border: 1px solid var(--mj-border-default, var(--mjt-border));
+            overflow-x: auto;
+        }
+        :host ::ng-deep .body .mj-markdown-container pre code {
+            padding: 0;
+            border: none;
+            background: transparent;
+        }
+        :host ::ng-deep .body .mj-markdown-container a {
+            color: var(--mj-text-link, var(--mjt-brand));
+            text-decoration: underline;
+        }
+        .proposals {
+            margin-top: 12px;
+            padding: 10px 12px;
+            border: 1px solid var(--mj-border-subtle, var(--mjt-border));
+            background: var(--mj-bg-surface-sunken, var(--mjt-surface-sunken));
+            border-radius: var(--mj-radius-md, var(--mjt-radius));
+            display: flex; flex-direction: column; gap: 6px;
+        }
         .proposals-head { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
-        .proposal { padding: 6px 8px; border: 1px solid var(--mjt-border); border-radius: var(--mjt-radius); background: var(--mjt-surface); }
+        .proposal {
+            padding: 6px 8px;
+            border: 1px solid var(--mj-border-default, var(--mjt-border));
+            border-radius: var(--mj-radius-md, var(--mjt-radius));
+            background: var(--mj-bg-surface-card, var(--mjt-surface));
+        }
         .prop-title { font-size: 13px; font-weight: 500; }
         .prop-title.dismissed { text-decoration: line-through; opacity: 0.65; }
     `],
@@ -172,6 +403,7 @@ export class MeetingNotesComponent implements OnChanges {
     @Output() DismissProposalRequested = new EventEmitter<ProposedTaskAction>();
     @Output() OpenTaskRequested = new EventEmitter<string>();
 
+    protected readonly FormatMeetingNoteMarkdown = FormatMeetingNoteMarkdown;
     protected draft: NoteDraft | null = null;
     protected transcriptDraft: TranscriptDraft | null = null;
     private pendingSave = false;

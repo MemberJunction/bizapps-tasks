@@ -20,6 +20,12 @@ vi.mock('@memberjunction/core', () => {
         public Errors: unknown[] = [];
     }
     return {
+        BaseEngine: class {
+            public static getInstance() {
+                return {};
+            }
+        },
+        RegisterForStartup: () => () => {},
         ValidationResult: FakeValidationResult,
         Metadata: { Provider: {} },
         RunView: class {

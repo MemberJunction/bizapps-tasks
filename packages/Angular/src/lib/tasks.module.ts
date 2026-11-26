@@ -10,6 +10,7 @@ import { TaskBulkActionsBarComponent } from './components/task-bulk-actions-bar/
 import { TaskListComponent } from './components/task-list/task-list.component';
 import { MyTasksComponent } from './components/my-tasks/my-tasks.component';
 import { TaskDetailPanelComponent } from './components/task-detail-panel/task-detail-panel.component';
+import { TaskDetailContributionsSlotComponent } from './components/task-detail-panel/task-detail-contributions-slot.component';
 import { TaskEditPanelComponent } from './components/task-edit-panel/task-edit-panel.component';
 import { TaskKanbanComponent } from './components/task-kanban/task-kanban.component';
 import { TaskGanttComponent } from './components/task-gantt/task-gantt.component';
@@ -23,7 +24,6 @@ import { RunningTimerChipComponent } from './components/running-timer-chip/runni
 import { TaskTimeEffortComponent } from './components/task-time-effort/task-time-effort.component';
 import { TimeApproversComponent } from './components/time-approvers/time-approvers.component';
 import { MyTimeComponent } from './components/my-time/my-time.component';
-import { GoalsViewComponent } from './components/goals-view/goals-view.component';
 
 // Dashboard Pages
 import { TasksDashboardPageComponent } from './pages/tasks-dashboard.page';
@@ -61,6 +61,7 @@ import { TaskRiskAssessmentRisksPanel } from './form-panels/task-risk-assessment
         TaskListComponent,
         MyTasksComponent,
         TaskDetailPanelComponent,
+        TaskDetailContributionsSlotComponent,
         TaskEditPanelComponent,
         TaskKanbanComponent,
         TaskGanttComponent,
@@ -74,7 +75,6 @@ import { TaskRiskAssessmentRisksPanel } from './form-panels/task-risk-assessment
         TaskTimeEffortComponent,
         TimeApproversComponent,
         MyTimeComponent,
-        GoalsViewComponent,
         TasksDashboardPageComponent,
         MyTasksPageComponent,
         MyTimePageComponent,
@@ -100,6 +100,7 @@ import { TaskRiskAssessmentRisksPanel } from './form-panels/task-risk-assessment
         TaskListComponent,
         MyTasksComponent,
         TaskDetailPanelComponent,
+        TaskDetailContributionsSlotComponent,
         TaskEditPanelComponent,
         TaskKanbanComponent,
         TaskGanttComponent,
@@ -113,7 +114,6 @@ import { TaskRiskAssessmentRisksPanel } from './form-panels/task-risk-assessment
         TaskTimeEffortComponent,
         TimeApproversComponent,
         MyTimeComponent,
-        GoalsViewComponent,
         TasksDashboardPageComponent,
         MyTasksPageComponent,
         MyTimePageComponent,

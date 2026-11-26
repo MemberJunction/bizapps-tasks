@@ -10,7 +10,8 @@ import {
     inject,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { CompositeKey, LogError, Metadata, RunView, type IMetadataProvider } from '@memberjunction/core';
+import { CompositeKey, LogError, Metadata, type IMetadataProvider, type RunViewParams } from '@memberjunction/core';
+import { UserInfoEngine } from '@memberjunction/core-entities';
 import { EscapeSQLString } from '@memberjunction/global';
 import { BaseFormsModule } from '@memberjunction/ng-base-forms';
 import { SharedService } from '@memberjunction/ng-shared';
@@ -25,17 +26,23 @@ import {
     MJPageSearchComponent,
     MJRefreshButtonComponent,
     MJStatBadgeComponent,
+    MJViewToggleComponent,
     type FilterFieldConfig,
+    type ViewToggleOption,
 } from '@memberjunction/ng-ui-components';
 import {
+    BuildWbsTree,
     ClassifyTaskHorizon,
     ComputeChildRollups,
     ComputeTaskUrgencyCounts,
+    FilterWbsTreePreservingAncestors,
     FormatTaskStatusLabel,
     IsTaskOverdue,
     IsTaskSlaAtRisk,
     TaskOrchestrationService,
+    TasksEngineBase,
     type TaskUrgencyCounts,
+    type TaskWbsNode,
 } from '@mj-biz-apps/tasks-core';
 import type {
     mjBizAppsTasksTaskAssignmentEntity,
@@ -44,13 +51,15 @@ import type {
     mjBizAppsTasksTaskTagEntity,
     mjBizAppsTasksTaskTagLinkEntity,
 } from '@mj-biz-apps/tasks-entities';
-import { ResolveDefaultGenericTaskTypeID } from '../task-type-filter.helper';
+import { ResolveDefaultGenericTaskTypeID, SelectDefaultGenericTaskTypeID } from '../task-type-filter.helper';
+import { CreateTasksRunView, EnsureTasksEngineLoaded, RunViewsBatch } from '../tasks-engine.helper';
 import {
     TaskApprovalCardComponent,
     TaskCommandPaletteComponent,
     TaskCompletionRingComponent,
     TaskQuickCaptureComponent,
     TaskUrgencyStripComponent,
+    TaskWbsTreeComponent,
     type TaskApprovalActionEvent,
     type TaskCommandPaletteItem,
     type TaskPriorityValue,
@@ -62,13 +71,17 @@ import {
 } from '@mj-biz-apps/tasks-ng-widgets';
 import { NO_PERSON_MESSAGE, PERSON_LOOKUP_FAILED_MESSAGE, ResolveCurrentPersonID } from '../current-person';
 import { OpenTaskRecord } from '../open-task-record';
-import { AssignedToFilter, CurrentUserRoleIDs } from '../role-assignees';
+import { BuildTaskIDsInFilter, ChunkTaskIDs, CurrentUserRoleIDs, LoadAssignedTaskIDs } from '../role-assignees';
 import { LoadTaskRecordLinks } from '../task-record-links';
 import { RecordLinkPickerDialogComponent } from '../components/record-link-picker/record-link-picker-dialog.component';
 import { RunningTimerChipComponent } from '../components/running-timer-chip/running-timer-chip.component';
 import { TaskDetailPanelComponent } from '../components/task-detail-panel/task-detail-panel.component';
 import { TaskDrawerShellComponent } from '../components/task-drawer-shell/task-drawer-shell.component';
 import { TaskEditPanelComponent } from '../components/task-edit-panel/task-edit-panel.component';
+
+export type MyTasksViewMode = 'list' | 'wbs';
+
+const MY_TASKS_VIEW_MODE_SETTING = 'mj.tasks.myTasksViewMode.v1';
 
 interface MyWorkTaskRow {
     ID: string;
@@ -110,10 +123,12 @@ interface MyWorkTaskRow {
         MJFilterPanelComponent,
         MJRefreshButtonComponent,
         MJStatBadgeComponent,
+        MJViewToggleComponent,
         MJButtonDirective,
         MJEmptyStateComponent,
         TaskQuickCaptureComponent,
         TaskUrgencyStripComponent,
+        TaskWbsTreeComponent,
         TaskApprovalCardComponent,
         TaskCompletionRingComponent,
         TaskCommandPaletteComponent,
@@ -153,8 +168,9 @@ interface MyWorkTaskRow {
                     </button>
                 </div>
 
-                <div toolbar>
+                <div toolbar class="mjt-my-toolbar">
                     <mj-page-search
+                        class="mjt-my-search"
                         Placeholder="Filter my work..."
                         [Value]="SearchText"
                         (ValueChange)="SearchText = $event; cdr.markForCheck()">
@@ -172,6 +188,11 @@ interface MyWorkTaskRow {
                             (Reset)="ResetFilters()">
                         </mj-filter-panel>
                     </mj-filter-popover>
+                    <mj-view-toggle
+                        [Options]="ViewToggleOptions"
+                        [ActiveKey]="ViewMode"
+                        (KeyChange)="OnViewToggleChange($event)">
+                    </mj-view-toggle>
                 </div>
             </mj-page-header>
 
@@ -226,6 +247,22 @@ interface MyWorkTaskRow {
                                 ActionIcon="fa-solid fa-plus"
                                 (Action)="OpenCreate()">
                             </mj-empty-state>
+                        } @else if (ViewMode === 'wbs') {
+                            <mjt-wbs-tree
+                                [Tasks]="WbsTasks"
+                                [ShowWbsCodes]="true"
+                                [ShowTreeConnectors]="true"
+                                [ShowProgressBars]="true"
+                                [ShowStatusPill]="true"
+                                [ShowTypeBadge]="true"
+                                [ShowBlockedReason]="true"
+                                [ShowToolbar]="true"
+                                EmptyTitle="You're all caught up"
+                                EmptyMessage="Capture a new task above or clear active filters to see more."
+                                (TaskClicked)="OpenInspector($event.ID)"
+                                (TaskDoubleClicked)="OpenFullRecord($event.ID)"
+                                (StatusToggled)="OnStatusToggle($event.TaskID, $event.NewStatus)">
+                            </mjt-wbs-tree>
                         } @else {
                             <!-- 3. Horizon 1: Needs Your Decision -->
                             @if (DecisionTasks.length > 0) {
@@ -483,6 +520,12 @@ interface MyWorkTaskRow {
             max-width: 1040px; width: 100%; margin: 0 auto; min-width: 0;
             padding-bottom: 80px;
         }
+        .mjt-my-toolbar {
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap; width: 100%;
+        }
+        .mjt-my-search {
+            flex: 1 1 200px; min-width: 160px;
+        }
         .mjt-toolbar-btn { background: var(--mj-bg-surface-elevated, var(--mj-bg-surface)); }
         .mjt-loading { padding: 36px; text-align: center; color: var(--mj-text-muted); font-size: var(--mj-text-sm, 14px); }
         .mjt-toast-banner {
@@ -577,6 +620,11 @@ export class MyTasksPageComponent implements OnInit {
     public readonly NoPersonMessage = NO_PERSON_MESSAGE;
     public readonly LookupFailedMessage = PERSON_LOOKUP_FAILED_MESSAGE;
 
+    public ViewToggleOptions: ViewToggleOption[] = [
+        { key: 'list', icon: 'fa-solid fa-list', label: 'List', title: 'Action Horizons List View' },
+        { key: 'wbs', icon: 'fa-solid fa-sitemap', label: 'WBS', title: 'WBS Hierarchy View' },
+    ];
+    public ViewMode: MyTasksViewMode = 'list';
     public AllTasks: TaskWidgetItem[] = [];
     public Loading = false;
     public Busy = false;
@@ -642,27 +690,48 @@ export class MyTasksPageComponent implements OnInit {
     }
 
     public get FilteredTasks(): TaskWidgetItem[] {
+        return this.AllTasks.filter((t) => this.matchesFilters(t));
+    }
+
+    /**
+     * Ancestor-preserving WBS task projection for `ViewMode === 'wbs'` so matching
+     * child tasks remain nested under their assigned parent phases/milestones.
+     */
+    public get WbsTasks(): TaskWidgetItem[] {
+        if (this.AllTasks.length === 0) return [];
+        const tree = BuildWbsTree(this.AllTasks);
+        const filteredTree = FilterWbsTreePreservingAncestors(tree, (item) => this.matchesFilters(item));
+        const out: TaskWidgetItem[] = [];
+        const flatten = (nodes: readonly TaskWbsNode<TaskWidgetItem>[]): void => {
+            for (const node of nodes) {
+                out.push(node.Item);
+                if (node.Children.length > 0) flatten(node.Children);
+            }
+        };
+        flatten(filteredTree);
+        return out;
+    }
+
+    private matchesFilters(t: TaskWidgetItem): boolean {
         const q = this.SearchText.trim().toLowerCase();
         const pri = this.FilterValues['priority'] as string | null;
         const showCompleted = this.FilterValues['showCompleted'] === 'show';
 
-        return this.AllTasks.filter((t) => {
-            if (!showCompleted && (t.Status === 'Completed' || t.Status === 'Cancelled')) return false;
-            if (pri && t.Priority !== pri) return false;
-            if (this.UrgencyFilter === 'overdue' && !IsTaskOverdue(t.DueAt, t.Status)) return false;
-            if (this.UrgencyFilter === 'blocked' && t.Status !== 'Blocked') return false;
-            if (this.UrgencyFilter === 'approvals' && !t.IsApproval) return false;
-            if (this.UrgencyFilter === 'sla' && !IsTaskSlaAtRisk(t)) return false;
-            if (
-                q &&
-                !t.Name.toLowerCase().includes(q) &&
-                !(t.Description?.toLowerCase().includes(q) ?? false) &&
-                !(t.CategoryName?.toLowerCase().includes(q) ?? false)
-            ) {
-                return false;
-            }
-            return true;
-        });
+        if (!showCompleted && (t.Status === 'Completed' || t.Status === 'Cancelled')) return false;
+        if (pri && t.Priority !== pri) return false;
+        if (this.UrgencyFilter === 'overdue' && !IsTaskOverdue(t.DueAt, t.Status)) return false;
+        if (this.UrgencyFilter === 'blocked' && t.Status !== 'Blocked') return false;
+        if (this.UrgencyFilter === 'approvals' && !t.IsApproval) return false;
+        if (this.UrgencyFilter === 'sla' && !IsTaskSlaAtRisk(t)) return false;
+        if (
+            q &&
+            !t.Name.toLowerCase().includes(q) &&
+            !(t.Description?.toLowerCase().includes(q) ?? false) &&
+            !(t.CategoryName?.toLowerCase().includes(q) ?? false)
+        ) {
+            return false;
+        }
+        return true;
     }
 
     public get DecisionTasks(): TaskWidgetItem[] {
@@ -706,6 +775,14 @@ export class MyTasksPageComponent implements OnInit {
 
     public async ngOnInit(): Promise<void> {
         try {
+            const savedView = UserInfoEngine.Instance.GetSetting(MY_TASKS_VIEW_MODE_SETTING);
+            if (savedView === 'list' || savedView === 'wbs') {
+                this.ViewMode = savedView;
+            }
+        } catch {
+            // Safe fallback when UserInfoEngine is not initialized in isolated tests
+        }
+        try {
             this.PersonID = await ResolveCurrentPersonID();
         } catch (err) {
             LogError(err);
@@ -718,54 +795,93 @@ export class MyTasksPageComponent implements OnInit {
         this.cdr.markForCheck();
     }
 
+    public SetViewMode(mode: MyTasksViewMode): void {
+        this.ViewMode = mode;
+        try {
+            UserInfoEngine.Instance.SetSettingDebounced(MY_TASKS_VIEW_MODE_SETTING, mode);
+        } catch {
+            // Safe fallback when UserInfoEngine is not initialized
+        }
+        this.cdr.markForCheck();
+    }
+
+    public OnViewToggleChange(key: string): void {
+        if (key === 'list' || key === 'wbs') {
+            this.SetViewMode(key);
+        }
+    }
+
     public async LoadMyWork(bypassCache: boolean): Promise<void> {
         if (!this.PersonID) return;
         this.Loading = true;
         this.cdr.markForCheck();
         try {
-            const filter = AssignedToFilter(this.PersonID, CurrentUserRoleIDs());
-            const [tasksRes, typesRes, peopleRes] = await Promise.all([
-                new RunView().RunView<MyWorkTaskRow>({
-                    EntityName: 'MJ_BizApps_Tasks: Tasks',
-                    ExtraFilter: `${filter} AND Status <> 'Cancelled'`,
-                    OrderBy: 'DueAt ASC, Sequence ASC',
-                    ResultType: 'simple',
-                    BypassCache: bypassCache,
-                }),
-                new RunView().RunView<{
-                    ID: string;
-                    Code: string;
-                    IsApproval: boolean;
-                    OnCompleteAction: string | null;
-                    OnRejectAction: string | null;
-                    OnCancelAction: string | null;
-                }>({
-                    EntityName: 'MJ_BizApps_Tasks: Task Types',
-                    Fields: ['ID', 'Code', 'IsApproval', 'OnCompleteAction', 'OnRejectAction', 'OnCancelAction'],
-                    ResultType: 'simple',
-                }),
-                new RunView().RunView<{ ID: string; FirstName: string; LastName: string }>({
-                    EntityName: 'MJ_BizApps_Common: People',
-                    Fields: ['ID', 'FirstName', 'LastName'],
-                    ResultType: 'simple',
-                }),
+            const effectiveProvider = this.Provider ?? Metadata.Provider;
+            const roleIDs = CurrentUserRoleIDs(effectiveProvider?.CurrentUser);
+            const assignedRes = await LoadAssignedTaskIDs(this.PersonID, roleIDs, effectiveProvider, bypassCache);
+            if (!assignedRes.Success) {
+                const msg = assignedRes.ErrorMessage || 'Failed to load task assignments.';
+                LogError(msg);
+                this.ToastMessage = msg;
+                this.AllTasks = [];
+                return;
+            }
+            if (assignedRes.TaskIDs.length === 0) {
+                this.AllTasks = [];
+                return;
+            }
+
+            const chunks = ChunkTaskIDs(assignedRes.TaskIDs);
+            const rv = CreateTasksRunView(effectiveProvider);
+            const chunkParams: RunViewParams[] = chunks.map((chunk) => ({
+                EntityName: 'MJ_BizApps_Tasks: Tasks',
+                ExtraFilter: `${BuildTaskIDsInFilter(chunk)} AND Status <> 'Cancelled'`,
+                OrderBy: 'DueAt ASC, Sequence ASC',
+                ResultType: 'simple',
+                BypassCache: bypassCache,
+            }));
+
+            const [taskChunkResults, engine, people] = await Promise.all([
+                RunViewsBatch(rv, chunkParams),
+                EnsureTasksEngineLoaded(effectiveProvider),
+                TasksEngineBase.Instance.GetOrLoadAllPeople(effectiveProvider).catch(() => []),
             ]);
 
-            this.peopleLookup = peopleRes?.Results ?? [];
-            const typeMap = new Map(
-                (typesRes?.Results ?? []).map((tt) => [tt.ID.toLowerCase(), tt]),
-            );
-            const rows = tasksRes?.Results ?? [];
+            const failedChunk = taskChunkResults.find((res) => !res?.Success);
+            if (failedChunk) {
+                const msg = failedChunk.ErrorMessage || 'Failed to load tasks.';
+                LogError(msg);
+                this.ToastMessage = msg;
+                this.AllTasks = [];
+                return;
+            }
+
+            this.peopleLookup = people.map((p) => ({
+                ID: p.ID,
+                FirstName: p.FirstName,
+                LastName: p.LastName,
+            }));
+            const seenIds = new Set<string>();
+            const rows: MyWorkTaskRow[] = [];
+            for (const res of taskChunkResults) {
+                for (const row of (res.Results ?? []) as MyWorkTaskRow[]) {
+                    const key = row.ID.toLowerCase();
+                    if (!seenIds.has(key)) {
+                        seenIds.add(key);
+                        rows.push(row);
+                    }
+                }
+            }
             let linksMap = new Map<string, { EntityName: string; RecordID: string; Name: string }[]>();
             try {
-                linksMap = await LoadTaskRecordLinks(rows.map((r) => r.ID));
+                linksMap = await LoadTaskRecordLinks(rows.map((r) => r.ID), effectiveProvider);
             } catch {
                 // optional enrichment
             }
 
             const rollups = ComputeChildRollups(rows);
             this.AllTasks = rows.map((r) => {
-                const tt = typeMap.get(r.TypeID.toLowerCase());
+                const tt = engine.TaskTypeById(r.TypeID);
                 const childStat = rollups.get(r.ID.toLowerCase());
                 const links = (linksMap.get(r.ID.toLowerCase()) ?? []).map((l) => ({
                     EntityName: l.EntityName,
@@ -826,7 +942,11 @@ export class MyTasksPageComponent implements OnInit {
         this.Busy = true;
         this.cdr.markForCheck();
         try {
-            const typeID = await ResolveDefaultGenericTaskTypeID(new RunView());
+            const effectiveProvider = this.Provider ?? Metadata.Provider;
+            const engine = await EnsureTasksEngineLoaded(effectiveProvider);
+            const cachedTypeId =
+                engine.TaskTypes.length > 0 ? SelectDefaultGenericTaskTypeID(engine.TaskTypes) : null;
+            const typeID = cachedTypeId ?? (await ResolveDefaultGenericTaskTypeID(CreateTasksRunView(effectiveProvider)));
             if (!typeID) return;
 
             const task = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
@@ -872,14 +992,17 @@ export class MyTasksPageComponent implements OnInit {
 
                 // Persist #Tags if parsed
                 for (const tagName of event.TagNames) {
-                    const existing = await new RunView().RunView<{ ID: string }>({
-                        EntityName: 'MJ_BizApps_Tasks: Task Tags',
-                        ExtraFilter: `Name = '${EscapeSQLString(tagName)}'`,
-                        Fields: ['ID'],
-                        MaxRows: 1,
-                        ResultType: 'simple',
-                    });
-                    let tagID = existing?.Results?.[0]?.ID;
+                    let tagID: string | undefined = engine.TaskTagByName(tagName)?.ID;
+                    if (!tagID && engine.TaskTags.length === 0) {
+                        const existing = await CreateTasksRunView(effectiveProvider).RunView<{ ID: string }>({
+                            EntityName: 'MJ_BizApps_Tasks: Task Tags',
+                            ExtraFilter: `Name = '${EscapeSQLString(tagName)}'`,
+                            Fields: ['ID'],
+                            MaxRows: 1,
+                            ResultType: 'simple',
+                        });
+                        tagID = existing?.Results?.[0]?.ID;
+                    }
                     if (!tagID) {
                         const newTag = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskTagEntity>('MJ_BizApps_Tasks: Task Tags');
                         newTag.NewRecord();

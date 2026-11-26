@@ -1,12 +1,13 @@
 import { Component, OnInit, OnChanges, SimpleChanges, ChangeDetectorRef, inject } from '@angular/core';
-import { CompositeKey, Metadata, RunView } from '@memberjunction/core';
-import { EscapeSQLString, RegisterClassEx } from '@memberjunction/global';
+import { CompositeKey, Metadata } from '@memberjunction/core';
+import { RegisterClassEx } from '@memberjunction/global';
 import { BaseFormPanel } from '@memberjunction/ng-base-forms';
 import { UserInfoEngine } from '@memberjunction/core-entities';
-import { FormatTaskStatusLabel } from '@mj-biz-apps/tasks-core';
+import { FormatTaskStatusLabel, TasksEngineBase } from '@mj-biz-apps/tasks-core';
 import type { mjBizAppsTasksTaskEntity } from '@mj-biz-apps/tasks-entities';
 import type { TaskStatusValue, TaskWidgetLinkedRecord, TaskWidgetTypeStatus } from '@mj-biz-apps/tasks-ng-widgets';
 import { LoadTaskRecordLinks, type TaskRecordLink } from '../task-record-links';
+import { EnsureTasksEngineLoaded, MapTaskTypeStatusesToWidget } from '../tasks-engine.helper';
 import {
     FormatTaskDate,
     TaskPriorityChipClass,
@@ -80,19 +81,14 @@ export class TaskHeaderPanel extends BaseFormPanel<mjBizAppsTasksTaskEntity> imp
         }
         this.loadedTaskId = this.Record.ID;
         try {
-            const [statusesRes, linksMap] = await Promise.all([
-                this.Record.TypeID
-                    ? new RunView().RunView<TaskWidgetTypeStatus>({
-                          EntityName: 'MJ_BizApps_Tasks: Task Type Status',
-                          ExtraFilter: `TaskTypeID = '${EscapeSQLString(this.Record.TypeID)}' AND IsActive = 1`,
-                          OrderBy: 'Sequence ASC',
-                          ResultType: 'simple',
-                      })
-                    : Promise.resolve(null),
+            const [engine, linksMap] = await Promise.all([
+                this.Record.TypeID ? EnsureTasksEngineLoaded(Metadata.Provider) : Promise.resolve(TasksEngineBase.Instance),
                 LoadTaskRecordLinks([this.Record.ID]).catch(() => new Map<string, TaskRecordLink[]>()),
             ]);
 
-            this.TypeStatuses = statusesRes?.Results ?? [];
+            this.TypeStatuses = this.Record.TypeID
+                ? MapTaskTypeStatusesToWidget(engine.StatusesForType(this.Record.TypeID, true))
+                : [];
             const links = linksMap.get(this.Record.ID.toLowerCase()) ?? [];
             this.LinkedRecords = links.map((l) => ({
                 EntityName: l.EntityName,

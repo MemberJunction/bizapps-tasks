@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { CompositeKey, LogError, Metadata, RunView } from '@memberjunction/core';
+import { CompositeKey, LogError, Metadata } from '@memberjunction/core';
 import { UserInfoEngine } from '@memberjunction/core-entities';
 import { EscapeSQLString } from '@memberjunction/global';
 import { SharedService } from '@memberjunction/ng-shared';
@@ -34,8 +34,15 @@ import type {
 } from '@mj-biz-apps/tasks-ng-widgets';
 import { NO_PERSON_MESSAGE, PERSON_LOOKUP_FAILED_MESSAGE, ResolveCurrentPersonID } from '../current-person';
 import { OpenTaskRecord } from '../open-task-record';
-import { AssignedToFilter, CurrentUserRoleIDs } from '../role-assignees';
+import {
+    AssignedToFilter,
+    BuildTaskAssignmentPredicate,
+    BuildTaskIDsInFilter,
+    CurrentUserRoleIDs,
+    TASK_ASSIGNMENTS_ENTITY,
+} from '../role-assignees';
 import { LoadTaskRecordLinks } from '../task-record-links';
+import { CreateTasksRunView, EnsureTasksEngineLoaded, RunViewsBatch } from '../tasks-engine.helper';
 import { ApprovalDecisionPanelComponent, type DecisionRecordedEvent } from '../components/approval-decision-panel/approval-decision-panel.component';
 import { ApprovalTypePredicate } from '../components/approval-inbox/approval-type-predicate';
 import {
@@ -78,11 +85,16 @@ export function BuildApprovalsPendingFilter(
     personID: string,
     roleIDs: readonly string[],
     searchText?: string | null,
+    assignedTaskIDs?: readonly string[],
 ): string {
+    const assigneeClause =
+        assignedTaskIDs !== undefined
+            ? BuildTaskIDsInFilter(assignedTaskIDs)
+            : AssignedToFilter(personID, roleIDs);
     const clauses = [
         `TypeID IN (SELECT ID FROM __mj_BizAppsTasks.vwTaskTypes WHERE ${ApprovalTypePredicate(null)})`,
         "Status NOT IN ('Completed', 'Cancelled')",
-        AssignedToFilter(personID, roleIDs),
+        assigneeClause,
         `ID NOT IN (SELECT d.TaskID FROM __mj_BizAppsTasks.vwTaskDecisions d INNER JOIN __mj_BizAppsTasks.vwTaskDecisionOutcomes o ON o.ID = d.OutcomeID WHERE o.IsTerminal = 1)`,
     ];
     const q = (searchText ?? '').trim();
@@ -819,60 +831,94 @@ export class ApprovalsPageComponent implements OnInit {
         this.Loading = true;
         this.cdr.markForCheck();
         try {
-            const pendingFilter = BuildApprovalsPendingFilter(this.PersonID, CurrentUserRoleIDs());
+            const provider = Metadata.Provider;
+            const roleIDs = CurrentUserRoleIDs(provider?.CurrentUser);
+            const rv = CreateTasksRunView(provider);
+            const assignmentFilter = BuildTaskAssignmentPredicate(this.PersonID, roleIDs, provider);
 
-            const [pendingRes, typesRes, decidedRes] = await Promise.all([
-                new RunView().RunView<{
-                    ID: string;
-                    Name: string;
-                    Description: string | null;
-                    Priority: TaskPriorityValue;
-                    DueAt: string | null;
-                    Status: TaskStatusValue;
-                    TypeID: string;
-                    OrganizationID: string | null;
-                    Organization: string | null;
-                    __mj_CreatedAt: string | null;
-                }>({
-                    EntityName: 'MJ_BizApps_Tasks: Tasks',
-                    ExtraFilter: pendingFilter,
-                    OrderBy: 'DueAt ASC',
-                    Fields: ['ID', 'Name', 'Description', 'Priority', 'DueAt', 'Status', 'TypeID', 'OrganizationID', 'Organization', '__mj_CreatedAt'],
-                    ResultType: 'simple',
-                    BypassCache: bypassCache,
-                }),
-                new RunView().RunView<{
-                    ID: string;
-                    OnCompleteAction: string | null;
-                    OnRejectAction: string | null;
-                    OnCancelAction: string | null;
-                }>({
-                    EntityName: 'MJ_BizApps_Tasks: Task Types',
-                    ExtraFilter: 'IsApproval = 1',
-                    Fields: ['ID', 'OnCompleteAction', 'OnRejectAction', 'OnCancelAction'],
-                    ResultType: 'simple',
-                }),
-                new RunView().RunView<DecidedApprovalRow>({
-                    EntityName: 'MJ_BizApps_Tasks: Task Decisions',
-                    ExtraFilter: `DecidedByPersonID = '${EscapeSQLString(this.PersonID)}'`,
-                    Fields: ['ID', 'TaskID', 'Task', 'Outcome', 'DecidedAt', 'DecisionNotes'],
-                    OrderBy: 'DecidedAt DESC',
-                    ResultType: 'simple',
-                    BypassCache: bypassCache,
-                }),
+            const [[assignedViewRes, decidedRes], engine] = await Promise.all([
+                RunViewsBatch(rv, [
+                    {
+                        EntityName: TASK_ASSIGNMENTS_ENTITY,
+                        ExtraFilter: assignmentFilter,
+                        Fields: ['TaskID'],
+                        ResultType: 'simple',
+                        BypassCache: bypassCache,
+                    },
+                    {
+                        EntityName: 'MJ_BizApps_Tasks: Task Decisions',
+                        ExtraFilter: `DecidedByPersonID = '${EscapeSQLString(this.PersonID)}'`,
+                        Fields: ['ID', 'TaskID', 'Task', 'Outcome', 'DecidedAt', 'DecisionNotes'],
+                        OrderBy: 'DecidedAt DESC',
+                        ResultType: 'simple',
+                        BypassCache: bypassCache,
+                    },
+                ]),
+                EnsureTasksEngineLoaded(provider),
             ]);
+            this.DecidedHistory = (decidedRes?.Results ?? []) as DecidedApprovalRow[];
 
-            const rows = pendingRes?.Results ?? [];
-            const typeMap = new Map((typesRes?.Results ?? []).map((t) => [t.ID.toLowerCase(), t]));
+            if (!assignedViewRes?.Success) {
+                LogError(assignedViewRes?.ErrorMessage || 'Failed to load task assignments.');
+                this.PendingApprovals = [];
+                this.rebuildViewModels();
+                return;
+            }
+            const seenTaskIds = new Set<string>();
+            const assignedTaskIds: string[] = [];
+            for (const row of (assignedViewRes.Results ?? []) as Array<{ TaskID?: string }>) {
+                const id = row.TaskID?.trim();
+                if (!id) continue;
+                const key = id.toLowerCase();
+                if (!seenTaskIds.has(key)) {
+                    seenTaskIds.add(key);
+                    assignedTaskIds.push(id);
+                }
+            }
+            if (assignedTaskIds.length === 0) {
+                this.PendingApprovals = [];
+                this.rebuildViewModels();
+                return;
+            }
+
+            const pendingFilter = BuildApprovalsPendingFilter(this.PersonID, roleIDs, null, assignedTaskIds);
+
+            const pendingRes = await rv.RunView<{
+                ID: string;
+                Name: string;
+                Description: string | null;
+                Priority: TaskPriorityValue;
+                DueAt: string | null;
+                Status: TaskStatusValue;
+                TypeID: string;
+                OrganizationID: string | null;
+                Organization: string | null;
+                __mj_CreatedAt: string | null;
+            }>({
+                EntityName: 'MJ_BizApps_Tasks: Tasks',
+                ExtraFilter: pendingFilter,
+                OrderBy: 'DueAt ASC',
+                Fields: ['ID', 'Name', 'Description', 'Priority', 'DueAt', 'Status', 'TypeID', 'OrganizationID', 'Organization', '__mj_CreatedAt'],
+                ResultType: 'simple',
+                BypassCache: bypassCache,
+            });
+
+            if (!pendingRes?.Success) {
+                LogError(pendingRes?.ErrorMessage || 'Failed to load pending approvals.');
+                this.PendingApprovals = [];
+                this.rebuildViewModels();
+                return;
+            }
+            const rows = pendingRes.Results ?? [];
             let linksMap = new Map<string, { EntityName: string; RecordID: string; Name: string }[]>();
             try {
-                linksMap = await LoadTaskRecordLinks(rows.map((r) => r.ID));
+                linksMap = await LoadTaskRecordLinks(rows.map((r) => r.ID), provider);
             } catch {
                 // optional
             }
 
             this.PendingApprovals = rows.map((r) => {
-                const tt = typeMap.get(r.TypeID.toLowerCase());
+                const tt = engine.TaskTypeById(r.TypeID);
                 return {
                     ID: r.ID,
                     Name: r.Name,
@@ -891,7 +937,7 @@ export class ApprovalsPageComponent implements OnInit {
                         EntityName: l.EntityName,
                         RecordID: l.RecordID,
                         DisplayName: l.Name,
-                        IconClass: Metadata.Provider.EntityByName(l.EntityName)?.Icon || 'fa-solid fa-link',
+                        IconClass: provider.EntityByName(l.EntityName)?.Icon || 'fa-solid fa-link',
                     })),
                     OnCompleteActionName: tt?.OnCompleteAction ?? null,
                     OnRejectActionName: tt?.OnRejectAction ?? null,
@@ -899,7 +945,6 @@ export class ApprovalsPageComponent implements OnInit {
                 };
             });
 
-            this.DecidedHistory = decidedRes?.Results ?? [];
             this.rebuildViewModels();
         } finally {
             this.Loading = false;

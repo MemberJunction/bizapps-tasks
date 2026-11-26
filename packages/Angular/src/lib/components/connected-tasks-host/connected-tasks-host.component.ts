@@ -10,7 +10,7 @@ import {
     SimpleChanges,
     inject,
 } from '@angular/core';
-import { CompositeKey, Metadata, RunView } from '@memberjunction/core';
+import { CompositeKey, Metadata, type IMetadataProvider } from '@memberjunction/core';
 import { EscapeSQLString } from '@memberjunction/global';
 import { SharedService } from '@memberjunction/ng-shared';
 import { TaskOrchestrationService } from '@mj-biz-apps/tasks-core';
@@ -18,7 +18,8 @@ import type {
     mjBizAppsTasksTaskEntity,
     mjBizAppsTasksTaskLinkEntity,
 } from '@mj-biz-apps/tasks-entities';
-import { ResolveDefaultGenericTaskTypeID } from '../../task-type-filter.helper';
+import { ResolveDefaultGenericTaskTypeID, SelectDefaultGenericTaskTypeID } from '../../task-type-filter.helper';
+import { CreateTasksRunView, EnsureTasksEngineLoaded } from '../../tasks-engine.helper';
 import {
     ConnectedTasksWidgetComponent,
     type TaskApprovalActionEvent,
@@ -81,6 +82,7 @@ interface LinkedTaskRow {
     styles: [`:host { display: block; width: 100%; min-width: 0; }`],
 })
 export class ConnectedTasksHostComponent implements OnInit, OnChanges {
+    @Input() Provider: IMetadataProvider | null = null;
     @Input({ required: true }) EntityName!: string;
     @Input({ required: true }) RecordID!: string;
     @Input() RecordDisplayName: string | null = null;
@@ -89,6 +91,10 @@ export class ConnectedTasksHostComponent implements OnInit, OnChanges {
     @Input() ShowHeader = true;
     @Input() ShowQuickAdd = true;
     @Input() ReadOnly = false;
+
+    public get ProviderToUse(): IMetadataProvider {
+        return this.Provider ?? Metadata.Provider;
+    }
 
     @Output() TaskSelected = new EventEmitter<string>();
     @Output() TasksChanged = new EventEmitter<void>();
@@ -123,48 +129,40 @@ export class ConnectedTasksHostComponent implements OnInit, OnChanges {
 
     public async Refresh(bypassCache = false): Promise<void> {
         if (!this.EntityName || !this.RecordID) return;
-        const entity = Metadata.Provider.EntityByName(this.EntityName);
+        const provider = this.ProviderToUse;
+        const entity = provider.EntityByName(this.EntityName);
         if (!entity) return;
 
         this.Loading = true;
         this.cdr.markForCheck();
         try {
-            const rv = new RunView();
-            const linkRes = await rv.RunView<{ TaskID: string }>({
-                EntityName: 'MJ_BizApps_Tasks: Task Links',
-                ExtraFilter: `EntityID = '${EscapeSQLString(entity.ID)}' AND RecordID = '${EscapeSQLString(this.RecordID)}'`,
-                Fields: ['TaskID'],
-                ResultType: 'simple',
-                BypassCache: bypassCache,
-            });
+            const rv = CreateTasksRunView(provider);
+            const [linkRes, engine] = await Promise.all([
+                rv.RunView<{ TaskID: string }>({
+                    EntityName: 'MJ_BizApps_Tasks: Task Links',
+                    ExtraFilter: `EntityID = '${EscapeSQLString(entity.ID)}' AND RecordID = '${EscapeSQLString(this.RecordID)}'`,
+                    Fields: ['TaskID'],
+                    ResultType: 'simple',
+                    BypassCache: bypassCache,
+                }),
+                EnsureTasksEngineLoaded(provider),
+            ]);
             const taskIds = [...new Set((linkRes.Results ?? []).map((r) => r.TaskID))];
             if (taskIds.length === 0) {
                 this.Tasks = [];
                 return;
             }
 
-            const [tasksRes, typesRes] = await Promise.all([
-                rv.RunView<LinkedTaskRow>({
-                    EntityName: 'MJ_BizApps_Tasks: Tasks',
-                    ExtraFilter: `ID IN (${taskIds.map((id) => `'${EscapeSQLString(id)}'`).join(',')}) AND Status <> 'Cancelled'`,
-                    OrderBy: 'DueAt ASC, Sequence ASC',
-                    ResultType: 'simple',
-                    BypassCache: bypassCache,
-                }),
-                rv.RunView<{ ID: string; Code: string; IsApproval: boolean }>({
-                    EntityName: 'MJ_BizApps_Tasks: Task Types',
-                    Fields: ['ID', 'Code', 'IsApproval'],
-                    ResultType: 'simple',
-                }),
-            ]);
-
-            const typeMap = new Map<string, { Code: string; IsApproval: boolean }>();
-            for (const tt of typesRes.Results ?? []) {
-                typeMap.set(tt.ID.toLowerCase(), { Code: tt.Code, IsApproval: tt.IsApproval });
-            }
+            const tasksRes = await rv.RunView<LinkedTaskRow>({
+                EntityName: 'MJ_BizApps_Tasks: Tasks',
+                ExtraFilter: `ID IN (${taskIds.map((id) => `'${EscapeSQLString(id)}'`).join(',')}) AND Status <> 'Cancelled'`,
+                OrderBy: 'DueAt ASC, Sequence ASC',
+                ResultType: 'simple',
+                BypassCache: bypassCache,
+            });
 
             this.Tasks = (tasksRes.Results ?? []).map((r) => {
-                const tt = typeMap.get(r.TypeID.toLowerCase());
+                const tt = engine.TaskTypeById(r.TypeID);
                 return {
                     ID: r.ID,
                     Name: r.Name,
@@ -226,8 +224,11 @@ export class ConnectedTasksHostComponent implements OnInit, OnChanges {
         this.Busy = true;
         this.cdr.markForCheck();
         try {
-            const rv = new RunView();
-            const defaultTypeId = await ResolveDefaultGenericTaskTypeID(rv);
+            const provider = this.ProviderToUse;
+            const engine = await EnsureTasksEngineLoaded(provider);
+            const cachedTypeId =
+                engine.TaskTypes.length > 0 ? SelectDefaultGenericTaskTypeID(engine.TaskTypes) : null;
+            const defaultTypeId = cachedTypeId ?? (await ResolveDefaultGenericTaskTypeID(CreateTasksRunView(provider)));
             if (!defaultTypeId) return;
 
             const task = await Metadata.Provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');

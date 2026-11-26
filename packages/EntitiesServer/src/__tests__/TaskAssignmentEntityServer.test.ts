@@ -91,6 +91,7 @@ vi.mock('@memberjunction/core', () => {
                 return {};
             }
         },
+        RegisterForStartup: () => () => {},
         BaseRemotableOperation: class {},
         BaseEntityResult,
         CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },

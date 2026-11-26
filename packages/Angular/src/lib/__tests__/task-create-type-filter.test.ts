@@ -136,9 +136,20 @@ vi.mock('@memberjunction/core', async (importOriginal) => {
     const provider = {
         Entities: entitiesMock,
         Roles: [],
-        EntityByName: (name: string) => entitiesMock.find((e) => e.Name === name),
+        EntityByName: (name: string) =>
+            entitiesMock.find((e) => e.Name === name) ?? {
+                ID: `ent-${name}`,
+                Name: name,
+                Icon: 'fa-solid fa-tag',
+                DisplayNameOrName: name,
+                Fields: [],
+                PrimaryKeys: [{ Name: 'ID', IsUniqueIdentifier: true }],
+                GetUserPermisions: () => ({ CanRead: true }),
+            },
         EntityByID: (id: string) => entitiesMock.find((e) => UUIDsEqual(e.ID, id)),
         GetEntityObject: (entityName: string) => getEntityObjectMock(entityName),
+        RunView: (params: RunViewParams) => runViewMock(params),
+        RunViews: (paramsList: RunViewParams[]) => Promise.all(paramsList.map((p) => runViewMock(p))),
     };
     return {
         ...actual,
@@ -148,6 +159,9 @@ vi.mock('@memberjunction/core', async (importOriginal) => {
             }
             RunView(params: RunViewParams): Promise<MockRunViewResult | undefined> {
                 return runViewMock(params);
+            }
+            RunViews(paramsList: RunViewParams[]): Promise<Array<MockRunViewResult | undefined>> {
+                return Promise.all(paramsList.map((p) => runViewMock(p)));
             }
         },
         Metadata: Object.assign(
@@ -175,6 +189,7 @@ import { mjBizAppsTasksTaskCheckInFormComponent } from '../generated/Entities/mj
 import '../sections/tasks-sections.component';
 import '../sections/meetings-sections.component';
 import { LoadBizAppsTasksClient } from '../tasks.module';
+import { TasksEngineBase } from '@mj-biz-apps/tasks-core';
 import { TaskEditPanelComponent, type TaskTypeOption } from '../components/task-edit-panel/task-edit-panel.component';
 import { TaskListComponent } from '../components/task-list/task-list.component';
 import { ConnectedTasksHostComponent } from '../components/connected-tasks-host/connected-tasks-host.component';
@@ -397,7 +412,22 @@ function makeTaskEntityStub(overrides: Partial<TaskEntityStub> = {}): TaskEntity
     };
 }
 
+function resetTasksEngineCache(): void {
+    const engine = TasksEngineBase.Instance as unknown as Record<string, unknown>;
+    engine['_loaded'] = false;
+    engine['_loading'] = false;
+    engine['_taskTypes'] = [];
+    engine['_taskTypeStatuses'] = [];
+    engine['_taskCategories'] = [];
+    engine['_taskRoles'] = [];
+    engine['_taskTags'] = [];
+    engine['_taskTypesById'] = null;
+    engine['_taskTypesByCode'] = null;
+    TasksEngineBase.Instance.ClearUserScopedCaches();
+}
+
 function setupDefaultLookupRunView(taskTypes: TaskTypeOption[] = MIXED_TASK_TYPES): void {
+    resetTasksEngineCache();
     runViewMock.mockImplementation(async (params: RunViewParams): Promise<MockRunViewResult> => {
         if (params.EntityName === 'MJ_BizApps_Tasks: Task Types') {
             return { Success: true, Results: taskTypes };
@@ -430,6 +460,7 @@ async function initEditPanelViaLifecycle(
 
 beforeEach(() => {
     vi.resetAllMocks();
+    resetTasksEngineCache();
 });
 
 describe('Generic Task Type Creation Filtering', () => {
@@ -555,7 +586,7 @@ describe('Generic Task Type Creation Filtering', () => {
         expect(panel.isNew).toBe(false);
         expect(panel.activeTaskType?.Code).toBe('PRIORITY');
         expect(panel.isCurrentTypeLocked).toBe(true);
-        expect(panel.currentTypeOwnershipNote).toBe('Managed in Planning');
+        expect(panel.currentTypeOwnershipNote).toBe('Managed by extension app (read-only)');
         expect(panel.creatableTaskTypes.some((t) => t.Code === 'PRIORITY')).toBe(false);
 
         // Existing legacy KEY_RESULT task still opens, resolves key-result archetype, and saves edits without clearing TypeID
@@ -572,7 +603,7 @@ describe('Generic Task Type Creation Filtering', () => {
         expect(panel.activeTaskType?.Code).toBe('KEY_RESULT');
         expect(panel.ActiveArchetype).toBe('key-result');
         expect(panel.isCurrentTypeLocked).toBe(true);
-        expect(panel.currentTypeOwnershipNote).toBe('Legacy OKR type (read-only)');
+        expect(panel.currentTypeOwnershipNote).toBe('Inactive type (read-only)');
         expect(panel.form.TypeID).toBe(TT_KEY_RESULT_ID);
 
         panel.form.Status = 'InProgress';
@@ -780,6 +811,7 @@ describe('Generic Task Type Creation Filtering', () => {
 
         // 8. Block Planning/OKR defaults in quickAddTask() and onQuickCaptureSubmit() when RunView returns undefined,
         // while still allowing non-Planning generic default IDs (unstubbed test compatibility).
+        resetTasksEngineCache();
         runViewMock.mockResolvedValue(undefined);
         getEntityObjectMock.mockClear();
         for (const blockedDefaultId of [null, TT_PRIORITY_ID, TT_PRIORITY_OBJECTIVE_ID, TT_KEY_RESULT_ID, 'PRIORITY', 'OBJECTIVE', 'KEY_RESULT']) {

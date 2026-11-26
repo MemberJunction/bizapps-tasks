@@ -11,7 +11,8 @@ import {
     inject,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { LogError, Metadata, RunView, type IMetadataProvider, type IRunViewProvider } from '@memberjunction/core';
+import { CompositeKey, LogError, Metadata, RunView, type IMetadataProvider, type IRunViewProvider, type RunViewParams } from '@memberjunction/core';
+import { EscapeSQLString, IsValidUUID, NormalizeUUID, UUIDsEqual } from '@memberjunction/global';
 import { UserInfoEngine } from '@memberjunction/core-entities';
 import {
     MJButtonDirective,
@@ -34,34 +35,56 @@ import {
 import {
     TaskBulkActionDockComponent,
     TaskCommandPaletteComponent,
+    TaskQuickCaptureComponent,
+    TaskWbsSummaryStripComponent,
+    TaskWbsTreeComponent,
     type TaskBulkActionRequest,
     type TaskBulkLookupOption,
     type TaskBulkPatch,
     type TaskCommandPaletteItem,
+    type TaskPriorityValue,
+    type TaskQuickCaptureSubmitEvent,
+    type TaskStatusValue,
+    type TaskWbsKindLabel,
+    type TaskWbsRowTone,
+    type TaskWidgetAssignee,
+    type TaskWidgetItem,
 } from '@mj-biz-apps/tasks-ng-widgets';
 import {
+    BuildWbsTree,
+    ComputeWbsSummary,
     DeleteSavedTaskFilterView,
+    FilterWbsTreePreservingAncestors,
+    MatchesAssigneeFilter,
+    MatchesDueDateFilter,
     ParseSavedTaskFilterViews,
     SAVED_TASK_VIEWS_SETTING,
     SerializeSavedTaskFilterViews,
     TasksBulkUpdateOperation,
+    TasksEngineBase,
     UpsertSavedTaskFilterView,
     type SavedTaskFilterMap,
     type SavedTaskFilterValue,
     type SavedTaskFilterView,
+    type TaskBadgeDescriptor,
     type TaskDueDateFilterKey,
+    type TaskWbsNode,
+    type TaskWbsSummaryMetrics,
 } from '@mj-biz-apps/tasks-core';
 import {
     FilterActiveSelectableTaskTypes,
     FilterGenericCreatableTaskTypes,
+    type mjBizAppsTasksTaskEntity,
     type TaskTypeClassificationInput,
 } from '@mj-biz-apps/tasks-entities';
 import { ResolveCurrentPersonID } from '../current-person';
 import { OpenTaskRecord } from '../open-task-record';
+import { CurrentUserRoleIDs, RoleAssigneeName } from '../role-assignees';
+import { EnsureTasksEngineLoaded, RunViewsBatch } from '../tasks-engine.helper';
+import { ResolveDefaultGenericTaskTypeID, SelectGenericQuickAddTaskTypeID } from '../task-type-filter.helper';
 import { TaskDetailPanelComponent } from '../components/task-detail-panel/task-detail-panel.component';
 import { TaskDrawerShellComponent } from '../components/task-drawer-shell/task-drawer-shell.component';
 import { TaskEditPanelComponent } from '../components/task-edit-panel/task-edit-panel.component';
-import { GoalsViewComponent } from '../components/goals-view/goals-view.component';
 import { TaskGanttComponent } from '../components/task-gantt/task-gantt.component';
 import { TaskKanbanComponent } from '../components/task-kanban/task-kanban.component';
 import { TaskListComponent } from '../components/task-list/task-list.component';
@@ -71,12 +94,13 @@ import { RunningTimerChipComponent } from '../components/running-timer-chip/runn
 import {
     BuildPendingSuggestionsSqlFilter,
     CountTotalPendingSuggestions,
+    FormatPendingSuggestionTooltip,
     TaskFieldSuggestionsHelper,
     type TaskPendingSuggestionsSummary,
 } from '../task-field-suggestions.helper';
 
 export type { TaskViewMode };
-export type TasksDashboardPanelMode = 'none' | 'detail' | 'edit' | 'template' | 'help';
+export type TasksDashboardPanelMode = 'none' | 'detail' | 'edit' | 'template';
 
 export interface TaskCategoryOption {
     ID: string;
@@ -90,6 +114,173 @@ export interface TaskKPIs {
     Blocked: number;
     Overdue: number;
     AvgPercentComplete: number;
+}
+
+export interface WbsDashboardFilterCriteria {
+    CategoryID: string | null;
+    SearchText: string;
+    Status: string | null;
+    Priority: string | null;
+    TypeID: string | null;
+    Assignee: string | null;
+    DueDate: TaskDueDateFilterKey | null;
+    OrganizationID: string | null;
+    CurrentPersonID: string | null;
+    CurrentRoleIDs: readonly string[];
+    OnlyPendingSuggestions: boolean;
+    PendingSuggestionsByTask: ReadonlyMap<string, TaskPendingSuggestionsSummary>;
+}
+
+interface WbsTaskQueryRow {
+    ID: string;
+    Name: string;
+    Description: string | null;
+    Status: TaskStatusValue;
+    Priority: TaskPriorityValue;
+    DueAt: string | null;
+    StartedAt: string | null;
+    PercentComplete: number | null;
+    HoursEstimated: number | null;
+    HoursActual: number | null;
+    ParentID: string | null;
+    TypeID: string;
+    Type: string | null;
+    CategoryID: string | null;
+    Category: string | null;
+    OrganizationID: string | null;
+    Organization: string | null;
+    TaskTypeStatusID: string | null;
+    TaskTypeStatus: string | null;
+    BlockedReason: string | null;
+    Sequence: number | null;
+}
+
+interface WbsAssignmentQueryRow {
+    TaskID: string;
+    AssigneeEntityID: string;
+    AssigneeRecordID: string;
+    RoleID: string | null;
+    Status: TaskWidgetAssignee['Status'] | null;
+}
+
+interface WbsDependencyQueryRow {
+    TaskID: string;
+    DependsOnTaskID: string;
+    DependencyType: string | null;
+}
+
+function resolveWbsKindLabel(typeCode: string | null | undefined): TaskWbsKindLabel | null {
+    const code = (typeCode ?? '').trim().toUpperCase();
+    if (code === 'PHASE') return 'Phase';
+    if (code === 'MILESTONE') return 'Milestone';
+    if (code === 'SUBTASK') return 'Subtask';
+    return null;
+}
+
+function matchesWbsDashboardFilter(item: TaskWidgetItem, criteria: WbsDashboardFilterCriteria): boolean {
+    if (criteria.CategoryID) {
+        if (!item.CategoryID || !UUIDsEqual(item.CategoryID, criteria.CategoryID)) {
+            return false;
+        }
+    }
+    if (criteria.Status && item.Status !== criteria.Status) {
+        return false;
+    }
+    if (criteria.Priority && item.Priority !== criteria.Priority) {
+        return false;
+    }
+    if (criteria.TypeID) {
+        if (!item.TypeID || !UUIDsEqual(item.TypeID, criteria.TypeID)) {
+            return false;
+        }
+    }
+    if (criteria.OrganizationID === '__none__') {
+        if (item.OrganizationID) {
+            return false;
+        }
+    } else if (criteria.OrganizationID) {
+        if (!item.OrganizationID || !UUIDsEqual(item.OrganizationID, criteria.OrganizationID)) {
+            return false;
+        }
+    }
+    if (!MatchesDueDateFilter(item.DueAt ?? item.DueDate ?? null, item.Status, criteria.DueDate)) {
+        return false;
+    }
+    if (criteria.Assignee) {
+        const assigneeRefs = (item.Assignees ?? [])
+            .filter((a) => Boolean(a.RecordID))
+            .map((a) => ({ RecordID: a.RecordID, EntityName: a.EntityName }));
+        if (!MatchesAssigneeFilter(assigneeRefs, criteria.Assignee, criteria.CurrentPersonID, criteria.CurrentRoleIDs)) {
+            return false;
+        }
+    }
+    const q = criteria.SearchText.trim().toLowerCase();
+    if (q) {
+        const assigneeNames = item.AssigneeNames ?? (item.Assignees ?? []).map((a) => a.DisplayName);
+        const haystacks = [
+            item.Name,
+            item.Description ?? '',
+            item.BlockedReason ?? '',
+            item.OrganizationName ?? '',
+            item.CategoryName ?? '',
+            item.TaskTypeName ?? item.TypeName ?? '',
+            item.TaskTypeStatusName ?? '',
+            ...assigneeNames,
+        ];
+        if (!haystacks.some((h) => h.toLowerCase().includes(q))) {
+            return false;
+        }
+    }
+    if (criteria.OnlyPendingSuggestions) {
+        const summary = criteria.PendingSuggestionsByTask.get(NormalizeUUID(item.ID));
+        if (!summary || summary.pendingCount <= 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * Projects a flat task list through all active dashboard filters while keeping
+ * every matching task's full WBS ancestor chain (Phase / Milestone / Parent) intact.
+ */
+export function ProjectFilteredWbsTasks(
+    allTasks: readonly TaskWidgetItem[],
+    criteria: WbsDashboardFilterCriteria,
+): TaskWidgetItem[] {
+    if (allTasks.length === 0) {
+        return [];
+    }
+    const hasFilter = Boolean(
+        criteria.CategoryID ||
+            criteria.SearchText.trim() ||
+            criteria.Status ||
+            criteria.Priority ||
+            criteria.TypeID ||
+            criteria.Assignee ||
+            criteria.DueDate ||
+            criteria.OrganizationID ||
+            criteria.OnlyPendingSuggestions,
+    );
+    if (!hasFilter) {
+        return [...allTasks];
+    }
+
+    const tree = BuildWbsTree(allTasks);
+    const filteredTree = FilterWbsTreePreservingAncestors(tree, (item) =>
+        matchesWbsDashboardFilter(item, criteria),
+    );
+    const out: TaskWidgetItem[] = [];
+    const flatten = (nodes: readonly TaskWbsNode<TaskWidgetItem>[]): void => {
+        for (const node of nodes) {
+            out.push(node.Item);
+            if (node.Children.length > 0) {
+                flatten(node.Children);
+            }
+        }
+    };
+    flatten(filteredTree);
+    return out;
 }
 
 const VIEW_MODE_SETTING = 'mj.tasks.dashboardViewMode.v1';
@@ -124,11 +315,13 @@ const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
         TaskGanttComponent,
         TaskDetailPanelComponent,
         TaskEditPanelComponent,
-        GoalsViewComponent,
         TaskTemplateWizardComponent,
         TaskDrawerShellComponent,
         TaskCommandPaletteComponent,
         TaskBulkActionDockComponent,
+        TaskQuickCaptureComponent,
+        TaskWbsSummaryStripComponent,
+        TaskWbsTreeComponent,
         RunningTimerChipComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -137,7 +330,7 @@ const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
             <mj-page-header
                 Title="All Work"
                 Icon="fa-solid fa-list-check"
-                Subtitle="Hierarchical tree lists, workflow boards, and critical-path Gantt timelines.">
+                Subtitle="Hierarchical WBS breakdown, tree lists, workflow boards, and critical-path Gantt timelines.">
                 <div meta class="mjt-meta-strip">
                     <mj-stat-badge
                         [Count]="KPIs.TotalActive"
@@ -180,18 +373,6 @@ const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
                         mjButton
                         variant="outline"
                         size="sm"
-                        (click)="OpenPanel('help')"
-                        title="In-app help for OKRs, Goals migration, and BizApps Planning"
-                        aria-label="OKRs and Help">
-                        <i class="fa-regular fa-circle-question" aria-hidden="true"></i>
-                        <span class="action-btn-label">OKRs &amp; Help</span>
-                    </button>
-                    <button
-                        type="button"
-                        class="mjt-toolbar-btn"
-                        mjButton
-                        variant="outline"
-                        size="sm"
                         (click)="OpenPanel('template')"
                         title="Create from Template"
                         aria-label="From Template">
@@ -209,7 +390,7 @@ const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
                         class="mjt-search-flex"
                         Placeholder="Search tasks across projects..."
                         [Value]="SearchText"
-                        (ValueChange)="SearchText = $event; ActiveSavedViewID = null; cdr.markForCheck()">
+                        (ValueChange)="OnSearchTextChange($event)">
                     </mj-page-search>
 
                     <mj-filter-popover
@@ -346,6 +527,55 @@ const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
                             </div>
                         }
 
+                        @if (ViewMode === 'wbs') {
+                            <div class="mjt-wbs-stage">
+                                <mjt-wbs-summary-strip
+                                    [Summary]="WbsSummary"
+                                    [ActiveFilterKey]="WbsSummaryActiveKey"
+                                    (TileClicked)="OnWbsSummaryTileClicked($event)">
+                                </mjt-wbs-summary-strip>
+
+                                <mjt-quick-capture
+                                    [Compact]="true"
+                                    [Busy]="WbsQuickAdding"
+                                    Placeholder="Quick add task... (try 'Draft deck tomorrow @Jordan !high')"
+                                    (Submitted)="OnWbsQuickCapture($event)">
+                                </mjt-quick-capture>
+
+                                @if (WbsLoading && WbsAllTasks.length === 0) {
+                                    <div class="mjt-wbs-loading">Loading WBS hierarchy...</div>
+                                } @else if (WbsLoadError) {
+                                    <div class="mjt-bulk-banner mjt-bulk-banner--error" role="alert">
+                                        <span>{{ WbsLoadError }}</span>
+                                        <button type="button" class="mjt-bulk-dismiss" (click)="LoadWbsTasks()">Retry</button>
+                                    </div>
+                                } @else {
+                                    <mjt-wbs-tree
+                                        #taskWbs
+                                        [Tasks]="FilteredWbsTasks"
+                                        [ShowWbsCodes]="true"
+                                        [ShowTreeConnectors]="true"
+                                        [ShowProgressBars]="true"
+                                        [ShowStatusPill]="true"
+                                        [ShowTypeBadge]="true"
+                                        [ShowBlockedReason]="true"
+                                        [ShowToolbar]="true"
+                                        [EnableBulkSelect]="true"
+                                        [SelectedIDs]="SelectedTaskIDs"
+                                        [ShowAddSubtaskAction]="true"
+                                        [RowBadgeResolver]="WbsRowBadgeResolver"
+                                        [RowToneResolver]="WbsRowToneResolver"
+                                        EmptyTitle="No matching tasks"
+                                        EmptyMessage="Adjust your filters or add a task above to build your WBS hierarchy."
+                                        (SelectedIDsChange)="OnSelectedTaskIDsChange($event)"
+                                        (TaskClicked)="SelectTask($event.ID)"
+                                        (TaskDoubleClicked)="OpenFullRecord($event.ID)"
+                                        (StatusToggled)="OnWbsStatusToggled($event)"
+                                        (CreateTaskRequested)="OnWbsCreateTaskRequested($event)">
+                                    </mjt-wbs-tree>
+                                }
+                            </div>
+                        }
                         @if (ViewMode === 'list') {
                             <bizapps-task-list
                                 #taskList
@@ -461,6 +691,7 @@ const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
                     [TaskID]="SelectedTaskID"
                     [DefaultCategoryID]="SelectedCategoryID"
                     [DefaultOrganizationID]="ActiveOrganizationDefaultID"
+                    [DefaultParentID]="DefaultParentTaskID"
                     (Saved)="OnTaskSaved($event)"
                     (Cancel)="ClosePanel()">
                 </bizapps-task-edit-panel>
@@ -472,12 +703,6 @@ const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
                     (Created)="OnTemplateCreated($event)"
                     (Cancelled)="ClosePanel()">
                 </bizapps-task-template-wizard>
-            }
-            @if (PanelMode === 'help') {
-                <bizapps-goals-view
-                    [Provider]="Provider"
-                    (TaskSelected)="OpenPanel('detail', $event)">
-                </bizapps-goals-view>
             }
         </bizapps-task-drawer-shell>
 
@@ -660,6 +885,20 @@ const RAIL_COLLAPSED_SETTING = 'mj.tasks.categoryRailCollapsed.v1';
             width: 100%;
             box-sizing: border-box;
         }
+        .mjt-wbs-stage {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-width: 0;
+            width: 100%;
+            padding-bottom: 80px;
+        }
+        .mjt-wbs-loading {
+            padding: 32px;
+            text-align: center;
+            color: var(--mj-text-muted);
+            font-size: var(--mj-text-sm, 14px);
+        }
         @media (max-width: 640px) {
             .mjt-desktop-only { display: none !important; }
             .mjt-save-view-btn .action-btn-label { display: none; }
@@ -693,13 +932,15 @@ export class TasksDashboardPageComponent implements OnInit {
     }
 
     public ViewToggleOptions: ViewToggleOption[] = [
+        { key: 'wbs', icon: 'fa-solid fa-sitemap', label: 'WBS', title: 'Work Breakdown Structure' },
         { key: 'list', icon: 'fa-solid fa-list', label: 'List', title: 'Tree List View' },
         { key: 'kanban', icon: 'fa-solid fa-table-columns', label: 'Board', title: 'Board View' },
         { key: 'gantt', icon: 'fa-solid fa-chart-gantt', label: 'Timeline', title: 'Gantt Timeline View' },
     ];
-    public ViewMode: TaskViewMode = 'list';
+    public ViewMode: TaskViewMode = 'wbs';
     public PanelMode: TasksDashboardPanelMode = 'none';
     public SelectedTaskID: string | null = null;
+    public DefaultParentTaskID: string | null = null;
     public SelectedCategoryID: string | null = null;
     public CurrentPersonID: string | null = null;
     public RailCollapsed = false;
@@ -709,6 +950,23 @@ export class TasksDashboardPageComponent implements OnInit {
     public FieldSuggestionsAvailable = false;
     public PendingSuggestionsByTask = new Map<string, TaskPendingSuggestionsSummary>();
     public TotalPendingSuggestionsCount = 0;
+
+    // WBS Hierarchy view state (loaded via TasksEngineBase + batched RunViews)
+    public WbsAllTasks: TaskWidgetItem[] = [];
+    public FilteredWbsTasks: TaskWidgetItem[] = [];
+    public WbsSummary: TaskWbsSummaryMetrics = {
+        TotalCount: 0,
+        CompletedCount: 0,
+        InProgressCount: 0,
+        BlockedCount: 0,
+        OpenCount: 0,
+        OverdueCount: 0,
+        OverallCompletionPercent: 0,
+    };
+    public WbsLoading = false;
+    public WbsLoadError: string | null = null;
+    public WbsQuickAdding = false;
+    private wbsLoaded = false;
 
     // Saved Filter Views (UserInfoEngine persisted — zero localStorage)
     public SavedViews: SavedTaskFilterView[] = [];
@@ -753,6 +1011,7 @@ export class TasksDashboardPageComponent implements OnInit {
         AvgPercentComplete: 0,
     };
 
+    @ViewChild('taskWbs') public taskWbs?: TaskWbsTreeComponent;
     @ViewChild('taskGantt') public taskGantt?: TaskGanttComponent;
     @ViewChild('taskKanban') public taskKanban?: TaskKanbanComponent;
     @ViewChild('taskList') public taskList?: TaskListComponent;
@@ -772,7 +1031,6 @@ export class TasksDashboardPageComponent implements OnInit {
     public get DrawerTitle(): string {
         if (this.PanelMode === 'edit') return this.SelectedTaskID ? 'Edit Task' : 'New Task';
         if (this.PanelMode === 'template') return 'Launch Playbook Template';
-        if (this.PanelMode === 'help') return 'OKRs & Goals Help';
         return 'Task Inspector';
     }
 
@@ -826,6 +1084,7 @@ export class TasksDashboardPageComponent implements OnInit {
         return [
             { ID: 'new-task', Label: 'Create New Task', Group: 'Actions', IconClass: 'fa-solid fa-plus' },
             { ID: 'from-template', Label: 'Launch from Template', Group: 'Actions', IconClass: 'fa-solid fa-copy' },
+            { ID: 'view-wbs', Label: 'Switch to WBS Hierarchy View', Group: 'Views', IconClass: 'fa-solid fa-sitemap' },
             { ID: 'view-list', Label: 'Switch to Tree List View', Group: 'Views', IconClass: 'fa-solid fa-list' },
             { ID: 'view-kanban', Label: 'Switch to Board View', Group: 'Views', IconClass: 'fa-solid fa-table-columns' },
             { ID: 'view-gantt', Label: 'Switch to Timeline / Gantt View', Group: 'Views', IconClass: 'fa-solid fa-chart-gantt' },
@@ -833,6 +1092,64 @@ export class TasksDashboardPageComponent implements OnInit {
             { ID: 'reset-filters', Label: 'Clear All Filters', Group: 'Actions', IconClass: 'fa-solid fa-filter-circle-xmark' },
         ];
     }
+
+    public get WbsSummaryActiveKey(): string | null {
+        switch (this.StatusFilterValue) {
+            case 'InProgress':
+                return 'in-progress';
+            case 'Blocked':
+                return 'blocked';
+            case 'Completed':
+                return 'completed';
+            default:
+                return null;
+        }
+    }
+
+    public readonly WbsRowBadgeResolver = (task: TaskWidgetItem): readonly TaskBadgeDescriptor[] => {
+        const badges: TaskBadgeDescriptor[] = [];
+        if (task.Priority === 'Critical') {
+            badges.push({ Label: 'Critical', Icon: 'fa-solid fa-fire', Tone: 'error', Tooltip: 'Critical priority' });
+        } else if (task.Priority === 'High') {
+            badges.push({ Label: 'High', Icon: 'fa-solid fa-flag', Tone: 'warning', Tooltip: 'High priority' });
+        }
+        if (task.TaskTypeStatusName) {
+            badges.push({ Label: task.TaskTypeStatusName, Tone: 'info', Tooltip: `Stage: ${task.TaskTypeStatusName}` });
+        }
+        if (task.OrganizationName) {
+            badges.push({
+                Label: task.OrganizationName,
+                Icon: 'fa-solid fa-building',
+                Tone: 'neutral',
+                Tooltip: `Organization: ${task.OrganizationName}`,
+            });
+        }
+        if (task.DependencyCount && task.DependencyCount > 0) {
+            const noun = task.DependencyCount === 1 ? 'dep' : 'deps';
+            badges.push({
+                Label: `${task.DependencyCount} ${noun}`,
+                Icon: 'fa-solid fa-link',
+                Tone: 'neutral',
+                Tooltip: `${task.DependencyCount} linked ${task.DependencyCount === 1 ? 'dependency' : 'dependencies'}`,
+            });
+        }
+        const suggestionSummary = this.PendingSuggestionsByTask.get(NormalizeUUID(task.ID));
+        if (suggestionSummary && suggestionSummary.pendingCount > 0) {
+            badges.push({
+                Label: `${suggestionSummary.pendingCount}`,
+                Icon: 'fa-solid fa-wand-magic-sparkles',
+                Tone: 'info',
+                Tooltip: FormatPendingSuggestionTooltip(suggestionSummary),
+            });
+        }
+        return badges;
+    };
+
+    public readonly WbsRowToneResolver = (task: TaskWidgetItem): TaskWbsRowTone => {
+        if (task.Status === 'Blocked') return 'error';
+        if (task.Status === 'Completed') return 'muted';
+        return 'default';
+    };
 
     public get GanttExtraFilter(): string | null {
         return BuildPendingSuggestionsSqlFilter(this._onlyPendingSuggestions, this.PendingSuggestionsByTask);
@@ -857,6 +1174,7 @@ export class TasksDashboardPageComponent implements OnInit {
         if (normalized !== this._onlyPendingSuggestions) {
             this._onlyPendingSuggestions = normalized;
             this.OnlyPendingSuggestionsChange.emit(normalized);
+            this.recomputeWbsProjection();
             this.cdr.markForCheck();
         }
     }
@@ -869,23 +1187,40 @@ export class TasksDashboardPageComponent implements OnInit {
         return new RunView();
     }
 
+    private canReadEntity(entityName: string): boolean {
+        const provider = this.ProviderToUse;
+        const currentUser = provider?.CurrentUser;
+        if (!currentUser) return true;
+        const entity = provider?.EntityByName?.(entityName);
+        if (!entity) return false;
+        return Boolean(entity.GetUserPermisions(currentUser)?.CanRead);
+    }
+
+    public SelectTask(taskID: string): void {
+        this.OpenPanel('detail', taskID);
+    }
+
     public OpenFullRecord(taskID: string | null): void {
         this.ClosePanel();
         OpenTaskRecord(taskID);
     }
 
     public async ngOnInit(): Promise<void> {
-        const savedView = UserInfoEngine.Instance.GetSetting(VIEW_MODE_SETTING);
-        if (savedView === 'list' || savedView === 'kanban' || savedView === 'gantt') {
-            this.ViewMode = savedView;
+        try {
+            const savedView = UserInfoEngine.Instance.GetSetting(VIEW_MODE_SETTING);
+            if (savedView === 'wbs' || savedView === 'list' || savedView === 'kanban' || savedView === 'gantt') {
+                this.ViewMode = savedView;
+            }
+            const savedRail = UserInfoEngine.Instance.GetSetting(RAIL_COLLAPSED_SETTING);
+            if (savedRail === 'true') {
+                this.RailCollapsed = true;
+            }
+            this.SavedViews = ParseSavedTaskFilterViews(
+                UserInfoEngine.Instance.GetSetting(SAVED_TASK_VIEWS_SETTING),
+            );
+        } catch {
+            // Safe fallback when UserInfoEngine is not bootstrapped in isolated tests
         }
-        const savedRail = UserInfoEngine.Instance.GetSetting(RAIL_COLLAPSED_SETTING);
-        if (savedRail === 'true') {
-            this.RailCollapsed = true;
-        }
-        this.SavedViews = ParseSavedTaskFilterViews(
-            UserInfoEngine.Instance.GetSetting(SAVED_TASK_VIEWS_SETTING),
-        );
 
         const [personID] = await Promise.all([
             ResolveCurrentPersonID().catch((err) => {
@@ -894,21 +1229,43 @@ export class TasksDashboardPageComponent implements OnInit {
             }),
             this.LoadCategoriesAndTypes(),
             this.LoadKPIs(),
+            this.ViewMode === 'wbs' ? this.LoadWbsTasks() : Promise.resolve(),
         ]);
         this.CurrentPersonID = personID;
         this.buildCategoryNav();
         this.buildFilterFields();
+        this.recomputeWbsProjection();
         this.cdr.markForCheck();
     }
 
     public SetView(mode: TaskViewMode): void {
         this.ViewMode = mode;
-        UserInfoEngine.Instance.SetSettingDebounced(VIEW_MODE_SETTING, mode);
+        try {
+            UserInfoEngine.Instance.SetSettingDebounced(VIEW_MODE_SETTING, mode);
+        } catch {
+            // Safe fallback when UserInfoEngine is not initialized
+        }
+        if (mode === 'wbs') {
+            if (!this.wbsLoaded) {
+                void this.LoadWbsTasks();
+            } else {
+                this.recomputeWbsProjection();
+            }
+        }
         this.cdr.markForCheck();
     }
 
     public onViewToggleChange(key: string): void {
-        this.SetView(key as TaskViewMode);
+        if (key === 'wbs' || key === 'list' || key === 'kanban' || key === 'gantt') {
+            this.SetView(key);
+        }
+    }
+
+    public OnSearchTextChange(value: string): void {
+        this.SearchText = value;
+        this.ActiveSavedViewID = null;
+        this.recomputeWbsProjection();
+        this.cdr.markForCheck();
     }
 
     public OnRailCollapsedChange(collapsed: boolean): void {
@@ -926,6 +1283,7 @@ export class TasksDashboardPageComponent implements OnInit {
     public OnFilterValuesChange(values: Record<string, unknown>): void {
         this.FilterValues = { ...values };
         this.ActiveSavedViewID = null;
+        this.recomputeWbsProjection();
         this.cdr.markForCheck();
     }
 
@@ -941,7 +1299,334 @@ export class TasksDashboardPageComponent implements OnInit {
         this.SearchText = '';
         this.ActiveSavedViewID = null;
         this.OnPendingSuggestionsChanged(false);
+        this.recomputeWbsProjection();
         this.cdr.markForCheck();
+    }
+
+    public OnWbsSummaryTileClicked(key: string): void {
+        let nextStatus: string | null = null;
+        if (key === 'in-progress') {
+            nextStatus = this.StatusFilterValue === 'InProgress' ? null : 'InProgress';
+        } else if (key === 'blocked') {
+            nextStatus = this.StatusFilterValue === 'Blocked' ? null : 'Blocked';
+        } else if (key === 'completed') {
+            nextStatus = this.StatusFilterValue === 'Completed' ? null : 'Completed';
+        }
+        this.FilterValues = {
+            ...this.FilterValues,
+            status: nextStatus,
+        };
+        this.ActiveSavedViewID = null;
+        this.recomputeWbsProjection();
+        this.cdr.markForCheck();
+    }
+
+    public OnWbsCreateTaskRequested(event: { GroupID?: string; ParentTaskID?: string }): void {
+        this.OpenPanel('edit', null, event.ParentTaskID ?? null);
+    }
+
+    public async OnWbsStatusToggled(event: { TaskID: string; NewStatus: TaskStatusValue }): Promise<void> {
+        const provider = this.ProviderToUse;
+        if (typeof provider?.GetEntityObject !== 'function') return;
+        try {
+            const entity = await provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
+            await entity.InnerLoad(CompositeKey.FromID(event.TaskID));
+            entity.Status = event.NewStatus;
+            entity.PercentComplete = event.NewStatus === 'Completed' ? 100 : 0;
+            if (await entity.Save()) {
+                this.WbsAllTasks = this.WbsAllTasks.map((t) =>
+                    UUIDsEqual(t.ID, event.TaskID)
+                        ? { ...t, Status: event.NewStatus, PercentComplete: entity.PercentComplete }
+                        : t,
+                );
+                this.recomputeWbsProjection();
+                await Promise.all([this.LoadKPIs(), this.LoadWbsTasks()]);
+            }
+        } catch (err) {
+            LogError(err);
+        } finally {
+            this.cdr.markForCheck();
+        }
+    }
+
+    public async OnWbsQuickCapture(event: TaskQuickCaptureSubmitEvent): Promise<void> {
+        if (!event.Title || this.WbsQuickAdding) return;
+        this.WbsQuickAdding = true;
+        this.cdr.markForCheck();
+        try {
+            const provider = this.ProviderToUse;
+            const engine = await EnsureTasksEngineLoaded(provider);
+            const typeID =
+                engine.TaskTypes.length > 0
+                    ? SelectGenericQuickAddTaskTypeID(engine.TaskTypes)
+                    : await ResolveDefaultGenericTaskTypeID(this.createRunView());
+            if (!typeID || typeof provider?.GetEntityObject !== 'function') return;
+
+            const entity = await provider.GetEntityObject<mjBizAppsTasksTaskEntity>('MJ_BizApps_Tasks: Tasks');
+            entity.NewRecord();
+            entity.Name = event.Title;
+            entity.TypeID = typeID;
+            entity.Status = 'Open';
+            entity.Priority = event.Priority ?? 'Medium';
+            if (this.SelectedCategoryID) entity.CategoryID = this.SelectedCategoryID;
+            if (this.ActiveOrganizationDefaultID) entity.OrganizationID = this.ActiveOrganizationDefaultID;
+            if (this.CurrentPersonID) entity.CreatedByPersonID = this.CurrentPersonID;
+            if (event.DueAt) entity.DueAt = event.DueAt;
+            if (event.HoursEstimated != null) entity.HoursEstimated = event.HoursEstimated;
+
+            if (event.AssigneeQuery) {
+                const q = event.AssigneeQuery.toLowerCase();
+                const match = this.PeopleOptions.find((p) => p.Name.toLowerCase().includes(q));
+                const peopleEntityID = provider.EntityByName?.('MJ_BizApps_Common: People')?.ID;
+                if (match && peopleEntityID && entity.Assignments) {
+                    const assignment = await entity.Assignments.Create();
+                    assignment.AssigneeEntityID = peopleEntityID;
+                    assignment.AssigneeRecordID = match.ID;
+                    assignment.Status = 'Pending';
+                }
+            }
+
+            if (await entity.Save()) {
+                await Promise.all([this.LoadKPIs(), this.LoadWbsTasks()]);
+            }
+        } catch (err) {
+            LogError(err);
+        } finally {
+            this.WbsQuickAdding = false;
+            this.cdr.markForCheck();
+        }
+    }
+
+    /**
+     * Loads WBS hierarchy tasks + assignees + dependencies using `TasksEngineBase.Instance`
+     * (cached taxonomy & directory) and a single batched `rv.RunViews([...])` call for
+     * dynamic relations, then projects through all active dashboard filters preserving
+     * full WBS ancestor chains.
+     */
+    public async LoadWbsTasks(): Promise<void> {
+        this.WbsLoading = true;
+        this.WbsLoadError = null;
+        this.cdr.markForCheck();
+        try {
+            const provider = this.ProviderToUse;
+            const rv = this.createRunView();
+            const [engine, peopleList, orgsList, tasksRes] = await Promise.all([
+                EnsureTasksEngineLoaded(provider),
+                TasksEngineBase.Instance.GetOrLoadAllPeople(provider).catch(() => []),
+                TasksEngineBase.Instance.GetOrLoadActiveOrganizations(provider).catch(() => []),
+                rv.RunView<WbsTaskQueryRow>({
+                    EntityName: 'MJ_BizApps_Tasks: Tasks',
+                    ExtraFilter: "Status <> 'Cancelled'",
+                    OrderBy: 'Sequence ASC, DueAt ASC',
+                    Fields: [
+                        'ID',
+                        'Name',
+                        'Description',
+                        'Status',
+                        'Priority',
+                        'DueAt',
+                        'StartedAt',
+                        'PercentComplete',
+                        'HoursEstimated',
+                        'HoursActual',
+                        'ParentID',
+                        'TypeID',
+                        'Type',
+                        'CategoryID',
+                        'Category',
+                        'OrganizationID',
+                        'Organization',
+                        'TaskTypeStatusID',
+                        'TaskTypeStatus',
+                        'BlockedReason',
+                        'Sequence',
+                    ],
+                    ResultType: 'simple',
+                    BypassCache: true,
+                }),
+            ]);
+
+            if (tasksRes && tasksRes.Success === false) {
+                const msg = tasksRes.ErrorMessage || 'Failed to load WBS tasks.';
+                LogError(msg);
+                this.WbsLoadError = msg;
+                this.WbsAllTasks = [];
+                this.recomputeWbsProjection();
+                return;
+            }
+
+            const rawTasks = tasksRes?.Results ?? [];
+            const taskIds = rawTasks.map((t) => t.ID).filter((id) => IsValidUUID(id));
+            const scopeClause =
+                taskIds.length > 0 && taskIds.length <= 500
+                    ? `TaskID IN (${taskIds.map((id) => `'${EscapeSQLString(id)}'`).join(',')})`
+                    : undefined;
+            const depScopeClause =
+                taskIds.length > 0 && taskIds.length <= 500
+                    ? `TaskID IN (${taskIds.map((id) => `'${EscapeSQLString(id)}'`).join(',')}) OR DependsOnTaskID IN (${taskIds.map((id) => `'${EscapeSQLString(id)}'`).join(',')})`
+                    : undefined;
+
+            type WbsBatchSlot = 'assignments' | 'dependencies';
+            const batchParams: RunViewParams[] = [];
+            const batchSlots: WbsBatchSlot[] = [];
+
+            if (rawTasks.length > 0 && this.canReadEntity('MJ_BizApps_Tasks: Task Assignments')) {
+                batchParams.push({
+                    EntityName: 'MJ_BizApps_Tasks: Task Assignments',
+                    ExtraFilter: scopeClause,
+                    Fields: ['TaskID', 'AssigneeEntityID', 'AssigneeRecordID', 'RoleID', 'Status'],
+                    ResultType: 'simple',
+                    BypassCache: true,
+                });
+                batchSlots.push('assignments');
+            }
+            if (rawTasks.length > 0 && this.canReadEntity('MJ_BizApps_Tasks: Task Dependencies')) {
+                batchParams.push({
+                    EntityName: 'MJ_BizApps_Tasks: Task Dependencies',
+                    ExtraFilter: depScopeClause,
+                    Fields: ['TaskID', 'DependsOnTaskID', 'DependencyType'],
+                    ResultType: 'simple',
+                    BypassCache: true,
+                });
+                batchSlots.push('dependencies');
+            }
+
+            const batchResults =
+                batchParams.length > 0 ? await RunViewsBatch(rv, batchParams).catch(() => []) : [];
+
+            let assignmentRows: WbsAssignmentQueryRow[] = [];
+            let dependencyRows: WbsDependencyQueryRow[] = [];
+
+            for (let i = 0; i < batchSlots.length; i++) {
+                const res = batchResults[i];
+                if (!res?.Success) continue;
+                if (batchSlots[i] === 'assignments') {
+                    assignmentRows = (res.Results ?? []) as WbsAssignmentQueryRow[];
+                } else if (batchSlots[i] === 'dependencies') {
+                    dependencyRows = (res.Results ?? []) as WbsDependencyQueryRow[];
+                }
+            }
+
+            const personNameById = new Map<string, string>();
+            for (const p of peopleList) {
+                personNameById.set(p.ID.toLowerCase(), p.FullName);
+            }
+            const orgNameById = new Map<string, string>();
+            for (const o of orgsList) {
+                orgNameById.set(o.ID.toLowerCase(), o.Name);
+            }
+            const roleNameById = new Map<string, string>();
+            for (const r of engine.TaskRoles) {
+                roleNameById.set(r.ID.toLowerCase(), r.Name);
+            }
+            const rolesEntityID = provider.EntityByName?.('MJ: Roles')?.ID ?? null;
+
+            const assigneesByTask = new Map<string, TaskWidgetAssignee[]>();
+            for (const a of assignmentRows) {
+                if (!a.TaskID || !a.AssigneeRecordID) continue;
+                const taskKey = a.TaskID.toLowerCase();
+                const isRole = Boolean(rolesEntityID && UUIDsEqual(a.AssigneeEntityID, rolesEntityID));
+                const displayName =
+                    personNameById.get(a.AssigneeRecordID.toLowerCase()) ??
+                    RoleAssigneeName(a.AssigneeEntityID, a.AssigneeRecordID) ??
+                    a.AssigneeRecordID;
+                const list = assigneesByTask.get(taskKey) ?? [];
+                list.push({
+                    DisplayName: displayName,
+                    RoleName: a.RoleID ? (roleNameById.get(a.RoleID.toLowerCase()) ?? null) : null,
+                    Status: a.Status ?? 'Pending',
+                    EntityName: isRole ? 'MJ: Roles' : 'MJ_BizApps_Common: People',
+                    RecordID: a.AssigneeRecordID,
+                    IsRole: isRole,
+                });
+                assigneesByTask.set(taskKey, list);
+            }
+
+            const depCountByTask = new Map<string, number>();
+            for (const d of dependencyRows) {
+                if (d.TaskID) {
+                    const k = d.TaskID.toLowerCase();
+                    depCountByTask.set(k, (depCountByTask.get(k) ?? 0) + 1);
+                }
+                if (d.DependsOnTaskID) {
+                    const k = d.DependsOnTaskID.toLowerCase();
+                    depCountByTask.set(k, (depCountByTask.get(k) ?? 0) + 1);
+                }
+            }
+
+            this.WbsAllTasks = rawTasks.map((r) => {
+                const taskKey = r.ID.toLowerCase();
+                const taskType = engine.TaskTypeById(r.TypeID);
+                const category = engine.CategoryById(r.CategoryID);
+                const typeStatus = engine.TaskTypeStatusById(r.TaskTypeStatusID);
+                const assignees = assigneesByTask.get(taskKey) ?? [];
+                const orgName =
+                    r.Organization ?? (r.OrganizationID ? (orgNameById.get(r.OrganizationID.toLowerCase()) ?? null) : null);
+
+                return {
+                    ID: r.ID,
+                    Name: r.Name,
+                    Description: r.Description,
+                    ParentID: r.ParentID,
+                    Status: r.Status,
+                    Priority: r.Priority,
+                    DueAt: r.DueAt,
+                    StartedAt: r.StartedAt,
+                    PercentComplete: r.PercentComplete,
+                    HoursEstimated: r.HoursEstimated,
+                    HoursActual: r.HoursActual,
+                    Sequence: r.Sequence,
+                    TypeID: r.TypeID,
+                    TypeName: taskType?.Name ?? r.Type ?? null,
+                    TaskTypeName: taskType?.Name ?? r.Type ?? null,
+                    TypeCode: taskType?.Code ?? null,
+                    KindLabel: resolveWbsKindLabel(taskType?.Code),
+                    CategoryID: r.CategoryID,
+                    CategoryName: category?.Name ?? r.Category ?? null,
+                    OrganizationID: r.OrganizationID,
+                    OrganizationName: orgName,
+                    TaskTypeStatusID: r.TaskTypeStatusID,
+                    TaskTypeStatusName: typeStatus?.Name ?? r.TaskTypeStatus ?? null,
+                    BlockedReason: r.BlockedReason,
+                    Assignees: assignees,
+                    AssigneeNames: assignees.map((a) => a.DisplayName),
+                    DependencyCount: depCountByTask.get(taskKey) ?? 0,
+                };
+            });
+
+            this.wbsLoaded = true;
+            this.recomputeWbsProjection();
+        } catch (err) {
+            LogError(err);
+            this.WbsLoadError = err instanceof Error ? err.message : 'Failed to load WBS tasks.';
+            this.WbsAllTasks = [];
+            this.recomputeWbsProjection();
+        } finally {
+            this.WbsLoading = false;
+            this.cdr.markForCheck();
+        }
+    }
+
+    public recomputeWbsProjection(): void {
+        const projected = ProjectFilteredWbsTasks(this.WbsAllTasks, {
+            CategoryID: this.SelectedCategoryID,
+            SearchText: this.SearchText,
+            Status: this.StatusFilterValue,
+            Priority: this.PriorityFilterValue,
+            TypeID: this.TypeFilterValue,
+            Assignee: this.AssigneeFilterValue,
+            DueDate: this.DueDateFilterValue,
+            OrganizationID: this.OrganizationFilterValue,
+            CurrentPersonID: this.CurrentPersonID,
+            CurrentRoleIDs: CurrentUserRoleIDs(this.ProviderToUse?.CurrentUser),
+            OnlyPendingSuggestions: this._onlyPendingSuggestions,
+            PendingSuggestionsByTask: this.PendingSuggestionsByTask,
+        });
+        this.FilteredWbsTasks = projected;
+        this.WbsSummary = ComputeWbsSummary(BuildWbsTree(projected));
+        if (this.ViewMode === 'wbs') {
+            this.VisibleTaskIDs = projected.map((t) => t.ID);
+        }
     }
 
     public ToggleSaveViewComposer(): void {
@@ -990,6 +1675,7 @@ export class TasksDashboardPageComponent implements OnInit {
             this.SetView(view.ViewMode);
         }
         this.ActiveSavedViewID = view.ID;
+        this.recomputeWbsProjection();
         this.OnCategoryChanged();
     }
 
@@ -1079,66 +1765,31 @@ export class TasksDashboardPageComponent implements OnInit {
     }
 
     private async LoadCategoriesAndTypes(): Promise<void> {
-        const rv = this.createRunView();
-        const [catsRes, typesRes, peopleRes, orgsRes, taskRolesRes, stagesRes, tagsRes] = await Promise.all([
-            rv.RunView<TaskCategoryOption>({
-                EntityName: 'MJ_BizApps_Tasks: Task Categories',
-                ExtraFilter: 'IsActive = 1',
-                OrderBy: 'Sequence ASC, Name ASC',
-                ResultType: 'simple',
-            }),
-            rv.RunView<TaskTypeClassificationInput & { ID: string; Name: string }>({
-                EntityName: 'MJ_BizApps_Tasks: Task Types',
-                ExtraFilter: 'IsActive = 1',
-                Fields: ['ID', 'Name', 'Code', 'ExtensionEntity', 'IsActive'],
-                OrderBy: 'Name ASC',
-                ResultType: 'simple',
-            }),
-            rv.RunView<{ ID: string; FirstName: string | null; LastName: string | null }>({
-                EntityName: 'MJ_BizApps_Common: People',
-                Fields: ['ID', 'FirstName', 'LastName'],
-                OrderBy: 'FirstName ASC, LastName ASC',
-                ResultType: 'simple',
-            }),
-            rv.RunView<{ ID: string; Name: string; LinkedCompanyID: string | null }>({
-                EntityName: 'MJ_BizApps_Common: Organizations',
-                ExtraFilter: "Status = 'Active'",
-                Fields: ['ID', 'Name', 'LinkedCompanyID'],
-                OrderBy: 'Name ASC',
-                ResultType: 'simple',
-            }),
-            rv.RunView<{ ID: string; Name: string }>({
-                EntityName: 'MJ_BizApps_Tasks: Task Roles',
-                Fields: ['ID', 'Name'],
-                OrderBy: 'Sequence ASC',
-                ResultType: 'simple',
-            }),
-            rv.RunView<{ ID: string; Name: string }>({
-                EntityName: 'MJ_BizApps_Tasks: Task Type Status',
-                ExtraFilter: 'IsActive = 1',
-                Fields: ['ID', 'Name'],
-                OrderBy: 'Sequence ASC',
-                ResultType: 'simple',
-            }),
-            rv.RunView<{ ID: string; Name: string }>({
-                EntityName: 'MJ_BizApps_Tasks: Task Tags',
-                Fields: ['ID', 'Name'],
-                OrderBy: 'Name ASC',
-                ResultType: 'simple',
-            }),
+        const provider = this.ProviderToUse;
+        const [engine, people, orgs] = await Promise.all([
+            EnsureTasksEngineLoaded(provider),
+            TasksEngineBase.Instance.GetOrLoadAllPeople(provider).catch(() => []),
+            TasksEngineBase.Instance.GetOrLoadActiveOrganizations(provider).catch(() => []),
         ]);
-        this.Categories = catsRes?.Results ?? [];
-        this.TaskTypes = typesRes?.Results ?? [];
-        this.PeopleOptions = (peopleRes?.Results ?? []).map((p) => ({
-            ID: p.ID,
-            Name: `${p.FirstName ?? ''} ${p.LastName ?? ''}`.trim(),
+
+        this.Categories = engine.ActiveCategories.map((c) => ({
+            ID: c.ID,
+            Name: c.Name,
+            ParentID: c.ParentID,
+            ColorCode: c.ColorCode,
         }));
-        this.OrganizationOptions = [...(orgsRes?.Results ?? [])].sort((a, b) => {
-            if (Boolean(a.LinkedCompanyID) !== Boolean(b.LinkedCompanyID)) {
-                return a.LinkedCompanyID ? -1 : 1;
-            }
-            return a.Name.localeCompare(b.Name);
-        });
+        this.TaskTypes = engine.ActiveTaskTypes.map((t) => ({
+            ID: t.ID,
+            Name: t.Name,
+            Code: t.Code,
+            ExtensionEntity: t.ExtensionEntity,
+            IsActive: t.IsActive,
+        }));
+        this.PeopleOptions = people.map((p) => ({
+            ID: p.ID,
+            Name: p.FullName,
+        }));
+        this.OrganizationOptions = [...orgs];
 
         // Populate shared Bulk Action Dock lookups once for List, Board, and Gantt
         this.BulkPeopleOptions = this.PeopleOptions.map((p) => ({
@@ -1146,12 +1797,12 @@ export class TasksDashboardPageComponent implements OnInit {
             Label: p.Name,
             EntityName: 'MJ_BizApps_Common: People',
         }));
-        this.BulkRoleOptions = (this.ProviderToUse.Roles ?? []).map((r) => ({
+        this.BulkRoleOptions = (provider?.Roles ?? []).map((r) => ({
             ID: r.ID,
             Label: r.Name,
             EntityName: 'MJ: Roles',
         }));
-        this.BulkTaskRoleOptions = (taskRolesRes?.Results ?? []).map((r) => ({ ID: r.ID, Label: r.Name }));
+        this.BulkTaskRoleOptions = engine.TaskRoles.map((r) => ({ ID: r.ID, Label: r.Name }));
         this.BulkOrgOptions = this.OrganizationOptions.map((o) => ({
             ID: o.ID,
             Label: o.Name,
@@ -1162,8 +1813,8 @@ export class TasksDashboardPageComponent implements OnInit {
             ID: t.ID,
             Label: t.Name,
         }));
-        this.BulkStageOptions = (stagesRes?.Results ?? []).map((s) => ({ ID: s.ID, Label: s.Name }));
-        this.BulkTagOptions = (tagsRes?.Results ?? []).map((t) => ({ ID: t.ID, Label: t.Name }));
+        this.BulkStageOptions = engine.ActiveTypeStatuses.map((s) => ({ ID: s.ID, Label: s.Name }));
+        this.BulkTagOptions = engine.TaskTags.map((t) => ({ ID: t.ID, Label: t.Name }));
     }
 
     public async LoadKPIs(): Promise<void> {
@@ -1228,6 +1879,7 @@ export class TasksDashboardPageComponent implements OnInit {
             this.FieldSuggestionsAvailable = suggestions.available;
             this.PendingSuggestionsByTask = suggestions.byTaskId;
             this.TotalPendingSuggestionsCount = CountTotalPendingSuggestions(suggestions.byTaskId);
+            this.recomputeWbsProjection();
         } finally {
             this.Loading = false;
             this.cdr.markForCheck();
@@ -1265,7 +1917,7 @@ export class TasksDashboardPageComponent implements OnInit {
     }
 
     private buildFilterFields(): void {
-        const mjRoles = (this.ProviderToUse.Roles ?? []).map((r) => ({
+        const mjRoles = (this.ProviderToUse?.Roles ?? []).map((r) => ({
             text: `${r.Name} (Role)`,
             value: `role:${r.ID}`,
         }));
@@ -1357,13 +2009,19 @@ export class TasksDashboardPageComponent implements OnInit {
     }
 
     public OnCategoryChanged(): void {
+        this.recomputeWbsProjection();
         void this.LoadKPIs();
         this.RefreshActiveView();
     }
 
-    public OpenPanel(mode: TasksDashboardPanelMode, taskID: string | null = null): void {
+    public OpenPanel(
+        mode: TasksDashboardPanelMode,
+        taskID: string | null = null,
+        defaultParentTaskID: string | null = null,
+    ): void {
         this.PanelMode = mode;
         this.SelectedTaskID = taskID;
+        this.DefaultParentTaskID = mode === 'edit' && !taskID ? defaultParentTaskID : null;
         this.DrawerOpenChange.emit(mode !== 'none');
         this.cdr.markForCheck();
     }
@@ -1371,6 +2029,7 @@ export class TasksDashboardPageComponent implements OnInit {
     public ClosePanel(): void {
         this.PanelMode = 'none';
         this.SelectedTaskID = null;
+        this.DefaultParentTaskID = null;
         this.DrawerOpenChange.emit(false);
         this.cdr.markForCheck();
     }
@@ -1406,6 +2065,7 @@ export class TasksDashboardPageComponent implements OnInit {
             if (match) this.ApplySavedView(match);
         } else if (item.ID === 'new-task') this.OpenPanel('edit', null);
         else if (item.ID === 'from-template') this.OpenPanel('template');
+        else if (item.ID === 'view-wbs') this.SetView('wbs');
         else if (item.ID === 'view-list') this.SetView('list');
         else if (item.ID === 'view-kanban') this.SetView('kanban');
         else if (item.ID === 'view-gantt') this.SetView('gantt');
@@ -1414,6 +2074,9 @@ export class TasksDashboardPageComponent implements OnInit {
     }
 
     private RefreshActiveView(): void {
+        if (this.ViewMode === 'wbs' || this.wbsLoaded) {
+            void this.LoadWbsTasks();
+        }
         this.taskGantt?.Refresh();
         this.taskKanban?.Refresh();
         void this.taskList?.Refresh();
