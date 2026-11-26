@@ -25,3 +25,8 @@ Strongly-typed entity models and validation classes for BizApps Tasks.
 - `mjBizAppsTasksTimesheetApprovalEntity` (`MJ_BizApps_Tasks: Timesheet Approvals`) — Per-project/scope approval parts within a `Timesheet` submission round.
 - `mjBizAppsTasksTimesheetLinkEntity` (`MJ_BizApps_Tasks: Timesheet Links`) — Polymorphic external record links (`LinkedEntityID` + `LinkedRecordID`) on timesheets.
 - `mjBizAppsTasksTimeApproverEntity` (`MJ_BizApps_Tasks: Time Approvers`) — Polymorphic time approver rules (`ScopeEntityID` + `ScopeRecordID`, `IncludeDescendants`).
+
+### Work Reports & Meeting Notes (MJ Docs `ArtifactID` Convergence)
+- `mjBizAppsTasksWorkReportEntity` (`MJ_BizApps_Tasks: Work Reports`) — Category A structured executive/weekly work reports with additive nullable `ArtifactID` FK (`[__mj].[Artifact]([ID])`) and virtual `Artifact` display field alongside preserved `Body`.
+- `mjBizAppsTasksMeetingNoteEntity` (`MJ_BizApps_Tasks: Meeting Notes`) — Category B hybrid live scratchpad + structured `ProposedTasks` JSON with additive nullable `ArtifactID` FK (`[__mj].[Artifact]([ID])`) and virtual `Artifact` display field for published MJ Docs.
+- Category C lightweight relational entities (`TaskComment`, `TaskCheckIn`, `Task.BlockedReason`, `Timesheet`, `TaskTimeEntry`) remain strictly relational with no `ArtifactID` FK.

@@ -41,6 +41,11 @@ Client- and server-safe core services, settings, and pure business logic for Biz
 - `ClassifyTaskHorizon`, `ComputeTaskUrgencyCounts`, `ComputeChildRollups`, `ComputeCriticalPathTaskIds`, `GroupTasksIntoMilestones`: Pure workspace bucketing, WBS rollup, DAG critical-path, and mobile milestone helpers.
 - `MatchesDueDateFilter`, `MatchesAssigneeFilter`: Unified Due Date (`overdue`, `today`, `week`, `month`, `none`) and Assignee (`__me__`, `__unassigned__`, `person:<id>`, `role:<id>`) predicates shared across Tree List, Board, and Gantt Timeline.
 
+### MJ Docs Dual-Read Resolution (`ArtifactDualReadResolver`)
+- `ArtifactDualReadResolver` (`BaseSingleton<ArtifactDualReadResolver>`): Batched dual-read resolver for `WorkReport` (Category A) and `MeetingNote` (Category B) records carrying nullable `ArtifactID` FKs to `MJ: Artifacts`.
+  - `ResolveBatch(records, options)` / `ResolveSingle(record, options)`: Deduplicates and validates UUIDs (`ValidateAndDeduplicateArtifactIDs`), chunks SQL `IN (...)` filters via `TasksLimitsResolver.Instance.GetCurrentLimits().ResourceGuards.SqlInClauseChunkSize`, queries `MJ: Artifacts` and latest `MJ: Artifact Versions` with `ResultType: 'simple'` (propagating `ContextUser`), supports header-only mode (`IncludeContent: false`), and falls back deterministically to legacy `Body` (`no_artifact_id`, `invalid_artifact_id`, `artifact_not_accessible`, `version_not_accessible`, `empty_artifact_content`).
+  - `WorkReportService` view models expose `ArtifactID`, `ArtifactName`, `ArtifactVersionNumber`, and `ResolvedContentSource` alongside preserved `Body`.
+
 ## The meetings rules (`src/meetings`)
 
 Pure functions the services and the entity servers share: `meetingStatusMoveAllowed` and friends (Draft → Scheduled → InProgress → Completed; Scheduled and Postponed either way; anything but Completed can be Cancelled), `meetingTimeProblem` and `isValidTimeZone`, `expandOccurrences` (an RFC 5545 RRULE run over wall-clock times in the series' IANA zone, through `rrule` and `luxon`), `agendaParentProblem`, `orderAgenda` and `agendaDurationTotal`, `parseAgendaTemplate`, `buildMeetingIcs` (escaped, folded at 75 octets), `personIdForUser` / `userIdForPerson` (the user's own link to People first, the deprecated `People.LinkedUserID` second), and `callerAdministersMeetings`.

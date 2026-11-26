@@ -26,6 +26,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
@@ -61,6 +63,15 @@ jobs:
 
       - name: Run repository guard script tests
         run: npm run test:scripts
+
+      - name: Check PostgreSQL migration counterpart & split-bake provenance
+        run: |
+          node ./.github/scripts/check-pg-provenance.mjs --self-test
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch --no-tags origin "${{ github.base_ref }}"
+            MB=$(git merge-base FETCH_HEAD HEAD)
+            node ./.github/scripts/check-pg-provenance.mjs "$MB" HEAD
+          fi
 
   standards-guard:
     name: 'repo: standards & limits'

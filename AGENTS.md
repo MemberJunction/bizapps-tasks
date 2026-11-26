@@ -61,3 +61,15 @@ npm run test:scripts                                   # Run repository guard sc
 ### Rule 5: Two-Step Entity `RunView`s Instead of Raw Base-View SQL Subqueries on RLS Entities
 - Never write raw base-view SQL subqueries (e.g., `SELECT TaskID FROM __mj_BizAppsTasks.vwTaskAssignments WHERE ...`) inside `ExtraFilter` for RLS-protected entities — `MJServer` rejects them.
 - Resolve parent or assignment IDs via a first-class `RunView` on the source entity, deduplicate and chunk the IDs (`SqlInClauseChunkSize`), and execute the follow-up `IN (...)` queries in a batched `rv.RunViews([...])` call.
+
+## MJ Docs (`MJ: Artifacts`) vs. `MJ: Comments` vs. Quick Notes
+
+| Category | Storage Pattern | Entities | Rules |
+| --- | --- | --- | --- |
+| **Category A — Direct MJ Doc Backing** | Nullable `ArtifactID` FK (`[__mj].[Artifact]([ID])`) + filtered index | `WorkReport` | Batched dual-read via `ArtifactDualReadResolver` (`ResultType: 'simple'`, `ID IN (...)`), rendered in `<mj-artifact-viewer-panel>` with deterministic fallback to legacy `Body`. Never drop/rename `Body` in `1.x`. |
+| **Category B — Hybrid Scratchpad + Publishable MJ Doc** | Nullable `ArtifactID` FK + preserved `Body` & `ProposedTasks` JSON | `MeetingNote` | Fast live scratchpad editing + explicit idempotent promotion via `Tasks.PublishMeetingNoteAsMJDoc` (`v1` create+link, `v2+` version bump without duplicate `MJ: Artifacts`, preserving `Body` and `ProposedTasks`). |
+| **Category C — Lightweight Relational Notes** | Strictly relational columns (NO `ArtifactID` FK) | `TaskComment`, `TaskCheckIn`, `Task.BlockedReason`, `Timesheet`, `TaskTimeEntry.Notes` | Stay lightweight relational; never migrate to `MJ: Artifacts`. |
+
+- **Use `MJ: Comments` / `MJ: Field Suggestions`** for record-anchored discussion threads and AI field-level change suggestions (`LinkedEntityID` + `LinkedRecordID`).
+- **Use `MJ: Artifacts` (MJ Docs)** for standalone, formatted, versioned, shareable documents rendered via `<mj-artifact-viewer-panel>`.
+- **Use Category C relational notes** for inline transactional fields queried alongside tasks and timesheets.

@@ -3,9 +3,9 @@ import '../index.js';
 import { IntegrationCheckRegistry } from '@memberjunction/testing-integration/registry';
 
 describe('Tasks Integration Test Bundles', () => {
-    it('registers all 19 task integration check bundles', () => {
+    it('registers all 20 task integration check bundles including artifact-convergence', () => {
         const bundleNames = IntegrationCheckRegistry.Instance.GetBundleNames();
-        expect(bundleNames.length).toBeGreaterThanOrEqual(19);
+        expect(bundleNames.length).toBeGreaterThanOrEqual(20);
 
         expect(bundleNames).toContain('task-world');
         expect(bundleNames).toContain('task-hierarchy');
@@ -26,5 +26,16 @@ describe('Tasks Integration Test Bundles', () => {
         expect(bundleNames).toContain('task-cos-typed-skills');
         expect(bundleNames).toContain('task-cos-live');
         expect(bundleNames).toContain('project-risk-assessments');
+        expect(bundleNames).toContain('artifact-convergence');
+
+        const acvChecks = IntegrationCheckRegistry.Instance.GetBundle('artifact-convergence');
+        expect(acvChecks.map((c) => c.Id)).toEqual([
+            'artifact-convergence.ACV1',
+            'artifact-convergence.ACV2',
+            'artifact-convergence.ACV3',
+            'artifact-convergence.ACV4',
+            'artifact-convergence.ACV5',
+            'artifact-convergence.ACV6',
+        ]);
     });
 });

@@ -44,15 +44,19 @@ const ALL_BUNDLES = [
     'task-cos-typed-skills',
     'task-cos-live',
     'project-risk-assessments',
+    'artifact-convergence',
 ];
 
 const args = process.argv.slice(2);
 const useGraphQL = process.env.IT_TRANSPORT === 'graphql' || args.includes('--graphql');
+const dbPlatform = (process.env.DB_PLATFORM ?? 'sqlserver').trim().toLowerCase();
+const usePostgres = !useGraphQL && (dbPlatform === 'postgresql' || dbPlatform === 'postgres' || dbPlatform === 'pg');
 const only = args.filter((a) => !a.startsWith('-'));
 
 let provider;
 let user;
 let pool = null;
+let closePool = null;
 
 if (useGraphQL) {
     const { bootstrapIntegrationClient } = await import('@memberjunction/testing-integration/client');
@@ -63,6 +67,46 @@ if (useGraphQL) {
     user = provider.CurrentUser;
     if (!user) throw new Error('GraphQL provider has no CurrentUser — check MJ_API_KEY and MJAPI.');
     console.log(`\n  Tasks integration (GraphQL → ${process.env.MJAPI_URL ?? `http://localhost:${process.env.GRAPHQL_PORT ?? 4000}`})\n`);
+} else if (usePostgres) {
+    let pgProviderMod;
+    try {
+        pgProviderMod = await import('@memberjunction/postgresql-dataprovider');
+    } catch {
+        pgProviderMod = await import(path.resolve(here, '../../MJ/packages/PostgreSQLDataProvider/dist/index.js'));
+    }
+    const { PostgreSQLDataProvider, PostgreSQLProviderConfigData } = pgProviderMod;
+    const { SetProvider, StartupManager } = await import('@memberjunction/core');
+    const { UserCache, GetServerPrincipal } = await import('@memberjunction/generic-database-provider');
+    const pgHost = process.env.PG_HOST || process.env.DB_HOST || 'localhost';
+    const pgPort = Number(process.env.PG_PORT ?? process.env.DB_PORT ?? 5432);
+    const pgDatabase = process.env.PG_DATABASE || process.env.DB_DATABASE;
+    const pgUser = process.env.PG_USERNAME || process.env.DB_USERNAME || 'mj_admin';
+    const pgPassword = process.env.PG_PASSWORD ?? process.env.DB_PASSWORD ?? '';
+    const coreSchema = process.env.MJ_CORE_SCHEMA || '__mj';
+
+    const pgProvider = new PostgreSQLDataProvider();
+    const pgConfig = new PostgreSQLProviderConfigData(
+        { Host: pgHost, Port: pgPort, Database: pgDatabase, User: pgUser, Password: pgPassword },
+        coreSchema,
+        1,
+    );
+    await pgProvider.Config(pgConfig);
+    SetProvider(pgProvider);
+    await UserCache.Instance.Refresh(pgProvider);
+    const systemUser = GetServerPrincipal() ?? undefined;
+    await StartupManager.Instance.Startup(false, systemUser, pgProvider);
+
+    provider = pgProvider;
+    user = UserCache.Users.find((u) => u?.Type?.trim().toLowerCase() === 'owner') ?? UserCache.Users[0];
+    if (!user) throw new Error('No context user in UserCache (PostgreSQL).');
+    closePool = async () => {
+        const pgPool = pgProvider.DatabaseConnection;
+        await pgPool?.end?.();
+    };
+
+    process.env.MJ_IT_LOAD_ENTITIES_SERVER = process.env.MJ_IT_LOAD_ENTITIES_SERVER ?? '1';
+    await import('../packages/IntegrationTests/dist/index.js');
+    console.log(`\n  Tasks integration (PostgreSQL → ${pgHost}:${pgPort}/${pgDatabase})\n`);
 } else {
     const sqlMod = await import('mssql');
     const sql = sqlMod.default ?? sqlMod;
@@ -87,6 +131,9 @@ if (useGraphQL) {
     await UserCache.Instance.Refresh(pool);
     user = UserCache.Users.find((u) => u?.Type?.trim().toLowerCase() === 'owner') ?? UserCache.Users[0];
     if (!user) throw new Error('No context user in UserCache.');
+    closePool = async () => {
+        if (pool) await pool.close();
+    };
 
     process.env.MJ_IT_LOAD_ENTITIES_SERVER = process.env.MJ_IT_LOAD_ENTITIES_SERVER ?? '1';
     await import('../packages/IntegrationTests/dist/index.js');
@@ -133,5 +180,5 @@ for (const request of requested) {
 }
 
 console.log(`\n  ${pass} passed / ${fail} failed\n`);
-if (pool) await pool.close();
+if (closePool) await closePool();
 process.exit(fail === 0 ? 0 : 1);
