@@ -22,9 +22,8 @@ import type {
 } from '@mj-biz-apps/tasks-entities';
 import {
     FilterGenericCreatableTaskTypes,
+    HasTaskTypeExtensionEntity,
     IsGenericCreatableTaskType,
-    IsPlanningExtensionEntity,
-    IsPlanningOwnedTaskType,
 } from '@mj-biz-apps/tasks-entities';
 import type {
     TaskCheckInCadenceValue,
@@ -144,16 +143,13 @@ export class BeforeTaskSaveEvent {
             } @else {
                 <form class="mjt-ep-form" (ngSubmit)="save()">
                     <div class="mjt-ep-scroll">
-                        <!-- 1. TaskType Pill Strip (excludes Planning-owned & inactive OKR types on create) -->
+                        <!-- 1. TaskType Pill Strip (excludes extension-managed & inactive types on create) -->
                         @if (isCurrentTypeLocked && activeTaskType) {
                             <div class="mjt-type-locked" role="status" aria-label="Task type">
                                 <i [class]="activeTaskType.IconClass || 'fa-solid fa-bullseye'" aria-hidden="true"></i>
                                 <span>{{ activeTaskType.Name }}</span>
                                 <span class="mjt-type-locked-note">{{ currentTypeOwnershipNote }}</span>
                             </div>
-                            @if (legacyOkrMigrationHelpText) {
-                                <p class="mjt-ep-hint" data-testid="legacy-okr-help">{{ legacyOkrMigrationHelpText }}</p>
-                            }
                         } @else if (creatableTaskTypes.length > 0) {
                             <div class="mjt-type-strip" role="radiogroup" aria-label="Task type">
                                 @for (tt of creatableTaskTypes; track tt.ID) {
@@ -520,9 +516,6 @@ export class BeforeTaskSaveEvent {
                                         <input type="checkbox" name="trackMetrics" [(ngModel)]="trackMetrics" [disabled]="ReadOnly" />
                                         <span>Track measurable metric target &amp; check-in cadence</span>
                                     </label>
-                                    <p class="mjt-ep-hint">
-                                        For strategic OKRs (Objectives &amp; Key Results), use <strong>BizApps Planning</strong> or migrate legacy OKR tasks with the <strong>Import Tasks OKRs</strong> action.
-                                    </p>
                                 }
 
                                 <!-- Tags -->
@@ -997,7 +990,7 @@ export class TaskEditPanelComponent implements OnChanges {
     private rolesEntityID: string | null = null;
     private cdr = inject(ChangeDetectorRef);
 
-    /** Task types eligible for generic task creation (excludes Planning-owned & inactive OKR types). */
+    /** Task types eligible for generic task creation (excludes extension-managed & inactive types). */
     public get creatableTaskTypes(): TaskTypeOption[] {
         return FilterGenericCreatableTaskTypes(this.taskTypes);
     }
@@ -1006,7 +999,7 @@ export class TaskEditPanelComponent implements OnChanges {
         return this.taskTypes.find((t) => UUIDsEqual(t.ID, this.form.TypeID));
     }
 
-    /** True when editing an existing task whose Type is Planning-owned or inactive legacy OKR. */
+    /** True when editing an existing task whose Type is extension-managed or inactive. */
     public get isCurrentTypeLocked(): boolean {
         return !this.isNew && Boolean(this.activeTaskType) && !IsGenericCreatableTaskType(this.activeTaskType);
     }
@@ -1014,26 +1007,10 @@ export class TaskEditPanelComponent implements OnChanges {
     public get currentTypeOwnershipNote(): string {
         const tt = this.activeTaskType;
         if (!tt) return '';
-        if (IsPlanningExtensionEntity(tt.ExtensionEntity) || (tt.Code ?? '').trim().toUpperCase() === 'PRIORITY') {
-            return 'Managed in Planning';
-        }
-        if (IsPlanningOwnedTaskType(tt)) {
-            return 'Legacy OKR type (read-only)';
+        if (HasTaskTypeExtensionEntity(tt)) {
+            return 'Managed by extension app (read-only)';
         }
         return 'Inactive type (read-only)';
-    }
-
-    public get legacyOkrMigrationHelpText(): string | null {
-        const tt = this.activeTaskType;
-        if (!tt) return null;
-        if (
-            IsPlanningOwnedTaskType(tt) &&
-            !IsPlanningExtensionEntity(tt.ExtensionEntity) &&
-            (tt.Code ?? '').trim().toUpperCase() !== 'PRIORITY'
-        ) {
-            return 'OKRs are managed in BizApps Planning. Run the Import Tasks OKRs action to migrate legacy OKR tasks.';
-        }
-        return null;
     }
 
     private hasMetricValues(): boolean {

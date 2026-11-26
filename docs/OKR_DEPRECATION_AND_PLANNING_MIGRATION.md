@@ -16,9 +16,9 @@ Following MemberJunction's **deprecate-then-remove** compatibility policy for `1
    - Generic measurable tasks (`General`, `Deliverable`, `Action Item`, etc.) continue to support optional metric tracking via the `"Track measurable metric target & check-in cadence"` toggle.
 3. **Active Selectors & Creation Paths Exclude Inactive/Legacy OKR Types**:
    - `IsActiveSelectableTaskType` / `FilterActiveSelectableTaskTypes` and `IsGenericCreatableTaskType` / `FilterGenericCreatableTaskTypes` (`@mj-biz-apps/tasks-entities`) exclude inactive and legacy OKR types from task creation menus, quick-add, quick-capture, bulk task-type updates, dashboard type filter dropdowns, and `CreateTaskAction` / `TasksBulkUpdateServerOperation`.
-4. **UI, In-App Help & Chief of Staff Steering**:
-   - The Angular Goals & OKR Migration view (`<bizapps-goals-view>`, also accessible via the **OKRs & Help** drawer on the **All Work** dashboard) displays a clear empty state and in-app help steering users to **BizApps Planning** and the **`Import Tasks OKRs`** action while safely listing any remaining legacy OKR tasks as read-only.
-   - The **Chief of Staff Tasks & To-dos** skill (`metadata/chief-of-staff-skills/templates/chief-of-staff-tasks.skill.md`) explicitly routes OKR, Objective, and Key Result requests to **BizApps Planning** and documents **`Import Tasks OKRs`** for migration.
+4. **Layering & Downstream Extensibility**:
+   - **BizApps Tasks** contains zero hardcoded UI references to downstream apps (`BizApps Planning` or others). Downstream Open Apps contribute rich contextual panels directly into Task forms (via `BaseFormPanel` / `<mj-form-panel-slot>`) and into the inline Task Inspector (via `<bizapps-task-detail-contributions>` / `TASK_DETAIL_CONTRIBUTION_SURFACE`) when installed.
+   - **BizApps Planning** owns all OKR/Priority workflows and the **`Import Tasks OKRs`** migration utility when installed.
 
 ---
 

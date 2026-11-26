@@ -586,7 +586,7 @@ describe('Generic Task Type Creation Filtering', () => {
         expect(panel.isNew).toBe(false);
         expect(panel.activeTaskType?.Code).toBe('PRIORITY');
         expect(panel.isCurrentTypeLocked).toBe(true);
-        expect(panel.currentTypeOwnershipNote).toBe('Managed in Planning');
+        expect(panel.currentTypeOwnershipNote).toBe('Managed by extension app (read-only)');
         expect(panel.creatableTaskTypes.some((t) => t.Code === 'PRIORITY')).toBe(false);
 
         // Existing legacy KEY_RESULT task still opens, resolves key-result archetype, and saves edits without clearing TypeID
@@ -603,7 +603,7 @@ describe('Generic Task Type Creation Filtering', () => {
         expect(panel.activeTaskType?.Code).toBe('KEY_RESULT');
         expect(panel.ActiveArchetype).toBe('key-result');
         expect(panel.isCurrentTypeLocked).toBe(true);
-        expect(panel.currentTypeOwnershipNote).toBe('Legacy OKR type (read-only)');
+        expect(panel.currentTypeOwnershipNote).toBe('Inactive type (read-only)');
         expect(panel.form.TypeID).toBe(TT_KEY_RESULT_ID);
 
         panel.form.Status = 'InProgress';
