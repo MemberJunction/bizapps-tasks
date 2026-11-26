@@ -8436,5 +8436,261 @@
         }
       ]
     }
+  },
+  {
+    "fields": {
+      "Name": "Publish Meeting Note as MJ Doc",
+      "CategoryID": "@lookup:MJ: Action Categories.Name=Tasks",
+      "Description": "Deterministically publishes a Category B Meeting Note to MJ: Artifacts + MJ: Artifact Versions, linking MeetingNote.ArtifactID on first publish and appending monotonic versions idempotently on subsequent publishes while strictly preserving Body and ProposedTasks JSON.",
+      "Type": "Custom",
+      "DriverClass": "Tasks.PublishMeetingNoteAsMJDoc",
+      "IconClass": "fa-solid fa-file-export",
+      "UserPrompt": "Publish a meeting note as a canonical versioned MJ Doc (MJ: Artifact).",
+      "CodeApprovalStatus": "Approved",
+      "Status": "Active"
+    },
+    "primaryKey": {
+      "ID": "C7D4E891-4B2A-4F65-9E13-7A82D5C1B4E9"
+    },
+    "relatedEntities": {
+      "MJ: Action Params": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "MeetingNoteID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": true,
+            "Description": "UUID of the MJ_BizApps_Tasks: Meeting Notes record to publish as an MJ Doc."
+          },
+          "primaryKey": {
+            "ID": "D1A4E891-4B2A-4F65-9E13-7A82D5C1B401"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Title",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional title override for the published MJ Doc artifact and version."
+          },
+          "primaryKey": {
+            "ID": "D1A4E891-4B2A-4F65-9E13-7A82D5C1B402"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Description",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional description override for the published MJ Doc artifact and version."
+          },
+          "primaryKey": {
+            "ID": "D1A4E891-4B2A-4F65-9E13-7A82D5C1B403"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Comments",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional release or version comments recorded on the MJ: Artifact Version."
+          },
+          "primaryKey": {
+            "ID": "D1A4E891-4B2A-4F65-9E13-7A82D5C1B404"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "ArtifactTypeID",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional MJ: Artifact Types UUID override (defaults to Markdown Document)."
+          },
+          "primaryKey": {
+            "ID": "D1A4E891-4B2A-4F65-9E13-7A82D5C1B405"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "ArtifactTypeName",
+            "Type": "Input",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Optional MJ: Artifact Types Name override (defaults to Markdown Document)."
+          },
+          "primaryKey": {
+            "ID": "D1A4E891-4B2A-4F65-9E13-7A82D5C1B406"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "MeetingNoteID",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "ID of the published Meeting Note record."
+          },
+          "primaryKey": {
+            "ID": "D1A4E891-4B2A-4F65-9E13-7A82D5C1B407"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "ArtifactID",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "ID of the created or existing MJ: Artifacts record."
+          },
+          "primaryKey": {
+            "ID": "D1A4E891-4B2A-4F65-9E13-7A82D5C1B408"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "ArtifactVersionID",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "ID of the newly created MJ: Artifact Versions record."
+          },
+          "primaryKey": {
+            "ID": "D1A4E891-4B2A-4F65-9E13-7A82D5C1B409"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "VersionNumber",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Monotonic integer version number of the newly published MJ: Artifact Version."
+          },
+          "primaryKey": {
+            "ID": "D1A4E891-4B2A-4F65-9E13-7A82D5C1B410"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "CreatedNewArtifact",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "True when an initial MJ: Artifact was created and linked; false when appending a new version to an existing artifact."
+          },
+          "primaryKey": {
+            "ID": "D1A4E891-4B2A-4F65-9E13-7A82D5C1B411"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "Name": "Summary",
+            "Type": "Output",
+            "ValueType": "Scalar",
+            "IsArray": false,
+            "IsRequired": false,
+            "Description": "Human-readable summary of the publication outcome."
+          },
+          "primaryKey": {
+            "ID": "D1A4E891-4B2A-4F65-9E13-7A82D5C1B412"
+          }
+        }
+      ],
+      "MJ: Action Result Codes": [
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "SUCCESS",
+            "IsSuccess": true,
+            "Description": "Meeting Note published as a new or updated MJ Doc artifact version."
+          },
+          "primaryKey": {
+            "ID": "E1A4E891-4B2A-4F65-9E13-7A82D5C1B401"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "VALIDATION_ERROR",
+            "IsSuccess": false,
+            "Description": "Invalid UUID, blank meeting note body, or unknown artifact type."
+          },
+          "primaryKey": {
+            "ID": "E1A4E891-4B2A-4F65-9E13-7A82D5C1B402"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "NOT_FOUND",
+            "IsSuccess": false,
+            "Description": "Meeting Note or linked MJ: Artifact was not found or is not accessible."
+          },
+          "primaryKey": {
+            "ID": "E1A4E891-4B2A-4F65-9E13-7A82D5C1B403"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "PERMISSION_DENIED",
+            "IsSuccess": false,
+            "Description": "Missing ContextUser or caller lacks permission."
+          },
+          "primaryKey": {
+            "ID": "E1A4E891-4B2A-4F65-9E13-7A82D5C1B404"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "POLICY_DENIED",
+            "IsSuccess": false,
+            "Description": "Blocked by agent user policy."
+          },
+          "primaryKey": {
+            "ID": "E1A4E891-4B2A-4F65-9E13-7A82D5C1B405"
+          }
+        },
+        {
+          "fields": {
+            "ActionID": "@parent:ID",
+            "ResultCode": "ERROR",
+            "IsSuccess": false,
+            "Description": "Unexpected persistence error while publishing the MJ Doc."
+          },
+          "primaryKey": {
+            "ID": "E1A4E891-4B2A-4F65-9E13-7A82D5C1B406"
+          }
+        }
+      ]
+    }
   }
 ]

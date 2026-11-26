@@ -126,6 +126,7 @@ export interface WorkReportRecordSnapshot {
     PeriodEnd: Date;
     Title: string | null;
     Body: string;
+    ArtifactID?: string | null;
     Status: WorkReportStatus;
     AuthoredByAgentRunID: string | null;
     SupervisorFeedback: string | null;
@@ -182,6 +183,10 @@ export interface WorkReportViewModel {
     PeriodEnd: string;
     Title: string;
     Body: string;
+    ArtifactID?: string | null;
+    ArtifactName?: string | null;
+    ArtifactVersionNumber?: number | null;
+    ResolvedContentSource?: 'artifact' | 'body';
     Status: WorkReportStatus;
     SupervisorFeedback: string | null;
     ReviewedByPersonID: string | null;
@@ -1845,6 +1850,7 @@ export class WorkReportService extends BaseSingleton<WorkReportService> {
             PeriodEnd: entity.PeriodEnd instanceof Date ? entity.PeriodEnd : new Date(entity.PeriodEnd),
             Title: entity.Title ?? null,
             Body: entity.Body,
+            ArtifactID: entity.ArtifactID ?? null,
             Status: entity.Status,
             AuthoredByAgentRunID: entity.AuthoredByAgentRunID ?? null,
             SupervisorFeedback: entity.SupervisorFeedback ?? null,
