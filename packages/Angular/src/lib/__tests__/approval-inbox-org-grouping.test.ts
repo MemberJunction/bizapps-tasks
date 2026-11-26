@@ -149,6 +149,12 @@ describe('ApprovalsPageComponent & ApprovalInboxComponent — Org Grouping, OnPu
         const setSpy = vi.spyOn(UserInfoEngine.Instance, 'SetSettingDebounced').mockImplementation(() => {});
 
         runViewMock.mockImplementation((params: { EntityName: string }) => {
+            if (params.EntityName === 'MJ_BizApps_Tasks: Task Assignments') {
+                return Promise.resolve({
+                    Success: true,
+                    Results: [{ TaskID: 'a1' }, { TaskID: 'a2' }],
+                });
+            }
             if (params.EntityName === 'MJ_BizApps_Tasks: Tasks') {
                 return Promise.resolve({
                     Success: true,
@@ -232,6 +238,12 @@ describe('ApprovalsPageComponent & ApprovalInboxComponent — Org Grouping, OnPu
         const setSpy = vi.spyOn(UserInfoEngine.Instance, 'SetSettingDebounced').mockImplementation(() => {});
 
         runViewMock.mockImplementation((params: { EntityName: string }) => {
+            if (params.EntityName === 'MJ_BizApps_Tasks: Task Assignments') {
+                return Promise.resolve({
+                    Success: true,
+                    Results: [{ TaskID: 't1' }],
+                });
+            }
             if (params.EntityName === 'MJ_BizApps_Tasks: Tasks') {
                 return Promise.resolve({
                     Success: true,

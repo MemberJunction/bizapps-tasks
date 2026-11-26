@@ -1,15 +1,28 @@
-import { Component, EventEmitter, Input, Output, ViewChild } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { type IMetadataProvider } from '@memberjunction/core';
+import {
+    ChangeDetectionStrategy,
+    ChangeDetectorRef,
+    Component,
+    EventEmitter,
+    Input,
+    OnChanges,
+    OnInit,
+    Output,
+    SimpleChanges,
+    ViewChild,
+    inject,
+} from '@angular/core';
+import { LogError, Metadata, type IMetadataProvider } from '@memberjunction/core';
+import { MJEmptyStateComponent } from '@memberjunction/ng-ui-components';
 import { TaskListComponent, TaskRow, BeforeTaskSelectedEvent, BeforeStatusChangeEvent } from '../task-list/task-list.component';
-import { AssignedToFilter, CurrentUserRoleIDs } from '../../role-assignees';
+import { CurrentUserRoleIDs, LoadAssignedTaskIDs } from '../../role-assignees';
 
 /**
  * "My Tasks" convenience wrapper around {@link TaskListComponent}.
  *
- * Automatically filters tasks to those assigned to the provided {@link PersonID},
- * or to an MJ role the user holds, via the TaskAssignment join table. This is the #1 daily use case — "what do
- * I need to do?" — and can be embedded by any consuming app.
+ * Automatically resolves task IDs assigned to the provided {@link PersonID},
+ * or to an MJ role the user holds, via a first-class `RunView` on
+ * `MJ_BizApps_Tasks: Task Assignments` (RLS-safe — never emits raw
+ * `vwTaskAssignments` subqueries) and passes them to {@link TaskListComponent}.
  *
  * All {@link TaskListComponent} events are re-emitted so consuming apps can
  * wire up the same Before/After patterns.
@@ -27,34 +40,53 @@ import { AssignedToFilter, CurrentUserRoleIDs } from '../../role-assignees';
 @Component({
     selector: 'bizapps-my-tasks',
     standalone: true,
-    imports: [CommonModule, TaskListComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [TaskListComponent, MJEmptyStateComponent],
     template: `
         <div class="my-tasks">
             <h3 class="my-tasks-title">My Tasks</h3>
-            <bizapps-task-list
-                #taskList
-                [Provider]="Provider"
-                [ExtraFilter]="assigneeFilter"
-                [PendingSuggestionsOnly]="PendingSuggestionsOnly"
-                (PendingSuggestionsOnlyChange)="onPendingSuggestionsOnlyChange($event)"
-                [ShowCreateButton]="ShowCreateButton"
-                [Compact]="Compact"
-                (BeforeTaskSelected)="BeforeTaskSelected.emit($event)"
-                (AfterTaskSelected)="AfterTaskSelected.emit($event)"
-                (TaskDoubleClicked)="TaskDoubleClicked.emit($event)"
-                (BeforeStatusChange)="BeforeStatusChange.emit($event)"
-                (AfterStatusChange)="AfterStatusChange.emit($event)"
-                (CreateTask)="CreateTask.emit()">
-            </bizapps-task-list>
+            @if (loadError) {
+                <mj-empty-state
+                    Icon="fa-solid fa-triangle-exclamation"
+                    Title="Unable to load your tasks"
+                    [Message]="loadError"
+                    Variant="error"
+                    Size="compact"
+                    ActionText="Retry"
+                    ActionIcon="fa-solid fa-rotate-right"
+                    (Action)="Refresh()">
+                </mj-empty-state>
+            } @else if (assignmentsLoading && !assignmentsLoaded) {
+                <div class="my-tasks-loading">Loading tasks...</div>
+            } @else {
+                <bizapps-task-list
+                    #taskList
+                    [Provider]="Provider"
+                    [PreloadedTaskIds]="assignedTaskIds"
+                    [PendingSuggestionsOnly]="PendingSuggestionsOnly"
+                    (PendingSuggestionsOnlyChange)="onPendingSuggestionsOnlyChange($event)"
+                    [ShowCreateButton]="ShowCreateButton"
+                    [Compact]="Compact"
+                    (BeforeTaskSelected)="BeforeTaskSelected.emit($event)"
+                    (AfterTaskSelected)="AfterTaskSelected.emit($event)"
+                    (TaskDoubleClicked)="TaskDoubleClicked.emit($event)"
+                    (BeforeStatusChange)="BeforeStatusChange.emit($event)"
+                    (AfterStatusChange)="AfterStatusChange.emit($event)"
+                    (CreateTask)="CreateTask.emit()">
+                </bizapps-task-list>
+            }
         </div>
     `,
     styles: [`
         .my-tasks-title {
             margin: 0 0 8px; font-size: 1.1rem; font-weight: var(--mj-font-semibold); color: var(--mj-text-primary);
         }
+        .my-tasks-loading {
+            padding: 28px; text-align: center; color: var(--mj-text-muted); font-size: var(--mj-text-sm, 14px);
+        }
     `]
 })
-export class MyTasksComponent {
+export class MyTasksComponent implements OnInit, OnChanges {
     // ── Inputs ──────────────────────────────────────────────
 
     /** Optional metadata/data provider forwarded to {@link TaskListComponent}. */
@@ -137,20 +169,96 @@ export class MyTasksComponent {
     /** @internal */
     @ViewChild('taskList') taskList?: TaskListComponent;
 
+    // ── State ───────────────────────────────────────────────
+
+    /** Deduplicated Task IDs resolved from `MJ_BizApps_Tasks: Task Assignments`. */
+    public assignedTaskIds: string[] = [];
+    public assignmentsLoaded = false;
+    public assignmentsLoading = false;
+    public loadError: string | null = null;
+
+    private readonly cdr = inject(ChangeDetectorRef, { optional: true });
+    private loadSeq = 0;
+
+    public get ProviderToUse(): IMetadataProvider {
+        return this.Provider ?? Metadata.Provider;
+    }
+
+    // ── Lifecycle ───────────────────────────────────────────
+
+    public ngOnInit(): void {
+        void this.resolveAssignedTaskIds(true);
+    }
+
+    public ngOnChanges(changes: SimpleChanges): void {
+        if (
+            (changes['PersonID'] && !changes['PersonID'].firstChange) ||
+            (changes['RoleIDs'] && !changes['RoleIDs'].firstChange) ||
+            (changes['Provider'] && !changes['Provider'].firstChange)
+        ) {
+            void this.resolveAssignedTaskIds(true);
+        }
+    }
+
     // ── Public Methods ──────────────────────────────────────
 
     /**
-     * Reloads the inner task list from the server.
+     * Re-resolves task assignments from the server and reloads the inner task list.
      */
-    Refresh(): void {
-        this.taskList?.Refresh();
+    public async Refresh(): Promise<void> {
+        const ok = await this.resolveAssignedTaskIds(true);
+        if (ok && this.taskList) {
+            this.taskList.PreloadedTaskIds = this.assignedTaskIds;
+            await this.taskList.Refresh();
+        }
     }
 
     // ── Internal ────────────────────────────────────────────
 
-    /** @internal Builds the ExtraFilter to scope tasks by assignee PersonID and the user's roles. */
-    get assigneeFilter(): string {
-        if (!this.PersonID) return '';
-        return AssignedToFilter(this.PersonID, this.RoleIDs ?? CurrentUserRoleIDs());
+    private async resolveAssignedTaskIds(bypassCache: boolean): Promise<boolean> {
+        const seq = ++this.loadSeq;
+        if (!this.PersonID) {
+            this.assignedTaskIds = [];
+            this.loadError = null;
+            this.assignmentsLoaded = true;
+            this.assignmentsLoading = false;
+            this.cdr?.markForCheck();
+            return true;
+        }
+
+        this.assignmentsLoading = true;
+        this.loadError = null;
+        this.cdr?.markForCheck();
+
+        try {
+            const roleIDs = this.RoleIDs ?? CurrentUserRoleIDs(this.ProviderToUse?.CurrentUser);
+            const res = await LoadAssignedTaskIDs(this.PersonID, roleIDs, this.ProviderToUse, bypassCache);
+            if (seq !== this.loadSeq) return false;
+
+            if (!res.Success) {
+                const msg = res.ErrorMessage || 'Failed to load task assignments.';
+                LogError(msg);
+                this.loadError = msg;
+                this.assignedTaskIds = [];
+                this.assignmentsLoaded = true;
+                return false;
+            }
+
+            this.assignedTaskIds = res.TaskIDs;
+            this.assignmentsLoaded = true;
+            return true;
+        } catch (err) {
+            if (seq !== this.loadSeq) return false;
+            LogError(err);
+            this.loadError = err instanceof Error ? err.message : 'Failed to load task assignments.';
+            this.assignedTaskIds = [];
+            this.assignmentsLoaded = true;
+            return false;
+        } finally {
+            if (seq === this.loadSeq) {
+                this.assignmentsLoading = false;
+                this.cdr?.markForCheck();
+            }
+        }
     }
 }

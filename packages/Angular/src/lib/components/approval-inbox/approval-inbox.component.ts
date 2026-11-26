@@ -22,7 +22,7 @@ import {
     type ApprovalLatencyIndicator,
     type OrganizationApprovalGroup,
 } from './approval-inbox-grouping';
-import { AssignedToFilter, CurrentUserRoleIDs } from '../../role-assignees';
+import { BuildTaskIDsInFilter, CurrentUserRoleIDs, LoadAssignedTaskIDs } from '../../role-assignees';
 import { LoadTaskRecordLinks, type TaskRecordLink } from '../../task-record-links';
 
 /** A pending approval-request task shown in the inbox. */
@@ -502,7 +502,20 @@ export class ApprovalInboxComponent implements OnInit {
         this.LoadError = null;
         this.cdr.markForCheck();
         try {
-            const filter = await this.buildPendingFilter();
+            const roleIDs = this.ApproverRoleIDs ?? CurrentUserRoleIDs();
+            const assignedRes = await LoadAssignedTaskIDs(this._approverPersonID, roleIDs);
+            if (!assignedRes.Success) {
+                throw new Error(assignedRes.ErrorMessage || 'Failed to load task assignments');
+            }
+            if (assignedRes.TaskIDs.length === 0) {
+                this.Approvals = [];
+                this.ProjectGroups = [];
+                this.UngroupedApprovals = [];
+                this.Links = new Map();
+                this.rebuildGroups();
+                return;
+            }
+            const filter = this.buildPendingFilter(assignedRes.TaskIDs);
             const result = await new RunView().RunView<ApprovalRow>({
                 EntityName: 'MJ_BizApps_Tasks: Tasks',
                 ExtraFilter: filter,
@@ -742,15 +755,14 @@ export class ApprovalInboxComponent implements OnInit {
     }
 
     /**
-     * Builds the ExtraFilter for pending approvals: tasks of an approval TaskType, assigned to this
-     * approver or to one of their MJ roles, still open, and without any terminal decision yet.
+     * Builds the RLS-safe ExtraFilter for pending approvals: tasks of an approval TaskType,
+     * pre-resolved from `MJ_BizApps_Tasks: Task Assignments`, still open, and without any terminal decision yet.
      */
-    private async buildPendingFilter(): Promise<string> {
-        const roleIDs = this.ApproverRoleIDs ?? CurrentUserRoleIDs();
+    private buildPendingFilter(assignedTaskIDs: readonly string[]): string {
         const clauses = [
             `TypeID IN (SELECT ID FROM __mj_BizAppsTasks.vwTaskTypes WHERE ${ApprovalTypePredicate(this.ApprovalTypeName)})`,
             `Status NOT IN ('Completed', 'Cancelled')`,
-            AssignedToFilter(this._approverPersonID, roleIDs),
+            BuildTaskIDsInFilter(assignedTaskIDs),
             `ID NOT IN (SELECT d.TaskID FROM __mj_BizAppsTasks.vwTaskDecisions d INNER JOIN __mj_BizAppsTasks.vwTaskDecisionOutcomes o ON d.OutcomeID = o.ID WHERE o.IsTerminal = 1)`,
         ];
         return clauses.join(' AND ');
