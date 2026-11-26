@@ -1041,6 +1041,12 @@ export class mjBizAppsTasksMeetingNote_ {
     @Field({nullable: true}) 
     @MaxLength(255)
     AIPromptRun?: string;
+
+    @Field({nullable: true, description: "Optional foreign key to an MJ: Artifacts (MJ Doc) record storing published canonical meeting minutes. Enables Category B hybrid authoring while preserving live MeetingNote.Body scratchpad and ProposedTasks JSON."})
+    ArtifactID?: string;
+
+    @Field({nullable: true})
+    Artifact?: string;
         
     @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
     ReadableFields___?: string[];
@@ -1087,6 +1093,9 @@ export class CreatemjBizAppsTasksMeetingNoteInput {
 
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
+
+    @Field({nullable: true})
+    ArtifactID?: string | null;
 }
     
 
@@ -1133,6 +1142,9 @@ export class UpdatemjBizAppsTasksMeetingNoteInput {
 
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
+
+    @Field({nullable: true})
+    ArtifactID?: string | null;
 }
     
 //****************************************************************************
@@ -9463,6 +9475,12 @@ export class mjBizAppsTasksWorkReport_ {
     @Field({nullable: true}) 
     @MaxLength(250)
     ReviewedByPerson?: string;
+
+    @Field({nullable: true, description: "Optional foreign key to an MJ: Artifacts (MJ Doc) record backing this work report. Enables Category A MJ Doc authoring and versioning while preserving legacy Body for backward compatibility."})
+    ArtifactID?: string;
+
+    @Field({nullable: true})
+    Artifact?: string;
         
     @Field(() => [String], { nullable: true, description: `Field-level security: when non-null, the fields on this entity the calling user may read. Any other field arriving as null was withheld by the server rather than genuinely empty. Null for callers with no field restrictions.` })
     ReadableFields___?: string[];
@@ -9509,6 +9527,9 @@ export class CreatemjBizAppsTasksWorkReportInput {
 
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
+
+    @Field({nullable: true})
+    ArtifactID?: string | null;
 }
     
 
@@ -9555,6 +9576,9 @@ export class UpdatemjBizAppsTasksWorkReportInput {
 
     @Field(() => RestoreContextInput, { nullable: true })
     RestoreContext___?: RestoreContextInput;
+
+    @Field({nullable: true})
+    ArtifactID?: string | null;
 }
     
 //****************************************************************************

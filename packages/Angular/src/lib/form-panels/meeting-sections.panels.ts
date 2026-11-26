@@ -1,6 +1,6 @@
-import { ChangeDetectorRef, Component, Directive, OnDestroy, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Directive, OnDestroy, OnInit, inject } from '@angular/core';
 import { RegisterClassEx } from '@memberjunction/global';
-import { LogError } from '@memberjunction/core';
+import { LogError, Metadata, type UserInfo } from '@memberjunction/core';
 import { BaseFormPanel } from '@memberjunction/ng-base-forms';
 import type { mjBizAppsTasksMeetingEntity, mjBizAppsTasksMeetingSeriesEntity } from '@mj-biz-apps/tasks-entities';
 import { MEETING_AGENDA_ITEM_ENTITY, MEETING_ATTENDEE_ENTITY, MEETING_ENTITY, MEETING_LINK_ENTITY, MEETING_NOTE_ENTITY, MEETING_SERIES_ENTITY } from '@mj-biz-apps/tasks-core';
@@ -203,19 +203,61 @@ export class MeetingPeoplePanel extends MeetingSectionPanel {
 @Component({
     standalone: false,
     selector: 'mjt-meeting-notes-panel',
+    changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         <mj-collapsible-panel SectionKey="notes" SectionName="Notes" Icon="fa-solid fa-note-sticky">
             @if (detail; as d) {
-                <bizapps-meeting-notes [Notes]="d.notes" [AgendaItems]="d.agenda" [People]="people" [CanWrite]="d.permissions.canWriteNotes" [CanEditAll]="d.permissions.canEdit" [TranscriptFileID]="d.transcriptFileId" [TranscriptFileName]="d.transcriptFileName" [Busy]="busy" [ErrorMessage]="error"
-                    (SaveRequested)="save($event)" (DeleteRequested)="remove($event)" (TranscriptDraftRequested)="draftFromTranscript($event)" (AcceptProposalRequested)="acceptProposal($event)" (DismissProposalRequested)="dismissProposal($event)" (OpenTaskRequested)="openTask($event)"></bizapps-meeting-notes>
+                <bizapps-meeting-notes [Notes]="d.notes" [AgendaItems]="d.agenda" [People]="people" [CanWrite]="d.permissions.canWriteNotes" [CanEditAll]="d.permissions.canEdit" [TranscriptFileID]="d.transcriptFileId" [TranscriptFileName]="d.transcriptFileName" [Busy]="busy" [PublishingNoteID]="publishingNoteId" [ErrorMessage]="error"
+                    (SaveRequested)="save($event)" (DeleteRequested)="remove($event)" (TranscriptDraftRequested)="draftFromTranscript($event)" (AcceptProposalRequested)="acceptProposal($event)" (DismissProposalRequested)="dismissProposal($event)" (OpenTaskRequested)="openTask($event)" (PublishAsMJDocRequested)="publishAsMJDoc($event)" (OpenArtifactRequested)="openArtifactPreview($event)"></bizapps-meeting-notes>
+                @if (previewNote; as activeNote) {
+                    @if (activeNote.artifactId) {
+                        <section class="mjt-note-artifact-preview" aria-label="Published MJ Doc preview">
+                            <div class="mjt-note-artifact-preview__header">
+                                <span class="mjt-note-artifact-preview__title">
+                                    <i class="fa-solid fa-book-open" aria-hidden="true"></i>
+                                    {{ activeNote.artifactName || activeNote.title || 'Published MJ Doc' }}
+                                    @if (activeNote.artifactVersionNumber) {
+                                        · v{{ activeNote.artifactVersionNumber }}
+                                    }
+                                </span>
+                                <button mjButton Variant="secondary" Size="sm" type="button" (click)="closeArtifactPreview()">
+                                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                                    Close MJ Doc
+                                </button>
+                            </div>
+                            <mj-artifact-viewer-panel
+                                [artifactId]="activeNote.artifactId"
+                                [VersionNumber]="activeNote.artifactVersionNumber ?? undefined"
+                                [CurrentUser]="currentUser"
+                                [ShowHeader]="true"
+                                [ShowTabs]="true"
+                                [ShowCloseButton]="false"
+                                [ShowSaveToCollection]="true"
+                                [CanEdit]="false">
+                            </mj-artifact-viewer-panel>
+                        </section>
+                    }
+                }
             } @else if (error) { <div class="mjt-error">{{ error }}</div> }
         </mj-collapsible-panel>
     `,
     styleUrls: ['./task-form.css'],
 })
 export class MeetingNotesPanel extends MeetingSectionPanel {
+    protected publishingNoteId: string | null = null;
+    protected previewNoteId: string | null = null;
+
     protected override get wantsPeople(): boolean {
         return true;
+    }
+
+    protected get currentUser(): UserInfo {
+        return Metadata.Provider?.CurrentUser as UserInfo;
+    }
+
+    protected get previewNote(): NoteModel | null {
+        if (!this.previewNoteId || !this.detail) return null;
+        return this.detail.notes.find((n) => n.id.toLowerCase() === this.previewNoteId!.toLowerCase()) ?? null;
     }
 
     protected save(draft: NoteDraft): Promise<void> {
@@ -242,6 +284,31 @@ export class MeetingNotesPanel extends MeetingSectionPanel {
 
     protected openTask(taskId: string): void {
         OpenTaskRecord(taskId);
+    }
+
+    protected async publishAsMJDoc(note: NoteModel): Promise<void> {
+        if (this.publishingNoteId) return;
+        this.publishingNoteId = note.id;
+        this.cdr.markForCheck();
+        try {
+            await this.run(async () => {
+                await this.data.PublishNoteAsMJDoc(note.id);
+                this.previewNoteId = note.id;
+            });
+        } finally {
+            this.publishingNoteId = null;
+            this.cdr.markForCheck();
+        }
+    }
+
+    protected openArtifactPreview(note: NoteModel): void {
+        this.previewNoteId = note.id;
+        this.cdr.markForCheck();
+    }
+
+    protected closeArtifactPreview(): void {
+        this.previewNoteId = null;
+        this.cdr.markForCheck();
     }
 }
 

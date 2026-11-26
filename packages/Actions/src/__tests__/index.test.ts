@@ -85,6 +85,8 @@ describe('@mj-biz-apps/tasks-actions', () => {
         expect(mod.AcceptMeetingCommitmentsAction).toBeDefined();
         expect(mod.GetMeetingNotesAction).toBeDefined();
         expect(mod.GetMyMeetingsBriefingAction).toBeDefined();
+        expect(mod.PublishMeetingNoteAsMJDocAction).toBeDefined();
+        expect(mod.PublishMeetingNoteAsMJDoc).toBeDefined();
         expect(mod.ZoomTranscriptSource).toBeDefined();
         expect(mod.AttachedFileTranscriptSource).toBeDefined();
         expect(mod.MeetingTranscriptService).toBeDefined();

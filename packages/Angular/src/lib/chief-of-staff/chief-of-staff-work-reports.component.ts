@@ -11,9 +11,11 @@ import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { debounceTime, filter, takeUntil } from 'rxjs/operators';
 import { BaseEntity, LogError, RunView, type BaseEntityEvent } from '@memberjunction/core';
-import type { ResourceData } from '@memberjunction/core-entities';
+import { UserInfoEngine, type ResourceData } from '@memberjunction/core-entities';
 import { IsValidUUID, MJEventType, MJGlobal, RegisterClass, UUIDsEqual, type MJEvent } from '@memberjunction/global';
 import { GraphQLActionClient, GraphQLDataProvider } from '@memberjunction/graphql-dataprovider';
+import { ArtifactsModule } from '@memberjunction/ng-artifacts';
+import { MarkdownModule } from '@memberjunction/ng-markdown';
 import { BaseResourceComponent } from '@memberjunction/ng-shared';
 import { SharedGenericModule } from '@memberjunction/ng-shared-generic';
 import {
@@ -28,11 +30,13 @@ import {
     MJStatBadgeComponent,
 } from '@memberjunction/ng-ui-components';
 import {
+    ArtifactDualReadResolver,
     BuildWorkReportsAgentContext,
     DRAFT_WORK_REPORT_ACTION_ID,
     FilterWorkReports,
     FormatReportCalendarDate,
     GetLocalDayWindow,
+    GetResolvedArtifactContent,
     REVIEW_WORK_REPORT_ACTION_ID,
     SUBMIT_WORK_REPORT_ACTION_ID,
     WORK_REPORTS_ENTITY_NAME,
@@ -60,12 +64,15 @@ interface RawWorkReportRow {
     PeriodEnd: string | Date;
     Title: string | null;
     Body: string;
+    ArtifactID?: string | null;
     Status: WorkReportStatus;
     SupervisorFeedback: string | null;
     ReviewedByPersonID: string | null;
     ReviewedByPerson: string | null;
     ReviewedAt: string | Date | null;
 }
+
+const COS_WORK_REPORT_VIEW_PREF_KEY = 'mj.tasks.cosWorkReports.viewMode.v1';
 
 interface RawWorkReportItemRow {
     ID: string;
@@ -110,6 +117,8 @@ function formatDateInput(value: string | Date): string {
     imports: [
         CommonModule,
         FormsModule,
+        ArtifactsModule,
+        MarkdownModule,
         SharedGenericModule,
         MJButtonDirective,
         MJEmptyStateComponent,
@@ -140,6 +149,7 @@ export class ChiefOfStaffWorkReportsResource extends BaseResourceComponent imple
     public StatusFilter: WorkReportStatusFilter = 'all';
     public SearchText = '';
     public SelectedReportID: string | null = null;
+    public DocumentViewMode: 'artifact' | 'body' = 'artifact';
 
     public MyReports: WorkReportViewModel[] = [];
     public TeamReports: WorkReportViewModel[] = [];
@@ -176,12 +186,35 @@ export class ChiefOfStaffWorkReportsResource extends BaseResourceComponent imple
 
     async ngOnInit(): Promise<void> {
         super.ngOnInit();
+        this.loadDocumentViewModePref();
         this.applyQueryParams(this.GetQueryParams());
         this.initialParamsApplied = true;
         await this.Load();
         this.navigationService?.SetAgentClientTools(this, this.buildAgentTools());
         this.subscribeToLiveChanges();
         this.NotifyLoadComplete();
+    }
+
+    public SetDocumentViewMode(mode: 'artifact' | 'body'): void {
+        if (this.DocumentViewMode === mode) return;
+        this.DocumentViewMode = mode;
+        try {
+            UserInfoEngine.Instance.SetSettingDebounced(COS_WORK_REPORT_VIEW_PREF_KEY, mode);
+        } catch {
+            // UserInfoEngine may not be initialized in isolated unit tests
+        }
+        this.cdr.markForCheck();
+    }
+
+    private loadDocumentViewModePref(): void {
+        try {
+            const raw = UserInfoEngine.Instance.GetSetting(COS_WORK_REPORT_VIEW_PREF_KEY);
+            if (raw === 'artifact' || raw === 'body') {
+                this.DocumentViewMode = raw;
+            }
+        } catch {
+            // UserInfoEngine may not be initialized in isolated unit tests
+        }
     }
 
     override ngOnDestroy(): void {
@@ -566,6 +599,7 @@ export class ChiefOfStaffWorkReportsResource extends BaseResourceComponent imple
                 'PeriodEnd',
                 'Title',
                 'Body',
+                'ArtifactID',
                 'Status',
                 'SupervisorFeedback',
                 'ReviewedByPersonID',
@@ -606,9 +640,16 @@ export class ChiefOfStaffWorkReportsResource extends BaseResourceComponent imple
             itemsByReport.set(key, bucket);
         }
 
+        const resolvedArtifacts = await ArtifactDualReadResolver.Instance.ResolveBatch(rows, {
+            ContextUser: this.ProviderToUse.CurrentUser,
+            Provider: this.workReportProvider,
+            IncludeContent: false,
+        });
+
         return rows.map((r) => {
             const startStr = formatDateInput(r.PeriodStart);
             const endStr = formatDateInput(r.PeriodEnd);
+            const resolved = GetResolvedArtifactContent(resolvedArtifacts, r.ID);
             return {
                 ID: r.ID,
                 PersonID: r.PersonID,
@@ -617,6 +658,10 @@ export class ChiefOfStaffWorkReportsResource extends BaseResourceComponent imple
                 PeriodEnd: endStr,
                 Title: r.Title?.trim() || `Work Report — ${endStr}`,
                 Body: r.Body,
+                ArtifactID: r.ArtifactID ?? null,
+                ArtifactName: resolved?.ArtifactName ?? null,
+                ArtifactVersionNumber: resolved?.VersionNumber ?? null,
+                ResolvedContentSource: resolved?.Source ?? 'body',
                 Status: r.Status,
                 SupervisorFeedback: r.SupervisorFeedback,
                 ReviewedByPersonID: r.ReviewedByPersonID,

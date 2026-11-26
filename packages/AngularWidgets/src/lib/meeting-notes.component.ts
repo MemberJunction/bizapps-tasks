@@ -124,6 +124,22 @@ export function canManageNoteProposals(canWrite: boolean, canEditAll: boolean, i
 }
 
 /**
+ * Guards the `'Publish as MJ Doc'` / `'Publish New Version'` CTA on Category B Meeting Notes:
+ * requires write permission on the note, a non-blank note body, and no concurrent publish or save in flight.
+ */
+export function canPublishNoteAsMJDoc(
+    canWrite: boolean,
+    canEditAll: boolean,
+    note: Pick<NoteModel, 'id' | 'isMine' | 'body'>,
+    busy: boolean,
+    publishingNoteId: string | null,
+): boolean {
+    if (!canWrite || (!canEditAll && !note.isMine)) return false;
+    if (busy || publishingNoteId === note.id) return false;
+    return typeof note.body === 'string' && note.body.trim().length > 0;
+}
+
+/**
  * The Notes section: notes by hand or drafted from a transcript (T3), on the meeting or on one agenda item, as Notes,
  * a Summary or a Decision, Draft or Final, with proposed action items that can be accepted into Tasks or dismissed.
  */
@@ -204,8 +220,37 @@ export function canManageNoteProposals(canWrite: boolean, canEditAll: boolean, i
                     <span [class]="note.kind === 'Decision' ? 'mjt-chip mjt-chip--ok' : note.kind === 'Summary' ? 'mjt-chip mjt-chip--info' : 'mjt-chip'">{{ note.kind }}</span>
                     @if (note.status === 'Draft') { <span class="mjt-chip mjt-chip--warn">Draft</span> }
                     @if (note.source === 'AI') { <span class="mjt-chip" title="Drafted by AI from the transcript"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>AI</span> }
+                    @if (note.artifactId) {
+                        <span class="mjt-chip mjt-chip--info" title="Published as a canonical MJ Doc">
+                            <i class="fa-solid fa-file-lines" aria-hidden="true"></i>
+                            MJ Doc@if (note.artifactVersionNumber) { v{{ note.artifactVersionNumber }}}
+                        </span>
+                    }
                     <span class="mjt-grow"></span>
+                    @if (note.artifactId) {
+                        <button
+                            mjButton
+                            Variant="secondary"
+                            Size="sm"
+                            type="button"
+                            [disabled]="Busy"
+                            (click)="OpenArtifactRequested.emit(note)">
+                            <i class="fa-solid fa-book-open" aria-hidden="true"></i>
+                            View MJ Doc
+                        </button>
+                    }
                     @if (CanWrite && (note.isMine || CanEditAll)) {
+                        <button
+                            mjButton
+                            Variant="secondary"
+                            Size="sm"
+                            type="button"
+                            [disabled]="!canPublishNote(note)"
+                            [attr.title]="!note.body.trim() ? 'Add note content before publishing as an MJ Doc' : (note.artifactId ? 'Publish a new version to the linked MJ Doc' : 'Publish this meeting note as a versioned MJ Doc')"
+                            (click)="requestPublishAsMJDoc(note)">
+                            <i class="fa-solid fa-file-export" aria-hidden="true"></i>
+                            {{ PublishingNoteID === note.id ? 'Publishing…' : (note.artifactId ? 'Publish New Version' : 'Publish as MJ Doc') }}
+                        </button>
                         <button mjButton Variant="icon" Size="sm" [disabled]="Busy" aria-label="Edit note" (click)="openDraft(note)"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
                         <button mjButton Variant="icon" Size="sm" [disabled]="Busy" aria-label="Delete note" (click)="DeleteRequested.emit(note)"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
                     }
@@ -396,12 +441,15 @@ export class MeetingNotesComponent implements OnChanges {
     @Input() DefaultAgendaItemID: string | null = null;
     @Input() TranscriptFileID: string | null = null;
     @Input() TranscriptFileName: string | null = null;
+    @Input() PublishingNoteID: string | null = null;
     @Output() SaveRequested = new EventEmitter<NoteDraft>();
     @Output() DeleteRequested = new EventEmitter<NoteModel>();
     @Output() TranscriptDraftRequested = new EventEmitter<TranscriptDraft>();
     @Output() AcceptProposalRequested = new EventEmitter<ProposedTaskAction>();
     @Output() DismissProposalRequested = new EventEmitter<ProposedTaskAction>();
     @Output() OpenTaskRequested = new EventEmitter<string>();
+    @Output() PublishAsMJDocRequested = new EventEmitter<NoteModel>();
+    @Output() OpenArtifactRequested = new EventEmitter<NoteModel>();
 
     protected readonly FormatMeetingNoteMarkdown = FormatMeetingNoteMarkdown;
     protected draft: NoteDraft | null = null;
@@ -434,6 +482,15 @@ export class MeetingNotesComponent implements OnChanges {
 
     protected canManageProposals(note: NoteModel): boolean {
         return canManageNoteProposals(this.CanWrite, this.CanEditAll, note.isMine);
+    }
+
+    protected canPublishNote(note: NoteModel): boolean {
+        return canPublishNoteAsMJDoc(this.CanWrite, this.CanEditAll, note, this.Busy, this.PublishingNoteID);
+    }
+
+    protected requestPublishAsMJDoc(note: NoteModel): void {
+        if (!this.canPublishNote(note)) return;
+        this.PublishAsMJDocRequested.emit(note);
     }
 
     protected openDraft(note: NoteModel | null, kind: NoteKind = 'Notes'): void {

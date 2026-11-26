@@ -114,6 +114,14 @@ export interface NoteModel {
     updatedLabel: string;
     isMine: boolean;
     proposedTasks?: ProposedTaskModel[];
+    /** Nullable FK to `[__mj].[Artifact]([ID])` when published as an MJ Doc. */
+    artifactId?: string | null;
+    /** Display name of the linked MJ Doc artifact when accessible. */
+    artifactName?: string | null;
+    /** Latest accessible MJ Doc version number when published. */
+    artifactVersionNumber?: number | null;
+    /** Whether the current user can read a published version of the linked MJ Doc. */
+    artifactAccessible?: boolean;
 }
 
 export interface NoteDraft {

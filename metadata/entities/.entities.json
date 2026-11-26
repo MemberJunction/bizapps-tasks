@@ -520,6 +520,41 @@
     "fields": {
       "AllowUserSearchAPI": false,
       "AutoUpdateAllowUserSearchAPI": false
+    },
+    "relatedEntities": {
+      "MJ: Entity Fields": [
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.Name=ArtifactID&EntityID=@parent:ID"
+          },
+          "fields": {
+            "Description": "Optional foreign key to an MJ: Artifacts (MJ Doc) record backing this work report. Enables Category A MJ Doc authoring and versioning while preserving legacy Body for backward compatibility.",
+            "AutoUpdateDescription": false
+          }
+        }
+      ]
+    }
+  },
+  {
+    "primaryKey": {
+      "ID": "@lookup:MJ: Entities.Name=MJ_BizApps_Tasks: Meeting Notes"
+    },
+    "fields": {
+      "AllowUserSearchAPI": false,
+      "AutoUpdateAllowUserSearchAPI": false
+    },
+    "relatedEntities": {
+      "MJ: Entity Fields": [
+        {
+          "primaryKey": {
+            "ID": "@lookup:MJ: Entity Fields.Name=ArtifactID&EntityID=@parent:ID"
+          },
+          "fields": {
+            "Description": "Optional foreign key to an MJ: Artifacts (MJ Doc) record storing published canonical meeting minutes. Enables Category B hybrid authoring while preserving live MeetingNote.Body scratchpad and ProposedTasks JSON.",
+            "AutoUpdateDescription": false
+          }
+        }
+      ]
     }
   },
   {
