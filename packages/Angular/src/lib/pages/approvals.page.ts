@@ -34,7 +34,7 @@ import type {
 } from '@mj-biz-apps/tasks-ng-widgets';
 import { NO_PERSON_MESSAGE, PERSON_LOOKUP_FAILED_MESSAGE, ResolveCurrentPersonID } from '../current-person';
 import { OpenTaskRecord } from '../open-task-record';
-import { AssignedToFilter, CurrentUserRoleIDs } from '../role-assignees';
+import { AssignedToFilter, BuildTaskIDsInFilter, CurrentUserRoleIDs, LoadAssignedTaskIDs } from '../role-assignees';
 import { LoadTaskRecordLinks } from '../task-record-links';
 import { ApprovalDecisionPanelComponent, type DecisionRecordedEvent } from '../components/approval-decision-panel/approval-decision-panel.component';
 import { ApprovalTypePredicate } from '../components/approval-inbox/approval-type-predicate';
@@ -78,11 +78,16 @@ export function BuildApprovalsPendingFilter(
     personID: string,
     roleIDs: readonly string[],
     searchText?: string | null,
+    assignedTaskIDs?: readonly string[],
 ): string {
+    const assigneeClause =
+        assignedTaskIDs !== undefined
+            ? BuildTaskIDsInFilter(assignedTaskIDs)
+            : AssignedToFilter(personID, roleIDs);
     const clauses = [
         `TypeID IN (SELECT ID FROM __mj_BizAppsTasks.vwTaskTypes WHERE ${ApprovalTypePredicate(null)})`,
         "Status NOT IN ('Completed', 'Cancelled')",
-        AssignedToFilter(personID, roleIDs),
+        assigneeClause,
         `ID NOT IN (SELECT d.TaskID FROM __mj_BizAppsTasks.vwTaskDecisions d INNER JOIN __mj_BizAppsTasks.vwTaskDecisionOutcomes o ON o.ID = d.OutcomeID WHERE o.IsTerminal = 1)`,
     ];
     const q = (searchText ?? '').trim();
@@ -819,9 +824,35 @@ export class ApprovalsPageComponent implements OnInit {
         this.Loading = true;
         this.cdr.markForCheck();
         try {
-            const pendingFilter = BuildApprovalsPendingFilter(this.PersonID, CurrentUserRoleIDs());
+            const roleIDs = CurrentUserRoleIDs();
+            const [assignedRes, decidedRes] = await Promise.all([
+                LoadAssignedTaskIDs(this.PersonID, roleIDs, undefined, bypassCache),
+                new RunView().RunView<DecidedApprovalRow>({
+                    EntityName: 'MJ_BizApps_Tasks: Task Decisions',
+                    ExtraFilter: `DecidedByPersonID = '${EscapeSQLString(this.PersonID)}'`,
+                    Fields: ['ID', 'TaskID', 'Task', 'Outcome', 'DecidedAt', 'DecisionNotes'],
+                    OrderBy: 'DecidedAt DESC',
+                    ResultType: 'simple',
+                    BypassCache: bypassCache,
+                }),
+            ]);
+            this.DecidedHistory = decidedRes?.Results ?? [];
 
-            const [pendingRes, typesRes, decidedRes] = await Promise.all([
+            if (!assignedRes.Success) {
+                LogError(assignedRes.ErrorMessage || 'Failed to load task assignments.');
+                this.PendingApprovals = [];
+                this.rebuildViewModels();
+                return;
+            }
+            if (assignedRes.TaskIDs.length === 0) {
+                this.PendingApprovals = [];
+                this.rebuildViewModels();
+                return;
+            }
+
+            const pendingFilter = BuildApprovalsPendingFilter(this.PersonID, roleIDs, null, assignedRes.TaskIDs);
+
+            const [pendingRes, typesRes] = await Promise.all([
                 new RunView().RunView<{
                     ID: string;
                     Name: string;
@@ -852,17 +883,15 @@ export class ApprovalsPageComponent implements OnInit {
                     Fields: ['ID', 'OnCompleteAction', 'OnRejectAction', 'OnCancelAction'],
                     ResultType: 'simple',
                 }),
-                new RunView().RunView<DecidedApprovalRow>({
-                    EntityName: 'MJ_BizApps_Tasks: Task Decisions',
-                    ExtraFilter: `DecidedByPersonID = '${EscapeSQLString(this.PersonID)}'`,
-                    Fields: ['ID', 'TaskID', 'Task', 'Outcome', 'DecidedAt', 'DecisionNotes'],
-                    OrderBy: 'DecidedAt DESC',
-                    ResultType: 'simple',
-                    BypassCache: bypassCache,
-                }),
             ]);
 
-            const rows = pendingRes?.Results ?? [];
+            if (!pendingRes?.Success) {
+                LogError(pendingRes?.ErrorMessage || 'Failed to load pending approvals.');
+                this.PendingApprovals = [];
+                this.rebuildViewModels();
+                return;
+            }
+            const rows = pendingRes.Results ?? [];
             const typeMap = new Map((typesRes?.Results ?? []).map((t) => [t.ID.toLowerCase(), t]));
             let linksMap = new Map<string, { EntityName: string; RecordID: string; Name: string }[]>();
             try {
@@ -899,7 +928,6 @@ export class ApprovalsPageComponent implements OnInit {
                 };
             });
 
-            this.DecidedHistory = decidedRes?.Results ?? [];
             this.rebuildViewModels();
         } finally {
             this.Loading = false;

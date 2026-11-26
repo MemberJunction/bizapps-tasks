@@ -62,7 +62,7 @@ import {
 } from '@mj-biz-apps/tasks-ng-widgets';
 import { NO_PERSON_MESSAGE, PERSON_LOOKUP_FAILED_MESSAGE, ResolveCurrentPersonID } from '../current-person';
 import { OpenTaskRecord } from '../open-task-record';
-import { AssignedToFilter, CurrentUserRoleIDs } from '../role-assignees';
+import { BuildTaskIDsInFilter, ChunkTaskIDs, CurrentUserRoleIDs, LoadAssignedTaskIDs } from '../role-assignees';
 import { LoadTaskRecordLinks } from '../task-record-links';
 import { RecordLinkPickerDialogComponent } from '../components/record-link-picker/record-link-picker-dialog.component';
 import { RunningTimerChipComponent } from '../components/running-timer-chip/running-timer-chip.component';
@@ -723,15 +723,34 @@ export class MyTasksPageComponent implements OnInit {
         this.Loading = true;
         this.cdr.markForCheck();
         try {
-            const filter = AssignedToFilter(this.PersonID, CurrentUserRoleIDs());
-            const [tasksRes, typesRes, peopleRes] = await Promise.all([
-                new RunView().RunView<MyWorkTaskRow>({
-                    EntityName: 'MJ_BizApps_Tasks: Tasks',
-                    ExtraFilter: `${filter} AND Status <> 'Cancelled'`,
-                    OrderBy: 'DueAt ASC, Sequence ASC',
-                    ResultType: 'simple',
-                    BypassCache: bypassCache,
-                }),
+            const effectiveProvider = this.Provider ?? Metadata.Provider;
+            const roleIDs = CurrentUserRoleIDs(effectiveProvider?.CurrentUser);
+            const assignedRes = await LoadAssignedTaskIDs(this.PersonID, roleIDs, effectiveProvider, bypassCache);
+            if (!assignedRes.Success) {
+                const msg = assignedRes.ErrorMessage || 'Failed to load task assignments.';
+                LogError(msg);
+                this.ToastMessage = msg;
+                this.AllTasks = [];
+                return;
+            }
+            if (assignedRes.TaskIDs.length === 0) {
+                this.AllTasks = [];
+                return;
+            }
+
+            const chunks = ChunkTaskIDs(assignedRes.TaskIDs);
+            const [taskChunkResults, typesRes, peopleRes] = await Promise.all([
+                Promise.all(
+                    chunks.map((chunk) =>
+                        new RunView().RunView<MyWorkTaskRow>({
+                            EntityName: 'MJ_BizApps_Tasks: Tasks',
+                            ExtraFilter: `${BuildTaskIDsInFilter(chunk)} AND Status <> 'Cancelled'`,
+                            OrderBy: 'DueAt ASC, Sequence ASC',
+                            ResultType: 'simple',
+                            BypassCache: bypassCache,
+                        }),
+                    ),
+                ),
                 new RunView().RunView<{
                     ID: string;
                     Code: string;
@@ -751,11 +770,30 @@ export class MyTasksPageComponent implements OnInit {
                 }),
             ]);
 
+            const failedChunk = taskChunkResults.find((res) => !res?.Success);
+            if (failedChunk) {
+                const msg = failedChunk.ErrorMessage || 'Failed to load tasks.';
+                LogError(msg);
+                this.ToastMessage = msg;
+                this.AllTasks = [];
+                return;
+            }
+
             this.peopleLookup = peopleRes?.Results ?? [];
             const typeMap = new Map(
                 (typesRes?.Results ?? []).map((tt) => [tt.ID.toLowerCase(), tt]),
             );
-            const rows = tasksRes?.Results ?? [];
+            const seenIds = new Set<string>();
+            const rows: MyWorkTaskRow[] = [];
+            for (const res of taskChunkResults) {
+                for (const row of res.Results ?? []) {
+                    const key = row.ID.toLowerCase();
+                    if (!seenIds.has(key)) {
+                        seenIds.add(key);
+                        rows.push(row);
+                    }
+                }
+            }
             let linksMap = new Map<string, { EntityName: string; RecordID: string; Name: string }[]>();
             try {
                 linksMap = await LoadTaskRecordLinks(rows.map((r) => r.ID));
