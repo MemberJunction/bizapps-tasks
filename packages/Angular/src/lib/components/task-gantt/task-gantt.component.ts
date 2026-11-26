@@ -15,7 +15,7 @@ import {
     inject,
 } from '@angular/core';
 import { CompositeKey, Metadata, RunView, type IMetadataProvider, type IRunViewProvider } from '@memberjunction/core';
-import { EscapeSQLString, UUIDsEqual } from '@memberjunction/global';
+import { EscapeSQLString, IsValidUUID, UUIDsEqual } from '@memberjunction/global';
 import { UserInfoEngine } from '@memberjunction/core-entities';
 import {
     AfterColumnResizeEventArgs,
@@ -39,6 +39,7 @@ import {
     ComputeCriticalPathTaskIds,
     MatchesAssigneeFilter,
     MatchesDueDateFilter,
+    TasksEngineBase,
     type TaskAssigneeFilterRef,
     type TaskDependencyEdge,
     type TaskDueDateFilterKey,
@@ -51,6 +52,7 @@ import {
     type TaskWidgetItem,
 } from '@mj-biz-apps/tasks-ng-widgets';
 import { CurrentUserRoleIDs, RoleAssigneeName } from '../../role-assignees';
+import { RunViewsBatch } from '../../tasks-engine.helper';
 import {
     DefaultTasksGanttPref,
     ParseTasksGanttPref,
@@ -771,7 +773,7 @@ export class TaskGanttComponent implements OnInit, AfterViewInit, OnChanges, OnD
         this.rebuildViewModels();
     }
 
-    public async LoadData(): Promise<void> {
+    public async LoadData(forceRefresh = false): Promise<void> {
         if (this.Tasks !== null) {
             this.applyControlledData();
             return;
@@ -779,97 +781,131 @@ export class TaskGanttComponent implements OnInit, AfterViewInit, OnChanges, OnD
         this.loading = true;
         this.cdr.markForCheck();
         try {
-            const rv = this.createRunView();
-            const filters: string[] = ["Status <> 'Cancelled'"];
+            const provider = this.ProviderToUse;
+            let assignRows: Array<{ TaskID: string; AssigneeEntityID: string; AssigneeRecordID: string }> = [];
 
-            if (this.ParentTaskID) {
-                const pid = EscapeSQLString(this.ParentTaskID);
-                if (this.IncludeParentSummary) {
-                    filters.push(`(ID = '${pid}' OR ParentID = '${pid}' OR RootParentID = '${pid}')`);
-                } else {
-                    filters.push(`(ParentID = '${pid}' OR RootParentID = '${pid}')`);
-                }
+            if (this.ParentTaskID && IsValidUUID(this.ParentTaskID)) {
+                const bundle = await TasksEngineBase.Instance.LoadProjectSubtree(this.ParentTaskID, {
+                    provider,
+                    forceRefresh,
+                });
+                const filteredTasks = this.IncludeParentSummary
+                    ? bundle.Tasks
+                    : bundle.Tasks.filter((t) => !UUIDsEqual(t.ID, this.ParentTaskID));
+                this.rawTasks = filteredTasks.map((t) => ({
+                    ID: t.ID,
+                    Name: t.Name,
+                    Description: t.Description,
+                    StartedAt: t.StartedAt,
+                    DueAt: t.DueAt,
+                    PercentComplete: t.PercentComplete,
+                    HoursEstimated: t.HoursEstimated,
+                    ParentID: t.ParentID,
+                    Status: t.Status,
+                    Priority: t.Priority,
+                    TaskTypeStatus: t.TaskTypeStatus ?? null,
+                    OrganizationID: t.OrganizationID ?? null,
+                    Organization: t.Organization ?? null,
+                    Sequence: t.Sequence,
+                }));
+                this.rawDeps = bundle.Dependencies.map((d) => ({
+                    ID: d.ID,
+                    TaskID: d.TaskID,
+                    DependsOnTaskID: d.DependsOnTaskID,
+                    DependencyType: d.DependencyType,
+                }));
+                assignRows = bundle.Assignments.map((a) => ({
+                    TaskID: a.TaskID,
+                    AssigneeEntityID: a.AssigneeEntityID,
+                    AssigneeRecordID: a.AssigneeRecordID,
+                }));
             } else {
-                if (this.CategoryID) filters.push(`CategoryID = '${EscapeSQLString(this.CategoryID)}'`);
-                if (this.PriorityFilter) filters.push(`Priority = '${EscapeSQLString(this.PriorityFilter)}'`);
-                if (this.TypeIDFilter) filters.push(`TypeID = '${EscapeSQLString(this.TypeIDFilter)}'`);
-                if (this.OrganizationIDFilter === '__none__') {
-                    filters.push('OrganizationID IS NULL');
-                } else if (this.OrganizationIDFilter) {
-                    filters.push(`OrganizationID = '${EscapeSQLString(this.OrganizationIDFilter)}'`);
+                const rv = this.createRunView();
+                const filters: string[] = ["Status <> 'Cancelled'"];
+
+                if (this.ParentTaskID) {
+                    const pid = EscapeSQLString(this.ParentTaskID);
+                    if (this.IncludeParentSummary) {
+                        filters.push(`(ID = '${pid}' OR ParentID = '${pid}' OR RootParentID = '${pid}')`);
+                    } else {
+                        filters.push(`(ParentID = '${pid}' OR RootParentID = '${pid}')`);
+                    }
+                } else {
+                    if (this.CategoryID) filters.push(`CategoryID = '${EscapeSQLString(this.CategoryID)}'`);
+                    if (this.PriorityFilter) filters.push(`Priority = '${EscapeSQLString(this.PriorityFilter)}'`);
+                    if (this.TypeIDFilter) filters.push(`TypeID = '${EscapeSQLString(this.TypeIDFilter)}'`);
+                    if (this.OrganizationIDFilter === '__none__') {
+                        filters.push('OrganizationID IS NULL');
+                    } else if (this.OrganizationIDFilter) {
+                        filters.push(`OrganizationID = '${EscapeSQLString(this.OrganizationIDFilter)}'`);
+                    }
+                    if (this.ExtraFilter) filters.push(this.ExtraFilter);
                 }
-                if (this.ExtraFilter) filters.push(this.ExtraFilter);
+
+                const tasksResult = await rv.RunView<GanttTaskRow>({
+                    EntityName: 'MJ_BizApps_Tasks: Tasks',
+                    ExtraFilter: filters.join(' AND '),
+                    OrderBy: 'Sequence ASC',
+                    ResultType: 'simple',
+                    MaxRows: 500,
+                });
+
+                this.rawTasks = tasksResult?.Results ?? [];
+                const taskIds = this.rawTasks.map((t) => t.ID).filter((id) => TASK_ID_RE.test(id));
+                if (taskIds.length > 0) {
+                    const idList = taskIds.map((id) => `'${id}'`).join(',');
+                    const [depsResult, assignResult] = await RunViewsBatch(this.createRunView(), [
+                        {
+                            EntityName: 'MJ_BizApps_Tasks: Task Dependencies',
+                            ExtraFilter: `TaskID IN (${idList}) OR DependsOnTaskID IN (${idList})`,
+                            ResultType: 'simple',
+                            MaxRows: 500,
+                        },
+                        {
+                            EntityName: 'MJ_BizApps_Tasks: Task Assignments',
+                            ExtraFilter: `TaskID IN (${idList})`,
+                            Fields: ['TaskID', 'AssigneeEntityID', 'AssigneeRecordID'],
+                            ResultType: 'simple',
+                            MaxRows: 1000,
+                        },
+                    ]);
+                    this.rawDeps = (depsResult?.Results ?? []) as Array<{
+                        ID: string;
+                        TaskID: string;
+                        DependsOnTaskID: string;
+                        DependencyType: mjBizAppsTasksTaskDependencyEntity['DependencyType'];
+                    }>;
+                    assignRows = (assignResult?.Results ?? []) as Array<{
+                        TaskID: string;
+                        AssigneeEntityID: string;
+                        AssigneeRecordID: string;
+                    }>;
+                } else {
+                    this.rawDeps = [];
+                }
             }
 
-            const tasksResult = await rv.RunView<GanttTaskRow>({
-                EntityName: 'MJ_BizApps_Tasks: Tasks',
-                ExtraFilter: filters.join(' AND '),
-                OrderBy: 'Sequence ASC',
-                ResultType: 'simple',
-                MaxRows: 500,
-            });
-
-            this.rawTasks = tasksResult?.Results ?? [];
-            const taskIds = this.rawTasks.map((t) => t.ID).filter((id) => TASK_ID_RE.test(id));
-            const [depsResult, assignResult] =
-                taskIds.length === 0
-                    ? [null, null]
-                    : await Promise.all([
-                          this.createRunView().RunView<{
-                              ID: string;
-                              TaskID: string;
-                              DependsOnTaskID: string;
-                              DependencyType: mjBizAppsTasksTaskDependencyEntity['DependencyType'];
-                          }>({
-                              EntityName: 'MJ_BizApps_Tasks: Task Dependencies',
-                              ExtraFilter: `TaskID IN (${taskIds.map((id) => `'${id}'`).join(',')}) OR DependsOnTaskID IN (${taskIds.map((id) => `'${id}'`).join(',')})`,
-                              ResultType: 'simple',
-                              MaxRows: 500,
-                          }),
-                          this.createRunView().RunView<{ TaskID: string; AssigneeEntityID: string; AssigneeRecordID: string }>({
-                              EntityName: 'MJ_BizApps_Tasks: Task Assignments',
-                              ExtraFilter: `TaskID IN (${taskIds.map((id) => `'${id}'`).join(',')})`,
-                              Fields: ['TaskID', 'AssigneeEntityID', 'AssigneeRecordID'],
-                              ResultType: 'simple',
-                              MaxRows: 1000,
-                          }),
-                      ]);
-            this.rawDeps = depsResult?.Results ?? [];
-
-            const rolesEntityID = this.ProviderToUse.EntityByName?.('MJ: Roles')?.ID?.toLowerCase() ?? null;
+            const rolesEntityID = provider.EntityByName?.('MJ: Roles')?.ID?.toLowerCase() ?? null;
             const assignedPersonIds = [
                 ...new Set(
-                    (assignResult?.Results ?? [])
+                    assignRows
                         .filter((a) => !rolesEntityID || a.AssigneeEntityID.toLowerCase() !== rolesEntityID)
                         .map((a) => a.AssigneeRecordID)
                         .filter(Boolean),
                 ),
             ];
-            const peopleResult =
+            const personMap =
                 assignedPersonIds.length === 0
-                    ? null
-                    : await this.createRunView().RunView<{ ID: string; FirstName: string; LastName: string }>({
-                          EntityName: 'MJ_BizApps_Common: People',
-                          ExtraFilter:
-                              assignedPersonIds.length <= 500
-                                  ? `ID IN (${assignedPersonIds.map((id) => `'${EscapeSQLString(id)}'`).join(',')})`
-                                  : undefined,
-                          Fields: ['ID', 'FirstName', 'LastName'],
-                          ResultType: 'simple',
-                      });
-
-            const personMap = new Map<string, string>();
-            for (const p of peopleResult?.Results ?? []) {
-                personMap.set(p.ID.toLowerCase(), `${p.FirstName ?? ''} ${p.LastName ?? ''}`.trim());
-            }
+                    ? new Map()
+                    : await TasksEngineBase.Instance.GetOrLoadPeopleByIds(assignedPersonIds, provider).catch(() => new Map());
 
             this.assigneesByTask.clear();
-            for (const a of assignResult?.Results ?? []) {
+            for (const a of assignRows) {
                 const tKey = a.TaskID.toLowerCase();
                 const list = this.assigneesByTask.get(tKey) ?? [];
                 const isRole = Boolean(rolesEntityID && a.AssigneeEntityID.toLowerCase() === rolesEntityID);
                 const displayName =
-                    personMap.get(a.AssigneeRecordID.toLowerCase()) ??
+                    personMap.get(a.AssigneeRecordID.toLowerCase())?.FullName ??
                     RoleAssigneeName(a.AssigneeEntityID, a.AssigneeRecordID) ??
                     'Assigned';
                 list.push({

@@ -254,6 +254,31 @@ If you're tempted to use `localStorage` because "it's just a little thing" — t
 
 ---
 
+### 10. BIZAPPS PERFORMANCE & CACHING STANDARD (5 RULES)
+
+All `bizapps-tasks` packages (`@mj-biz-apps/tasks-core`, `@mj-biz-apps/tasks-ng`, `@mj-biz-apps/tasks-actions`, `@mj-biz-apps/tasks-server`) **MUST** follow the 5-Rule BizApps Performance & Caching Standard:
+
+1. **Rule 1 — `BaseEngine` + `BaseSingleton` for Bounded Taxonomy & Config Tables**:
+   - Cache bounded reference/taxonomy tables (`MJ_BizApps_Tasks: Task Types`, `Task Type Status`, `Task Categories`, `Task Roles`, `Task Tags`) in `TasksEngineBase extends BaseEngine<TasksEngineBase>` (`@RegisterForStartup()`, `BaseSingleton` via `TasksEngineBase.Instance`) with `AutoRefresh: true` and O(1) lookup helpers (`TaskTypeById`, `TaskTypeByCode`, `StatusesForType`, `ActiveCategories`, `TaskRoleById`, `TaskTagByName`).
+   - Never fire repeated `RunView` queries for taxonomy/config tables from Angular components, panels, or services when `TasksEngineBase.Instance` already caches them.
+2. **Rule 2 — Impersonation / Multi-Provider Safety, `CacheLocal` Discipline, and `CanRead` Gating**:
+   - Override `ProviderToUse` to follow the active provider passed to `Config()` or live `Metadata.Provider` — **never** latch permanently to a stale bootstrap provider during persona impersonation or provider switches.
+   - Auto-detect acting `userId` changes and immediately clear all user-scoped in-memory caches (`People`, `Organizations`, project subtrees).
+   - Set `CacheLocal: true` **ONLY** on global, non-RLS reference/taxonomy tables. **NEVER** set `CacheLocal: true` on RLS-scoped entities (`Tasks`, `Task Assignments`, `Task Dependencies`, `Task Comments`, `Task Activities`, `Meetings`, `Work Reports`) — use `CacheLocal: false` (or omit it).
+   - Gate optional entity reads and engine configs individually on `EntityInfo.GetUserPermisions(user)?.CanRead` so restricted roles (e.g. Space Participants) never trigger avoidable GraphQL permission errors.
+3. **Rule 3 — `rv.RunViews([...])` GraphQL Batching & `ResultType: 'simple'`**:
+   - Collapse parallel `Promise.all([rv.RunView(...), rv.RunView(...)])` bursts and independent sequential `await rv.RunView(...)` calls into **single `rv.RunViews([...])` GraphQL batch requests** (via `RunView.FromMetadataProvider(provider)` and `RunViewsBatch(...)`).
+   - Default to `ResultType: 'simple'` (with explicit `Fields` projections) for read-only lists, pickers, badges, and inspector views; reserve `ResultType: 'entity_object'` strictly for records being mutated/saved.
+   - Resolve `People` and `Organizations` incrementally via `TasksEngineBase.Instance.GetOrLoadPeopleByIds(...)`, `GetOrLoadAllPeople(...)`, and `GetOrLoadActiveOrganizations(...)` so unseen IDs are queried once per user/provider.
+4. **Rule 4 — `ConversationEngine`-Style Bounded Container Window Caching (Never Cache Arbitrary Filtered Lists)**:
+   - Cache bounded container bundles keyed strictly by stable parent/container ID — e.g. `TasksEngineBase.Instance.LoadProjectSubtree(rootTaskId)` caching `[Tasks, Task Assignments, Task Dependencies]` per `(provider, userId)` with `BaseEntity` event invalidation, `InvalidateProjectSubtree(rootTaskId?)`, and automatic user-switch eviction so switching `WBS` <-> `Kanban` <-> `Gantt` inside a project reuses 1 cached bundle.
+   - **NEVER** cache arbitrary `ExtraFilter` SQL transactional task lists (search results, ad-hoc filter combinations, approval queues, or dynamic dashboards).
+5. **Rule 5 — Two-Step Entity `RunView`s Instead of Raw Base-View SQL Subqueries on RLS Entities**:
+   - Never embed raw SQL subqueries against RLS-filtered base views (such as `ID IN (SELECT TaskID FROM __mj_BizAppsTasks.vwTaskAssignments WHERE ...)` or `TaskID IN (SELECT ID FROM __mj_BizAppsTasks.vwTasks WHERE ...)`) inside `ExtraFilter`. `MJServer` rejects raw subqueries targeting RLS-protected views.
+   - Always perform a first-class `RunView` on the source entity (e.g. `MJ_BizApps_Tasks: Task Assignments` or `MJ_BizApps_Tasks: Tasks`), deduplicate/chunk the resulting IDs (`SqlInClauseChunkSize`), and execute the follow-up `ID IN (...)` / `TaskID IN (...)` queries via batched `rv.RunViews([...])`.
+
+---
+
 ## 📚 Development Guides
 
 The `/guides/` folder contains comprehensive best practices guides for specific development tasks. **Always consult these guides when working on related features:**

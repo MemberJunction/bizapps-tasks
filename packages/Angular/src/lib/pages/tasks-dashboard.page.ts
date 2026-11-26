@@ -45,6 +45,7 @@ import {
     SAVED_TASK_VIEWS_SETTING,
     SerializeSavedTaskFilterViews,
     TasksBulkUpdateOperation,
+    TasksEngineBase,
     UpsertSavedTaskFilterView,
     type SavedTaskFilterMap,
     type SavedTaskFilterValue,
@@ -58,6 +59,7 @@ import {
 } from '@mj-biz-apps/tasks-entities';
 import { ResolveCurrentPersonID } from '../current-person';
 import { OpenTaskRecord } from '../open-task-record';
+import { EnsureTasksEngineLoaded } from '../tasks-engine.helper';
 import { TaskDetailPanelComponent } from '../components/task-detail-panel/task-detail-panel.component';
 import { TaskDrawerShellComponent } from '../components/task-drawer-shell/task-drawer-shell.component';
 import { TaskEditPanelComponent } from '../components/task-edit-panel/task-edit-panel.component';
@@ -1079,66 +1081,31 @@ export class TasksDashboardPageComponent implements OnInit {
     }
 
     private async LoadCategoriesAndTypes(): Promise<void> {
-        const rv = this.createRunView();
-        const [catsRes, typesRes, peopleRes, orgsRes, taskRolesRes, stagesRes, tagsRes] = await Promise.all([
-            rv.RunView<TaskCategoryOption>({
-                EntityName: 'MJ_BizApps_Tasks: Task Categories',
-                ExtraFilter: 'IsActive = 1',
-                OrderBy: 'Sequence ASC, Name ASC',
-                ResultType: 'simple',
-            }),
-            rv.RunView<TaskTypeClassificationInput & { ID: string; Name: string }>({
-                EntityName: 'MJ_BizApps_Tasks: Task Types',
-                ExtraFilter: 'IsActive = 1',
-                Fields: ['ID', 'Name', 'Code', 'ExtensionEntity', 'IsActive'],
-                OrderBy: 'Name ASC',
-                ResultType: 'simple',
-            }),
-            rv.RunView<{ ID: string; FirstName: string | null; LastName: string | null }>({
-                EntityName: 'MJ_BizApps_Common: People',
-                Fields: ['ID', 'FirstName', 'LastName'],
-                OrderBy: 'FirstName ASC, LastName ASC',
-                ResultType: 'simple',
-            }),
-            rv.RunView<{ ID: string; Name: string; LinkedCompanyID: string | null }>({
-                EntityName: 'MJ_BizApps_Common: Organizations',
-                ExtraFilter: "Status = 'Active'",
-                Fields: ['ID', 'Name', 'LinkedCompanyID'],
-                OrderBy: 'Name ASC',
-                ResultType: 'simple',
-            }),
-            rv.RunView<{ ID: string; Name: string }>({
-                EntityName: 'MJ_BizApps_Tasks: Task Roles',
-                Fields: ['ID', 'Name'],
-                OrderBy: 'Sequence ASC',
-                ResultType: 'simple',
-            }),
-            rv.RunView<{ ID: string; Name: string }>({
-                EntityName: 'MJ_BizApps_Tasks: Task Type Status',
-                ExtraFilter: 'IsActive = 1',
-                Fields: ['ID', 'Name'],
-                OrderBy: 'Sequence ASC',
-                ResultType: 'simple',
-            }),
-            rv.RunView<{ ID: string; Name: string }>({
-                EntityName: 'MJ_BizApps_Tasks: Task Tags',
-                Fields: ['ID', 'Name'],
-                OrderBy: 'Name ASC',
-                ResultType: 'simple',
-            }),
+        const provider = this.ProviderToUse;
+        const [engine, people, orgs] = await Promise.all([
+            EnsureTasksEngineLoaded(provider),
+            TasksEngineBase.Instance.GetOrLoadAllPeople(provider).catch(() => []),
+            TasksEngineBase.Instance.GetOrLoadActiveOrganizations(provider).catch(() => []),
         ]);
-        this.Categories = catsRes?.Results ?? [];
-        this.TaskTypes = typesRes?.Results ?? [];
-        this.PeopleOptions = (peopleRes?.Results ?? []).map((p) => ({
-            ID: p.ID,
-            Name: `${p.FirstName ?? ''} ${p.LastName ?? ''}`.trim(),
+
+        this.Categories = engine.ActiveCategories.map((c) => ({
+            ID: c.ID,
+            Name: c.Name,
+            ParentID: c.ParentID,
+            ColorCode: c.ColorCode,
         }));
-        this.OrganizationOptions = [...(orgsRes?.Results ?? [])].sort((a, b) => {
-            if (Boolean(a.LinkedCompanyID) !== Boolean(b.LinkedCompanyID)) {
-                return a.LinkedCompanyID ? -1 : 1;
-            }
-            return a.Name.localeCompare(b.Name);
-        });
+        this.TaskTypes = engine.ActiveTaskTypes.map((t) => ({
+            ID: t.ID,
+            Name: t.Name,
+            Code: t.Code,
+            ExtensionEntity: t.ExtensionEntity,
+            IsActive: t.IsActive,
+        }));
+        this.PeopleOptions = people.map((p) => ({
+            ID: p.ID,
+            Name: p.FullName,
+        }));
+        this.OrganizationOptions = [...orgs];
 
         // Populate shared Bulk Action Dock lookups once for List, Board, and Gantt
         this.BulkPeopleOptions = this.PeopleOptions.map((p) => ({
@@ -1146,12 +1113,12 @@ export class TasksDashboardPageComponent implements OnInit {
             Label: p.Name,
             EntityName: 'MJ_BizApps_Common: People',
         }));
-        this.BulkRoleOptions = (this.ProviderToUse.Roles ?? []).map((r) => ({
+        this.BulkRoleOptions = (provider.Roles ?? []).map((r) => ({
             ID: r.ID,
             Label: r.Name,
             EntityName: 'MJ: Roles',
         }));
-        this.BulkTaskRoleOptions = (taskRolesRes?.Results ?? []).map((r) => ({ ID: r.ID, Label: r.Name }));
+        this.BulkTaskRoleOptions = engine.TaskRoles.map((r) => ({ ID: r.ID, Label: r.Name }));
         this.BulkOrgOptions = this.OrganizationOptions.map((o) => ({
             ID: o.ID,
             Label: o.Name,
@@ -1162,8 +1129,8 @@ export class TasksDashboardPageComponent implements OnInit {
             ID: t.ID,
             Label: t.Name,
         }));
-        this.BulkStageOptions = (stagesRes?.Results ?? []).map((s) => ({ ID: s.ID, Label: s.Name }));
-        this.BulkTagOptions = (tagsRes?.Results ?? []).map((t) => ({ ID: t.ID, Label: t.Name }));
+        this.BulkStageOptions = engine.ActiveTypeStatuses.map((s) => ({ ID: s.ID, Label: s.Name }));
+        this.BulkTagOptions = engine.TaskTags.map((t) => ({ ID: t.ID, Label: t.Name }));
     }
 
     public async LoadKPIs(): Promise<void> {

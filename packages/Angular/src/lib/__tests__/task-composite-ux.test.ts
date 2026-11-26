@@ -27,6 +27,9 @@ vi.mock('@memberjunction/core', async (importOriginal) => {
             RunView(...args: unknown[]) {
                 return runViewMock(...args);
             }
+            RunViews(paramsList: unknown[]) {
+                return Promise.all(paramsList.map((p) => runViewMock(p)));
+            }
         },
         Metadata: Object.assign(
             class {
@@ -43,6 +46,7 @@ vi.mock('@memberjunction/core', async (importOriginal) => {
     };
 });
 
+import { TasksEngineBase } from '@mj-biz-apps/tasks-core';
 import { TaskEditPanelComponent } from '../components/task-edit-panel/task-edit-panel.component';
 import { TaskListComponent } from '../components/task-list/task-list.component';
 import { TaskDetailPanelComponent } from '../components/task-detail-panel/task-detail-panel.component';
@@ -226,7 +230,8 @@ describe('TaskDetailPanelComponent scoped People queries, typed PostComment & at
             return { Success: true, Results: [] };
         });
 
-        await (detail as unknown as { loadAssignees: () => Promise<void> }).loadAssignees();
+        TasksEngineBase.Instance.ClearUserScopedCaches();
+        await detail.LoadTask();
 
         const peopleCalls = runViewMock.mock.calls.filter(
             ([p]) => (p as { EntityName: string }).EntityName === 'MJ_BizApps_Common: People',

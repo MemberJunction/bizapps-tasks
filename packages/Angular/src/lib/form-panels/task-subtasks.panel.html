@@ -25,10 +25,10 @@
             </mjt-quick-capture>
         </div>
 
-        @if (View === 'list' && ParentFilter) {
+        @if (View === 'list' && Record.ID) {
             <bizapps-task-list
                 #subList
-                [ExtraFilter]="ParentFilter"
+                [ProjectRootTaskID]="Record.ID"
                 [HideToolbar]="true"
                 [Compact]="true"
                 (AfterTaskSelected)="OpenChild($event.ID)"
@@ -44,11 +44,11 @@
                     (TaskDoubleClicked)="OpenChild($event)">
                 </bizapps-task-gantt>
             </div>
-        } @else if (View === 'kanban' && ParentFilter) {
+        } @else if (View === 'kanban' && Record.ID) {
             <div class="mjt-subtask-fill" #subtaskFill [style.height]="ComputedHeight">
                 <bizapps-task-kanban
                     #subKanban
-                    [ExtraFilter]="ParentFilter"
+                    [ParentTaskID]="Record.ID"
                     (TaskDoubleClicked)="OpenChild($event)">
                 </bizapps-task-kanban>
             </div>
