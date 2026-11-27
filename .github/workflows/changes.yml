@@ -127,8 +127,9 @@ jobs:
           MAX_EXISTING=$(git show ${{ steps.mb.outputs.tip }}:migrations/ 2>/dev/null | \
             grep -oE 'V[0-9]{12}' | sed 's/^V//' | sort -n | tail -1 || echo "0")
 
-          # Only newly ADDED files (not modified, not renamed).
-          NEW_FILES=$(git diff --diff-filter=A --name-only ${{ steps.mb.outputs.sha }} HEAD -- migrations/ | grep -E '\.sql$' || true)
+          # Only newly ADDED files, not modified ones. --no-renames: a rename is a new version number
+          # to Skyway, so it must clear the watermark too; without it a rename is never checked.
+          NEW_FILES=$(git diff --no-renames --diff-filter=A --name-only ${{ steps.mb.outputs.sha }} HEAD -- migrations/ | grep -E '\.sql$' || true)
           for file in $NEW_FILES; do
             basename=$(basename "$file")
             timestamp=$(echo "$basename" | grep -oE '^V[0-9]{12}' | sed 's/^V//' || true)
