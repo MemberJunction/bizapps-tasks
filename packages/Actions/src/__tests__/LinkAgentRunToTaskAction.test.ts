@@ -21,7 +21,7 @@ const fakeState = {
 
 vi.mock('@memberjunction/actions-base', () => ({}));
 vi.mock('@memberjunction/actions', () => ({ BaseAction: class {} }));
-vi.mock('@memberjunction/global', () => ({
+vi.mock('@memberjunction/global', async (importOriginal) => ({ ...(await importOriginal<typeof import('@memberjunction/global')>()),
     RegisterClass: () => () => {},
     IsValidUUID: (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
 }));
@@ -33,7 +33,7 @@ vi.mock('@mj-biz-apps/tasks-entities', () => ({
     mjBizAppsTasksTaskEntity: class {},
     mjBizAppsTasksTaskTimeEntryEntity: class {},
 }));
-vi.mock('@memberjunction/core', () => ({
+vi.mock('@memberjunction/core', async (importOriginal) => ({ ...(await importOriginal<typeof import('@memberjunction/core')>()),
     Metadata: class {
         async GetEntityObject(entityName: string) {
             if (entityName === 'MJ_BizApps_Tasks: Task Agent Runs') {

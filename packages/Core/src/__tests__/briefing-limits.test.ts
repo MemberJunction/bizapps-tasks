@@ -1,65 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { LimitsConfigResolver } from '@memberjunction/core';
 import {
     CODE_FALLBACK_TASKS_LIMITS,
-    ReadOptionalMjLimitsResolverInstance,
     ResolveBriefingContributorBounds,
     RunWithBriefingContributorTimeout,
     SerializeBriefingPayloadWithLimit,
     TasksLimitsResolver,
-    type MjLimitsResolutionSnapshot,
-    type MjLimitsResolverInstanceLike,
-    type TasksMjLimitsOverride,
 } from '../index.js';
-
-interface TestMjLimitsBridge extends MjLimitsResolverInstanceLike {
-    RegisterMjConfigLimits(limits: TasksMjLimitsOverride | null): void;
-    ClearMjConfigLimits(): void;
-}
-
-function isTestMjLimitsBridge(candidate: object): candidate is TestMjLimitsBridge {
-    return (
-        typeof Reflect.get(candidate, 'RegisterMjConfigLimits') === 'function' &&
-        typeof Reflect.get(candidate, 'ClearMjConfigLimits') === 'function' &&
-        typeof Reflect.get(candidate, 'GetMjConfigLimits') === 'function' &&
-        typeof Reflect.get(candidate, 'Resolve') === 'function'
-    );
-}
-
-function createInMemoryMjLimitsBridge(): TestMjLimitsBridge {
-    let registered: TasksMjLimitsOverride | null = null;
-    return {
-        RegisterMjConfigLimits(limits: TasksMjLimitsOverride | null): void {
-            registered = limits ? { ...limits } : null;
-        },
-        ClearMjConfigLimits(): void {
-            registered = null;
-        },
-        GetMjConfigLimits(): TasksMjLimitsOverride | null {
-            return registered;
-        },
-        Resolve(
-            input?: { MjConfig?: TasksMjLimitsOverride },
-            options?: { ResolvedAtISO?: string },
-        ): MjLimitsResolutionSnapshot {
-            const tier = input?.MjConfig !== undefined ? input.MjConfig : registered;
-            const timeout = tier?.BriefingContributorTimeoutMs;
-            const maxChars = tier?.BriefingMaxContributorChars;
-            return {
-                Limits: {
-                    BriefingContributorTimeoutMs:
-                        timeout ?? CODE_FALLBACK_TASKS_LIMITS.Briefing.ContributorTimeoutMs,
-                    BriefingMaxContributorChars:
-                        maxChars ?? CODE_FALLBACK_TASKS_LIMITS.Briefing.MaxContributorChars,
-                },
-                Provenance: {
-                    BriefingContributorTimeoutMs: { IsOverridden: timeout !== undefined },
-                    BriefingMaxContributorChars: { IsOverridden: maxChars !== undefined },
-                },
-                ResolvedAtISO: options?.ResolvedAtISO ?? new Date().toISOString(),
-            };
-        },
-    };
-}
 
 interface BriefingSamplePayload {
     Success: boolean;
@@ -68,32 +15,15 @@ interface BriefingSamplePayload {
 }
 
 describe('BriefingLimitsHelper & TasksLimitsResolver briefing overrides', () => {
-    let mjBridge: TestMjLimitsBridge;
-    let usingRealMjResolver = false;
-
     beforeEach(() => {
-        usingRealMjResolver = false;
-        TasksLimitsResolver.SetMjLimitsResolver(null);
-        const realInstance = ReadOptionalMjLimitsResolverInstance();
-        if (realInstance && isTestMjLimitsBridge(realInstance)) {
-            mjBridge = realInstance;
-            usingRealMjResolver = true;
-        }
-        if (!usingRealMjResolver) {
-            mjBridge = createInMemoryMjLimitsBridge();
-            TasksLimitsResolver.SetMjLimitsResolver(mjBridge);
-        }
         TasksLimitsResolver.Instance.ClearConfigOverrides();
-        mjBridge.ClearMjConfigLimits();
+        LimitsConfigResolver.Instance.ClearMjConfigLimits();
         TasksLimitsResolver.Instance.InvalidateCache();
     });
 
     afterEach(() => {
         TasksLimitsResolver.Instance.ClearConfigOverrides();
-        mjBridge.ClearMjConfigLimits();
-        if (!usingRealMjResolver) {
-            TasksLimitsResolver.SetMjLimitsResolver(null);
-        }
+        LimitsConfigResolver.Instance.ClearMjConfigLimits();
         TasksLimitsResolver.Instance.InvalidateCache();
     });
 
@@ -114,7 +44,7 @@ describe('BriefingLimitsHelper & TasksLimitsResolver briefing overrides', () => 
     });
 
     it('honors TasksLimitsResolver AppConfig overrides and MJ LimitsConfigResolver propagation', () => {
-        mjBridge.RegisterMjConfigLimits({
+        LimitsConfigResolver.Instance.RegisterMjConfigLimits({
             BriefingContributorTimeoutMs: 4200,
             BriefingMaxContributorChars: 6400,
         });

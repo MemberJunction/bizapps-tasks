@@ -18,7 +18,7 @@ vi.mock('@memberjunction/global', async (importOriginal) => ({
     RegisterClass: () => () => {},
 }));
 
-vi.mock('@memberjunction/core', () => {
+vi.mock('@memberjunction/core', async (importOriginal) => {
     class FakeBaseRemotableOperation<TIn = unknown, TOut = unknown> {
         public async Execute(
             input: TIn,
@@ -39,7 +39,7 @@ vi.mock('@memberjunction/core', () => {
             super(message);
         }
     }
-    return {
+    return { ...(await importOriginal<typeof import('@memberjunction/core')>()),
         BaseEntity: class {},
         BaseEngine: class {
             public static getInstance() {

@@ -27,7 +27,7 @@ const { db, saved, registrations } = vi.hoisted(() => ({
     registrations: [] as Array<{ key: string; metadata?: Record<string, unknown> }>,
 }));
 
-vi.mock('@memberjunction/core', () => ({
+vi.mock('@memberjunction/core', async (importOriginal) => ({ ...(await importOriginal<typeof import('@memberjunction/core')>()),
     LogError: vi.fn(),
     RunView: {
         FromMetadataProvider: () => ({
@@ -40,7 +40,7 @@ vi.mock('@memberjunction/core', () => ({
     },
 }));
 
-vi.mock('@memberjunction/global', () => ({
+vi.mock('@memberjunction/global', async (importOriginal) => ({ ...(await importOriginal<typeof import('@memberjunction/global')>()),
     EscapeSQLString: (v: string) => v.replace(/'/g, "''"),
     UUIDsEqual: (a: string | null | undefined, b: string | null | undefined) => !!a && !!b && a.toLowerCase() === b.toLowerCase(),
     RegisterClassEx: (_base: unknown, options: { key: string; metadata?: Record<string, unknown> }) => () => {

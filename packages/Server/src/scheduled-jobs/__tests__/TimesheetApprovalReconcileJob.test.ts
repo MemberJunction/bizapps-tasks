@@ -7,19 +7,19 @@ const { runViewMock, applyOutcomeMock } = vi.hoisted(() => ({
     applyOutcomeMock: vi.fn(),
 }));
 
-vi.mock('@memberjunction/global', () => ({
+vi.mock('@memberjunction/global', async (importOriginal) => ({ ...(await importOriginal<typeof import('@memberjunction/global')>()),
     RegisterClass: () => () => {},
     IsValidUUID: (v: string) =>
         typeof v === 'string' &&
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9-a-f]{4}-[0-9a-f]{12}$/i.test(v),
 }));
 
-vi.mock('@memberjunction/core', () => {
+vi.mock('@memberjunction/core', async (importOriginal) => {
     class FakeValidationResult {
         public Success = true;
         public Errors: unknown[] = [];
     }
-    return {
+    return { ...(await importOriginal<typeof import('@memberjunction/core')>()),
         BaseEngine: class {
             public static getInstance() {
                 return {};

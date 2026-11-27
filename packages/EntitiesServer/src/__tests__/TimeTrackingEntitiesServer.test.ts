@@ -95,7 +95,7 @@ vi.mock('@mj-biz-apps/tasks-core', async (importOriginal) => {
     };
 });
 
-vi.mock('@memberjunction/core', () => {
+vi.mock('@memberjunction/core', async (importOriginal) => {
     class ValidationResult {
         Success = true;
         Errors: Array<{ Source: string; Message: string; Value: unknown }> = [];
@@ -125,7 +125,7 @@ vi.mock('@memberjunction/core', () => {
         EntityByID: (id: string) =>
             id === PEOPLE_ID ? { Name: 'MJ_BizApps_Common: People', ParentChain: [] } : null,
     };
-    return {
+    return { ...(await importOriginal<typeof import('@memberjunction/core')>()),
         BaseEntity: class {},
         BaseEntityResult,
         BaseEngine: class {
