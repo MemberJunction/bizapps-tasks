@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const runViewMock = vi.fn();
 const recordEventMock = vi.fn();
 
-vi.mock('@memberjunction/core', () => ({
+vi.mock('@memberjunction/core', async (importOriginal) => ({ ...(await importOriginal<typeof import('@memberjunction/core')>()),
     RunView: class {
         RunView(params: { EntityName: string; ExtraFilter: string; Fields?: string[]; ResultType?: string; MaxRows?: number }) {
             return runViewMock(params);

@@ -49,7 +49,7 @@ vi.mock('@memberjunction/global', async (importOriginal) => {
   };
 });
 
-vi.mock('@memberjunction/core', () => ({
+vi.mock('@memberjunction/core', async (importOriginal) => ({ ...(await importOriginal<typeof import('@memberjunction/core')>()),
   BaseEntity: class {},
   BaseEngine: class {
     public static getInstance() {

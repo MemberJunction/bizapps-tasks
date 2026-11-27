@@ -5,7 +5,7 @@ const runViewMock = vi.fn();
 const getEntityObjectMock = vi.fn();
 const runViewProviders: unknown[] = [];
 
-vi.mock('@memberjunction/core', () => ({
+vi.mock('@memberjunction/core', async (importOriginal) => ({ ...(await importOriginal<typeof import('@memberjunction/core')>()),
   RunView: class {
     constructor(provider?: unknown) {
       runViewProviders.push(provider);

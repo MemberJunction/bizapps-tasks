@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const runViewMock = vi.fn();
 
-vi.mock('@memberjunction/core', () => ({
+vi.mock('@memberjunction/core', async (importOriginal) => ({ ...(await importOriginal<typeof import('@memberjunction/core')>()),
     RunView: { FromMetadataProvider: () => ({ RunView: (...args: unknown[]) => runViewMock(...args) }) },
     Metadata: { Provider: {} },
     BaseEntity: class {},

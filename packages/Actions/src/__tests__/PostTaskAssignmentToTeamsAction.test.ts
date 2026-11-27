@@ -13,11 +13,11 @@ const { runView, logStatus, engine } = vi.hoisted(() => ({
 
 vi.mock('@memberjunction/actions-base', () => ({}));
 vi.mock('@memberjunction/actions', () => ({ BaseAction: class {} }));
-vi.mock('@memberjunction/global', () => ({
+vi.mock('@memberjunction/global', async (importOriginal) => ({ ...(await importOriginal<typeof import('@memberjunction/global')>()),
     RegisterClass: () => () => {},
     IsValidUUID: (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
 }));
-vi.mock('@memberjunction/core', () => ({ RunView: class { RunView = runView; }, LogStatus: logStatus }));
+vi.mock('@memberjunction/core', async (importOriginal) => ({ ...(await importOriginal<typeof import('@memberjunction/core')>()), RunView: class { RunView = runView; }, LogStatus: logStatus }));
 vi.mock('@memberjunction/credentials', () => ({ CredentialEngine: { Instance: engine } }));
 
 import { PostTaskAssignmentToTeamsAction } from '../custom/PostTaskAssignmentToTeamsAction.js';

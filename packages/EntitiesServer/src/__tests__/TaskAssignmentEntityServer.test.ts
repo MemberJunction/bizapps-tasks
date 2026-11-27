@@ -75,7 +75,7 @@ vi.mock('@memberjunction/core-entities', () => ({
     },
 }));
 
-vi.mock('@memberjunction/core', () => {
+vi.mock('@memberjunction/core', async (importOriginal) => {
     class ValidationResult { Success = true; Errors: Array<{ Message: string }> = []; }
     class ValidationErrorInfo { constructor(public Source: string, public Message: string, public Value: unknown) {} }
     class BaseEntityResult { Success = true; Type = ''; Message = ''; EndedAt: Date | null = null; }
@@ -84,7 +84,7 @@ vi.mock('@memberjunction/core', () => {
         EntityByID: (id: string) => (id === PEOPLE_ID ? { Name: 'MJ_BizApps_Common: People', ParentChain: [] } : id === USERS_ID ? { Name: 'MJ: Users', ParentChain: [] } : null),
         EntityByName: (name: string) => (name === 'MJ: Users' ? { ID: USERS_ID } : name === 'MJ: Roles' ? { ID: ROLES_ID } : null),
     };
-    return {
+    return { ...(await importOriginal<typeof import('@memberjunction/core')>()),
         BaseEntity: class {},
         BaseEngine: class {
             public static getInstance() {

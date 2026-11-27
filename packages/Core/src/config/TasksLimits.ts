@@ -20,8 +20,12 @@
  * @module @mj-biz-apps/tasks-core
  */
 
-import * as mjCore from '@memberjunction/core';
-import * as mjGlobal from '@memberjunction/global';
+import {
+    LimitsConfigResolver,
+    type MJLimitsConfig,
+    type MJLimitsOverride,
+} from '@memberjunction/core';
+import { BaseSingleton, IsPlainObject } from '@memberjunction/global';
 
 /** Recursive JSON-compatible scalar/object input value accepted by {@link NormalizeTasksLimitsInput}. */
 export type TasksLimitsJsonScalar = string | number | boolean | null | undefined;
@@ -301,48 +305,12 @@ export interface TasksLimitsKeyProvenance {
     TierValues: Partial<Record<TasksLimitsSourceTier, number>>;
 }
 
-/** Subset of `@memberjunction/core` `MJLimitsConfig` bridged into Tasks briefing limits. */
-export interface TasksMjLimitsSnapshot {
-    BriefingContributorTimeoutMs: number;
-    BriefingMaxContributorChars: number;
-}
-
-/** Subset of `@memberjunction/core` `MJLimitsOverride` accepted by {@link TasksLimitsResolver.Resolve}. */
-export interface TasksMjLimitsOverride {
-    BriefingContributorTimeoutMs?: number;
-    BriefingMaxContributorChars?: number;
-}
-
-/** Provenance entry subset returned by `@memberjunction/core` `LimitsConfigResolver.Resolve`. */
-export interface MjLimitsFallbackProvenanceEntry {
-    IsOverridden: boolean;
-}
-
-/** Structural snapshot returned by `@memberjunction/core` `LimitsConfigResolver.Resolve`. */
-export interface MjLimitsResolutionSnapshot {
-    Limits: TasksMjLimitsSnapshot;
-    Provenance: {
-        BriefingContributorTimeoutMs?: MjLimitsFallbackProvenanceEntry;
-        BriefingMaxContributorChars?: MjLimitsFallbackProvenanceEntry;
-    };
-    ResolvedAtISO: string;
-}
-
-/** Structural interface matching `@memberjunction/core`'s `LimitsConfigResolver.Instance`. */
-export interface MjLimitsResolverInstanceLike {
-    GetMjConfigLimits(): TasksMjLimitsOverride | null;
-    Resolve(
-        input?: { MjConfig?: TasksMjLimitsOverride },
-        options?: { ResolvedAtISO?: string },
-    ): MjLimitsResolutionSnapshot | object;
-}
-
 /**
  * Complete output returned by {@link TasksLimitsResolver.Resolve}.
  */
 export interface TasksLimitsResolutionResult {
     Limits: TasksLimitsConfig;
-    MjLimits: TasksMjLimitsSnapshot;
+    MjLimits: MJLimitsConfig;
     Provenance: Record<TasksLimitsKeyPath, TasksLimitsKeyProvenance>;
     OverriddenKeys: TasksLimitsKeyPath[];
     ClampedKeys: TasksLimitsKeyPath[];
@@ -354,7 +322,7 @@ export interface TasksLimitsResolutionResult {
  */
 export interface TasksLimitsResolutionInput {
     CodeFallback?: TasksLimitsOverride;
-    MjLimits?: TasksMjLimitsOverride;
+    MjLimits?: MJLimitsOverride;
     /** Explicit environment map override (`null` disables automatic `process.env` reading). */
     Env?: TasksLimitsEnvSource | null;
     AppConfig?: TasksLimitsOverride;
@@ -663,14 +631,7 @@ interface SanitizedLayer {
 const STRICT_NUMERIC_STRING_RE = /^[+-]?(?:\d+\.?\d*|\.\d+)$/;
 
 function isJsonObject(value: TasksLimitsJsonValue | undefined): value is TasksLimitsJsonObject {
-    if (Object.prototype.hasOwnProperty.call(mjGlobal, 'IsPlainObject') && typeof mjGlobal.IsPlainObject === 'function') {
-        return mjGlobal.IsPlainObject(value);
-    }
-    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-        return false;
-    }
-    const proto = Object.getPrototypeOf(value);
-    return proto === null || proto === Object.prototype;
+    return IsPlainObject(value);
 }
 
 function readObjectProperty(obj: TasksLimitsJsonObject, names: readonly string[]): TasksLimitsJsonValue | undefined {
@@ -924,7 +885,7 @@ function cloneDefaultTasksLimits(): TasksLimitsConfig {
 }
 
 function buildMjBridgeLayer(
-    mjResult: TasksMjLimitsSnapshot,
+    mjResult: MJLimitsConfig,
     mjLimitsResolverHasOverride: boolean,
     clampedKeys: Set<TasksLimitsKeyPath>,
 ): TasksLimitsOverride | null {
@@ -1123,206 +1084,23 @@ export function ValidateTasksLimitsConfig(config: TasksLimitsConfig): TasksLimit
     return { Valid: issues.length === 0, Issues: issues };
 }
 
-const TASKS_LIMITS_SINGLETON_KEY = '__mj_biz_apps_tasks_TasksLimitsResolver__';
-let fallbackTasksLimitsResolver: TasksLimitsResolver | null = null;
-let customMjLimitsResolverOverride: MjLimitsResolverInstanceLike | null = null;
-
-type RuntimeDynamicValue = object | string | number | boolean | symbol | bigint | null | undefined;
-
-function readDynamicMember(target: object, memberName: string): RuntimeDynamicValue {
-    const val: RuntimeDynamicValue = Reflect.get(target, memberName);
-    return val;
-}
-
-function isObjectLike(value: RuntimeDynamicValue): value is object {
-    return value !== null && (typeof value === 'object' || typeof value === 'function');
-}
-
-function isRecordObject(value: RuntimeDynamicValue): value is object {
-    return value !== null && typeof value === 'object';
-}
-
-function readFinitePositiveNumber(value: RuntimeDynamicValue): number | undefined {
-    return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined;
-}
-
-function readProvenanceIsOverridden(provenanceObj: object, keys: readonly string[]): boolean {
-    for (const key of keys) {
-        const entry = readDynamicMember(provenanceObj, key);
-        if (isRecordObject(entry) && readDynamicMember(entry, 'IsOverridden') === true) {
-            return true;
-        }
-    }
-    return false;
-}
-
-function isMjLimitsResolverInstanceLike(candidate: object): candidate is MjLimitsResolverInstanceLike {
-    return (
-        typeof readDynamicMember(candidate, 'GetMjConfigLimits') === 'function' &&
-        typeof readDynamicMember(candidate, 'Resolve') === 'function'
-    );
-}
-
 /**
- * Safely reads `@memberjunction/core`'s `LimitsConfigResolver.Instance` (or global-store
- * fallback) without casting `typeof mjCore` directly, avoiding `TS2352` if `MJ` `next`
- * evolves `LimitsConfigResolver`'s TypeScript signatures.
+ * Hierarchical resolver for BizApps Tasks limits backed by `BaseSingleton` and
+ * integrated directly with `@memberjunction/core`'s {@link LimitsConfigResolver}.
  */
-export function ReadOptionalMjLimitsResolverInstance(): MjLimitsResolverInstanceLike | undefined {
-    if (customMjLimitsResolverOverride) {
-        return customMjLimitsResolverOverride;
-    }
-    if (Object.prototype.hasOwnProperty.call(mjCore, 'LimitsConfigResolver')) {
-        const resolverExport = readDynamicMember(mjCore, 'LimitsConfigResolver');
-        if (isObjectLike(resolverExport)) {
-            const resolverInstance = readDynamicMember(resolverExport, 'Instance');
-            if (isRecordObject(resolverInstance) && isMjLimitsResolverInstanceLike(resolverInstance)) {
-                return resolverInstance;
-            }
-        }
-    }
-    if (
-        Object.prototype.hasOwnProperty.call(mjGlobal, 'GetGlobalObjectStore') &&
-        typeof mjGlobal.GetGlobalObjectStore === 'function'
-    ) {
-        const store = mjGlobal.GetGlobalObjectStore();
-        if (store && typeof store === 'object') {
-            const candidate = store['__mj_LimitsConfigResolver__'] ?? store['LimitsConfigResolver'];
-            if (candidate && typeof candidate === 'object' && isMjLimitsResolverInstanceLike(candidate)) {
-                return candidate;
-            }
-        }
-    }
-    return undefined;
-}
-
-function getMjLimitsConfigSafely(): TasksMjLimitsOverride | null {
-    const resolver = ReadOptionalMjLimitsResolverInstance();
-    return resolver ? resolver.GetMjConfigLimits() : null;
-}
-
-function normalizeMjLimitsResolutionSnapshot(
-    rawSnapshot: object,
-    inputMjConfig: TasksMjLimitsOverride | undefined,
-    fallbackIso: string,
-): MjLimitsResolutionSnapshot {
-    const rawLimits = readDynamicMember(rawSnapshot, 'Limits');
-    const limitsObj = isRecordObject(rawLimits) ? rawLimits : undefined;
-    const rawBriefing = limitsObj ? readDynamicMember(limitsObj, 'Briefing') : undefined;
-    const briefingObj = isRecordObject(rawBriefing) ? rawBriefing : undefined;
-
-    const timeoutFromMj =
-        (limitsObj ? readFinitePositiveNumber(readDynamicMember(limitsObj, 'BriefingContributorTimeoutMs')) : undefined) ??
-        (briefingObj ? readFinitePositiveNumber(readDynamicMember(briefingObj, 'ContributorTimeoutMs')) : undefined);
-    const maxCharsFromMj =
-        (limitsObj ? readFinitePositiveNumber(readDynamicMember(limitsObj, 'BriefingMaxContributorChars')) : undefined) ??
-        (briefingObj ? readFinitePositiveNumber(readDynamicMember(briefingObj, 'MaxContributorChars')) : undefined);
-
-    const rawProvenance = readDynamicMember(rawSnapshot, 'Provenance');
-    const provenanceObj = isRecordObject(rawProvenance) ? rawProvenance : undefined;
-    const timeoutOverridden = provenanceObj
-        ? readProvenanceIsOverridden(provenanceObj, ['BriefingContributorTimeoutMs', 'Briefing.ContributorTimeoutMs'])
-        : false;
-    const maxCharsOverridden = provenanceObj
-        ? readProvenanceIsOverridden(provenanceObj, ['BriefingMaxContributorChars', 'Briefing.MaxContributorChars'])
-        : false;
-
-    const rawIso = readDynamicMember(rawSnapshot, 'ResolvedAtISO');
-    const resolvedAtISO = typeof rawIso === 'string' && rawIso.length > 0 ? rawIso : fallbackIso;
-
-    return {
-        Limits: {
-            BriefingContributorTimeoutMs:
-                timeoutFromMj ??
-                inputMjConfig?.BriefingContributorTimeoutMs ??
-                CODE_FALLBACK_TASKS_LIMITS.Briefing.ContributorTimeoutMs,
-            BriefingMaxContributorChars:
-                maxCharsFromMj ??
-                inputMjConfig?.BriefingMaxContributorChars ??
-                CODE_FALLBACK_TASKS_LIMITS.Briefing.MaxContributorChars,
-        },
-        Provenance: {
-            BriefingContributorTimeoutMs: {
-                IsOverridden: timeoutOverridden || inputMjConfig?.BriefingContributorTimeoutMs !== undefined,
-            },
-            BriefingMaxContributorChars: {
-                IsOverridden: maxCharsOverridden || inputMjConfig?.BriefingMaxContributorChars !== undefined,
-            },
-        },
-        ResolvedAtISO: resolvedAtISO,
-    };
-}
-
-function resolveMjLimitsSafely(
-    input?: { MjConfig?: TasksMjLimitsOverride },
-    options?: { ResolvedAtISO?: string },
-): MjLimitsResolutionSnapshot {
-    const fallbackIso = options?.ResolvedAtISO ?? new Date().toISOString();
-    const resolver = ReadOptionalMjLimitsResolverInstance();
-    if (resolver) {
-        const rawSnapshot = resolver.Resolve(input, options);
-        if (isRecordObject(rawSnapshot)) {
-            return normalizeMjLimitsResolutionSnapshot(rawSnapshot, input?.MjConfig, fallbackIso);
-        }
-    }
-    return {
-        Limits: {
-            BriefingContributorTimeoutMs:
-                input?.MjConfig?.BriefingContributorTimeoutMs ?? CODE_FALLBACK_TASKS_LIMITS.Briefing.ContributorTimeoutMs,
-            BriefingMaxContributorChars:
-                input?.MjConfig?.BriefingMaxContributorChars ?? CODE_FALLBACK_TASKS_LIMITS.Briefing.MaxContributorChars,
-        },
-        Provenance: {
-            BriefingContributorTimeoutMs: { IsOverridden: input?.MjConfig?.BriefingContributorTimeoutMs !== undefined },
-            BriefingMaxContributorChars: { IsOverridden: input?.MjConfig?.BriefingMaxContributorChars !== undefined },
-        },
-        ResolvedAtISO: fallbackIso,
-    };
-}
-
-/**
- * Hierarchical resolver for BizApps Tasks limits backed by `@memberjunction/global`'s
- * global object store and integrated with `@memberjunction/core`'s {@link LimitsConfigResolver}.
- */
-export class TasksLimitsResolver {
+export class TasksLimitsResolver extends BaseSingleton<TasksLimitsResolver> {
     private registeredAppConfig: TasksLimitsOverride | null = null;
     private registeredAppConfigClamped: Set<TasksLimitsKeyPath> = new Set();
     private cachedDefaultResult: TasksLimitsResolutionResult | null = null;
-    private cachedMjConfigRef: TasksMjLimitsOverride | null = null;
+    private cachedMjConfigRef: MJLimitsOverride | null = null;
 
-    public constructor() {}
+    public constructor() {
+        super();
+    }
 
     /** Returns the process-wide singleton {@link TasksLimitsResolver}. */
     public static get Instance(): TasksLimitsResolver {
-        if (
-            Object.prototype.hasOwnProperty.call(mjGlobal, 'GetGlobalObjectStore') &&
-            typeof mjGlobal.GetGlobalObjectStore === 'function'
-        ) {
-            const store = mjGlobal.GetGlobalObjectStore();
-            if (store && typeof store === 'object') {
-                const existing = store[TASKS_LIMITS_SINGLETON_KEY];
-                if (existing instanceof TasksLimitsResolver) {
-                    return existing;
-                }
-                const created = new TasksLimitsResolver();
-                store[TASKS_LIMITS_SINGLETON_KEY] = created;
-                return created;
-            }
-        }
-        if (!fallbackTasksLimitsResolver) {
-            fallbackTasksLimitsResolver = new TasksLimitsResolver();
-        }
-        return fallbackTasksLimitsResolver;
-    }
-
-    /**
-     * Registers an explicit {@link MjLimitsResolverInstanceLike} bridge (or `null` to restore
-     * automatic `@memberjunction/core` `LimitsConfigResolver` lookup) and invalidates the
-     * memoized snapshot.
-     */
-    public static SetMjLimitsResolver(resolver: MjLimitsResolverInstanceLike | null): void {
-        customMjLimitsResolverOverride = resolver;
-        TasksLimitsResolver.Instance.InvalidateCache();
+        return TasksLimitsResolver.getInstance<TasksLimitsResolver>();
     }
 
     /**
@@ -1376,7 +1154,7 @@ export class TasksLimitsResolver {
      * without repeated resolution overhead when neither `LimitsConfigResolver` nor `AppConfig` changed.
      */
     public GetCurrentLimits(): TasksLimitsConfig {
-        const currentMjConfig = getMjLimitsConfigSafely();
+        const currentMjConfig = LimitsConfigResolver.Instance.GetMjConfigLimits();
         if (this.cachedDefaultResult && this.cachedMjConfigRef === currentMjConfig) {
             return this.cachedDefaultResult.Limits;
         }
@@ -1396,7 +1174,7 @@ export class TasksLimitsResolver {
         input: TasksLimitsResolutionInput = {},
         options: TasksLimitsResolveOptions = {},
     ): TasksLimitsResolutionResult {
-        const mjResult = resolveMjLimitsSafely(
+        const mjResult = LimitsConfigResolver.Instance.Resolve(
             input.MjLimits ? { MjConfig: input.MjLimits } : undefined,
             options.ResolvedAtISO ? { ResolvedAtISO: options.ResolvedAtISO } : undefined,
         );

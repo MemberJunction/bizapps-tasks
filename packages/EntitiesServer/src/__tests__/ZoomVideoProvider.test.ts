@@ -3,12 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const configMock = vi.fn();
 const getCredentialMock = vi.fn();
 
-vi.mock('@memberjunction/global', () => ({
+vi.mock('@memberjunction/global', async (importOriginal) => ({ ...(await importOriginal<typeof import('@memberjunction/global')>()),
     RegisterClass: () => () => {},
     MJGlobal: { Instance: { ClassFactory: { CreateInstance: () => null } } },
 }));
 
-vi.mock('@memberjunction/core', () => ({
+vi.mock('@memberjunction/core', async (importOriginal) => ({ ...(await importOriginal<typeof import('@memberjunction/core')>()),
     LogError: vi.fn(),
 }));
 
