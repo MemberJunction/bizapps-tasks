@@ -24,7 +24,7 @@ import {
     TASK_TYPE_ENTITY,
     TASK_TYPE_STATUS_ENTITY,
 } from '../entity-names.js';
-import { FindId, FindRows, Quote, RequireSave, VouchForSeed } from '../wire.js';
+import { FindId, FindRows, Quote, RequireSave } from '../wire.js';
 import { SetWorld, type WorldState } from './world.js';
 
 const WORLD_DOMAIN = 'task-world.test';
@@ -602,7 +602,6 @@ async function upsertTask(
     task.Status = fields.Status;
     task.Priority = fields.Priority;
     task.PercentComplete = fields.PercentComplete;
-    if (fields.CreatedByPersonID) VouchForSeed(task, 'AuthorizeCreatorOnBehalf');
     await RequireSave(task, `task ${fields.Name}`);
     return task.ID;
 }
