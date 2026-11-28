@@ -65,6 +65,22 @@
             [EditMode]="EditMode"
             [FormContext]="formContext"
         ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="IsApproval"
+            Type="checkbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
+        <mj-form-field 
+            [Record]="record"
+            [ShowLabel]="true"
+            FieldName="ExtensionEntity"
+            Type="textbox"
+            [EditMode]="EditMode"
+            [FormContext]="formContext"
+        ></mj-form-field>
 
     </mj-collapsible-panel>
 
@@ -160,7 +176,7 @@
         <mj-form-field 
             [Record]="record"
             [ShowLabel]="false"
-            FieldName="IsApproval"
+            FieldName="RequiresAssigneeDecision"
             Type="checkbox"
             [EditMode]="EditMode"
             [FormContext]="formContext"
@@ -254,7 +270,7 @@
     <mj-collapsible-panel
         SectionKey="mJBizAppsTasksTaskTemplates"
         SectionName="Task Templates"
-        Icon="fa fa-table"
+        Icon="fa fa-tasks"
         Variant="related-entity"
         [Form]="this"
         [FormContext]="formContext"

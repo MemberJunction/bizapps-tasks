@@ -1,11 +1,10 @@
 import { BaseEntity, ValidationErrorInfo, ValidationErrorType, type EntityDeleteOptions, type EntitySaveOptions, type IMetadataProvider, type ValidationResult } from '@memberjunction/core';
 import { RegisterClass } from '@memberjunction/global';
 import { mjBizAppsTasksMeetingAttendeeEntity, mjBizAppsTasksMeetingEntity, mjBizAppsTasksMeetingSeriesAttendeeEntity, mjBizAppsTasksMeetingSeriesEntity } from '@mj-biz-apps/tasks-entities';
-import { MEETING_ATTENDEE_ENTITY, MEETING_ENTITY, MEETING_SERIES_ATTENDEE_ENTITY, MEETING_SERIES_ENTITY, userIdForPerson } from '@mj-biz-apps/tasks-core';
+import { MEETING_ATTENDEE_ENTITY, MEETING_ENTITY, MEETING_SERIES_ATTENDEE_ENTITY, MEETING_SERIES_ENTITY, TasksSettings, userIdForPerson } from '@mj-biz-apps/tasks-core';
 import { runAfterCommit } from './after-commit.js';
 import { MeetingCalendarSyncService } from './calendar/MeetingCalendarSyncService.js';
 import { callerOwnsMeeting, meetingCaller, movedFromMeetingRefusal } from './meeting-caller.js';
-import { TasksSettings } from './TasksSettings.js';
 
 const CALENDAR_SYNC_ATTENDEE_FIELDS = new Set(['PersonID', 'Email', 'DisplayName', 'Role']);
 

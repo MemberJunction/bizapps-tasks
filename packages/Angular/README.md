@@ -1,14 +1,26 @@
 # @mj-biz-apps/tasks-ng
 
-Reusable Angular components, forms, and full Dashboard UI for BizApps Tasks.
+Reusable Angular components, generated forms, custom form panels, and dashboard sections for BizApps Tasks.
 
-## Components
+## Task Management Components
 
-- `<bizapps-task-list>`: Embeddable, filterable task grid with multi-select and before/after events.
-- `<bizapps-my-tasks>`: Personalized view of current user's tasks.
-- `<bizapps-task-detail-panel>`: Read-only slide-in detail panel with activity and comment streams.
-- `<bizapps-task-edit-panel>`: Create/edit slide-in form panel.
-- `<bizapps-task-kanban>`: Drag-and-drop Kanban board by status.
-- `<bizapps-task-gantt>`: DHTMLX-powered interactive Gantt chart.
-- `<bizapps-task-template-wizard>`: Multi-step wizard for template instantiation.
-- `<bizapps-task-dashboard>`: Comprehensive tasks application shell.
+- `<bizapps-tasks-dashboard-page>`: Projects & All Work shell built on `<mj-page-layout>` / `<mj-page-header>` / `<mj-page-body>`, collapsible `<mj-left-nav>` category rail, unified `<mj-filter-panel>` (**Assignee**, **Due Date**, **Organization / Company**, Status, Priority, Task Type), `⌘J` command palette, and `UserInfoEngine`-persisted view preferences.
+- `<bizapps-task-list>`: Calm hierarchical WBS tree list with Organization badges, rich Assignee chips (avatar + short name + `+N` + MJ Role pills), completion rings, `TaskTypeStatus` stage pills, Shift+click range selection, and Asana-grade `<mjt-bulk-action-dock>` backed by `BizAppsTasks.BulkUpdateTasks`.
+- `<bizapps-my-tasks>`: Action Horizons personal workspace (`Needs Your Decision`, `Focus Today`, `Blocked & Waiting`, `Coming Up`) with `<mjt-quick-capture>` and `<mjt-urgency-strip>`.
+- `<bizapps-task-detail-panel>`: Zero-bounce slide-in inspector (`<mj-slide-panel>` on desktop, `<mj-bottom-sheet>` on phone) with inline Status, Priority, Due Date, and **Organization / Company** editing, `<mjt-workflow-stepper>`, Effort Burn, `<bizapps-task-time-effort>`, assignees, sub-tasks, and linked records.
+- `<bizapps-task-edit-panel>`: Express Create drawer with TaskType progressive archetype disclosure, Organization / Company selector, and atomic `RelatedRecordCollection` saves.
+- `<bizapps-task-kanban>`: 5-mode smart Kanban board (`<mj-kanban-board>`) grouped by **Organization / Company**, Macro Status, Workflow Stages (`TaskTypeStatus`), Priority, or Assignee.
+- `<bizapps-task-gantt>`: Critical-path DHTMLX Gantt timeline (`<mj-gantt-chart>`) with dedicated **`Assignee`** and **`Organization`** columns, Finish-to-Start dependency arrows, unified filters, and automatic `<mjt-mobile-milestone-stack>` phone swap.
+- `<bizapps-task-template-wizard>`: 1-screen Playbook Launcher with Organization / Company scoping, People/MJ Role pickers, and live offset schedule preview backed by `BizAppsTasks.InstantiateTemplate`.
+- `<bizapps-task-dashboard>`: Comprehensive embeddable tasks application shell.
+
+## Time Tracking, AI Agent Effort & Timesheet Components
+
+- `<mj-tasks-running-timer-chip>` (`RunningTimerChipComponent`): Live `HH:MM:SS` running timer badge mounted in Tasks section headers with quick **Stop**, **Open Task**, and **Discard** actions.
+- `<mj-tasks-time-and-effort-panel>` (`TaskTimeAndEffortPanelComponent`): Custom `BaseFormPanel` (`@RegisterClass(BaseFormPanel, 'MJ_BizApps_Tasks: Tasks.timeAndEffort')`) displaying human hours vs. estimate, start/stop timer button, manual time entry editor, logged entries table, and AI agent effort summary with run-linking picker.
+- `<mj-tasks-my-time-section>` (`TasksMyTimeSectionComponent`): Full **My Time** dashboard section (`@RegisterClass(BaseResourceComponent, 'TasksMyTimeSection')`) featuring:
+  - **Weekly Grid**: 7-day task-by-day editable time matrix with daily/weekly totals, add-task row, and timer controls.
+  - **Timesheet Period View**: Period selector (`Weekly`, `BiWeekly`, `SemiMonthly`, `Monthly`), status badge, project approval parts breakdown, **Submit**, **Withdraw**, and **Reopen** (for `Manage Timesheets` holders) actions.
+- `BaseApprovalSubjectPanel`: Abstract `ClassFactory` extension point rendered inside `<mj-tasks-approval-decision-panel>` when an approval task's `TaskType.Code` matches a registered panel key.
+- `<mj-tasks-timesheet-part-approval-panel>` (`TimesheetPartApprovalPanelComponent`): `@RegisterClass(BaseApprovalSubjectPanel, 'TIMESHEET_APPROVAL')` displaying a timesheet part's worker, period, scope, entries table, and row-level-security hidden-entry notice inside Approvals.
+- `TasksTimeTrackingService`: Shared Angular service wrapping `ExecuteRemoteOperation` (`Tasks.StartTimer`, `Tasks.StopTimer`, `Tasks.SubmitTimesheet`, `Tasks.WithdrawTimesheet`, `Tasks.ReopenTimesheet`, `Tasks.GetTaskEffort`) and reactive running-timer state.

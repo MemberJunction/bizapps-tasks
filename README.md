@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  <img alt="MJ Version" src="https://img.shields.io/badge/MemberJunction-6.1.6%2B-blue?style=flat-square" />
+  <img alt="MJ Version" src="https://img.shields.io/badge/MemberJunction-6.2.0%2B-blue?style=flat-square" />
   <img alt="Angular" src="https://img.shields.io/badge/Angular-21-DD0031?style=flat-square&logo=angular&logoColor=white" />
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript&logoColor=white" />
   <a href="./LICENSE"><img alt="License: BUSL-1.1" src="https://img.shields.io/badge/License-BUSL--1.1-green?style=flat-square" /></a>
@@ -46,10 +46,10 @@ mj app install https://github.com/MemberJunction/bizapps-tasks
 This single command:
 
 1. Fetches the `mj-app.json` manifest from this repository
-2. Validates MJ version compatibility (`>=6.1.6 <7.0.0`)
+2. Validates MJ version compatibility (`>=6.2.0 <7.0.0`)
 3. Installs the dependency [BizApps Common](https://github.com/MemberJunction/bizapps-common) if not already present
 4. Creates the `__mj_BizAppsTasks` database schema
-5. Runs Skyway migrations to create all 15 tables with seed data
+5. Runs Skyway migrations to create all 27 tables with seed data
 6. Installs npm packages into your MJAPI and MJExplorer workspaces
 7. Configures server bootstrap (`@mj-biz-apps/tasks-server`) in `mj.config.cjs`
 8. Adds client bootstrap (`@mj-biz-apps/tasks-ng`) to `open-app-bootstrap.generated.ts`
@@ -69,24 +69,30 @@ mj app remove bizapps-tasks     # Uninstall (--keep-data to preserve schema)
 
 ---
 
-## Architecture & Lifecycle Guide
+## Architecture & Lifecycle Guides
 
-For detailed deep-dives on **Task Types**, **Dynamic Task Type Statuses (`TaskTypeStatus`)**, **Event-Driven Action Hooks**, **Flow Agent Integration**, and **Multi-Domain Project Structures**, see the [**Task Workflow & Lifecycle Guide**](./guides/TASK_WORKFLOW_AND_LIFECYCLE_GUIDE.md).
+- [**Task Workflow & Lifecycle Guide**](./guides/TASK_WORKFLOW_AND_LIFECYCLE_GUIDE.md) — Deep dive on **Task Types**, **Dynamic Task Type Statuses (`TaskTypeStatus`)**, **Event-Driven Action Hooks**, **Flow Agent Integration**, and **Multi-Domain Project Structures**.
+- [**Work Bus Extensions, Field Suggestions & 15Five Work Reports Guide**](./guides/WORK_BUS_AND_15FIVE_REPORTS_GUIDE.md) — Declarative IS-A subtype extensions (`TaskType.ExtensionEntity` + `SubtypeSelector`), `FIELD_SUGGESTION` review chips on `Tasks`, and **15Five Work Reports** (`WorkReport`, `WorkReportItem`, Chief of Staff `Reports` resource, skill, and supervisor review handoff).
+- [**Time Tracking, AI Agent Effort & Timesheets Guide**](./guides/TIME_TRACKING_GUIDE.md) — User, host administrator, and developer guide covering **Live Task Timers (`TaskTimer`)**, **Manual & Weekly Time Logging (`TaskTimeEntry`)**, **AI Agent Effort & Cost Rollups (`TaskAgentRun`)**, **Multi-Project Timesheet Approvals (`Timesheet`, `TimesheetApproval`, `BaseTimeApproverResolver`)**, and **Shipped Reporting Queries**.
+- [**Tasks UX, Organization Scoping & Server-Side Bulk Operations Guide**](./guides/TASKS_UX_ORGANIZATION_AND_BULK_OPS_GUIDE.md) ([**Self-Contained Illustrated HTML Version w/ Embedded 2× Screenshots**](./guides/TASKS_UX_ORGANIZATION_AND_BULK_OPS_GUIDE.html)) — Golden Hybrid 3-layer WCAG 2.1 AA UX architecture (`My Work` default tab, `All Work` List/Board/Gantt, **UserInfoEngine Saved Filter Views**, shared **Multi-View Bulk Action Dock** across Tree List, Smart Board & Gantt, Zero-Bounce inline-saving Inspector, Express Create, Command Palette, Clean Selectable Approvals Split-Pane, Playbook Launcher, Dark Mode & Mobile `390px`), canonical **Organization / Company scoping** (`OrganizationID` on aggregate roots + parent inheritance), and **server-side Remotable Operations + Actions** (`BizAppsTasks.BulkUpdateTasks`, `BizAppsTasks.InstantiateTemplate`, `BizAppsTasks.RunRecurringPlaybooks`, `Run Recurring Playbooks`).
 
 ---
 
 ## What You Get
 
-### 26 Database Tables
+### 39 Database Tables
 
 All tables live in the `__mj_BizAppsTasks` SQL schema, deployed via migrations.
 
 | Category | Tables | Purpose |
 |----------|--------|---------|
-| **Core & Workflow** | Task, TaskType, TaskTypeStatus, TaskCategory, TaskRole | Work items, unique type codes, dynamic domain stages, and action hooks |
+| **Core & Workflow** | Task, TaskType, TaskTypeStatus, TaskCategory, TaskRole, TaskCheckIn, TaskDecision, TaskDecisionOutcome | Work items, IS-A `ExtensionEntity` subtype routing, dynamic domain stages, OKR check-ins, formal decisions, and action hooks |
+| **Reporting (15Five)** | WorkReport, WorkReportItem | Daily/weekly 5-minute work summaries (`Draft` -> `Submitted` -> `Reviewed`) and supervisor feedback routed via `MJ: Employees.SupervisorID` |
+| **Time & Effort** | TaskTimeEntry, TaskTimer, TaskAgentRun, TaskTimeEntryLink | Human time entries, running timers, AI agent run links, and external record locks (`R8`) |
+| **Timesheets & Approvals** | Timesheet, TimesheetApproval, TimesheetSchedule, TimesheetLink, TimeApprover | Period timesheets, per-project approval parts, cadence overrides, and polymorphic approver rules |
 | **Assignment** | TaskAssignment | Multi-person polymorphic assignment (People and AI Agents) |
 | **Linking** | TaskLink | Polymorphic attachment to any entity (contracts, orders, committees, meetings) |
-| **Collaboration** | TaskComment, TaskActivity | Threaded discussion and automatic server-authoritative audit log |
+| **Collaboration** | TaskComment, TaskActivity, TaskNotificationConfig, TaskNotificationLog | Threaded discussion, server-authoritative audit log, and notifications |
 | **Structure** | TaskDependency, TaskTag, TaskTagLink | Dependency graphs, critical paths, and cross-cutting labels |
 | **Templates** | TaskTemplate, TaskTemplateItem, TaskTemplateItemDependency, TaskTemplateItemRole | Reusable task structures for recurring workflows |
 | **Meetings** | Meeting, MeetingSeries, MeetingSeriesAttendee, MeetingAttendee, MeetingAgendaItem, MeetingAgendaItemType, MeetingNote, MeetingLink, MeetingType, VideoProvider | Meetings and agendas as a first-class app: one-off and recurring meetings, who is invited and whether they came, nested agendas with typed items, notes, what a meeting belongs to, and the video providers that host it. Follow-ups are tasks of the `ACTION_ITEM` type linked through `TaskLink`; a transcript is an MJ file; calendar events are MemberJunction's |
@@ -212,6 +218,32 @@ await svc.assignToTask({
 });
 ```
 
+### Approval Tasks: Who May Assign, Close and Create
+
+On a task whose type has `IsApproval` set, the server checks three writes, whoever makes them:
+
+- **Adding an assignee.** The person recorded as the task's creator names its approvers while the request is open. Anyone else needs the reassign right (the `ApprovalReassignRoles` setting; everyone holds it while the setting is empty) and can never add themselves, as a person, as a user, or through a role they hold.
+- **Closing the task.** `Completed` follows an approving decision, and `Cancelled` a rejecting one. With no such decision, only someone who could record the decision can complete the task, and a cancel is a withdrawal: the creator, an active assignee or a holder of the reassign right can make it, and it never approves anything. An approval task's type can't be changed to a type that isn't an approval.
+- **Naming the creator.** A new task's `CreatedByPersonID` is the person creating it, on every task type. Leave it empty and the server records them.
+
+A refused save returns `false` with the reason in `LatestResult.CompleteMessage`.
+
+Server code that decides these itself vouches for one save of one record, just before saving it:
+
+```typescript
+import {
+    SanctionApprovalAssignment,
+    SanctionApprovalWithdrawal,
+    SanctionOnBehalfCreator,
+} from '@mj-biz-apps/tasks-entities-server';
+
+SanctionOnBehalfCreator(task);          // the task is raised for someone else, or for nobody
+SanctionApprovalAssignment(assignment); // the server chose this assignee
+SanctionApprovalWithdrawal(task);       // the server is withdrawing a request it raised
+```
+
+Each returns `false` when the record isn't a server-side Tasks record. `TaskOrchestrationService.CreateTask` and `CreateApprovalRequest` take a `BeforeSave` callback, and `TaskAssignmentService.assignToTask` a `beforeSave` one, so a caller of the services can vouch without depending on the entity classes. Nothing vouches for completing an approval: that takes a decision, or a person who could record one. Use these only where the server decided what is written, never to pass along a value a caller supplied.
+
 ### Instantiating a Template
 
 ```typescript
@@ -334,6 +366,20 @@ npm run mj:codegen
 # Build all packages (Turborepo)
 npm run build
 ```
+
+---
+
+### Related-Record Collections & Lifecycle Ownership
+
+BizApps Tasks declares 15 database-backed (`Source: "database"`, `Load: "explicit"`) `RelatedRecordCollection` accessors in `metadata/entity-relationships/.entity-relationships.json` and emits matching strongly-typed `DeclareRelatedRecords<...>` properties on the generated entity subclasses:
+
+- **`mjBizAppsTasksTaskEntity`**: `Assignments`, `TagLinks`, `Links`, `Dependencies`, `Decisions` (`OnRemove: "refuse"`), `Comments`, `CheckIns`, `Activities`, `NotificationLogs`, `SubTasks` (`OnRemove: "orphan"`)
+- **`mjBizAppsTasksTaskTypeEntity`**: `Statuses` (auto-sequenced `Sequence` from `1`)
+- **`mjBizAppsTasksTaskTemplateEntity`**: `Items` (auto-sequenced `Sequence` from `1`)
+- **`mjBizAppsTasksTaskTemplateItemEntity`**: `Roles`, `Dependencies`
+- **`mjBizAppsTasksWorkReportEntity`**: `Items` (auto-sequenced `Sequence` from `1`)
+
+**Single-owner lifecycle action hook dispatch**: `TaskEntityServer` is the sole dispatcher for task lifecycle hooks (`OnCreate`, `OnStatusChange`, `OnEnterStatus`, `OnExitStatus`, `OnComplete`, `OnCancel`, `OnReject`, `OnPercentChange`), firing `OnReject` only on `Cancelled` tasks with a recorded `Rejected` decision (and `OnCancel` otherwise). `TaskNotificationHandler` handles user notifications and `OnAssignActionID` only, deferred via `RunAfterCommit`.
 
 ---
 

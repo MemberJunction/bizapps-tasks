@@ -19,23 +19,33 @@ const people = {
 };
 const superSave = vi.fn(async () => true);
 
-vi.mock('@memberjunction/global', () => ({
-    RegisterClass: () => () => {},
-    IsValidUUID: (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
-}));
+vi.mock('@memberjunction/global', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@memberjunction/global')>();
+    return {
+        ...actual,
+        RegisterClass: () => () => {},
+    };
+});
 
-vi.mock('@memberjunction/core', () => {
+vi.mock('@memberjunction/core', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@memberjunction/core')>();
     class ValidationErrorInfo { constructor(public Source: string, public Message: string, public Value: unknown, public Type?: string) {} }
     const provider = {
         EntityByID: (id: string) => (id === PEOPLE_ID ? { Name: 'MJ_BizApps_Common: People', ParentChain: [] } : null),
+        GetEntityObject: async () => ({ NewRecord: vi.fn(), Save: vi.fn().mockResolvedValue(true), Load: vi.fn().mockResolvedValue(true) }),
+        RunView: async () => ({ Success: true, Results: [] }),
     };
     return {
+        ...actual,
         BaseEntity: class {
             public ContextCurrentUser: { ID: string; LinkedEntityID?: string; LinkedEntityRecordID?: string } | null = { ID: USER_ID };
             public Fields: Array<{ CodeName: string; Dirty: boolean; Value: unknown; OldValue: unknown }> = [];
             public IsSaved = false;
+            public TransactionGroup: unknown = null;
+            public ProviderToUse = provider;
             public RunViewProviderToUse = {};
             private _fieldValues: Record<string, unknown> = {};
+            public DeclareRelatedRecords() { return { Items: [] as unknown[] }; }
             public Get(fieldName: string) { return this._fieldValues[fieldName]; }
             public Set(fieldName: string, value: unknown) { this._fieldValues[fieldName] = value; }
             public GetAll() { return { ...this._fieldValues }; }
@@ -44,6 +54,8 @@ vi.mock('@memberjunction/core', () => {
             public async Save() { return superSave(); }
         },
         BaseEngine: class { public static getInstance() { return {}; } },
+        BaseRemotableOperation: class {},
+        CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },
         LogError: vi.fn(),
         LogStatus: vi.fn(),
         Metadata: class {
@@ -59,6 +71,7 @@ vi.mock('@memberjunction/core', () => {
                 return people.fail ? { Success: false, Results: [], ErrorMessage: 'database unavailable' } : { Success: true, Results: people.results };
             }
         },
+        UserInfo: class {},
         ValidationErrorInfo,
         ValidationErrorType: { Failure: 'Failure', Warning: 'Warning' },
     };
@@ -68,7 +81,8 @@ vi.mock('@memberjunction/actions', () => ({
     ActionEngineServer: { Instance: { Config: vi.fn().mockResolvedValue(undefined), Actions: [], RunAction: vi.fn() } },
 }));
 
-vi.mock('@mj-biz-apps/tasks-core', () => ({
+vi.mock('@mj-biz-apps/tasks-core', async () => ({
+    ...(await vi.importActual<typeof import('@mj-biz-apps/tasks-core')>('@mj-biz-apps/tasks-core')),
     TaskService: class { public async rollupParentProgress() { return true; } },
 }));
 
@@ -112,7 +126,9 @@ describe('TaskEntityServer — recording the creator', () => {
         expect(people.filters).toEqual([`LinkedUserID = '${USER_ID}' OR ID = '${LINKED_PERSON}'`]);
     });
 
-    it('keeps a creator the caller supplied, without a lookup (accounting records the batch builder)', async () => {
+    // Save only records a missing creator. Whether a creator the caller named may stand is the async
+    // rule's question (TaskEntityServer.approval.test.ts): this fake BaseEntity.Save does not validate.
+    it('does not replace a creator the caller supplied (accounting records the batch builder)', async () => {
         const t = newTask();
         t.CreatedByPersonID = OTHER_PERSON;
         await t.Save();
@@ -159,7 +175,7 @@ describe('TaskEntityServer — a recorded creator cannot change', () => {
         expect(t.Validate().Success).toBe(false);
     });
 
-    it('allows recording a creator on a task that never had one', () => {
+    it('leaves recording a creator on a task that never had one to the async rule, which lets only server code do it', () => {
         const t = newTask();
         t.IsSaved = true;
         creatorField(t, null, OTHER_PERSON);
@@ -173,7 +189,7 @@ describe('TaskEntityServer — a recorded creator cannot change', () => {
         expect(t.Validate().Success).toBe(true);
     });
 
-    it('allows any creator on a new task', () => {
+    it('leaves who a new task\'s creator may be to the async rule', () => {
         const t = newTask();
         creatorField(t, null, OTHER_PERSON);
         expect(t.Validate().Success).toBe(true);

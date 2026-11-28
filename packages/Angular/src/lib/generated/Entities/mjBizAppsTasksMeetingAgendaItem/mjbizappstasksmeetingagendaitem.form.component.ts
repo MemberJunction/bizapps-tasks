@@ -16,7 +16,11 @@ export class mjBizAppsTasksMeetingAgendaItemFormComponent extends BaseFormCompon
     override async ngOnInit() {
         await super.ngOnInit();
         this.initSections([
-            { sectionKey: 'details', sectionName: 'Details', isExpanded: true },
+            { sectionKey: 'agendaItemDetails', sectionName: 'Agenda Item Details', isExpanded: true },
+            { sectionKey: 'planningAndTiming', sectionName: 'Planning and Timing', isExpanded: true },
+            { sectionKey: 'executionTracking', sectionName: 'Execution Tracking', isExpanded: true },
+            { sectionKey: 'hierarchyDetails', sectionName: 'Hierarchy Details', isExpanded: true },
+            { sectionKey: 'systemMetadata', sectionName: 'System Metadata', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksMeetingAgendaItems', sectionName: 'Meeting Agenda Items', isExpanded: false },
             { sectionKey: 'mJBizAppsTasksMeetingNotes', sectionName: 'Meeting Notes', isExpanded: false }
         ]);

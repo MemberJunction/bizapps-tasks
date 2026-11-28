@@ -19,6 +19,7 @@
   "license": "BUSL-1.1",
   "devDependencies": {
     "@memberjunction/core": "6.2.1",
+    "@memberjunction/core-entities": "6.2.1",
     "@memberjunction/global": "6.2.1",
     "@mj-biz-apps/common-entities": "5.63.0",
     "@types/luxon": "3.7.6",
@@ -32,6 +33,7 @@
   },
   "peerDependencies": {
     "@memberjunction/core": ">=6.2.1 <6.3.0",
+    "@memberjunction/core-entities": ">=6.2.1 <6.3.0",
     "@memberjunction/global": ">=6.2.1 <6.3.0",
     "@mj-biz-apps/common-entities": "^5.55.0"
   },

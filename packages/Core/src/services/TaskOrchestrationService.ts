@@ -1,20 +1,22 @@
-import { CompositeKey, LogError, Metadata, RunView, UserInfo } from "@memberjunction/core";
+import { CompositeKey, IMetadataProvider, IRunViewProvider, Metadata, RunView, UserInfo } from "@memberjunction/core";
+import { EscapeSQLString } from "@memberjunction/global";
 import type {
     mjBizAppsTasksTaskEntity,
     mjBizAppsTasksTaskDecisionEntity,
     mjBizAppsTasksTaskDecisionOutcomeEntity,
-    mjBizAppsTasksTaskLinkEntity,
 } from "@mj-biz-apps/tasks-entities";
-import { TaskService } from "./TaskService.js";
-import { TaskAssignmentService } from "./TaskAssignmentService.js";
+
+/** A provider that can both instantiate entities and run views. */
+export type TaskOrchestrationProvider = IMetadataProvider & IRunViewProvider;
 
 const TASKS_ENTITY = 'MJ_BizApps_Tasks: Tasks';
-const TASK_DECISIONS_ENTITY = 'MJ_BizApps_Tasks: Task Decisions';
 const TASK_DECISION_OUTCOMES_ENTITY = 'MJ_BizApps_Tasks: Task Decision Outcomes';
-const TASK_LINKS_ENTITY = 'MJ_BizApps_Tasks: Task Links';
 
-/** The closed set of task statuses (mirrors the generated Task.Status union). */
-export type TaskStatus = 'Open' | 'InProgress' | 'Blocked' | 'Completed' | 'Cancelled';
+/** The closed set of task statuses, derived directly from the generated Task entity. */
+export type TaskStatus = mjBizAppsTasksTaskEntity['Status'];
+
+/** The closed set of task priorities, derived directly from the generated Task entity. */
+export type TaskPriority = mjBizAppsTasksTaskEntity['Priority'];
 
 /**
  * The seeded TaskDecisionOutcome rows, and what each one MEANS.
@@ -51,17 +53,38 @@ export function IsApprovalOutcome(code: TaskDecisionOutcomeCode): boolean {
     return TaskDecisionOutcomes[code].IsApproval;
 }
 
+/**
+ * Called with the unsaved task, and whatever links and assignments travel with it, just before it
+ * is saved.
+ *
+ * It exists for SERVER code whose write the tasks server would otherwise refuse: recording a
+ * creator who is not the user saving, or assigning approvers the server chose itself. Such code
+ * passes the sanction functions of `@mj-biz-apps/tasks-entities-server` here, for example
+ * `BeforeSave: SanctionOnBehalfCreator`, or
+ * `BeforeSave: (task) => task.Assignments.Items.forEach(SanctionApprovalAssignment)`.
+ * In a browser those functions do nothing and the server's rules decide, so this hook grants
+ * nothing by itself.
+ */
+export type TaskBeforeSave = (task: mjBizAppsTasksTaskEntity) => void | Promise<void>;
+
 export type CreateTaskParams = {
     Name: string;
     TypeID: string;
     Description?: string;
     CategoryID?: string;
     ParentID?: string;
-    Priority?: 'Low' | 'Medium' | 'High' | 'Critical';
+    Priority?: TaskPriority;
     DueAt?: Date;
+    /**
+     * Who asked for the task. Leave it out and the server records the user saving. The server
+     * refuses anyone else unless the system user is saving or server code vouched for it through
+     * {@link CreateTaskParams.BeforeSave}.
+     */
     CreatedByPersonID?: string;
     /** Initial status; defaults to 'Open'. */
     Status?: TaskStatus;
+    /** See {@link TaskBeforeSave}. */
+    BeforeSave?: TaskBeforeSave;
 };
 
 export type RecordDecisionParams = {
@@ -78,8 +101,14 @@ export type CreateApprovalRequestParams = {
     /** TaskType ID for the approval — typically the seeded "Approval Request" type. */
     TypeID: string;
     Description?: string;
-    Priority?: 'Low' | 'Medium' | 'High' | 'Critical';
+    Priority?: TaskPriority;
     DueAt?: Date;
+    /**
+     * Who asked for the approval: the person the no-self-approval rule refuses a decision on it.
+     * Leave it out and the server records the user saving. The server refuses anyone else unless
+     * the system user is saving or server code vouched for it through
+     * {@link CreateApprovalRequestParams.BeforeSave}.
+     */
     CreatedByPersonID?: string;
     /** Source record this approval is about (polymorphic link). */
     LinkEntityID?: string;
@@ -89,6 +118,8 @@ export type CreateApprovalRequestParams = {
     ApproverPersonRecordIDs?: string[];
     /** Optional TaskRole applied to each assignment. */
     RoleID?: string;
+    /** See {@link TaskBeforeSave}. */
+    BeforeSave?: TaskBeforeSave;
 };
 
 export type RecordDecisionResult = {
@@ -102,23 +133,31 @@ export type RecordDecisionResult = {
  * Generic orchestration verbs for the task / approval workflow substrate.
  *
  * Thin layer over the MJ entity API — every method saves through strongly-typed
- * generated entities so that entity-subclass validation (status side-effects,
- * cycle checks) and the server-side action hooks fire automatically.
+ * generated entities and their `RelatedRecordCollection` companions so that
+ * entity-subclass validation, atomic graph persistence, and server-side action
+ * hooks fire automatically.
  *
- * Every method threads an explicit `contextUser` for correct multi-user isolation
- * on the server.
+ * Every method threads an explicit `contextUser` and optional `provider` for
+ * correct multi-user and transactional isolation on the server.
  */
 export class TaskOrchestrationService {
-    private assignmentService = new TaskAssignmentService();
-    private taskService = new TaskService();
 
     // ---------------------------------------------------------------
     // Create
     // ---------------------------------------------------------------
 
-    /** Creates a new task and returns the saved entity. */
-    async CreateTask(params: CreateTaskParams, contextUser?: UserInfo): Promise<mjBizAppsTasksTaskEntity> {
-        const md = new Metadata();
+    /**
+     * Creates a new task and returns the saved entity.
+     *
+     * Pass `provider` to create and save the task on the caller's transactional provider
+     * instead of the process-global provider.
+     */
+    async CreateTask(
+        params: CreateTaskParams,
+        contextUser?: UserInfo,
+        provider?: IMetadataProvider,
+    ): Promise<mjBizAppsTasksTaskEntity> {
+        const md = provider ?? new Metadata();
         const task = await md.GetEntityObject<mjBizAppsTasksTaskEntity>(TASKS_ENTITY, contextUser);
         task.NewRecord();
         task.Name = params.Name;
@@ -131,6 +170,7 @@ export class TaskOrchestrationService {
         if (params.DueAt != null) task.DueAt = params.DueAt;
         if (params.CreatedByPersonID != null) task.CreatedByPersonID = params.CreatedByPersonID;
 
+        if (params.BeforeSave) await params.BeforeSave(task);
         if (!(await task.Save())) {
             throw new Error(`Failed to create task "${params.Name}": ${task.LatestResult?.CompleteMessage ?? 'unknown error'}`);
         }
@@ -145,9 +185,20 @@ export class TaskOrchestrationService {
      * Transitions a task to a new status and saves it. The entity subclass
      * applies status side-effects (StartedAt/CompletedAt) and the server save-event
      * handler fires any configured action hooks.
+     *
+     * An approval task is not completed this way: the server refuses `Completed` on one with no
+     * approving decision standing, and `Cancelled` from someone who may not withdraw it. Use
+     * {@link RecordDecision} to approve or reject.
+     *
+     * @throws when the save is refused, with the server's reason.
      */
-    async TransitionStatus(taskID: string, newStatus: TaskStatus, contextUser?: UserInfo): Promise<mjBizAppsTasksTaskEntity> {
-        const task = await this.loadTask(taskID, contextUser);
+    async TransitionStatus(
+        taskID: string,
+        newStatus: TaskStatus,
+        contextUser?: UserInfo,
+        provider?: IMetadataProvider,
+    ): Promise<mjBizAppsTasksTaskEntity> {
+        const task = await this.loadTask(taskID, contextUser, provider);
         if (task.Status === newStatus) {
             return task; // no-op; avoid a redundant save + hook fire
         }
@@ -163,45 +214,46 @@ export class TaskOrchestrationService {
     // ---------------------------------------------------------------
 
     /**
-     * Records an approve/reject decision against a task: creates a TaskDecision
-     * row, logs a DecisionRecorded activity, and (for terminal outcomes) transitions
-     * the task — Approved/ApprovedWithConditions → Completed, Rejected → Cancelled.
+     * Records an approve/reject decision against a task in ONE atomic `task.Save()` graph:
+     * attaches a `TaskDecision` (`task.Decisions`), logs a `DecisionRecorded` activity
+     * (`task.Activities`), and (for terminal outcomes) transitions the task status —
+     * Approved/ApprovedWithConditions → Completed, Rejected → Cancelled.
      *
-     * The status transition fires the existing server hook seam, so consumers' OnReject /
-     * OnCancel / OnComplete actions run as a side-effect of recording the decision.
+     * Because all three writes execute inside a single `EntitySavePlan` transaction,
+     * a validation refusal (e.g. self-approval or closed-task guard) rejects the entire
+     * unit with zero partial rows, and post-commit lifecycle hooks (`OnComplete` / `OnReject`)
+     * observe the committed decision row cleanly.
      */
-    async RecordDecision(params: RecordDecisionParams, contextUser?: UserInfo): Promise<RecordDecisionResult> {
-        const outcome = await this.resolveOutcome(params.OutcomeCode, contextUser);
+    async RecordDecision(
+        params: RecordDecisionParams,
+        contextUser?: UserInfo,
+        provider?: TaskOrchestrationProvider,
+    ): Promise<RecordDecisionResult> {
+        const outcome = await this.resolveOutcome(params.OutcomeCode, contextUser, provider);
+        const task = await this.loadTask(params.TaskID, contextUser, provider);
 
-        const md = new Metadata();
-        const decision = await md.GetEntityObject<mjBizAppsTasksTaskDecisionEntity>(TASK_DECISIONS_ENTITY, contextUser);
-        decision.NewRecord();
-        decision.TaskID = params.TaskID;
+        const decision = await task.Decisions.Create();
         decision.OutcomeID = outcome.ID;
         if (params.DecidedByPersonID != null) decision.DecidedByPersonID = params.DecidedByPersonID;
         if (params.Notes != null) decision.DecisionNotes = params.Notes;
         if (params.TaskAssignmentID != null) decision.TaskAssignmentID = params.TaskAssignmentID;
 
-        if (!(await decision.Save())) {
-            throw new Error(`Failed to record decision for task ${params.TaskID}: ${decision.LatestResult?.CompleteMessage ?? 'unknown error'}`);
-        }
+        const activity = await task.Activities.Create();
+        activity.ActivityType = 'DecisionRecorded';
+        if (params.DecidedByPersonID != null) activity.PersonID = params.DecidedByPersonID;
+        activity.NewValue = outcome.Code;
+        activity.Description = `Decision recorded: ${outcome.Name}`;
 
-        await this.taskService.logActivity({
-            taskID: params.TaskID,
-            personID: params.DecidedByPersonID,
-            activityType: 'DecisionRecorded',
-            newValue: outcome.Code,
-            description: `Decision recorded: ${outcome.Name}`,
-        }, contextUser);
-
-        // Only terminal outcomes drive a status transition. Interim outcomes leave the task open.
-        let task: mjBizAppsTasksTaskEntity;
         let newStatus: TaskStatus | null = null;
         if (outcome.IsTerminal) {
             newStatus = this.statusForOutcome(params.OutcomeCode);
-            task = await this.TransitionStatus(params.TaskID, newStatus, contextUser);
-        } else {
-            task = await this.loadTask(params.TaskID, contextUser);
+            if (task.Status !== newStatus) {
+                task.Status = newStatus;
+            }
+        }
+
+        if (!(await task.Save())) {
+            throw new Error(`Failed to record decision for task ${params.TaskID}: ${task.LatestResult?.CompleteMessage ?? 'unknown error'}`);
         }
 
         return { Decision: decision, Task: task, NewStatus: newStatus };
@@ -212,34 +264,47 @@ export class TaskOrchestrationService {
     // ---------------------------------------------------------------
 
     /**
-     * Creates an approval-request task, optionally links it to a source record,
-     * and assigns the named approvers. Returns the created task.
+     * Creates an approval-request task, optionally links it to a source record (`task.Links`),
+     * and assigns the named approvers (`task.Assignments`) in ONE atomic `task.Save()` graph.
+     *
+     * Pass `provider` so the entire graph writes on the caller's transactional provider
+     * (rolling back together if any child validation or save fails).
      */
-    async CreateApprovalRequest(params: CreateApprovalRequestParams, contextUser?: UserInfo): Promise<mjBizAppsTasksTaskEntity> {
-        const task = await this.CreateTask({
-            Name: params.Name,
-            TypeID: params.TypeID,
-            Description: params.Description,
-            Priority: params.Priority ?? 'High',
-            DueAt: params.DueAt,
-            CreatedByPersonID: params.CreatedByPersonID,
-            Status: 'Open',
-        }, contextUser);
+    async CreateApprovalRequest(
+        params: CreateApprovalRequestParams,
+        contextUser?: UserInfo,
+        provider?: IMetadataProvider,
+    ): Promise<mjBizAppsTasksTaskEntity> {
+        const md = provider ?? new Metadata();
+        const task = await md.GetEntityObject<mjBizAppsTasksTaskEntity>(TASKS_ENTITY, contextUser);
+        task.NewRecord();
+        task.Name = params.Name;
+        task.TypeID = params.TypeID;
+        task.Status = 'Open';
+        task.Priority = params.Priority ?? 'High';
+        if (params.Description != null) task.Description = params.Description;
+        if (params.DueAt != null) task.DueAt = params.DueAt;
+        if (params.CreatedByPersonID != null) task.CreatedByPersonID = params.CreatedByPersonID;
 
         if (params.LinkEntityID && params.LinkRecordID) {
-            await this.linkSourceRecord(task.ID, params.LinkEntityID, params.LinkRecordID, contextUser);
+            const link = await task.Links.Create();
+            link.EntityID = params.LinkEntityID;
+            link.RecordID = params.LinkRecordID;
         }
 
         if (params.ApproverPersonEntityID && params.ApproverPersonRecordIDs?.length) {
             for (const recordID of params.ApproverPersonRecordIDs) {
-                await this.assignmentService.assignToTask({
-                    taskID: task.ID,
-                    assigneeEntityID: params.ApproverPersonEntityID,
-                    assigneeRecordID: recordID,
-                    roleID: params.RoleID,
-                    assignedByPersonID: params.CreatedByPersonID,
-                }, contextUser);
+                const assignment = await task.Assignments.Create();
+                assignment.AssigneeEntityID = params.ApproverPersonEntityID;
+                assignment.AssigneeRecordID = recordID;
+                if (params.RoleID != null) assignment.RoleID = params.RoleID;
+                if (params.CreatedByPersonID != null) assignment.AssignedByPersonID = params.CreatedByPersonID;
             }
+        }
+
+        if (params.BeforeSave) await params.BeforeSave(task);
+        if (!(await task.Save())) {
+            throw new Error(`Failed to create approval request "${params.Name}": ${task.LatestResult?.CompleteMessage ?? 'unknown error'}`);
         }
 
         return task;
@@ -249,8 +314,12 @@ export class TaskOrchestrationService {
     // Helpers
     // ---------------------------------------------------------------
 
-    private async loadTask(taskID: string, contextUser?: UserInfo): Promise<mjBizAppsTasksTaskEntity> {
-        const md = new Metadata();
+    private async loadTask(
+        taskID: string,
+        contextUser?: UserInfo,
+        provider?: IMetadataProvider,
+    ): Promise<mjBizAppsTasksTaskEntity> {
+        const md = provider ?? new Metadata();
         const task = await md.GetEntityObject<mjBizAppsTasksTaskEntity>(TASKS_ENTITY, contextUser);
         const loaded = await task.InnerLoad(new CompositeKey([{ FieldName: 'ID', Value: taskID }]));
         if (!loaded) {
@@ -261,17 +330,18 @@ export class TaskOrchestrationService {
 
     /** Maps a terminal outcome code to the task status it drives. */
     private statusForOutcome(code: TaskDecisionOutcomeCode): TaskStatus {
-        // Read from the outcome table rather than re-deciding here. As a switch this silently
-        // returned undefined for any outcome added later — the union widened, no case matched, and
-        // the task was saved with no status at all.
         return TaskDecisionOutcomes[code].Status;
     }
 
-    private async resolveOutcome(code: TaskDecisionOutcomeCode, contextUser?: UserInfo): Promise<mjBizAppsTasksTaskDecisionOutcomeEntity> {
-        const rv = new RunView();
+    private async resolveOutcome(
+        code: TaskDecisionOutcomeCode,
+        contextUser?: UserInfo,
+        provider?: IRunViewProvider,
+    ): Promise<mjBizAppsTasksTaskDecisionOutcomeEntity> {
+        const rv = new RunView(provider);
         const result = await rv.RunView<mjBizAppsTasksTaskDecisionOutcomeEntity>({
             EntityName: TASK_DECISION_OUTCOMES_ENTITY,
-            ExtraFilter: `Code = '${code.replace(/'/g, "''")}'`,
+            ExtraFilter: `Code = '${EscapeSQLString(code)}'`,
             ResultType: 'entity_object',
             MaxRows: 1,
         }, contextUser);
@@ -281,17 +351,5 @@ export class TaskOrchestrationService {
             throw new Error(`Task decision outcome with code '${code}' not found (is the metadata seeded?)`);
         }
         return outcome;
-    }
-
-    private async linkSourceRecord(taskID: string, entityID: string, recordID: string, contextUser?: UserInfo): Promise<void> {
-        const md = new Metadata();
-        const link = await md.GetEntityObject<mjBizAppsTasksTaskLinkEntity>(TASK_LINKS_ENTITY, contextUser);
-        link.NewRecord();
-        link.TaskID = taskID;
-        link.EntityID = entityID;
-        link.RecordID = recordID;
-        if (!(await link.Save())) {
-            LogError(`Failed to link task ${taskID} to ${entityID}/${recordID}: ${link.LatestResult?.CompleteMessage ?? 'unknown error'}`);
-        }
     }
 }

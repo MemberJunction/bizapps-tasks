@@ -1,36 +1,30 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-
-// ---------------------------------------------------------------------------
-// Mock @memberjunction/core. TaskOrchestrationService uses:
-//   - new Metadata().GetEntityObject(name, user) → typed entity (property accessors)
-//   - new RunView().RunView({...})               → outcome / lookup queries
-//   - new CompositeKey([...])                     → PK wrapper for InnerLoad
-// Entity objects are accessed via typed PROPERTIES (task.Name = ..., task.Status),
-// so the fake uses real own-properties rather than Set()/Get().
-// ---------------------------------------------------------------------------
+import type { UserInfo } from '@memberjunction/core';
 
 const runViewMock = vi.fn();
 const getEntityObjectMock = vi.fn();
+const runViewProviders: unknown[] = [];
 
 vi.mock('@memberjunction/core', () => {
   return {
     RunView: class {
-      RunView(...args: any[]) {
+      constructor(provider?: unknown) {
+        runViewProviders.push(provider);
+      }
+      RunView(...args: unknown[]) {
         return runViewMock(...args);
       }
     },
-    // Service uses `new Metadata().GetEntityObject(...)`; the shared TaskService it
-    // delegates to uses the static `Metadata.Provider.GetEntityObject(...)`. Support both.
     Metadata: Object.assign(
       class {
-        GetEntityObject(...args: any[]) {
+        GetEntityObject(...args: unknown[]) {
           return getEntityObjectMock(...args);
         }
       },
-      { Provider: { GetEntityObject: (...args: any[]) => getEntityObjectMock(...args) } },
+      { Provider: { GetEntityObject: (...args: unknown[]) => getEntityObjectMock(...args) } },
     ),
     CompositeKey: class {
-      constructor(public KeyValuePairs: any[]) {}
+      constructor(public KeyValuePairs: unknown[]) {}
     },
     LogError: vi.fn(),
   };
@@ -38,28 +32,58 @@ vi.mock('@memberjunction/core', () => {
 
 import { TaskOrchestrationService } from '../TaskOrchestrationService.js';
 
-/**
- * A fake entity supporting BOTH access styles used across the services:
- *  - typed own-properties (orchestration service: `task.Status = ...`)
- *  - Set()/Get() (the shared TaskService.logActivity path)
- */
-function makeFakeEntity(initial: Record<string, any> = {}) {
-  const entity: any = {
+interface FakeCollection {
+  Items: FakeEntity[];
+  Create: ReturnType<typeof vi.fn>;
+}
+
+interface FakeEntity extends Record<string, unknown> {
+  NewRecord: ReturnType<typeof vi.fn>;
+  InnerLoad: ReturnType<typeof vi.fn>;
+  Save: ReturnType<typeof vi.fn>;
+  LatestResult: { CompleteMessage: string };
+  Decisions: FakeCollection;
+  Activities: FakeCollection;
+  Links: FakeCollection;
+  Assignments: FakeCollection;
+}
+
+function makeFakeCollection(): FakeCollection {
+  const items: FakeEntity[] = [];
+  return {
+    Items: items,
+    Create: vi.fn(async () => {
+      const child = makeFakeEntity();
+      items.push(child);
+      return child;
+    }),
+  };
+}
+
+function makeFakeEntity(initial: Record<string, unknown> = {}): FakeEntity {
+  const entity: FakeEntity = {
     ...initial,
     NewRecord: vi.fn(),
     InnerLoad: vi.fn(async () => true),
     Save: vi.fn(async () => true),
     LatestResult: { CompleteMessage: '' },
+    Decisions: { Items: [], Create: vi.fn() },
+    Activities: { Items: [], Create: vi.fn() },
+    Links: { Items: [], Create: vi.fn() },
+    Assignments: { Items: [], Create: vi.fn() },
   };
-  entity.Set = vi.fn((field: string, value: any) => { entity[field] = value; });
-  entity.Get = vi.fn((field: string) => entity[field]);
+  entity.Decisions = makeFakeCollection();
+  entity.Activities = makeFakeCollection();
+  entity.Links = makeFakeCollection();
+  entity.Assignments = makeFakeCollection();
   return entity;
 }
 
-const user: any = { ID: 'user-1', Email: 'tester@example.com' };
+const user = { ID: 'user-1', Email: 'tester@example.com' } as UserInfo;
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
+  runViewProviders.length = 0;
 });
 
 describe('TaskOrchestrationService.CreateTask', () => {
@@ -121,20 +145,14 @@ describe('TaskOrchestrationService.TransitionStatus', () => {
 });
 
 describe('TaskOrchestrationService.RecordDecision', () => {
-  it('Approved → records decision, logs activity, transitions task to Completed', async () => {
-    // 1) resolveOutcome RunView → Approved (terminal)
+  it('Approved → composes Decision + Activity + Completed status in ONE atomic task.Save()', async () => {
     runViewMock.mockResolvedValueOnce({
       Success: true,
       Results: [{ ID: 'outcome-approved', Name: 'Approved', Code: 'Approved', IsTerminal: true }],
     });
 
-    const decision = makeFakeEntity();
-    const activity = makeFakeEntity();
-    const task = makeFakeEntity({ Status: 'Open' });
-    getEntityObjectMock
-      .mockResolvedValueOnce(decision)   // TaskDecision
-      .mockResolvedValueOnce(activity)   // logActivity → Task Activities
-      .mockResolvedValueOnce(task);      // TransitionStatus → load Task
+    const task = makeFakeEntity({ ID: 'task-1', Status: 'Open' });
+    getEntityObjectMock.mockResolvedValueOnce(task);
 
     const svc = new TaskOrchestrationService();
     const result = await svc.RecordDecision(
@@ -142,52 +160,74 @@ describe('TaskOrchestrationService.RecordDecision', () => {
       user,
     );
 
-    expect(decision.OutcomeID).toBe('outcome-approved');
-    expect(decision.TaskID).toBe('task-1');
-    expect(decision.Save).toHaveBeenCalledOnce();
+    expect(getEntityObjectMock).toHaveBeenCalledTimes(1);
+    expect(task.Decisions.Create).toHaveBeenCalledOnce();
+    expect(task.Decisions.Items).toHaveLength(1);
+    expect(task.Decisions.Items[0].OutcomeID).toBe('outcome-approved');
+    expect(task.Decisions.Items[0].DecidedByPersonID).toBe('p1');
+    expect(task.Decisions.Items[0].DecisionNotes).toBe('ok');
+    expect(task.Decisions.Items[0].Save).not.toHaveBeenCalled();
+
+    expect(task.Activities.Create).toHaveBeenCalledOnce();
+    expect(task.Activities.Items[0].ActivityType).toBe('DecisionRecorded');
+    expect(task.Activities.Items[0].NewValue).toBe('Approved');
+    expect(task.Activities.Items[0].Save).not.toHaveBeenCalled();
+
     expect(result.NewStatus).toBe('Completed');
     expect(task.Status).toBe('Completed');
     expect(task.Save).toHaveBeenCalledOnce();
   });
 
-  it('Rejected → transitions task to Cancelled', async () => {
+  it('Rejected → composes Decision + Activity + Cancelled status in ONE atomic task.Save()', async () => {
     runViewMock.mockResolvedValueOnce({
       Success: true,
       Results: [{ ID: 'outcome-rejected', Name: 'Rejected', Code: 'Rejected', IsTerminal: true }],
     });
-    const decision = makeFakeEntity();
-    const activity = makeFakeEntity();
-    const task = makeFakeEntity({ Status: 'Open' });
-    getEntityObjectMock
-      .mockResolvedValueOnce(decision)
-      .mockResolvedValueOnce(activity)
-      .mockResolvedValueOnce(task);
+    const task = makeFakeEntity({ ID: 'task-1', Status: 'Open' });
+    getEntityObjectMock.mockResolvedValueOnce(task);
 
     const svc = new TaskOrchestrationService();
     const result = await svc.RecordDecision({ TaskID: 'task-1', OutcomeCode: 'Rejected' }, user);
 
     expect(result.NewStatus).toBe('Cancelled');
     expect(task.Status).toBe('Cancelled');
+    expect(task.Decisions.Items).toHaveLength(1);
+    expect(task.Activities.Items).toHaveLength(1);
+    expect(task.Save).toHaveBeenCalledOnce();
   });
 
-  it('non-terminal outcome → records decision but does not transition', async () => {
+  it('non-terminal outcome → persists Decision + Activity atomically via task.Save() without changing Status', async () => {
     runViewMock.mockResolvedValueOnce({
       Success: true,
       Results: [{ ID: 'outcome-interim', Name: 'Needs Info', Code: 'Approved', IsTerminal: false }],
     });
-    const decision = makeFakeEntity();
-    const activity = makeFakeEntity();
-    const task = makeFakeEntity({ Status: 'Open' });
-    getEntityObjectMock
-      .mockResolvedValueOnce(decision)
-      .mockResolvedValueOnce(activity)
-      .mockResolvedValueOnce(task);  // loadTask (no transition)
+    const task = makeFakeEntity({ ID: 'task-1', Status: 'Open' });
+    getEntityObjectMock.mockResolvedValueOnce(task);
 
     const svc = new TaskOrchestrationService();
     const result = await svc.RecordDecision({ TaskID: 'task-1', OutcomeCode: 'Approved' }, user);
 
     expect(result.NewStatus).toBeNull();
-    expect(task.Save).not.toHaveBeenCalled();
+    expect(task.Status).toBe('Open');
+    expect(task.Decisions.Items).toHaveLength(1);
+    expect(task.Activities.Items).toHaveLength(1);
+    expect(task.Save).toHaveBeenCalledOnce();
+  });
+
+  it('throws and surfaces the error when atomic task.Save() fails', async () => {
+    runViewMock.mockResolvedValueOnce({
+      Success: true,
+      Results: [{ ID: 'outcome-approved', Name: 'Approved', Code: 'Approved', IsTerminal: true }],
+    });
+    const task = makeFakeEntity({ ID: 'task-1', Status: 'Open' });
+    task.Save.mockResolvedValueOnce(false);
+    task.LatestResult = { CompleteMessage: 'Self-approval not allowed' };
+    getEntityObjectMock.mockResolvedValueOnce(task);
+
+    const svc = new TaskOrchestrationService();
+    await expect(
+      svc.RecordDecision({ TaskID: 'task-1', OutcomeCode: 'Approved' }, user),
+    ).rejects.toThrow(/Self-approval not allowed/);
   });
 
   it('throws when the outcome code cannot be resolved', async () => {
@@ -197,5 +237,94 @@ describe('TaskOrchestrationService.RecordDecision', () => {
     await expect(
       svc.RecordDecision({ TaskID: 'task-1', OutcomeCode: 'Approved' }, user),
     ).rejects.toThrow(/not found/);
+  });
+});
+
+describe('TaskOrchestrationService BeforeSave (server code vouching for a write)', () => {
+  it('CreateTask hands the unsaved task to BeforeSave, then saves it', async () => {
+    const task = makeFakeEntity();
+    getEntityObjectMock.mockResolvedValueOnce(task);
+    const seen: Array<{ creator: unknown; saved: number }> = [];
+
+    await new TaskOrchestrationService().CreateTask({
+      Name: 'Raised for someone else',
+      TypeID: 'type-1',
+      CreatedByPersonID: 'person-owner',
+      BeforeSave: (t) => { seen.push({ creator: t.CreatedByPersonID, saved: task.Save.mock.calls.length }); },
+    }, user);
+
+    expect(seen).toEqual([{ creator: 'person-owner', saved: 0 }]);
+    expect(task.Save).toHaveBeenCalledOnce();
+  });
+
+  it('CreateApprovalRequest hands BeforeSave the task with its assignments already attached', async () => {
+    const task = makeFakeEntity();
+    getEntityObjectMock.mockResolvedValueOnce(task);
+    const vouchedFor: unknown[] = [];
+
+    await new TaskOrchestrationService().CreateApprovalRequest({
+      Name: 'Approve batch',
+      TypeID: 'type-approval',
+      ApproverPersonEntityID: 'ent-person',
+      ApproverPersonRecordIDs: ['person-1', 'person-2'],
+      BeforeSave: async (t) => {
+        expect(task.Save).not.toHaveBeenCalled();
+        for (const assignment of t.Assignments.Items) vouchedFor.push(assignment.AssigneeRecordID);
+      },
+    }, user);
+
+    expect(vouchedFor).toEqual(['person-1', 'person-2']);
+    expect(task.Save).toHaveBeenCalledOnce();
+  });
+
+  it('does not save when BeforeSave throws', async () => {
+    const task = makeFakeEntity();
+    getEntityObjectMock.mockResolvedValueOnce(task);
+
+    await expect(
+      new TaskOrchestrationService().CreateTask({ Name: 'x', TypeID: 'type-1', BeforeSave: () => { throw new Error('not on this host'); } }, user),
+    ).rejects.toThrow('not on this host');
+    expect(task.Save).not.toHaveBeenCalled();
+  });
+});
+
+describe('TaskOrchestrationService provider threading & atomic graph creation', () => {
+  it('CreateApprovalRequest composes task + Links + Assignments on the supplied provider in ONE atomic task.Save()', async () => {
+    const task = makeFakeEntity({ ID: 'task-tx-1' });
+    const provider = {
+      GetEntityObject: vi.fn().mockResolvedValueOnce(task),
+    };
+
+    const svc = new TaskOrchestrationService();
+    const created = await svc.CreateApprovalRequest({
+      Name: 'Approve concession',
+      TypeID: 'type-approval',
+      LinkEntityID: 'ent-order',
+      LinkRecordID: 'order-1',
+      ApproverPersonEntityID: 'ent-person',
+      ApproverPersonRecordIDs: ['person-1', 'person-2'],
+      RoleID: 'role-approver',
+      CreatedByPersonID: 'person-creator',
+    }, user, provider as never);
+
+    expect(created).toBe(task);
+    expect(provider.GetEntityObject).toHaveBeenCalledTimes(1);
+    expect(provider.GetEntityObject).toHaveBeenCalledWith('MJ_BizApps_Tasks: Tasks', user);
+    expect(getEntityObjectMock).not.toHaveBeenCalled();
+
+    expect(task.Links.Items).toHaveLength(1);
+    expect(task.Links.Items[0].EntityID).toBe('ent-order');
+    expect(task.Links.Items[0].RecordID).toBe('order-1');
+    expect(task.Links.Items[0].Save).not.toHaveBeenCalled();
+
+    expect(task.Assignments.Items).toHaveLength(2);
+    expect(task.Assignments.Items[0].AssigneeEntityID).toBe('ent-person');
+    expect(task.Assignments.Items[0].AssigneeRecordID).toBe('person-1');
+    expect(task.Assignments.Items[0].RoleID).toBe('role-approver');
+    expect(task.Assignments.Items[0].AssignedByPersonID).toBe('person-creator');
+    expect(task.Assignments.Items[1].AssigneeRecordID).toBe('person-2');
+    expect(task.Assignments.Items[0].Save).not.toHaveBeenCalled();
+
+    expect(task.Save).toHaveBeenCalledOnce();
   });
 });

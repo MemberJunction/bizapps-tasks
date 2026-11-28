@@ -32,9 +32,11 @@
     "@memberjunction/graphql-dataprovider": ">=6.2.1 <6.3.0",
     "@memberjunction/testing-integration": ">=6.2.1 <6.3.0",
     "@mj-biz-apps/common-entities": "^5.37.0",
+    "@mj-biz-apps/tasks-actions": "^1.15.0",
     "@mj-biz-apps/tasks-core": "^1.15.0",
     "@mj-biz-apps/tasks-entities": "^1.15.0",
-    "@mj-biz-apps/tasks-entities-server": "^1.15.0"
+    "@mj-biz-apps/tasks-entities-server": "^1.15.0",
+    "@mj-biz-apps/tasks-server": "^1.15.0"
   },
   "repository": {
     "type": "git",

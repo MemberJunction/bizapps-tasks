@@ -1,5 +1,6 @@
 import { Component, EventEmitter, Input, Output, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { type IMetadataProvider } from '@memberjunction/core';
 import { TaskListComponent, TaskRow, BeforeTaskSelectedEvent, BeforeStatusChangeEvent } from '../task-list/task-list.component';
 import { AssignedToFilter, CurrentUserRoleIDs } from '../../role-assignees';
 
@@ -32,7 +33,10 @@ import { AssignedToFilter, CurrentUserRoleIDs } from '../../role-assignees';
             <h3 class="my-tasks-title">My Tasks</h3>
             <bizapps-task-list
                 #taskList
+                [Provider]="Provider"
                 [ExtraFilter]="assigneeFilter"
+                [PendingSuggestionsOnly]="PendingSuggestionsOnly"
+                (PendingSuggestionsOnlyChange)="onPendingSuggestionsOnlyChange($event)"
                 [ShowCreateButton]="ShowCreateButton"
                 [Compact]="Compact"
                 (BeforeTaskSelected)="BeforeTaskSelected.emit($event)"
@@ -52,6 +56,28 @@ import { AssignedToFilter, CurrentUserRoleIDs } from '../../role-assignees';
 })
 export class MyTasksComponent {
     // ── Inputs ──────────────────────────────────────────────
+
+    /** Optional metadata/data provider forwarded to {@link TaskListComponent}. */
+    @Input() Provider: IMetadataProvider | null = null;
+
+    private _pendingSuggestionsOnly = false;
+
+    /** When true, filters My Tasks to items with unresolved Field Suggestions. */
+    @Input()
+    get PendingSuggestionsOnly(): boolean {
+        return this._pendingSuggestionsOnly;
+    }
+    set PendingSuggestionsOnly(value: boolean) {
+        this._pendingSuggestionsOnly = Boolean(value);
+    }
+
+    @Output() PendingSuggestionsOnlyChange = new EventEmitter<boolean>();
+
+    /** @internal */
+    onPendingSuggestionsOnlyChange(next: boolean): void {
+        this._pendingSuggestionsOnly = Boolean(next);
+        this.PendingSuggestionsOnlyChange.emit(this._pendingSuggestionsOnly);
+    }
 
     /**
      * The Person ID of the current user. Used to filter tasks via

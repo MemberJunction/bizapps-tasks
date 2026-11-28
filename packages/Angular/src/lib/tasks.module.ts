@@ -1,6 +1,7 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { SharedGenericModule } from '@memberjunction/ng-shared-generic';
 
 // Standalone components — imported into the module for re-export convenience
 import { TaskPriorityBadgeComponent } from './components/task-priority-badge/task-priority-badge.component';
@@ -17,10 +18,16 @@ import { TaskPanelComponent } from './components/task-panel/task-panel.component
 import { TaskDashboardComponent } from './components/task-dashboard/task-dashboard.component';
 import { ApprovalInboxComponent } from './components/approval-inbox/approval-inbox.component';
 import { ApprovalDecisionPanelComponent } from './components/approval-decision-panel/approval-decision-panel.component';
+import { TimesheetPartApprovalPanelComponent } from './components/approval-decision-panel/timesheet-part-approval-panel.component';
+import { RunningTimerChipComponent } from './components/running-timer-chip/running-timer-chip.component';
+import { TaskTimeEffortComponent } from './components/task-time-effort/task-time-effort.component';
+import { TimeApproversComponent } from './components/time-approvers/time-approvers.component';
+import { MyTimeComponent } from './components/my-time/my-time.component';
 
 // Dashboard Pages
 import { TasksDashboardPageComponent } from './pages/tasks-dashboard.page';
 import { MyTasksPageComponent } from './pages/my-tasks.page';
+import { MyTimePageComponent } from './pages/my-time.page';
 import { ApprovalsPageComponent } from './pages/approvals.page';
 import { TemplatesPageComponent } from './pages/templates.page';
 import { MyMeetingsPageComponent } from './pages/my-meetings.page';
@@ -32,15 +39,18 @@ import { MyMeetingsSectionResource, MeetingsSectionResource, MeetingSeriesSectio
 import {
     TasksSectionResource,
     MyTasksSectionResource,
+    MyTimeSectionResource,
     ApprovalsSectionResource,
     TemplatesSectionResource,
     LoadTasksSectionResources,
 } from './sections/tasks-sections.component';
+import { ChiefOfStaffWorkReportsResource } from './chief-of-staff/chief-of-staff-work-reports.component';
 
 @NgModule({
     imports: [
         CommonModule,
         FormsModule,
+        SharedGenericModule,
         // Standalone components
         TaskPriorityBadgeComponent,
         TaskAssigneeListComponent,
@@ -56,14 +66,22 @@ import {
         TaskPanelComponent,
         ApprovalInboxComponent,
         ApprovalDecisionPanelComponent,
+        TimesheetPartApprovalPanelComponent,
+        RunningTimerChipComponent,
+        TaskTimeEffortComponent,
+        TimeApproversComponent,
+        MyTimeComponent,
         TasksDashboardPageComponent,
         MyTasksPageComponent,
+        MyTimePageComponent,
         ApprovalsPageComponent,
         TemplatesPageComponent,
         TasksSectionResource,
         MyTasksSectionResource,
+        MyTimeSectionResource,
         ApprovalsSectionResource,
         TemplatesSectionResource,
+        ChiefOfStaffWorkReportsResource,
         MyMeetingsPageComponent,
         MeetingsPageComponent,
         MeetingSeriesPageComponent,
@@ -86,14 +104,22 @@ import {
         TaskPanelComponent,
         ApprovalInboxComponent,
         ApprovalDecisionPanelComponent,
+        TimesheetPartApprovalPanelComponent,
+        RunningTimerChipComponent,
+        TaskTimeEffortComponent,
+        TimeApproversComponent,
+        MyTimeComponent,
         TasksDashboardPageComponent,
         MyTasksPageComponent,
+        MyTimePageComponent,
         ApprovalsPageComponent,
         TemplatesPageComponent,
         TasksSectionResource,
         MyTasksSectionResource,
+        MyTimeSectionResource,
         ApprovalsSectionResource,
         TemplatesSectionResource,
+        ChiefOfStaffWorkReportsResource,
         MyMeetingsPageComponent,
         MeetingsPageComponent,
         MeetingSeriesPageComponent,
@@ -107,5 +133,6 @@ export class BizAppsTasksModule { }
 /** Tree-shaking prevention — call from consuming app bootstrap */
 export function LoadBizAppsTasksClient() {
     LoadTasksSectionResources();
+    void ChiefOfStaffWorkReportsResource;
     LoadMeetingsSectionResources();
 }

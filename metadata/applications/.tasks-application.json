@@ -20,17 +20,24 @@
       "DefaultForNewUser": true,
       "DefaultNavItems": [
         {
-          "Label": "Tasks",
-          "Icon": "fa-solid fa-list-check",
-          "ResourceType": "Custom",
-          "DriverClass": "TasksSectionResource",
-          "isDefault": true
-        },
-        {
-          "Label": "My Tasks",
+          "Label": "My Work",
           "Icon": "fa-solid fa-user-check",
           "ResourceType": "Custom",
           "DriverClass": "MyTasksSectionResource",
+          "isDefault": true
+        },
+        {
+          "Label": "All Work",
+          "Icon": "fa-solid fa-list-check",
+          "ResourceType": "Custom",
+          "DriverClass": "TasksSectionResource",
+          "isDefault": false
+        },
+        {
+          "Label": "My Time",
+          "Icon": "fa-solid fa-clock",
+          "ResourceType": "Custom",
+          "DriverClass": "MyTimeSectionResource",
           "isDefault": false
         },
         {
@@ -53,8 +60,8 @@
       "ID": "22541055-8ED4-4850-8ACD-E5EE1887B15B"
     },
     "sync": {
-      "lastModified": "2026-08-24T20:07:32.858Z",
-      "checksum": "4a1cb7a11f52bc96a8072c01db93a7bc5acc93872cd7a440d7c517cad72f1ddc"
+      "lastModified": "2026-11-20T23:37:23.409Z",
+      "checksum": "9b57f216822f7a1767f3343628c8f2ab894d915286a7b8fe3bab4d89ecb06e6b"
     }
   }
 ]

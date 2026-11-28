@@ -51,13 +51,23 @@ export * from './lib/components/task-gantt/task-gantt.component.js';
 export * from './lib/components/task-template-wizard/task-template-wizard.component.js';
 export * from './lib/components/task-dashboard/task-dashboard.component.js';
 export * from './lib/components/task-panel/task-panel.component.js';
+export * from './lib/components/task-drawer-shell/task-drawer-shell.component.js';
+export * from './lib/components/record-link-picker/record-link-picker-dialog.component.js';
+export * from './lib/components/connected-tasks-host/connected-tasks-host.component.js';
 export * from './lib/components/approval-decision-panel/approval-decision-panel.component.js';
+export * from './lib/components/approval-decision-panel/base-approval-subject-panel.js';
+export * from './lib/components/approval-decision-panel/timesheet-part-approval-panel.component.js';
 export * from './lib/components/approval-inbox/approval-inbox.component.js';
 export * from './lib/current-person.js';
 export * from './lib/role-assignees.js';
 export * from './lib/task-record-links.js';
+export * from './lib/components/running-timer-chip/running-timer-chip.component.js';
+export * from './lib/components/task-time-effort/task-time-effort.component.js';
+export * from './lib/components/time-approvers/time-approvers.component.js';
+export * from './lib/components/my-time/my-time.component.js';
 export * from './lib/components/task-overview/task-overview.component.js';
 export * from './lib/form-panels/task-overview.panel.js';
+export * from './lib/form-panels/task-time.panel.js';
 export * from './lib/form-panels/task-header.panel.js';
 export * from './lib/form-panels/task-category-hierarchy.panel.js';
 export * from './lib/form-panels/task-template-item-hierarchy.panel.js';
@@ -65,9 +75,14 @@ export * from './lib/form-panels/task-template-item-hierarchy.panel.js';
 // Pages & Section Resources
 export * from './lib/pages/tasks-dashboard.page.js';
 export * from './lib/pages/my-tasks.page.js';
+export * from './lib/pages/my-time.page.js';
 export * from './lib/pages/approvals.page.js';
 export * from './lib/pages/templates.page.js';
 export * from './lib/sections/tasks-sections.component.js';
+export * from './lib/chief-of-staff/chief-of-staff-work-reports.component.js';
+
+// Cross-version helpers
+export * from './lib/task-field-suggestions.helper.js';
 
 // Meetings (the meetings plan, § 5)
 export * from './lib/meetings/meeting-data.js';

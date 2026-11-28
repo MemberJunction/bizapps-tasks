@@ -1,5 +1,7 @@
-import { BaseEntity, CompositeKey, Metadata, RunView, UserInfo, type IMetadataProvider } from "@memberjunction/core";
+import { CompositeKey, IMetadataProvider, IRunViewProvider, LogError, Metadata, RunView, UserInfo } from "@memberjunction/core";
+import type { mjBizAppsTasksTaskAssignmentEntity } from "@mj-biz-apps/tasks-entities";
 import { TaskService } from "./TaskService.js";
+import { GuidLiteral } from "./sql-guards.js";
 
 /**
  * Service for managing task assignments.
@@ -15,9 +17,15 @@ export class TaskAssignmentService {
      * Assigns an entity record (Person or Agent) to a task with an optional role.
      * Logs an activity entry after successful assignment.
      *
-     * @throws when the assignment does not save. A refused save used to return the unsaved entity
-     * with an ID already on it, so the caller recorded an assignment with no row behind it and the
-     * task was assigned to no one. No activity is logged for a refused assignment.
+     * Pass `provider` to create the assignment and activity on the caller's transactional
+     * provider instead of the process-global provider.
+     *
+     * On an approval task the server decides who may add an assignee (the requester while the request
+     * is open, otherwise a holder of the reassign right, and nobody may add themselves). Server code
+     * that chose the assignee itself passes `beforeSave: SanctionApprovalAssignment` from
+     * `@mj-biz-apps/tasks-entities-server`; in a browser that function does nothing.
+     *
+     * @throws when the assignment does not save. No activity is logged for a refused assignment.
      */
     async assignToTask(params: {
         taskID: string;
@@ -26,19 +34,28 @@ export class TaskAssignmentService {
         roleID?: string;
         roleNotes?: string;
         assignedByPersonID?: string;
-    }, contextUser?: UserInfo): Promise<BaseEntity> {
-        const assignment = await this.provider.GetEntityObject('MJ_BizApps_Tasks: Task Assignments', contextUser);
+        /** Called with the unsaved assignment just before it is saved. */
+        beforeSave?: (assignment: mjBizAppsTasksTaskAssignmentEntity) => void | Promise<void>;
+    }, contextUser?: UserInfo, provider?: IMetadataProvider): Promise<mjBizAppsTasksTaskAssignmentEntity> {
+        const effectiveProvider = provider ?? this.provider;
+        const assignment = await effectiveProvider.GetEntityObject<mjBizAppsTasksTaskAssignmentEntity>(
+            'MJ_BizApps_Tasks: Task Assignments',
+            contextUser,
+        );
         assignment.NewRecord();
-        assignment.Set('TaskID', params.taskID);
-        assignment.Set('AssigneeEntityID', params.assigneeEntityID);
-        assignment.Set('AssigneeRecordID', params.assigneeRecordID);
-        if (params.roleID) assignment.Set('RoleID', params.roleID);
-        if (params.roleNotes) assignment.Set('RoleNotes', params.roleNotes);
-        if (params.assignedByPersonID) assignment.Set('AssignedByPersonID', params.assignedByPersonID);
+        assignment.TaskID = params.taskID;
+        assignment.AssigneeEntityID = params.assigneeEntityID;
+        assignment.AssigneeRecordID = params.assigneeRecordID;
+        if (params.roleID) assignment.RoleID = params.roleID;
+        if (params.roleNotes) assignment.RoleNotes = params.roleNotes;
+        if (params.assignedByPersonID) assignment.AssignedByPersonID = params.assignedByPersonID;
 
+        if (params.beforeSave) await params.beforeSave(assignment);
         if (!(await assignment.Save())) {
+            const detail = assignment.LatestResult?.CompleteMessage ?? 'the save was refused without a reason';
+            LogError(`TaskAssignmentService.assignToTask: failed to save assignment for task ${params.taskID}: ${detail}`);
             throw new Error(
-                `Failed to assign ${params.assigneeRecordID} to task ${params.taskID}: ${assignment.LatestResult?.CompleteMessage ?? 'the save was refused without a reason'}`,
+                `Failed to assign ${params.assigneeRecordID} to task ${params.taskID}: ${detail}`,
             );
         }
 
@@ -48,23 +65,42 @@ export class TaskAssignmentService {
             activityType: 'AssignmentAdded',
             newValue: params.assigneeRecordID,
             description: `Assignee added to task`,
-        }, contextUser);
+        }, contextUser, effectiveProvider);
 
         return assignment;
     }
 
     /**
      * Removes an assignment and logs the removal.
+     *
+     * @throws when the assignment cannot be loaded or the delete is refused (no activity is logged on refusal).
      */
-    async removeAssignment(assignmentID: string, removedByPersonID?: string): Promise<void> {
-        const assignment = await Metadata.Provider.GetEntityObject('MJ_BizApps_Tasks: Task Assignments');
+    async removeAssignment(
+        assignmentID: string,
+        removedByPersonID?: string,
+        contextUser?: UserInfo,
+        provider?: IMetadataProvider,
+    ): Promise<void> {
+        const effectiveProvider = provider ?? this.provider;
+        const assignment = await effectiveProvider.GetEntityObject<mjBizAppsTasksTaskAssignmentEntity>(
+            'MJ_BizApps_Tasks: Task Assignments',
+            contextUser,
+        );
         const pk = new CompositeKey([{ FieldName: 'ID', Value: assignmentID }]);
-        await assignment.InnerLoad(pk);
+        const loaded = await assignment.InnerLoad(pk);
+        if (!loaded) {
+            throw new Error(`Task assignment '${assignmentID}' not found`);
+        }
 
-        const taskID = assignment.Get('TaskID') as string;
-        const assigneeRecordID = assignment.Get('AssigneeRecordID') as string;
+        const taskID = assignment.TaskID;
+        const assigneeRecordID = assignment.AssigneeRecordID;
 
-        await assignment.Delete();
+        const deleted = await assignment.Delete();
+        if (!deleted) {
+            throw new Error(
+                `Failed to remove assignment '${assignmentID}' from task ${taskID}: ${assignment.LatestResult?.CompleteMessage ?? 'the delete was refused without a reason'}`,
+            );
+        }
 
         await this.taskService.logActivity({
             taskID,
@@ -72,19 +108,26 @@ export class TaskAssignmentService {
             activityType: 'AssignmentRemoved',
             previousValue: assigneeRecordID,
             description: `Assignee removed from task`,
-        });
+        }, contextUser, effectiveProvider);
     }
 
     /**
      * Returns all assignments for a given task.
+     *
+     * @throws when `taskID` is not a UUID — it reaches SQL text, so an invalid value fails loudly.
      */
-    async getAssignmentsForTask(taskID: string): Promise<BaseEntity[]> {
-        const rv = new RunView();
-        const result = await rv.RunView<BaseEntity>({
+    async getAssignmentsForTask(
+        taskID: string,
+        contextUser?: UserInfo,
+        provider?: IRunViewProvider,
+    ): Promise<mjBizAppsTasksTaskAssignmentEntity[]> {
+        const taskLiteral = GuidLiteral(taskID, 'TaskID');
+        const rv = new RunView(provider);
+        const result = await rv.RunView<mjBizAppsTasksTaskAssignmentEntity>({
             EntityName: 'MJ_BizApps_Tasks: Task Assignments',
-            ExtraFilter: `TaskID = '${taskID}'`,
+            ExtraFilter: `TaskID = ${taskLiteral}`,
             ResultType: 'entity_object',
-        });
+        }, contextUser);
         return result?.Results ?? [];
     }
 }

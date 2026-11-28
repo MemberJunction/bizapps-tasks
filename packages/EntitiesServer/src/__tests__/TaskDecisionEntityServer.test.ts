@@ -17,6 +17,7 @@ const db = {
     settings: new Map<string, string>(),
     task: { ID: TASK_ID, TypeID: TYPE_ID, CreatedByPersonID: OTHER_PERSON as string | null },
     isApproval: true,
+    requiresAssigneeDecision: false,
     assignments: [{ ID: 'asg-1', AssigneeEntityID: PEOPLE_ID, AssigneeRecordID: PERSON_ID, Status: 'Pending' as 'Pending' | 'InProgress' | 'Completed' }],
     people: [{ ID: PERSON_ID }],
     roles: [{ ID: ROLE_ID }],
@@ -34,16 +35,23 @@ function viewResult(entityName: string, filter: string, fields?: string[]): { Su
             return db.failTaskLookup ? { Success: false, Results: [], ErrorMessage: 'database unavailable' } : { Success: true, Results: [db.task] };
         case 'MJ_BizApps_Tasks: Task Assignments': return { Success: true, Results: db.assignments };
         case 'MJ_BizApps_Common: People': return { Success: true, Results: db.people };
-        case 'MJ_BizApps_Tasks: Task Types': return { Success: true, Results: [{ IsApproval: db.isApproval }] };
+        case 'MJ_BizApps_Tasks: Task Types': return { Success: true, Results: [{ IsApproval: db.isApproval, RequiresAssigneeDecision: db.requiresAssigneeDecision }] };
         case 'MJ: Roles': return { Success: true, Results: db.roles };
         case 'MJ: User Roles': return { Success: true, Results: db.userRoles };
         default: return { Success: false, Results: [], ErrorMessage: `unexpected entity ${entityName}` };
     }
 }
 
-vi.mock('@memberjunction/global', () => ({
-    RegisterClass: () => () => {},
-    IsValidUUID: (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
+vi.mock('@memberjunction/global', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@memberjunction/global')>();
+    return {
+        ...actual,
+        RegisterClass: () => () => {},
+    };
+});
+
+vi.mock('@mj-biz-apps/common-entities', () => ({
+    BusinessTimeZoneEngine: { Instance: {} },
 }));
 
 vi.mock('@memberjunction/core-entities', () => ({
@@ -65,7 +73,15 @@ vi.mock('@memberjunction/core', () => {
     };
     return {
         BaseEntity: class {},
+        BaseEngine: class {
+            public static getInstance() {
+                return {};
+            }
+        },
+        BaseRemotableOperation: class {},
+        CompositeKey: class { constructor(public KeyValuePairs: unknown[]) {} },
         LogError: vi.fn(),
+        LogStatus: vi.fn(),
         Metadata: { Provider: provider },
         RunView: class {
             async RunViews(params: Array<{ EntityName: string; ExtraFilter: string; Fields?: string[] }>) {
@@ -75,6 +91,7 @@ vi.mock('@memberjunction/core', () => {
                 return viewResult(p.EntityName, p.ExtraFilter, p.Fields);
             }
         },
+        UserInfo: class {},
         ValidationResult,
         ValidationErrorInfo,
     };
@@ -98,7 +115,6 @@ vi.mock('@mj-biz-apps/tasks-entities', () => ({
 }));
 
 const { TaskDecisionEntityServer } = await import('../TaskDecisionEntityServer.js');
-const { TasksSettings } = await import('../TasksSettings.js');
 
 function decision(): InstanceType<typeof TaskDecisionEntityServer> {
     return new TaskDecisionEntityServer();
@@ -109,6 +125,7 @@ describe('TaskDecisionEntityServer', () => {
         db.settings = new Map([['PreventSelfApproval', 'true']]);
         db.task = { ID: TASK_ID, TypeID: TYPE_ID, CreatedByPersonID: OTHER_PERSON };
         db.isApproval = true;
+        db.requiresAssigneeDecision = false;
         db.assignments = [{ ID: 'asg-1', AssigneeEntityID: PEOPLE_ID, AssigneeRecordID: PERSON_ID, Status: 'Pending' }];
         db.people = [{ ID: PERSON_ID }];
         db.roles = [{ ID: ROLE_ID }];
@@ -122,11 +139,29 @@ describe('TaskDecisionEntityServer', () => {
         expect(decision().DefaultSkipAsyncValidation).toBe(false);
     });
 
-    it('reads nothing and accepts while PreventSelfApproval is unset', async () => {
+    it('enforces the guard by default: an unset PreventSelfApproval still refuses the creator', async () => {
         db.settings = new Map();
+        db.task.CreatedByPersonID = PERSON_ID;
+        const result = await decision().ValidateAsync();
+        expect(result.Success).toBe(false);
+        expect(result.Errors[0].Message).toMatch(/Nobody may approve their own request/);
+    });
+
+    it('accepts when PreventSelfApproval is explicitly false and task type does not require assignee decision', async () => {
+        db.settings = new Map([['PreventSelfApproval', 'false']]);
+        db.task.CreatedByPersonID = PERSON_ID;
+        db.assignments = [];
         const result = await decision().ValidateAsync();
         expect(result.Success).toBe(true);
-        expect(filtersSeen).toEqual([]);
+    });
+
+    it('enforces assignee and no-self-approval rules when RequiresAssigneeDecision is true even if PreventSelfApproval is explicitly false (D13)', async () => {
+        db.settings = new Map([['PreventSelfApproval', 'false']]);
+        db.requiresAssigneeDecision = true;
+        db.task.CreatedByPersonID = PERSON_ID;
+        const result = await decision().ValidateAsync();
+        expect(result.Success).toBe(false);
+        expect(result.Errors[0].Message).toMatch(/Nobody may approve their own request/);
     });
 
     it('accepts an assignee deciding a task someone else created', async () => {
@@ -209,6 +244,15 @@ describe('TaskDecisionEntityServer', () => {
     });
 
     it('refuses a save with no signed-in user while the guard is on', async () => {
+        const d = decision();
+        d.ContextCurrentUser = null;
+        const result = await d.ValidateAsync();
+        expect(result.Success).toBe(false);
+        expect(result.Errors[0].Message).toMatch(/without a signed-in user/);
+    });
+
+    it('refuses a save with no signed-in user even when the setting is unset (fails closed by default)', async () => {
+        db.settings = new Map();
         const d = decision();
         d.ContextCurrentUser = null;
         const result = await d.ValidateAsync();

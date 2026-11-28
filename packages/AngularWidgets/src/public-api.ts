@@ -22,3 +22,6 @@ export * from './lib/meeting-series-editor.component';
 export * from './lib/new-meeting-dialog.component';
 
 export function LoadTasksMeetingWidgets(): void {}
+
+// Reusable Tasks L1/L2 widgets (zero Explorer or Router dependencies)
+export * from './lib/tasks/index';
